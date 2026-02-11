@@ -1,0 +1,110 @@
+# generated: 2026-02-11
+# project: ApiGateway
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: G:\Projects\ApiGateway\_bmad-output\implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-11
+project: ApiGateway
+project_key: NOKEY
+tracking_system: file-system
+story_location: "G:\\Projects\\ApiGateway\\_bmad-output\\implementation-artifacts"
+
+development_status:
+  # Epic 1: Project Foundation & Gateway Core
+  epic-1: in-progress
+  1-1-project-scaffolding-monorepo-setup: done
+  1-2-database-setup-initial-migrations: backlog
+  1-3-basic-gateway-routing: backlog
+  1-4-error-handling-upstream-failures: backlog
+  1-5-configuration-hot-reload: backlog
+  1-6-request-logging-correlation-ids: backlog
+  1-7-health-checks-docker-compose: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: User Authentication & Access Control
+  epic-2: backlog
+  2-1-user-entity-database-schema: backlog
+  2-2-jwt-authentication-service: backlog
+  2-3-authentication-middleware: backlog
+  2-4-role-based-access-control: backlog
+  2-5-admin-ui-login-page: backlog
+  2-6-user-management-admin: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Route Management (Self-Service)
+  epic-3: backlog
+  3-1-route-crud-api: backlog
+  3-2-route-list-api-filtering-search: backlog
+  3-3-route-details-clone-api: backlog
+  3-4-routes-list-ui: backlog
+  3-5-route-create-edit-form-ui: backlog
+  3-6-route-details-view-clone-ui: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Approval Workflow
+  epic-4: backlog
+  4-1-submit-approval-api: backlog
+  4-2-approval-rejection-api: backlog
+  4-3-pending-approvals-list-api: backlog
+  4-4-route-status-tracking: backlog
+  4-5-submit-approval-ui: backlog
+  4-6-pending-approvals-ui-inline-actions: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Rate Limiting
+  epic-5: backlog
+  5-1-rate-limit-policy-crud-api: backlog
+  5-2-assign-rate-limit-route-api: backlog
+  5-3-rate-limiting-filter-implementation: backlog
+  5-4-rate-limit-policies-management-ui: backlog
+  5-5-assign-rate-limit-route-ui: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Monitoring & Observability
+  epic-6: backlog
+  6-1-metrics-collection-micrometer: backlog
+  6-2-per-route-metrics: backlog
+  6-3-metrics-summary-api: backlog
+  6-4-prometheus-grafana-setup: backlog
+  6-5-basic-metrics-view-admin-ui: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Audit & Compliance
+  epic-7: backlog
+  7-1-audit-log-entity-event-recording: backlog
+  7-2-audit-log-api-filtering: backlog
+  7-3-route-change-history-api: backlog
+  7-4-routes-upstream-filter: backlog
+  7-5-audit-log-ui: backlog
+  7-6-route-history-upstream-report-ui: backlog
+  epic-7-retrospective: optional
