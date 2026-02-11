@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: gateway-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gateway}
+      POSTGRES_USER: ${POSTGRES_USER:-gateway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gateway}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gateway}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gateway-network
+
+  redis:
+    image: redis:7
+    container_name: gateway-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gateway-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  gateway-network:
+    driver: bridge

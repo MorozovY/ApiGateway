@@ -1,0 +1,16 @@
+# Development overrides
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: gateway
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: gateway
+
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
