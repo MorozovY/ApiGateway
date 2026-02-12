@@ -249,7 +249,7 @@ npm create vite@latest frontend/admin-ui -- --template react-ts
 | Область | Конвенция | Примеры |
 |---------|-----------|---------|
 | **Database tables** | snake_case (plural) | `routes`, `rate_limits`, `audit_logs` |
-| **Database columns** | camelCase | `userId`, `createdAt`, `upstreamUrl` |
+| **Database columns** | snake_case | `user_id`, `created_at`, `upstream_url` |
 | **API JSON fields** | camelCase | `{ "routeId": 1, "upstreamUrl": "..." }` |
 | **Kotlin variables** | camelCase | `val routeId`, `fun findByPath()` |
 | **Kotlin classes** | PascalCase | `RouteService`, `RateLimitRepository` |
@@ -382,15 +382,16 @@ data class AuditEvent(
 ### Enforcement Guidelines
 
 **All AI Agents MUST:**
-- Использовать camelCase для JSON полей и DB columns
+- Использовать snake_case для DB columns, camelCase для JSON полей
 - Следовать структуре features/ для React компонентов
 - Возвращать RFC 7807 для всех ошибок
 - Включать correlationId во все логи и ответы
 - Использовать Flyway для всех изменений схемы
 
 **Anti-Patterns (избегать):**
-- ❌ snake_case в JSON: `{ "user_id": 1 }`
-- ❌ Смешение стилей: `userId` и `created_at` в одном объекте
+- ❌ snake_case в JSON: `{ "user_id": 1 }` (JSON должен быть camelCase)
+- ❌ camelCase в DB columns: `userId` (PostgreSQL требует кавычки для camelCase)
+- ❌ Смешение стилей в одном слое
 - ❌ Тесты вне `src/test/`
 - ❌ Компоненты вне `features/` или `shared/`
 
@@ -631,7 +632,7 @@ External Request → gateway-core → Redis (rate limit) → Upstream Service
 - JWT + Spring Security — стандартная интеграция
 
 **Pattern Consistency:**
-- camelCase используется везде (DB columns, API JSON, Kotlin code)
+- snake_case для DB (tables и columns), camelCase для API JSON и Kotlin code
 - PascalCase для React компонентов и Kotlin классов
 - RFC 7807 для всех API ошибок
 - Структура features/ для frontend модулей

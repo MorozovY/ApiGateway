@@ -13,6 +13,7 @@ dependencies {
 
     // R2DBC PostgreSQL
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
+    implementation("io.r2dbc:r2dbc-pool")
     runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.4.RELEASE")
 
     // Flyway for migrations
@@ -42,6 +43,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.springframework.security:spring-security-test")
+    testImplementation("org.testcontainers:postgresql:1.19.5")
+    testImplementation("org.testcontainers:r2dbc:1.19.5")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.5")
 }
 
 java {

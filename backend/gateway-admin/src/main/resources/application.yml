@@ -8,11 +8,16 @@ spring:
     url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway}
     username: ${POSTGRES_USER:gateway}
     password: ${POSTGRES_PASSWORD:gateway}
+    pool:
+      initial-size: 2
+      max-size: 10
+      max-idle-time: 30m
   flyway:
     enabled: true
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway}
     user: ${POSTGRES_USER:gateway}
     password: ${POSTGRES_PASSWORD:gateway}
+    locations: classpath:db/migration
     baseline-on-migrate: true
   data:
     redis:
