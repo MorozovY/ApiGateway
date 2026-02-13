@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: gateway-core
+  r2dbc:
+    url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway}
+    username: ${POSTGRES_USER:gateway}
+    password: ${POSTGRES_PASSWORD:gateway}
+    pool:
+      initial-size: 2
+      max-size: 5
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -12,6 +19,16 @@ spring:
     gateway:
       metrics:
         enabled: true
+      default-filters:
+        # Remove hop-by-hop headers (RFC 2616 Section 13.5.1)
+        - RemoveRequestHeader=Connection
+        - RemoveRequestHeader=Keep-Alive
+        - RemoveRequestHeader=Proxy-Authenticate
+        - RemoveRequestHeader=Proxy-Authorization
+        - RemoveRequestHeader=TE
+        - RemoveRequestHeader=Trailer
+        - RemoveRequestHeader=Transfer-Encoding
+        - RemoveRequestHeader=Upgrade
 
 management:
   endpoints:

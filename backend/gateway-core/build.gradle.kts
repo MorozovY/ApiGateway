@@ -19,6 +19,11 @@ dependencies {
     // Spring Cloud Gateway
     implementation("org.springframework.cloud:spring-cloud-starter-gateway")
 
+    // R2DBC PostgreSQL (for route loading from DB)
+    implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
+    implementation("io.r2dbc:r2dbc-pool")
+    runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.4.RELEASE")
+
     // Redis Reactive
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 
@@ -37,6 +42,15 @@ dependencies {
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+    testImplementation("org.testcontainers:postgresql:1.19.5")
+    testImplementation("org.testcontainers:r2dbc:1.19.5")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.5")
+    testImplementation("org.wiremock:wiremock-standalone:3.3.1")
+    // Flyway for test schema setup (JDBC-based, runs before R2DBC)
+    testImplementation("org.flywaydb:flyway-core")
+    testImplementation("org.flywaydb:flyway-database-postgresql")
+    testRuntimeOnly("org.postgresql:postgresql")
 }
 
 java {
