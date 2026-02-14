@@ -2,14 +2,13 @@ package com.company.gateway.core.route
 
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
-import com.company.gateway.core.repository.RouteRepository
+import com.company.gateway.core.cache.RouteCacheManager
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.whenever
-import reactor.core.publisher.Flux
 import reactor.test.StepVerifier
 import java.time.Instant
 import java.util.UUID
@@ -18,17 +17,17 @@ import java.util.UUID
 class DynamicRouteLocatorTest {
 
     @Mock
-    private lateinit var routeRepository: RouteRepository
+    private lateinit var cacheManager: RouteCacheManager
 
     @InjectMocks
     private lateinit var dynamicRouteLocator: DynamicRouteLocator
 
     @Test
-    fun `getRoutes should return routes for published status only`() {
+    fun `getRoutes should return routes from cache`() {
         val publishedRoute = createRoute("/api/orders", "http://order-service:8080", RouteStatus.PUBLISHED)
 
-        whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
-            .thenReturn(Flux.just(publishedRoute))
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(publishedRoute))
 
         StepVerifier.create(dynamicRouteLocator.getRoutes())
             .expectNextMatches { route ->
@@ -39,24 +38,39 @@ class DynamicRouteLocatorTest {
     }
 
     @Test
-    fun `getRoutes should return empty when no published routes`() {
-        whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
-            .thenReturn(Flux.empty())
+    fun `getRoutes should return empty when cache is empty`() {
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(emptyList())
 
         StepVerifier.create(dynamicRouteLocator.getRoutes())
             .verifyComplete()
     }
 
     @Test
-    fun `getRoutes should return multiple routes`() {
+    fun `getRoutes should return multiple routes from cache`() {
         val route1 = createRoute("/api/orders", "http://order-service:8080", RouteStatus.PUBLISHED)
         val route2 = createRoute("/api/users", "http://user-service:8080", RouteStatus.PUBLISHED)
 
-        whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
-            .thenReturn(Flux.just(route1, route2))
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(route1, route2))
 
         StepVerifier.create(dynamicRouteLocator.getRoutes().collectList())
             .expectNextMatches { routes -> routes.size == 2 }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `getRoutes should skip routes with null id`() {
+        val validRoute = createRoute("/api/orders", "http://order-service:8080", RouteStatus.PUBLISHED)
+        val nullIdRoute = createRoute("/api/null", "http://null-service:8080", RouteStatus.PUBLISHED).copy(id = null)
+
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(validRoute, nullIdRoute))
+
+        StepVerifier.create(dynamicRouteLocator.getRoutes().collectList())
+            .expectNextMatches { routes ->
+                routes.size == 1 && routes[0].id == validRoute.id.toString()
+            }
             .verifyComplete()
     }
 

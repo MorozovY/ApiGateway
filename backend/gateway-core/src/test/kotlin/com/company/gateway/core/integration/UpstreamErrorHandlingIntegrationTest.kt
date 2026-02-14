@@ -2,9 +2,11 @@ package com.company.gateway.core.integration
 
 import com.company.gateway.common.exception.ErrorResponse
 import com.company.gateway.common.model.RouteStatus
+import com.company.gateway.core.cache.RouteCacheManager
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import com.redis.testcontainers.RedisContainer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
@@ -12,8 +14,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.cloud.gateway.event.RefreshRoutesEvent
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -47,6 +47,10 @@ class UpstreamErrorHandlingIntegrationTest {
             .withUsername("gateway")
             .withPassword("gateway")
 
+        @Container
+        @JvmStatic
+        val redis = RedisContainer("redis:7")
+
         lateinit var wireMock: WireMockServer
 
         // Port that is guaranteed to be closed (no service listening)
@@ -77,13 +81,15 @@ class UpstreamErrorHandlingIntegrationTest {
             registry.add("spring.flyway.url", postgres::getJdbcUrl)
             registry.add("spring.flyway.user", postgres::getUsername)
             registry.add("spring.flyway.password", postgres::getPassword)
-            // Disable Redis for integration tests
-            registry.add("spring.autoconfigure.exclude") {
-                "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration," +
-                "org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
-            }
+            // Redis configuration
+            registry.add("spring.data.redis.host", redis::getHost)
+            registry.add("spring.data.redis.port") { redis.firstMappedPort }
+            // Cache configuration
+            registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
+            registry.add("gateway.cache.ttl-seconds") { 60 }
+            registry.add("gateway.cache.max-routes") { 1000 }
             // Set short timeout for faster tests
-            registry.add("spring.cloud.gateway.httpclient.connect-timeout") { "2000" }
+            registry.add("spring.cloud.gateway.httpclient.connect-timeout") { 2000 }
             registry.add("spring.cloud.gateway.httpclient.response-timeout") { "3s" }
         }
     }
@@ -95,15 +101,13 @@ class UpstreamErrorHandlingIntegrationTest {
     private lateinit var databaseClient: DatabaseClient
 
     @Autowired
-    private lateinit var eventPublisher: ApplicationEventPublisher
+    private lateinit var cacheManager: RouteCacheManager
 
     @BeforeEach
     fun clearRoutes() {
         databaseClient.sql("DELETE FROM routes").fetch().rowsUpdated().block()
-    }
-
-    private fun refreshRoutes() {
-        eventPublisher.publishEvent(RefreshRoutesEvent(this))
+        // Refresh cache to clear it
+        cacheManager.refreshCache().block()
     }
 
     @AfterEach
@@ -409,8 +413,7 @@ class UpstreamErrorHandlingIntegrationTest {
             .fetch()
             .rowsUpdated()
             .block()
-        refreshRoutes()
-        // Wait for routes to be refreshed (async event processing)
-        Thread.sleep(100)
+        // Refresh cache to pick up newly inserted routes
+        cacheManager.refreshCache().block()
     }
 }

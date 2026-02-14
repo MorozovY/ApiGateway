@@ -1,7 +1,6 @@
 package com.company.gateway.core.route
 
-import com.company.gateway.common.model.RouteStatus
-import com.company.gateway.core.repository.RouteRepository
+import com.company.gateway.core.cache.RouteCacheManager
 import org.slf4j.LoggerFactory
 import org.springframework.cloud.gateway.route.Route
 import org.springframework.cloud.gateway.route.RouteLocator
@@ -11,13 +10,13 @@ import java.net.URI
 
 @Component
 class DynamicRouteLocator(
-    private val routeRepository: RouteRepository
+    private val cacheManager: RouteCacheManager
 ) : RouteLocator {
 
     private val log = LoggerFactory.getLogger(DynamicRouteLocator::class.java)
 
     override fun getRoutes(): Flux<Route> {
-        return routeRepository.findByStatus(RouteStatus.PUBLISHED)
+        return Flux.fromIterable(cacheManager.getCachedRoutes())
             .filter { dbRoute ->
                 // Filter out routes with null id (should not happen in normal operation)
                 if (dbRoute.id == null) {
@@ -38,7 +37,7 @@ class DynamicRouteLocator(
                     .build()
             }
             .onErrorResume { ex ->
-                log.error("Failed to load routes from database: ${ex.message}", ex)
+                log.error("Failed to load routes from cache: ${ex.message}", ex)
                 Flux.empty()
             }
     }

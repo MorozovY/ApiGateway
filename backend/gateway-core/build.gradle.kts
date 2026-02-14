@@ -27,6 +27,9 @@ dependencies {
     // Redis Reactive
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 
+    // Caffeine cache (for local cache fallback when Redis unavailable)
+    implementation("com.github.ben-manes.caffeine:caffeine")
+
     // Actuator
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
@@ -46,6 +49,8 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.19.5")
     testImplementation("org.testcontainers:r2dbc:1.19.5")
     testImplementation("org.testcontainers:junit-jupiter:1.19.5")
+    testImplementation("com.redis:testcontainers-redis:2.2.2")
+    testImplementation("org.awaitility:awaitility-kotlin:4.2.0")
     testImplementation("org.wiremock:wiremock-standalone:3.3.1")
     // Flyway for test schema setup (JDBC-based, runs before R2DBC)
     testImplementation("org.flywaydb:flyway-core")

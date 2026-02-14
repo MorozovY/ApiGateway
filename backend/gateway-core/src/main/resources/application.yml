@@ -1,6 +1,12 @@
 server:
   port: 8080
 
+gateway:
+  cache:
+    invalidation-channel: route-cache-invalidation
+    ttl-seconds: 60
+    max-routes: 1000
+
 spring:
   application:
     name: gateway-core
@@ -21,8 +27,8 @@ spring:
         enabled: true
       # Upstream timeout configuration (Story 1.4)
       httpclient:
-        connect-timeout: 5s   # 5 seconds to establish TCP connection
-        response-timeout: 30s # 30 seconds to receive response from upstream
+        connect-timeout: 5000   # 5 seconds to establish TCP connection (in milliseconds)
+        response-timeout: 30s   # 30 seconds to receive response from upstream
       default-filters:
         # Remove hop-by-hop headers (RFC 2616 Section 13.5.1)
         - RemoveRequestHeader=Connection
