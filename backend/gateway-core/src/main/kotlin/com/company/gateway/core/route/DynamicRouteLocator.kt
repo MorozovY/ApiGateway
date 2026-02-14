@@ -32,7 +32,11 @@ class DynamicRouteLocator(
                     .uri(URI.create(dbRoute.upstreamUrl))
                     .predicate { exchange ->
                         val path = exchange.request.path.value()
-                        matchesPrefix(path, dbRoute.path)
+                        val method = exchange.request.method.name()
+                        val pathMatches = matchesPrefix(path, dbRoute.path)
+                        val methodMatches = dbRoute.methods.isEmpty() ||
+                            dbRoute.methods.any { it.equals(method, ignoreCase = true) }
+                        pathMatches && methodMatches
                     }
                     .build()
             }

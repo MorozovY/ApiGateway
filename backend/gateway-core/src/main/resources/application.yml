@@ -28,7 +28,7 @@ spring:
       # Upstream timeout configuration (Story 1.4)
       httpclient:
         connect-timeout: 5000   # 5 seconds to establish TCP connection (in milliseconds)
-        response-timeout: 30s   # 30 seconds to receive response from upstream
+        response-timeout: 30000 # 30 seconds to receive response from upstream (in milliseconds)
       default-filters:
         # Remove hop-by-hop headers (RFC 2616 Section 13.5.1)
         - RemoveRequestHeader=Connection

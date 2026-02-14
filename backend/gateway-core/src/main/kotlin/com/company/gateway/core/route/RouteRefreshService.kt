@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service
 import reactor.core.Disposable
 import reactor.core.publisher.Mono
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 @Service
 @ConditionalOnBean(ReactiveRedisConnectionFactory::class)
@@ -26,8 +28,11 @@ class RouteRefreshService(
     @Value("\${gateway.cache.invalidation-channel:route-cache-invalidation}")
     private lateinit var invalidationChannel: String
 
-    private var subscription: Disposable? = null
-    private var redisAvailable = true
+    private val subscription = AtomicReference<Disposable?>(null)
+    private val container = AtomicReference<ReactiveRedisMessageListenerContainer?>(null)
+    private val redisAvailable = AtomicBoolean(true)
+    private val reconnecting = AtomicBoolean(false)
+    private var reconnectSubscription: Disposable? = null
 
     @EventListener(ApplicationReadyEvent::class)
     fun subscribeToInvalidationEvents() {
@@ -35,10 +40,14 @@ class RouteRefreshService(
     }
 
     private fun startRedisSubscription() {
-        try {
-            val container = ReactiveRedisMessageListenerContainer(redisConnectionFactory)
+        // Cleanup previous subscription and container if they exist
+        cleanupCurrentSubscription()
 
-            subscription = container.receive(ChannelTopic.of(invalidationChannel))
+        try {
+            val newContainer = ReactiveRedisMessageListenerContainer(redisConnectionFactory)
+            container.set(newContainer)
+
+            val newSubscription = newContainer.receive(ChannelTopic.of(invalidationChannel))
                 .flatMap { message ->
                     logger.info("Cache invalidation event received on channel '{}': {}",
                         invalidationChannel, message.message)
@@ -46,11 +55,12 @@ class RouteRefreshService(
                 }
                 .doOnSubscribe {
                     logger.info("Subscribed to Redis channel '{}' for cache invalidation events", invalidationChannel)
-                    redisAvailable = true
+                    redisAvailable.set(true)
+                    reconnecting.set(false)
                 }
                 .doOnError { error ->
                     logger.warn("Redis subscription error, using Caffeine TTL fallback: {}", error.message)
-                    redisAvailable = false
+                    redisAvailable.set(false)
                     scheduleReconnect()
                 }
                 .onErrorResume { _ ->
@@ -58,15 +68,28 @@ class RouteRefreshService(
                     Mono.empty()
                 }
                 .subscribe()
+
+            subscription.set(newSubscription)
         } catch (e: Exception) {
             logger.warn("Failed to connect to Redis: {}. Using Caffeine cache with TTL fallback", e.message)
-            redisAvailable = false
+            redisAvailable.set(false)
             scheduleReconnect()
         }
     }
 
+    private fun cleanupCurrentSubscription() {
+        subscription.getAndSet(null)?.dispose()
+        container.getAndSet(null)?.destroy()
+    }
+
     private fun scheduleReconnect() {
-        Mono.delay(Duration.ofSeconds(30))
+        // Prevent multiple concurrent reconnect attempts
+        if (!reconnecting.compareAndSet(false, true)) {
+            return
+        }
+
+        reconnectSubscription?.dispose()
+        reconnectSubscription = Mono.delay(Duration.ofSeconds(30))
             .doOnNext {
                 logger.info("Attempting to reconnect to Redis...")
                 startRedisSubscription()
@@ -74,11 +97,12 @@ class RouteRefreshService(
             .subscribe()
     }
 
-    fun isRedisAvailable(): Boolean = redisAvailable
+    fun isRedisAvailable(): Boolean = redisAvailable.get()
 
     @PreDestroy
     fun cleanup() {
-        subscription?.dispose()
-        logger.info("Disposed Redis subscription")
+        reconnectSubscription?.dispose()
+        cleanupCurrentSubscription()
+        logger.info("Disposed Redis subscription and container")
     }
 }

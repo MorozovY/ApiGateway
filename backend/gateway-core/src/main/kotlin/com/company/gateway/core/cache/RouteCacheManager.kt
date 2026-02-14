@@ -29,7 +29,10 @@ class RouteCacheManager(
     @EventListener(ApplicationReadyEvent::class)
     fun initializeCache() {
         logger.info("Initializing route cache on startup")
-        refreshCache().block()
+        refreshCache()
+            .doOnSuccess { logger.info("Route cache initialized successfully") }
+            .doOnError { e -> logger.error("Failed to initialize route cache on startup: {}", e.message) }
+            .subscribe()
     }
 
     fun refreshCache(): Mono<Void> =

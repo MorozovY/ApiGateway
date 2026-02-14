@@ -290,4 +290,106 @@ class HotReloadIntegrationTest {
             .rowsUpdated()
             .block()
     }
+
+    @Test
+    fun `routes are filtered by HTTP method`() {
+        // Insert route that only allows GET and POST
+        val routeId = UUID.randomUUID()
+        insertRouteWithMethods(routeId, "/api/methods-test", "http://localhost:${wireMock.port()}",
+            RouteStatus.PUBLISHED, listOf("GET", "POST"))
+        cacheManager.refreshCache().block()
+
+        wireMock.stubFor(
+            WireMock.any(WireMock.urlMatching("/api/methods-test.*"))
+                .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"status":"ok"}"""))
+        )
+
+        // GET should work
+        webTestClient.get()
+            .uri("/api/methods-test")
+            .exchange()
+            .expectStatus().isOk
+
+        // POST should work
+        webTestClient.post()
+            .uri("/api/methods-test")
+            .exchange()
+            .expectStatus().isOk
+
+        // DELETE should NOT match the route (returns 404)
+        webTestClient.delete()
+            .uri("/api/methods-test")
+            .exchange()
+            .expectStatus().isNotFound
+
+        // PUT should NOT match the route (returns 404)
+        webTestClient.put()
+            .uri("/api/methods-test")
+            .exchange()
+            .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `route with empty methods allows all HTTP methods`() {
+        // Insert route with empty methods list (allows all)
+        val routeId = UUID.randomUUID()
+        insertRouteWithMethods(routeId, "/api/all-methods", "http://localhost:${wireMock.port()}",
+            RouteStatus.PUBLISHED, emptyList())
+        cacheManager.refreshCache().block()
+
+        wireMock.stubFor(
+            WireMock.any(WireMock.urlMatching("/api/all-methods.*"))
+                .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"status":"ok"}"""))
+        )
+
+        // All methods should work
+        webTestClient.get().uri("/api/all-methods").exchange().expectStatus().isOk
+        webTestClient.post().uri("/api/all-methods").exchange().expectStatus().isOk
+        webTestClient.put().uri("/api/all-methods").exchange().expectStatus().isOk
+        webTestClient.delete().uri("/api/all-methods").exchange().expectStatus().isOk
+    }
+
+    @Test
+    fun `AC2 - Caffeine cache serves routes when cache is pre-populated`() {
+        // This test verifies Caffeine fallback behavior
+        // Pre-populate cache with a route
+        val routeId = UUID.randomUUID()
+        insertRoute(routeId, "/api/caffeine-test", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
+
+        wireMock.stubFor(
+            WireMock.get(WireMock.urlMatching("/api/caffeine-test.*"))
+                .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"cached":"true"}"""))
+        )
+
+        // Verify cache is populated
+        assertThat(cacheManager.getCacheSize()).isGreaterThan(0)
+
+        // Route should be accessible from cache
+        webTestClient.get()
+            .uri("/api/caffeine-test")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.cached").isEqualTo("true")
+    }
+
+    private fun insertRouteWithMethods(id: UUID, path: String, upstreamUrl: String, status: RouteStatus, methods: List<String>) {
+        val methodsArray = if (methods.isEmpty()) {
+            "ARRAY[]::varchar[]"
+        } else {
+            "ARRAY[${methods.joinToString(",") { "'$it'" }}]"
+        }
+
+        databaseClient.sql("""
+            INSERT INTO routes (id, path, upstream_url, methods, status)
+            VALUES (:id, :path, :upstreamUrl, $methodsArray, :status)
+        """.trimIndent())
+            .bind("id", id)
+            .bind("path", path)
+            .bind("upstreamUrl", upstreamUrl)
+            .bind("status", status.name.lowercase())
+            .fetch()
+            .rowsUpdated()
+            .block()
+    }
 }

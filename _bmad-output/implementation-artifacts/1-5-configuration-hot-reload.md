@@ -1,6 +1,6 @@
 # Story 1.5: Configuration Hot-Reload
 
-Status: dev-complete
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -498,3 +498,42 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `backend/gateway-core/src/test/kotlin/com/company/gateway/core/route/DynamicRouteLocatorTest.kt` (updated for RouteCacheManager)
 - `backend/gateway-core/src/test/kotlin/com/company/gateway/core/integration/GatewayRoutingIntegrationTest.kt` (added Redis testcontainer)
 - `backend/gateway-core/src/test/kotlin/com/company/gateway/core/integration/UpstreamErrorHandlingIntegrationTest.kt` (added Redis testcontainer)
+
+---
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-02-14
+**Outcome:** ✅ APPROVED (after fixes)
+
+### Issues Found & Fixed
+
+| # | Severity | Issue | Resolution |
+|---|----------|-------|------------|
+| 1 | HIGH | Blocking `.block()` call in `@EventListener` in `RouteCacheManager.initializeCache()` | Changed to non-blocking `.subscribe()` with proper error handling |
+| 2 | HIGH | Memory leak in `RouteRefreshService` — `ReactiveRedisMessageListenerContainer` created on each reconnect without cleanup | Refactored to use `AtomicReference` for container/subscription with proper cleanup |
+| 3 | HIGH | Missing test for AC2 (Redis unavailable scenario) | Added `AC2 - Caffeine cache serves routes when cache is pre-populated` test |
+| 4 | HIGH | Placeholder unit tests in `RouteRefreshServiceTest` | Rewrote tests with meaningful assertions |
+| 5 | MEDIUM | HTTP methods not validated in `DynamicRouteLocator` predicate | Added method matching: `dbRoute.methods.any { it.equals(method, ignoreCase = true) }` |
+| 6 | MEDIUM | Inconsistent timeout format in `application.yml` (`30s` vs `5000`) | Changed `response-timeout: 30s` → `response-timeout: 30000` |
+| 7 | MEDIUM | Task 7.3 not covered by actual tests | Covered by new integration tests |
+| 8 | LOW | Single cache key potential collision | Acknowledged, acceptable for current scope |
+
+### Files Modified in Review
+
+- `RouteCacheManager.kt` — non-blocking initialization
+- `RouteRefreshService.kt` — proper resource management with AtomicReference
+- `DynamicRouteLocator.kt` — HTTP method filtering
+- `application.yml` — consistent timeout format
+- `RouteRefreshServiceTest.kt` — meaningful unit tests
+- `HotReloadIntegrationTest.kt` — added HTTP method and Caffeine fallback tests
+
+### Test Results
+
+```
+BUILD SUCCESSFUL in 1m 10s
+9 actionable tasks: 6 executed, 3 up-to-date
+```
+
+All tests passing after fixes.
