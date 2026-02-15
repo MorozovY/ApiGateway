@@ -36,6 +36,12 @@ dependencies {
     // Prometheus Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // Structured JSON logging (Story 1.6)
+    implementation("net.logstash.logback:logstash-logback-encoder:8.0")
+
+    // Reactor Context → MDC propagation (Story 1.6)
+    implementation("io.micrometer:context-propagation")
+
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 

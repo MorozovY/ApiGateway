@@ -1,6 +1,7 @@
 package com.company.gateway.core.exception
 
 import com.company.gateway.common.exception.ErrorResponse
+import com.company.gateway.core.filter.CorrelationIdFilter
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.netty.channel.ConnectTimeoutException
@@ -22,6 +23,7 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import reactor.util.context.Context
 import java.net.ConnectException
 import java.net.URI
 import java.util.concurrent.TimeoutException
@@ -41,6 +43,10 @@ import java.util.concurrent.TimeoutException
  */
 class GlobalExceptionHandlerTest {
 
+    companion object {
+        const val TEST_CORRELATION_ID = "test-correlation-id-12345"
+    }
+
     private lateinit var handler: GlobalExceptionHandler
     private val objectMapper = jacksonObjectMapper()
 
@@ -59,8 +65,11 @@ class GlobalExceptionHandlerTest {
             on { value() } doReturn "/api/test/resource"
         }
 
+        val requestHeaders: HttpHeaders = HttpHeaders()
+
         request = mock {
             on { path } doReturn requestPath
+            on { headers } doReturn requestHeaders
         }
 
         val headers: HttpHeaders = HttpHeaders()
@@ -95,7 +104,10 @@ class GlobalExceptionHandlerTest {
 
         setupResponseCapture()
 
-        StepVerifier.create(handler.handle(exchange, exception))
+        StepVerifier.create(
+            handler.handle(exchange, exception)
+                .contextWrite(Context.of(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, TEST_CORRELATION_ID))
+        )
             .verifyComplete()
 
         // Verify HTTP status code was set correctly
@@ -113,6 +125,9 @@ class GlobalExceptionHandlerTest {
         }
         assert(errorResponse.detail == "Upstream service is unavailable") {
             "Expected detail 'Upstream service is unavailable', got '${errorResponse.detail}'"
+        }
+        assert(errorResponse.correlationId == TEST_CORRELATION_ID) {
+            "Expected correlationId '$TEST_CORRELATION_ID', got '${errorResponse.correlationId}'"
         }
     }
 
@@ -313,6 +328,47 @@ class GlobalExceptionHandlerTest {
         // instance should be the request path
         assert(errorResponse.instance == "/api/test/resource") {
             "instance should be '/api/test/resource', got '${errorResponse.instance}'"
+        }
+    }
+
+    // ============================================
+    // Correlation ID in error responses (Story 1.6)
+    // ============================================
+
+    @Test
+    fun `error response includes correlation ID from context`() {
+        val exception = ConnectException("Connection refused")
+
+        setupResponseCapture()
+
+        StepVerifier.create(
+            handler.handle(exchange, exception)
+                .contextWrite(Context.of(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, TEST_CORRELATION_ID))
+        )
+            .verifyComplete()
+
+        val errorResponse = parseResponse()
+        assert(errorResponse.correlationId == TEST_CORRELATION_ID) {
+            "Expected correlationId '$TEST_CORRELATION_ID', got '${errorResponse.correlationId}'"
+        }
+    }
+
+    @Test
+    fun `error response generates UUID when correlation ID not in context or headers`() {
+        val exception = ConnectException("Connection refused")
+
+        setupResponseCapture()
+
+        // No context set - should generate a UUID
+        StepVerifier.create(handler.handle(exchange, exception))
+            .verifyComplete()
+
+        val errorResponse = parseResponse()
+        assert(errorResponse.correlationId != null) {
+            "Expected correlationId to be generated, got null"
+        }
+        assert(errorResponse.correlationId!!.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))) {
+            "Expected correlationId to be a valid UUID, got '${errorResponse.correlationId}'"
         }
     }
 

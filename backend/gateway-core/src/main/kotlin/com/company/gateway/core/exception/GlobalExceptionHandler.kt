@@ -1,10 +1,12 @@
 package com.company.gateway.core.exception
 
 import com.company.gateway.common.exception.ErrorResponse
+import com.company.gateway.core.filter.CorrelationIdFilter
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.netty.channel.ConnectTimeoutException
 import io.netty.handler.timeout.ReadTimeoutException
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler
 import org.springframework.cloud.gateway.support.NotFoundException
 import org.springframework.core.annotation.Order
@@ -33,47 +35,68 @@ class GlobalExceptionHandler(
     private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        val response = exchange.response
-        val requestPath = exchange.request.path.value()
+        return Mono.deferContextual { context ->
+            val response = exchange.response
+            val requestPath = exchange.request.path.value()
 
-        // Log the error for debugging (internal details ok for logs, not for response)
-        logUpstreamError(requestPath, ex)
+            // Extract correlation ID from Reactor Context, exchange attributes, or request header
+            // Priority: Context > Exchange Attribute > Request Header > Generate new
+            val correlationId: String = (context.getOrDefault<String>(
+                CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY,
+                exchange.getAttribute<String>(CorrelationIdFilter.CORRELATION_ID_ATTRIBUTE)
+                    ?: exchange.request.headers.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
+            ) ?: java.util.UUID.randomUUID().toString())
 
-        val (httpStatus, errorResponse) = resolveException(ex, requestPath)
+            // Set MDC for structured logging of error
+            MDC.put("correlationId", correlationId)
+            try {
+                // Log the error for debugging (internal details ok for logs, not for response)
+                logUpstreamError(requestPath, ex)
 
-        response.statusCode = httpStatus
-        response.headers.contentType = MediaType.APPLICATION_JSON
+                val (httpStatus, errorResponse) = resolveException(ex, requestPath, correlationId)
 
-        val bytes = objectMapper.writeValueAsBytes(errorResponse)
-        val buffer = response.bufferFactory().wrap(bytes)
-        return response.writeWith(Mono.just(buffer))
+                response.statusCode = httpStatus
+                response.headers.contentType = MediaType.APPLICATION_JSON
+
+                // Ensure correlation ID is in response header (may already be set by filter)
+                if (!response.headers.containsKey(CorrelationIdFilter.CORRELATION_ID_HEADER)) {
+                    response.headers.add(CorrelationIdFilter.CORRELATION_ID_HEADER, correlationId)
+                }
+
+                val bytes = objectMapper.writeValueAsBytes(errorResponse)
+                val buffer = response.bufferFactory().wrap(bytes)
+                response.writeWith(Mono.just(buffer))
+            } finally {
+                MDC.clear()
+            }
+        }
     }
 
     /**
      * Resolves exception to HTTP status and RFC 7807 error response.
      * Checks root cause for wrapped exceptions (WebClientRequestException).
      */
-    private fun resolveException(ex: Throwable, requestPath: String): Pair<HttpStatus, ErrorResponse> {
+    private fun resolveException(ex: Throwable, requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         // First, check if this is a wrapped exception and get the root cause
         val rootCause = getRootCause(ex)
 
         // Check root cause for upstream errors
         return when {
             // Connection errors -> 502 Bad Gateway
-            isConnectionError(rootCause) -> createUpstreamUnavailableResponse(requestPath)
+            isConnectionError(rootCause) -> createUpstreamUnavailableResponse(requestPath, correlationId)
 
             // Timeout errors -> 504 Gateway Timeout
-            isTimeoutError(rootCause) -> createUpstreamTimeoutResponse(requestPath)
+            isTimeoutError(rootCause) -> createUpstreamTimeoutResponse(requestPath, correlationId)
 
             // Check the original exception for non-upstream errors
-            else -> resolveNonUpstreamException(ex, requestPath)
+            else -> resolveNonUpstreamException(ex, requestPath, correlationId)
         }
     }
 
     /**
      * Resolves non-upstream exceptions (route not found, response status, etc.)
      */
-    private fun resolveNonUpstreamException(ex: Throwable, requestPath: String): Pair<HttpStatus, ErrorResponse> {
+    private fun resolveNonUpstreamException(ex: Throwable, requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         return when (ex) {
             is RouteNotFoundException -> Pair(
                 HttpStatus.NOT_FOUND,
@@ -82,7 +105,8 @@ class GlobalExceptionHandler(
                     title = "Not Found",
                     status = HttpStatus.NOT_FOUND.value(),
                     detail = "No route found for path: ${ex.path}",
-                    instance = requestPath
+                    instance = requestPath,
+                    correlationId = correlationId
                 )
             )
             is NotFoundException -> Pair(
@@ -92,7 +116,8 @@ class GlobalExceptionHandler(
                     title = "Not Found",
                     status = HttpStatus.NOT_FOUND.value(),
                     detail = "No route found for path: $requestPath",
-                    instance = requestPath
+                    instance = requestPath,
+                    correlationId = correlationId
                 )
             )
             is ResponseStatusException -> {
@@ -108,13 +133,14 @@ class GlobalExceptionHandler(
                             title = "Not Found",
                             status = HttpStatus.NOT_FOUND.value(),
                             detail = "No route found for path: $requestPath",
-                            instance = requestPath
+                            instance = requestPath,
+                            correlationId = correlationId
                         )
                     )
                     // Spring Cloud Gateway wraps timeouts in ResponseStatusException with 504
-                    HttpStatus.GATEWAY_TIMEOUT -> createUpstreamTimeoutResponse(requestPath)
+                    HttpStatus.GATEWAY_TIMEOUT -> createUpstreamTimeoutResponse(requestPath, correlationId)
                     // Spring Cloud Gateway may wrap connection errors in ResponseStatusException with 502
-                    HttpStatus.BAD_GATEWAY -> createUpstreamUnavailableResponse(requestPath)
+                    HttpStatus.BAD_GATEWAY -> createUpstreamUnavailableResponse(requestPath, correlationId)
                     else -> Pair(
                         status,
                         ErrorResponse(
@@ -122,7 +148,8 @@ class GlobalExceptionHandler(
                             title = ex.reason ?: status.reasonPhrase,
                             status = status.value(),
                             detail = ex.message ?: "Request error",
-                            instance = requestPath
+                            instance = requestPath,
+                            correlationId = correlationId
                         )
                     )
                 }
@@ -134,7 +161,8 @@ class GlobalExceptionHandler(
                     title = "Internal Server Error",
                     status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
                     detail = "An unexpected error occurred",
-                    instance = requestPath
+                    instance = requestPath,
+                    correlationId = correlationId
                 )
             )
         }
@@ -175,7 +203,7 @@ class GlobalExceptionHandler(
      * Creates 502 Bad Gateway response for upstream unavailable.
      * Does NOT include internal details (hostname, port, stack trace).
      */
-    private fun createUpstreamUnavailableResponse(requestPath: String): Pair<HttpStatus, ErrorResponse> {
+    private fun createUpstreamUnavailableResponse(requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         return Pair(
             HttpStatus.BAD_GATEWAY,
             ErrorResponse(
@@ -183,8 +211,8 @@ class GlobalExceptionHandler(
                 title = "Bad Gateway",
                 status = HttpStatus.BAD_GATEWAY.value(),
                 detail = "Upstream service is unavailable",
-                instance = requestPath
-                // correlationId will be added in Story 1.6
+                instance = requestPath,
+                correlationId = correlationId
             )
         )
     }
@@ -193,7 +221,7 @@ class GlobalExceptionHandler(
      * Creates 504 Gateway Timeout response for upstream timeout.
      * Does NOT include internal details.
      */
-    private fun createUpstreamTimeoutResponse(requestPath: String): Pair<HttpStatus, ErrorResponse> {
+    private fun createUpstreamTimeoutResponse(requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         return Pair(
             HttpStatus.GATEWAY_TIMEOUT,
             ErrorResponse(
@@ -201,8 +229,8 @@ class GlobalExceptionHandler(
                 title = "Gateway Timeout",
                 status = HttpStatus.GATEWAY_TIMEOUT.value(),
                 detail = "Upstream service did not respond in time",
-                instance = requestPath
-                // correlationId will be added in Story 1.6
+                instance = requestPath,
+                correlationId = correlationId
             )
         )
     }

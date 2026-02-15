@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- JSON structured logging for production (non-dev profiles) -->
+    <springProfile name="!dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- ISO 8601 timestamp format (AC3 requirement) -->
+                <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSXXX</timestampPattern>
+
+                <!-- Include MDC fields in JSON output (AC3 requirement) -->
+                <includeMdcKeyName>correlationId</includeMdcKeyName>
+                <includeMdcKeyName>method</includeMdcKeyName>
+                <includeMdcKeyName>path</includeMdcKeyName>
+                <includeMdcKeyName>status</includeMdcKeyName>
+                <includeMdcKeyName>duration</includeMdcKeyName>
+                <includeMdcKeyName>upstreamUrl</includeMdcKeyName>
+                <includeMdcKeyName>clientIp</includeMdcKeyName>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+        </root>
+
+        <!-- Reduce noise from framework loggers -->
+        <logger name="org.springframework" level="WARN" />
+        <logger name="io.netty" level="WARN" />
+        <logger name="reactor" level="WARN" />
+        <logger name="io.lettuce" level="WARN" />
+
+        <!-- Keep gateway request logs at INFO -->
+        <logger name="com.company.gateway.core.filter" level="INFO" />
+    </springProfile>
+
+    <!-- Human-readable logging for development -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE" />
+        </root>
+
+        <!-- Reduce noise from framework loggers in dev too -->
+        <logger name="org.springframework" level="INFO" />
+        <logger name="io.netty" level="INFO" />
+        <logger name="reactor" level="INFO" />
+        <logger name="io.lettuce" level="INFO" />
+    </springProfile>
+
+    <!-- Test profile - minimal logging -->
+    <springProfile name="test">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} [%X{correlationId}] - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="CONSOLE" />
+        </root>
+
+        <!-- Allow gateway logs in tests for debugging -->
+        <logger name="com.company.gateway" level="INFO" />
+    </springProfile>
+
+</configuration>
