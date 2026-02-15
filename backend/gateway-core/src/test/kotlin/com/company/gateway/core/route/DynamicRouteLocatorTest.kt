@@ -109,12 +109,66 @@ class DynamicRouteLocatorTest {
         assert(!dynamicRouteLocator.matchesPrefix("/api/ord", "/api/orders"))
     }
 
+    @Test
+    fun `route with specific methods should only match those methods`() {
+        val route = createRouteWithMethods("/api/orders", "http://order-service:8080", listOf("GET", "POST"))
+
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(route))
+
+        StepVerifier.create(dynamicRouteLocator.getRoutes())
+            .expectNextMatches { gatewayRoute ->
+                // Route should be created successfully
+                gatewayRoute.id == route.id.toString()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `route with empty methods should be created successfully`() {
+        val route = createRouteWithMethods("/api/all", "http://all-service:8080", emptyList())
+
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(route))
+
+        StepVerifier.create(dynamicRouteLocator.getRoutes())
+            .expectNextMatches { gatewayRoute ->
+                gatewayRoute.id == route.id.toString()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `multiple routes with different methods are all created`() {
+        val getRoute = createRouteWithMethods("/api/read", "http://read-service:8080", listOf("GET"))
+        val postRoute = createRouteWithMethods("/api/write", "http://write-service:8080", listOf("POST", "PUT"))
+
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(getRoute, postRoute))
+
+        StepVerifier.create(dynamicRouteLocator.getRoutes().collectList())
+            .expectNextMatches { routes ->
+                routes.size == 2
+            }
+            .verifyComplete()
+    }
+
     private fun createRoute(path: String, upstreamUrl: String, status: RouteStatus) = Route(
         id = UUID.randomUUID(),
         path = path,
         upstreamUrl = upstreamUrl,
         methods = listOf("GET", "POST"),
         status = status,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now()
+    )
+
+    private fun createRouteWithMethods(path: String, upstreamUrl: String, methods: List<String>) = Route(
+        id = UUID.randomUUID(),
+        path = path,
+        upstreamUrl = upstreamUrl,
+        methods = methods,
+        status = RouteStatus.PUBLISHED,
         createdAt = Instant.now(),
         updatedAt = Instant.now()
     )

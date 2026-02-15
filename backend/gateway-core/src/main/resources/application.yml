@@ -6,6 +6,7 @@ gateway:
     invalidation-channel: route-cache-invalidation
     ttl-seconds: 60
     max-routes: 1000
+    reconnect-delay-seconds: 30
 
 spring:
   application:

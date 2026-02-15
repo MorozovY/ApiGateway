@@ -33,7 +33,7 @@ class CacheConfig {
             .maximumSize(maxRoutes)
             .build()
 
-    @Bean
+    @Bean("stringRedisTemplate")
     @ConditionalOnBean(ReactiveRedisConnectionFactory::class)
     fun reactiveStringRedisTemplate(
         connectionFactory: ReactiveRedisConnectionFactory

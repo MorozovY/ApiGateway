@@ -28,6 +28,9 @@ class RouteRefreshService(
     @Value("\${gateway.cache.invalidation-channel:route-cache-invalidation}")
     private lateinit var invalidationChannel: String
 
+    @Value("\${gateway.cache.reconnect-delay-seconds:30}")
+    private var reconnectDelaySeconds: Long = 30
+
     private val subscription = AtomicReference<Disposable?>(null)
     private val container = AtomicReference<ReactiveRedisMessageListenerContainer?>(null)
     private val redisAvailable = AtomicBoolean(true)
@@ -89,12 +92,18 @@ class RouteRefreshService(
         }
 
         reconnectSubscription?.dispose()
-        reconnectSubscription = Mono.delay(Duration.ofSeconds(30))
+        reconnectSubscription = Mono.delay(Duration.ofSeconds(reconnectDelaySeconds))
             .doOnNext {
                 logger.info("Attempting to reconnect to Redis...")
+            }
+            .doFinally {
+                // Always reset reconnecting flag after attempt completes
+                // This allows future reconnect attempts if this one fails
+                reconnecting.set(false)
+            }
+            .subscribe {
                 startRedisSubscription()
             }
-            .subscribe()
     }
 
     fun isRedisAvailable(): Boolean = redisAvailable.get()

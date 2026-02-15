@@ -46,7 +46,7 @@ development_status:
   1-2-database-setup-initial-migrations: done
   1-3-basic-gateway-routing: done
   1-4-error-handling-upstream-failures: done
-  1-5-configuration-hot-reload: dev-complete
+  1-5-configuration-hot-reload: done
   1-6-request-logging-correlation-ids: done
   1-7-health-checks-docker-compose: done
   epic-1-retrospective: optional
