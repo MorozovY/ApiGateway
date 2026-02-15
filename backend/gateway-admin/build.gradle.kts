@@ -30,6 +30,9 @@ dependencies {
     // Actuator
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    // Prometheus Metrics
+    implementation("io.micrometer:micrometer-registry-prometheus")
+
     // OpenAPI
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0")
 
@@ -46,6 +49,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.19.5")
     testImplementation("org.testcontainers:r2dbc:1.19.5")
     testImplementation("org.testcontainers:junit-jupiter:1.19.5")
+    testImplementation("com.redis:testcontainers-redis:2.2.2")
 }
 
 java {

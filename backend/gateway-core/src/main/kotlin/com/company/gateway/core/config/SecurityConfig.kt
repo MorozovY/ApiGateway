@@ -1,4 +1,4 @@
-package com.company.gateway.admin.config
+package com.company.gateway.core.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -18,17 +18,13 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeExchange { exchanges ->
                 exchanges
-                    // Health endpoints - public access (AC6)
                     .pathMatchers("/actuator/health/**").permitAll()
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
-                    // OpenAPI/Swagger - dev only
-                    .pathMatchers("/api-docs/**").permitAll()
-                    .pathMatchers("/swagger-ui/**").permitAll()
-                    .pathMatchers("/swagger-ui.html").permitAll()
-                    .pathMatchers("/webjars/**").permitAll()
                     .anyExchange().permitAll()
             }
+            .httpBasic { it.disable() }
+            .formLogin { it.disable() }
             .build()
     }
 
@@ -44,6 +40,8 @@ class SecurityConfig {
                     .pathMatchers("/actuator/prometheus").permitAll()
                     .anyExchange().authenticated()
             }
+            .httpBasic { it.disable() }
+            .formLogin { it.disable() }
             .build()
     }
 }

@@ -1,3 +1,17 @@
+# ApiGateway Development Environment
+# Health checks configured for Kubernetes compatibility (Story 1.7)
+#
+# Usage:
+#   docker-compose up -d
+#
+# Services:
+#   - PostgreSQL 16 (port 5432): Database for routes and configuration
+#   - Redis 7 (port 6379): Cache and pub/sub for route invalidation
+#
+# Health checks:
+#   - PostgreSQL: pg_isready command (interval: 10s, timeout: 5s, retries: 5)
+#   - Redis: redis-cli ping (interval: 10s, timeout: 5s, retries: 5)
+
 services:
   postgres:
     image: postgres:16

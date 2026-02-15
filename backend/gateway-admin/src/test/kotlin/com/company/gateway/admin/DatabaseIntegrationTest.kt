@@ -38,6 +38,10 @@ class DatabaseIntegrationTest {
             registry.add("spring.autoconfigure.exclude") {
                 "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
             }
+            // Disable Redis health check when Redis is not available
+            registry.add("management.health.redis.enabled") { false }
+            // Exclude Redis from readiness group
+            registry.add("management.endpoint.health.group.readiness.include") { "r2dbc" }
         }
     }
 

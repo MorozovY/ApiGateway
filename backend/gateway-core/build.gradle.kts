@@ -33,6 +33,10 @@ dependencies {
     // Actuator
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    // Security (for actuator endpoint protection)
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    testImplementation("org.springframework.security:spring-security-test")
+
     // Prometheus Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 

@@ -1,0 +1,25 @@
+# Test profile configuration for gateway-admin
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: r2dbc,redis
+        liveness:
+          include: ping
+    prometheus:
+      enabled: true
+  health:
+    redis:
+      enabled: true
+    r2dbc:
+      enabled: true
+    diskspace:
+      enabled: true

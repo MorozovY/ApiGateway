@@ -48,7 +48,7 @@ development_status:
   1-4-error-handling-upstream-failures: done
   1-5-configuration-hot-reload: dev-complete
   1-6-request-logging-correlation-ids: done
-  1-7-health-checks-docker-compose: backlog
+  1-7-health-checks-docker-compose: done
   epic-1-retrospective: optional
 
   # Epic 2: User Authentication & Access Control
