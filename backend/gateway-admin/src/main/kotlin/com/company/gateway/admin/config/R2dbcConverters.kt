@@ -1,7 +1,7 @@
 package com.company.gateway.admin.config
 
+import com.company.gateway.common.model.Role
 import com.company.gateway.common.model.RouteStatus
-import io.r2dbc.spi.Row
 import org.springframework.core.convert.converter.Converter
 import org.springframework.data.convert.ReadingConverter
 import org.springframework.data.convert.WritingConverter
@@ -31,4 +31,20 @@ class RouteStatusReadingConverter : Converter<String, RouteStatus> {
 class RouteStatusWritingConverter : Converter<RouteStatus, String> {
     override fun convert(source: RouteStatus): String =
         source.name.lowercase()
+}
+
+// Конвертер для чтения Role из строки базы данных
+@ReadingConverter
+@Component
+class RoleReadingConverter : Converter<String, Role> {
+    override fun convert(source: String): Role =
+        Role.fromDbValue(source)
+}
+
+// Конвертер для записи Role в строку базы данных
+@WritingConverter
+@Component
+class RoleWritingConverter : Converter<Role, String> {
+    override fun convert(source: Role): String =
+        source.toDbValue()
 }

@@ -18,7 +18,9 @@ class R2dbcConfig(
     private val stringArrayReadingConverter: StringArrayReadingConverter,
     private val stringListWritingConverter: StringListWritingConverter,
     private val routeStatusReadingConverter: RouteStatusReadingConverter,
-    private val routeStatusWritingConverter: RouteStatusWritingConverter
+    private val routeStatusWritingConverter: RouteStatusWritingConverter,
+    private val roleReadingConverter: RoleReadingConverter,
+    private val roleWritingConverter: RoleWritingConverter
 ) {
 
     private val log = LoggerFactory.getLogger(R2dbcConfig::class.java)
@@ -41,7 +43,9 @@ class R2dbcConfig(
             stringArrayReadingConverter,
             stringListWritingConverter,
             routeStatusReadingConverter,
-            routeStatusWritingConverter
+            routeStatusWritingConverter,
+            roleReadingConverter,
+            roleWritingConverter
         )
         return R2dbcCustomConversions.of(PostgresDialect.INSTANCE, converters)
     }

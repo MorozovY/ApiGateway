@@ -19,6 +19,7 @@ dependencies {
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
+    testImplementation("org.assertj:assertj-core:3.25.3")
 }
 
 java {
