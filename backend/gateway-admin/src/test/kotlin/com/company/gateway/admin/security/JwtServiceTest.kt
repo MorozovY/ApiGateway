@@ -198,6 +198,71 @@ class JwtServiceTest {
         assertThat(claims.issuedAt.time).isLessThanOrEqualTo(System.currentTimeMillis())
     }
 
+    // ========== Тесты для validateTokenWithResult (Story 2.3) ==========
+
+    @Test
+    fun `validateTokenWithResult возвращает Valid с claims для валидного токена`() {
+        val user = createTestUser()
+        val token = jwtService.generateToken(user)
+
+        val result = jwtService.validateTokenWithResult(token)
+
+        assertThat(result).isInstanceOf(TokenValidationResult.Valid::class.java)
+        val validResult = result as TokenValidationResult.Valid
+        assertThat(validResult.claims.subject).isEqualTo(user.id.toString())
+        assertThat(validResult.claims["username"]).isEqualTo(user.username)
+    }
+
+    @Test
+    fun `validateTokenWithResult возвращает Expired для истёкшего токена`() {
+        // Создаём JwtService с очень коротким временем жизни токена (1 мс)
+        val shortLivedJwtService = JwtService(testSecret, 1L)
+        val user = createTestUser()
+        val token = shortLivedJwtService.generateToken(user)
+
+        // Небольшая пауза чтобы токен точно истёк
+        Thread.sleep(10)
+
+        val result = shortLivedJwtService.validateTokenWithResult(token)
+
+        assertThat(result).isEqualTo(TokenValidationResult.Expired)
+    }
+
+    @Test
+    fun `validateTokenWithResult возвращает Invalid для невалидного токена`() {
+        val result = jwtService.validateTokenWithResult("invalid.token.here")
+
+        assertThat(result).isEqualTo(TokenValidationResult.Invalid)
+    }
+
+    @Test
+    fun `validateTokenWithResult возвращает Invalid для подделанного токена`() {
+        val user = createTestUser()
+        val token = jwtService.generateToken(user)
+        // Изменяем несколько символов подписи для гарантированной невалидности
+        val parts = token.split(".")
+        val tamperedSignature = parts[2].reversed()
+        val tamperedToken = "${parts[0]}.${parts[1]}.$tamperedSignature"
+
+        val result = jwtService.validateTokenWithResult(tamperedToken)
+
+        assertThat(result).isEqualTo(TokenValidationResult.Invalid)
+    }
+
+    @Test
+    fun `validateTokenWithResult возвращает Invalid для пустой строки`() {
+        val result = jwtService.validateTokenWithResult("")
+
+        assertThat(result).isEqualTo(TokenValidationResult.Invalid)
+    }
+
+    @Test
+    fun `validateTokenWithResult возвращает Invalid для malformed токена`() {
+        val result = jwtService.validateTokenWithResult("not-a-jwt-at-all")
+
+        assertThat(result).isEqualTo(TokenValidationResult.Invalid)
+    }
+
     private fun createTestUser(
         id: UUID = UUID.randomUUID(),
         username: String = "testuser",

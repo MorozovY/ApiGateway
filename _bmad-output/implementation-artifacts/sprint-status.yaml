@@ -55,7 +55,7 @@ development_status:
   epic-2: in-progress
   2-1-user-entity-database-schema: done
   2-2-jwt-authentication-service: done
-  2-3-authentication-middleware: backlog
+  2-3-authentication-middleware: done
   2-4-role-based-access-control: backlog
   2-5-admin-ui-login-page: backlog
   2-6-user-management-admin: backlog

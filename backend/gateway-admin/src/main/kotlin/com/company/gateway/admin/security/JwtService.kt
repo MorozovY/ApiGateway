@@ -2,8 +2,10 @@ package com.company.gateway.admin.security
 
 import com.company.gateway.common.model.User
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
+import io.jsonwebtoken.security.SignatureException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.*
@@ -101,4 +103,50 @@ class JwtService(
     fun extractRole(token: String): String? {
         return validateToken(token)?.get("role", String::class.java)
     }
+
+    /**
+     * Валидирует токен и возвращает результат с различением типа ошибки.
+     *
+     * @param token JWT токен для валидации
+     * @return TokenValidationResult с claims при успехе или типом ошибки при неудаче
+     */
+    fun validateTokenWithResult(token: String): TokenValidationResult {
+        return try {
+            val claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .payload
+            TokenValidationResult.Valid(claims)
+        } catch (e: ExpiredJwtException) {
+            // Токен истёк
+            TokenValidationResult.Expired
+        } catch (e: SignatureException) {
+            // Неверная подпись
+            TokenValidationResult.Invalid
+        } catch (e: Exception) {
+            // Любая другая ошибка (неверный формат, malformed и т.д.)
+            TokenValidationResult.Invalid
+        }
+    }
+}
+
+/**
+ * Результат валидации JWT токена.
+ */
+sealed class TokenValidationResult {
+    /**
+     * Токен валиден, содержит claims.
+     */
+    data class Valid(val claims: Claims) : TokenValidationResult()
+
+    /**
+     * Токен истёк.
+     */
+    data object Expired : TokenValidationResult()
+
+    /**
+     * Токен невалиден (неверная подпись, формат и т.д.).
+     */
+    data object Invalid : TokenValidationResult()
 }
