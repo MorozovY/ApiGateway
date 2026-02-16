@@ -11,6 +11,9 @@ dependencies {
     // Spring Boot WebFlux
     implementation("org.springframework.boot:spring-boot-starter-webflux")
 
+    // AOP для @RequireRole аспекта
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+
     // R2DBC PostgreSQL
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
     implementation("io.r2dbc:r2dbc-pool")

@@ -130,14 +130,13 @@ class AuthMiddlewareIntegrationTest {
 
     @Test
     fun `AC2 - защищённый endpoint с валидным токеном обрабатывается`() {
-        // Примечание: /api/v1/routes вернёт 404 т.к. endpoint не существует,
-        // но это доказывает что запрос прошёл authentication middleware
+        // /api/v1/routes теперь возвращает 200 OK (RouteController добавлен в Story 2.4)
         webTestClient.get()
             .uri("/api/v1/routes")
             .cookie("auth_token", validToken)
             .exchange()
             // Не 401 — значит аутентификация прошла успешно
-            .expectStatus().isNotFound // или любой другой статус кроме 401
+            .expectStatus().isOk
     }
 
     @Test
@@ -161,7 +160,7 @@ class AuthMiddlewareIntegrationTest {
             .uri("/api/v1/routes")
             .cookie("auth_token", authTokenCookie!!)
             .exchange()
-            .expectStatus().isNotFound // Не 401 — аутентификация прошла
+            .expectStatus().isOk // Не 401 — аутентификация прошла
     }
 
     // ============================================
@@ -362,7 +361,7 @@ class AuthMiddlewareIntegrationTest {
             .uri("/api/v1/routes")
             .cookie("auth_token", adminToken)
             .exchange()
-            .expectStatus().isNotFound // Не 401 — аутентификация прошла
+            .expectStatus().isOk // Не 401 — аутентификация прошла
     }
 
     @Test
@@ -374,7 +373,7 @@ class AuthMiddlewareIntegrationTest {
             .uri("/api/v1/routes")
             .cookie("auth_token", securityToken)
             .exchange()
-            .expectStatus().isNotFound // Не 401 — аутентификация прошла
+            .expectStatus().isOk // Не 401 — аутентификация прошла
     }
 
     // ============================================

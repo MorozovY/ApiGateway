@@ -26,9 +26,11 @@ class GlobalExceptionHandler(
 ) : ErrorWebExceptionHandler {
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        // Обрабатываем только JwtAuthenticationException
+        // Обрабатываем JWT, AccessDenied и Conflict исключения
         return when (ex) {
             is JwtAuthenticationException -> handleJwtAuthenticationException(exchange, ex)
+            is AccessDeniedException -> handleAccessDeniedException(exchange, ex)
+            is ConflictException -> handleConflictException(exchange, ex)
             else -> {
                 // Пропускаем другие исключения для обработки стандартным механизмом
                 Mono.error(ex)
@@ -54,6 +56,66 @@ class GlobalExceptionHandler(
         )
 
         exchange.response.statusCode = HttpStatus.UNAUTHORIZED
+        exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+        exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
+
+        val body = objectMapper.writeValueAsBytes(errorResponse)
+        val buffer = exchange.response.bufferFactory().wrap(body)
+
+        return exchange.response.writeWith(Mono.just(buffer))
+    }
+
+    /**
+     * Обрабатывает AccessDeniedException и возвращает 403 Forbidden.
+     */
+    private fun handleAccessDeniedException(
+        exchange: ServerWebExchange,
+        ex: AccessDeniedException
+    ): Mono<Void> {
+        val correlationId = exchange.request.headers
+            .getFirst(CORRELATION_ID_HEADER)
+            ?: UUID.randomUUID().toString()
+
+        val errorResponse = ErrorResponse(
+            type = "https://api.gateway/errors/forbidden",
+            title = "Forbidden",
+            status = HttpStatus.FORBIDDEN.value(),
+            detail = ex.detail,
+            instance = exchange.request.path.value(),
+            correlationId = correlationId
+        )
+
+        exchange.response.statusCode = HttpStatus.FORBIDDEN
+        exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+        exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
+
+        val body = objectMapper.writeValueAsBytes(errorResponse)
+        val buffer = exchange.response.bufferFactory().wrap(body)
+
+        return exchange.response.writeWith(Mono.just(buffer))
+    }
+
+    /**
+     * Обрабатывает ConflictException и возвращает 409 Conflict.
+     */
+    private fun handleConflictException(
+        exchange: ServerWebExchange,
+        ex: ConflictException
+    ): Mono<Void> {
+        val correlationId = exchange.request.headers
+            .getFirst(CORRELATION_ID_HEADER)
+            ?: UUID.randomUUID().toString()
+
+        val errorResponse = ErrorResponse(
+            type = "https://api.gateway/errors/conflict",
+            title = "Conflict",
+            status = HttpStatus.CONFLICT.value(),
+            detail = ex.detail,
+            instance = exchange.request.path.value(),
+            correlationId = correlationId
+        )
+
+        exchange.response.statusCode = HttpStatus.CONFLICT
         exchange.response.headers.contentType = MediaType.APPLICATION_JSON
         exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
 
