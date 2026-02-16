@@ -29,17 +29,17 @@ import java.net.URI
 import java.util.concurrent.TimeoutException
 
 /**
- * Unit tests for GlobalExceptionHandler (Story 1.4)
+ * Unit тесты для GlobalExceptionHandler (Story 1.4)
  *
- * Tests exception handling for:
+ * Тесты обработки исключений:
  * - ConnectException -> 502 Bad Gateway
  * - ConnectTimeoutException -> 502 Bad Gateway
  * - ReadTimeoutException -> 504 Gateway Timeout
  * - TimeoutException -> 504 Gateway Timeout
- * - WebClientRequestException (wrapping network errors)
- * - Deeply nested exception chains
- * - RFC 7807 format compliance
- * - No internal details exposure
+ * - WebClientRequestException (обёртка сетевых ошибок)
+ * - Глубоко вложенные цепочки исключений
+ * - Соответствие формату RFC 7807
+ * - Отсутствие внутренних деталей
  */
 class GlobalExceptionHandlerTest {
 
@@ -99,7 +99,7 @@ class GlobalExceptionHandlerTest {
     // ============================================
 
     @Test
-    fun `ConnectException returns 502 Bad Gateway`() {
+    fun `ConnectException возвращает 502 Bad Gateway`() {
         val exception = ConnectException("Connection refused")
 
         setupResponseCapture()
@@ -110,29 +110,29 @@ class GlobalExceptionHandlerTest {
         )
             .verifyComplete()
 
-        // Verify HTTP status code was set correctly
+        // Проверяем, что HTTP status code установлен корректно
         assertStatusCode(HttpStatus.BAD_GATEWAY)
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-unavailable") {
-            "Expected type 'upstream-unavailable', got '${errorResponse.type}'"
+            "Ожидался type 'upstream-unavailable', получено '${errorResponse.type}'"
         }
         assert(errorResponse.title == "Bad Gateway") {
-            "Expected title 'Bad Gateway', got '${errorResponse.title}'"
+            "Ожидался title 'Bad Gateway', получено '${errorResponse.title}'"
         }
         assert(errorResponse.status == 502) {
-            "Expected status 502, got ${errorResponse.status}"
+            "Ожидался status 502, получено ${errorResponse.status}"
         }
         assert(errorResponse.detail == "Upstream service is unavailable") {
-            "Expected detail 'Upstream service is unavailable', got '${errorResponse.detail}'"
+            "Ожидался detail 'Upstream service is unavailable', получено '${errorResponse.detail}'"
         }
         assert(errorResponse.correlationId == TEST_CORRELATION_ID) {
-            "Expected correlationId '$TEST_CORRELATION_ID', got '${errorResponse.correlationId}'"
+            "Ожидался correlationId '$TEST_CORRELATION_ID', получено '${errorResponse.correlationId}'"
         }
     }
 
     @Test
-    fun `ConnectTimeoutException returns 502 Bad Gateway`() {
+    fun `ConnectTimeoutException возвращает 502 Bad Gateway`() {
         val exception = ConnectTimeoutException("Connection timed out")
 
         setupResponseCapture()
@@ -144,13 +144,13 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-unavailable") {
-            "Expected type 'upstream-unavailable', got '${errorResponse.type}'"
+            "Ожидался type 'upstream-unavailable', получено '${errorResponse.type}'"
         }
         assert(errorResponse.title == "Bad Gateway") {
-            "Expected title 'Bad Gateway', got '${errorResponse.title}'"
+            "Ожидался title 'Bad Gateway', получено '${errorResponse.title}'"
         }
         assert(errorResponse.status == 502) {
-            "Expected status 502, got ${errorResponse.status}"
+            "Ожидался status 502, получено ${errorResponse.status}"
         }
     }
 
@@ -159,7 +159,7 @@ class GlobalExceptionHandlerTest {
     // ============================================
 
     @Test
-    fun `ReadTimeoutException returns 504 Gateway Timeout`() {
+    fun `ReadTimeoutException возвращает 504 Gateway Timeout`() {
         val exception = ReadTimeoutException.INSTANCE
 
         setupResponseCapture()
@@ -171,21 +171,21 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-timeout") {
-            "Expected type 'upstream-timeout', got '${errorResponse.type}'"
+            "Ожидался type 'upstream-timeout', получено '${errorResponse.type}'"
         }
         assert(errorResponse.title == "Gateway Timeout") {
-            "Expected title 'Gateway Timeout', got '${errorResponse.title}'"
+            "Ожидался title 'Gateway Timeout', получено '${errorResponse.title}'"
         }
         assert(errorResponse.status == 504) {
-            "Expected status 504, got ${errorResponse.status}"
+            "Ожидался status 504, получено ${errorResponse.status}"
         }
         assert(errorResponse.detail == "Upstream service did not respond in time") {
-            "Expected detail 'Upstream service did not respond in time', got '${errorResponse.detail}'"
+            "Ожидался detail 'Upstream service did not respond in time', получено '${errorResponse.detail}'"
         }
     }
 
     @Test
-    fun `TimeoutException returns 504 Gateway Timeout`() {
+    fun `TimeoutException возвращает 504 Gateway Timeout`() {
         val exception = TimeoutException("Operation timed out")
 
         setupResponseCapture()
@@ -197,22 +197,22 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-timeout") {
-            "Expected type 'upstream-timeout', got '${errorResponse.type}'"
+            "Ожидался type 'upstream-timeout', получено '${errorResponse.type}'"
         }
         assert(errorResponse.title == "Gateway Timeout") {
-            "Expected title 'Gateway Timeout', got '${errorResponse.title}'"
+            "Ожидался title 'Gateway Timeout', получено '${errorResponse.title}'"
         }
         assert(errorResponse.status == 504) {
-            "Expected status 504, got ${errorResponse.status}"
+            "Ожидался status 504, получено ${errorResponse.status}"
         }
     }
 
     // ============================================
-    // WebClientRequestException handling
+    // Обработка WebClientRequestException
     // ============================================
 
     @Test
-    fun `WebClientRequestException with ConnectException cause returns 502`() {
+    fun `WebClientRequestException с cause ConnectException возвращает 502`() {
         val cause = ConnectException("Connection refused to host")
         val httpMethod = org.springframework.http.HttpMethod.GET
         val exception = WebClientRequestException(cause, httpMethod, URI.create("http://upstream:8080"), HttpHeaders())
@@ -226,15 +226,15 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-unavailable") {
-            "Expected type 'upstream-unavailable', got '${errorResponse.type}'"
+            "Ожидался type 'upstream-unavailable', получено '${errorResponse.type}'"
         }
         assert(errorResponse.status == 502) {
-            "Expected status 502, got ${errorResponse.status}"
+            "Ожидался status 502, получено ${errorResponse.status}"
         }
     }
 
     @Test
-    fun `WebClientRequestException with TimeoutException cause returns 504`() {
+    fun `WebClientRequestException с cause TimeoutException возвращает 504`() {
         val cause = TimeoutException("Read timed out")
         val httpMethod = org.springframework.http.HttpMethod.GET
         val exception = WebClientRequestException(cause, httpMethod, URI.create("http://upstream:8080"), HttpHeaders())
@@ -248,20 +248,20 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-timeout") {
-            "Expected type 'upstream-timeout', got '${errorResponse.type}'"
+            "Ожидался type 'upstream-timeout', получено '${errorResponse.type}'"
         }
         assert(errorResponse.status == 504) {
-            "Expected status 504, got ${errorResponse.status}"
+            "Ожидался status 504, получено ${errorResponse.status}"
         }
     }
 
     // ============================================
-    // Deeply nested exception chains (H3 fix)
+    // Глубоко вложенные цепочки исключений (H3 fix)
     // ============================================
 
     @Test
-    fun `deeply nested ConnectException is unwrapped and returns 502`() {
-        // Simulate: WebClientRequestException -> IOException -> ConnectException
+    fun `глубоко вложенный ConnectException разворачивается и возвращает 502`() {
+        // Симулируем: WebClientRequestException -> IOException -> ConnectException
         val rootCause = ConnectException("Connection refused")
         val middleException = java.io.IOException("Network error", rootCause)
         val httpMethod = org.springframework.http.HttpMethod.GET
@@ -276,16 +276,16 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-unavailable") {
-            "Expected deeply nested ConnectException to be unwrapped, got type '${errorResponse.type}'"
+            "Ожидалось, что глубоко вложенный ConnectException будет развёрнут, получено type '${errorResponse.type}'"
         }
         assert(errorResponse.status == 502) {
-            "Expected status 502 for deeply nested ConnectException, got ${errorResponse.status}"
+            "Ожидался status 502 для глубоко вложенного ConnectException, получено ${errorResponse.status}"
         }
     }
 
     @Test
-    fun `deeply nested TimeoutException is unwrapped and returns 504`() {
-        // Simulate: RuntimeException -> IOException -> TimeoutException
+    fun `глубоко вложенный TimeoutException разворачивается и возвращает 504`() {
+        // Симулируем: RuntimeException -> IOException -> TimeoutException
         val rootCause = TimeoutException("Read timed out")
         val middleException = java.io.IOException("IO error", rootCause)
         val wrapperException = RuntimeException("Wrapped", middleException)
@@ -299,19 +299,19 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.type == "https://api.gateway/errors/upstream-timeout") {
-            "Expected deeply nested TimeoutException to be unwrapped, got type '${errorResponse.type}'"
+            "Ожидалось, что глубоко вложенный TimeoutException будет развёрнут, получено type '${errorResponse.type}'"
         }
         assert(errorResponse.status == 504) {
-            "Expected status 504 for deeply nested TimeoutException, got ${errorResponse.status}"
+            "Ожидался status 504 для глубоко вложенного TimeoutException, получено ${errorResponse.status}"
         }
     }
 
     // ============================================
-    // RFC 7807 format compliance
+    // Соответствие формату RFC 7807
     // ============================================
 
     @Test
-    fun `error response follows RFC 7807 format`() {
+    fun `error response соответствует формату RFC 7807`() {
         val exception = ConnectException("Connection refused")
 
         setupResponseCapture()
@@ -320,23 +320,23 @@ class GlobalExceptionHandlerTest {
             .verifyComplete()
 
         val errorResponse = parseResponse()
-        // RFC 7807 required fields
-        assert(errorResponse.type.startsWith("https://")) { "type should be a URI" }
-        assert(errorResponse.title.isNotBlank()) { "title should be present" }
-        assert(errorResponse.status > 0) { "status should be positive HTTP status code" }
-        assert(errorResponse.detail.isNotBlank()) { "detail should be present" }
-        // instance should be the request path
+        // RFC 7807 обязательные поля
+        assert(errorResponse.type.startsWith("https://")) { "type должен быть URI" }
+        assert(errorResponse.title.isNotBlank()) { "title должен присутствовать" }
+        assert(errorResponse.status > 0) { "status должен быть положительным HTTP status code" }
+        assert(errorResponse.detail.isNotBlank()) { "detail должен присутствовать" }
+        // instance должен быть путём запроса
         assert(errorResponse.instance == "/api/test/resource") {
-            "instance should be '/api/test/resource', got '${errorResponse.instance}'"
+            "instance должен быть '/api/test/resource', получено '${errorResponse.instance}'"
         }
     }
 
     // ============================================
-    // Correlation ID in error responses (Story 1.6)
+    // Correlation ID в error responses (Story 1.6)
     // ============================================
 
     @Test
-    fun `error response includes correlation ID from context`() {
+    fun `error response включает correlation ID из context`() {
         val exception = ConnectException("Connection refused")
 
         setupResponseCapture()
@@ -349,35 +349,35 @@ class GlobalExceptionHandlerTest {
 
         val errorResponse = parseResponse()
         assert(errorResponse.correlationId == TEST_CORRELATION_ID) {
-            "Expected correlationId '$TEST_CORRELATION_ID', got '${errorResponse.correlationId}'"
+            "Ожидался correlationId '$TEST_CORRELATION_ID', получено '${errorResponse.correlationId}'"
         }
     }
 
     @Test
-    fun `error response generates UUID when correlation ID not in context or headers`() {
+    fun `error response генерирует UUID когда correlation ID отсутствует в context или headers`() {
         val exception = ConnectException("Connection refused")
 
         setupResponseCapture()
 
-        // No context set - should generate a UUID
+        // Context не установлен - должен сгенерировать UUID
         StepVerifier.create(handler.handle(exchange, exception))
             .verifyComplete()
 
         val errorResponse = parseResponse()
         assert(errorResponse.correlationId != null) {
-            "Expected correlationId to be generated, got null"
+            "Ожидалось, что correlationId будет сгенерирован, получено null"
         }
         assert(errorResponse.correlationId!!.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))) {
-            "Expected correlationId to be a valid UUID, got '${errorResponse.correlationId}'"
+            "Ожидалось, что correlationId будет валидным UUID, получено '${errorResponse.correlationId}'"
         }
     }
 
     // ============================================
-    // Security: No internal details exposed
+    // Безопасность: внутренние детали не раскрываются
     // ============================================
 
     @Test
-    fun `error response does not expose internal hostname`() {
+    fun `error response не раскрывает internal hostname`() {
         val exception = ConnectException("Connection refused: localhost/127.0.0.1:8080")
 
         setupResponseCapture()
@@ -389,15 +389,15 @@ class GlobalExceptionHandlerTest {
         val responseJson = objectMapper.writeValueAsString(errorResponse)
 
         assert(!responseJson.contains("localhost", ignoreCase = true)) {
-            "Response should not contain 'localhost': $responseJson"
+            "Response не должен содержать 'localhost': $responseJson"
         }
         assert(!responseJson.contains("127.0.0.1")) {
-            "Response should not contain IP addresses: $responseJson"
+            "Response не должен содержать IP адреса: $responseJson"
         }
     }
 
     @Test
-    fun `error response does not expose exception class names`() {
+    fun `error response не раскрывает имена классов исключений`() {
         val exception = ConnectException("java.net.ConnectException: Connection refused")
 
         setupResponseCapture()
@@ -409,15 +409,15 @@ class GlobalExceptionHandlerTest {
         val responseJson = objectMapper.writeValueAsString(errorResponse)
 
         assert(!responseJson.contains("ConnectException", ignoreCase = true)) {
-            "Response should not contain exception class names: $responseJson"
+            "Response не должен содержать имена классов исключений: $responseJson"
         }
         assert(!responseJson.contains("java.net")) {
-            "Response should not contain Java package names: $responseJson"
+            "Response не должен содержать имена Java пакетов: $responseJson"
         }
     }
 
     // ============================================
-    // Helper methods
+    // Вспомогательные методы
     // ============================================
 
     private fun setupResponseCapture() {

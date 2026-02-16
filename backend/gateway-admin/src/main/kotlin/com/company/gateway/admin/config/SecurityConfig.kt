@@ -18,11 +18,13 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeExchange { exchanges ->
                 exchanges
-                    // Health endpoints - public access (AC6)
+                    // Health endpoints - публичный доступ (AC6 Story 1.7)
                     .pathMatchers("/actuator/health/**").permitAll()
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
-                    // OpenAPI/Swagger - dev only
+                    // Auth endpoints - публичный доступ (Story 2.2)
+                    .pathMatchers("/api/v1/auth/**").permitAll()
+                    // OpenAPI/Swagger - только для dev
                     .pathMatchers("/api-docs/**").permitAll()
                     .pathMatchers("/swagger-ui/**").permitAll()
                     .pathMatchers("/swagger-ui.html").permitAll()
@@ -39,9 +41,12 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeExchange { exchanges ->
                 exchanges
+                    // Health endpoints - публичный доступ (AC6 Story 1.7)
                     .pathMatchers("/actuator/health/**").permitAll()
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
+                    // Auth endpoints - публичный доступ (Story 2.2)
+                    .pathMatchers("/api/v1/auth/**").permitAll()
                     .anyExchange().authenticated()
             }
             .build()

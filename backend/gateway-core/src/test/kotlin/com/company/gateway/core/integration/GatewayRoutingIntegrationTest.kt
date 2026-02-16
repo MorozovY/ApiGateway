@@ -100,11 +100,11 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC1 - should proxy request to upstream and return response with path preserved`() {
-        // Arrange: insert published route
+    fun `AC1 - проксирует запрос на upstream и возвращает ответ с сохранённым путём`() {
+        // Подготовка: вставляем опубликованный маршрут
         insertRoute("/api/orders", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
-        // Setup WireMock to respond
+        // Настраиваем WireMock для ответа
         wireMock.stubFor(
             WireMock.get(WireMock.urlEqualTo("/api/orders/123"))
                 .willReturn(
@@ -115,7 +115,7 @@ class GatewayRoutingIntegrationTest {
                 )
         )
 
-        // Act & Assert
+        // Выполнение и проверка
         webTestClient.get()
             .uri("/api/orders/123")
             .exchange()
@@ -123,14 +123,14 @@ class GatewayRoutingIntegrationTest {
             .expectBody()
             .jsonPath("$.id").isEqualTo(123)
 
-        // Verify path was preserved when proxying to upstream
+        // Проверяем, что путь сохранён при проксировании на upstream
         wireMock.verify(
             WireMock.getRequestedFor(WireMock.urlEqualTo("/api/orders/123"))
         )
     }
 
     @Test
-    fun `AC1 - should preserve original headers when proxying`() {
+    fun `AC1 - сохраняет оригинальные заголовки при проксировании`() {
         insertRoute("/api/orders", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
         wireMock.stubFor(
@@ -148,7 +148,7 @@ class GatewayRoutingIntegrationTest {
             .exchange()
             .expectStatus().isOk
 
-        // Verify WireMock received the custom header
+        // Проверяем, что WireMock получил custom header
         wireMock.verify(
             WireMock.getRequestedFor(WireMock.urlEqualTo("/api/orders/123"))
                 .withHeader("X-Custom-Header", WireMock.equalTo("test-value"))
@@ -156,8 +156,8 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC2 - draft route should return 404`() {
-        // Insert draft route - should NOT be routed
+    fun `AC2 - черновик маршрута возвращает 404`() {
+        // Вставляем черновик маршрута - НЕ должен маршрутизироваться
         insertRoute("/api/draft", "http://localhost:${wireMock.port()}", RouteStatus.DRAFT)
 
         webTestClient.get()
@@ -167,7 +167,7 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC3 - unknown path should return 404 with RFC 7807 format`() {
+    fun `AC3 - неизвестный путь возвращает 404 в формате RFC 7807`() {
         webTestClient.get()
             .uri("/unknown/path")
             .exchange()
@@ -184,8 +184,8 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC4 - gateway loads published routes from cache`() {
-        // Insert published route
+    fun `AC4 - шлюз загружает опубликованные маршруты из кэша`() {
+        // Вставляем опубликованный маршрут
         insertRoute("/api/products", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
         wireMock.stubFor(
@@ -193,7 +193,7 @@ class GatewayRoutingIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("[]"))
         )
 
-        // Gateway should route this request (routes loaded from cache)
+        // Шлюз должен маршрутизировать этот запрос (маршруты загружены из кэша)
         webTestClient.get()
             .uri("/api/products")
             .exchange()
@@ -201,7 +201,7 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC5 - path prefix matching - exact path`() {
+    fun `AC5 - сопоставление префикса пути - точный путь`() {
         insertRoute("/api/orders", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
         wireMock.stubFor(
@@ -216,7 +216,7 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC5 - path prefix matching - path with nested resource`() {
+    fun `AC5 - сопоставление префикса пути - путь с вложенным ресурсом`() {
         insertRoute("/api/orders", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
         wireMock.stubFor(
@@ -231,7 +231,7 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
-    fun `AC5 - path prefix matching - should NOT match similar path without separator`() {
+    fun `AC5 - сопоставление префикса пути - НЕ должен совпадать с похожим путём без разделителя`() {
         insertRoute("/api/orders", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
         webTestClient.get()

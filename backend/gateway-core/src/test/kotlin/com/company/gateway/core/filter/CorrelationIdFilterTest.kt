@@ -13,21 +13,21 @@ import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
 /**
- * Unit tests for CorrelationIdFilter (Story 1.6)
+ * Unit тесты для CorrelationIdFilter (Story 1.6)
  *
- * Tests:
- * - AC1: Generates UUID correlation ID when header missing
- * - AC2: Preserves existing correlation ID
- * - Adds correlation ID to request headers (upstream propagation)
- * - Adds correlation ID to response headers (client response)
- * - Stores correlation ID in Reactor Context
+ * Тесты:
+ * - AC1: Генерирует UUID correlation ID когда header отсутствует
+ * - AC2: Сохраняет существующий correlation ID
+ * - Добавляет correlation ID в headers запроса (upstream propagation)
+ * - Добавляет correlation ID в headers ответа (client response)
+ * - Сохраняет correlation ID в Reactor Context
  */
 class CorrelationIdFilterTest {
 
     private val filter = CorrelationIdFilter()
 
     @Test
-    fun `generates UUID correlation ID when X-Correlation-ID header missing`() {
+    fun `генерирует UUID correlation ID когда X-Correlation-ID header отсутствует`() {
         val request = MockServerHttpRequest.get("/api/test").build()
         val exchange = MockServerWebExchange.from(request)
 
@@ -37,22 +37,22 @@ class CorrelationIdFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
             .verifyComplete()
 
-        // Verify correlation ID was added to response headers
+        // Проверяем, что correlation ID добавлен в headers ответа
         val correlationId = exchange.response.headers.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
-        assert(correlationId != null) { "Correlation ID should be present in response headers" }
+        assert(correlationId != null) { "Correlation ID должен присутствовать в headers ответа" }
         assert(correlationId!!.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))) {
-            "Correlation ID should be a valid UUID format, got: $correlationId"
+            "Correlation ID должен быть в валидном UUID формате, получено: $correlationId"
         }
 
-        // Verify correlation ID was stored in exchange attributes
+        // Проверяем, что correlation ID сохранён в атрибутах exchange
         val attributeCorrelationId = exchange.getAttribute<String>(CorrelationIdFilter.CORRELATION_ID_ATTRIBUTE)
         assert(attributeCorrelationId == correlationId) {
-            "Correlation ID in attributes should match response header"
+            "Correlation ID в атрибутах должен совпадать с header ответа"
         }
     }
 
     @Test
-    fun `preserves existing X-Correlation-ID header`() {
+    fun `сохраняет существующий X-Correlation-ID header`() {
         val existingId = "test-correlation-id-123"
         val request = MockServerHttpRequest.get("/api/test")
             .header(CorrelationIdFilter.CORRELATION_ID_HEADER, existingId)
@@ -65,21 +65,21 @@ class CorrelationIdFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
             .verifyComplete()
 
-        // Verify existing correlation ID is preserved in response
+        // Проверяем, что существующий correlation ID сохранён в ответе
         val responseCorrelationId = exchange.response.headers.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
         assert(responseCorrelationId == existingId) {
-            "Expected correlation ID '$existingId', got '$responseCorrelationId'"
+            "Ожидался correlation ID '$existingId', получено '$responseCorrelationId'"
         }
 
-        // Verify preserved in exchange attributes
+        // Проверяем, что сохранён в атрибутах exchange
         val attributeCorrelationId = exchange.getAttribute<String>(CorrelationIdFilter.CORRELATION_ID_ATTRIBUTE)
         assert(attributeCorrelationId == existingId) {
-            "Expected attribute correlation ID '$existingId', got '$attributeCorrelationId'"
+            "Ожидался attribute correlation ID '$existingId', получено '$attributeCorrelationId'"
         }
     }
 
     @Test
-    fun `adds correlation ID to mutated request for upstream propagation`() {
+    fun `добавляет correlation ID в мутированный запрос для upstream propagation`() {
         val request = MockServerHttpRequest.get("/api/test").build()
         val exchange = MockServerWebExchange.from(request)
 
@@ -89,7 +89,7 @@ class CorrelationIdFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
             .verifyComplete()
 
-        // Verify chain.filter was called with mutated exchange containing correlation ID header
+        // Проверяем, что chain.filter был вызван с мутированным exchange, содержащим correlation ID header
         verify(chain).filter(argThat { mutatedExchange ->
             val headerValue = mutatedExchange.request.headers.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
             headerValue != null && headerValue.isNotBlank()
@@ -97,7 +97,7 @@ class CorrelationIdFilterTest {
     }
 
     @Test
-    fun `stores correlation ID in Reactor Context`() {
+    fun `сохраняет correlation ID в Reactor Context`() {
         val existingId = "context-test-id"
         val request = MockServerHttpRequest.get("/api/test")
             .header(CorrelationIdFilter.CORRELATION_ID_HEADER, existingId)
@@ -105,12 +105,12 @@ class CorrelationIdFilterTest {
         val exchange = MockServerWebExchange.from(request)
 
         val chain = mock<GatewayFilterChain>()
-        // Return a Mono that checks the context
+        // Возвращаем Mono, который проверяет context
         whenever(chain.filter(any())).thenReturn(
             Mono.deferContextual { context ->
                 val correlationId = context.getOrDefault(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, "not-found")
                 assert(correlationId == existingId) {
-                    "Context should contain correlation ID '$existingId', got '$correlationId'"
+                    "Context должен содержать correlation ID '$existingId', получено '$correlationId'"
                 }
                 Mono.empty()
             }
@@ -121,14 +121,14 @@ class CorrelationIdFilterTest {
     }
 
     @Test
-    fun `uses HIGHEST_PRECEDENCE order`() {
+    fun `использует HIGHEST_PRECEDENCE order`() {
         assert(filter.order == org.springframework.core.Ordered.HIGHEST_PRECEDENCE) {
-            "CorrelationIdFilter should have HIGHEST_PRECEDENCE order"
+            "CorrelationIdFilter должен иметь HIGHEST_PRECEDENCE order"
         }
     }
 
     @Test
-    fun `correlation ID is different for each request when not provided`() {
+    fun `correlation ID уникален для каждого запроса когда не предоставлен`() {
         val chain = mock<GatewayFilterChain>()
         whenever(chain.filter(any())).thenReturn(Mono.empty())
 
@@ -145,7 +145,7 @@ class CorrelationIdFilterTest {
         val id2 = exchange2.response.headers.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
 
         assert(id1 != id2) {
-            "Each request should get a unique correlation ID, but got same ID for both: $id1"
+            "Каждый запрос должен получить уникальный correlation ID, но получен одинаковый ID для обоих: $id1"
         }
     }
 }

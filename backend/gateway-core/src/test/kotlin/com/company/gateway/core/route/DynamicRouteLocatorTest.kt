@@ -23,7 +23,7 @@ class DynamicRouteLocatorTest {
     private lateinit var dynamicRouteLocator: DynamicRouteLocator
 
     @Test
-    fun `getRoutes should return routes from cache`() {
+    fun `getRoutes должен возвращать маршруты из кэша`() {
         val publishedRoute = createRoute("/api/orders", "http://order-service:8080", RouteStatus.PUBLISHED)
 
         whenever(cacheManager.getCachedRoutes())
@@ -38,7 +38,7 @@ class DynamicRouteLocatorTest {
     }
 
     @Test
-    fun `getRoutes should return empty when cache is empty`() {
+    fun `getRoutes должен возвращать пустой результат когда кэш пуст`() {
         whenever(cacheManager.getCachedRoutes())
             .thenReturn(emptyList())
 
@@ -47,7 +47,7 @@ class DynamicRouteLocatorTest {
     }
 
     @Test
-    fun `getRoutes should return multiple routes from cache`() {
+    fun `getRoutes должен возвращать множество маршрутов из кэша`() {
         val route1 = createRoute("/api/orders", "http://order-service:8080", RouteStatus.PUBLISHED)
         val route2 = createRoute("/api/users", "http://user-service:8080", RouteStatus.PUBLISHED)
 
@@ -60,7 +60,7 @@ class DynamicRouteLocatorTest {
     }
 
     @Test
-    fun `getRoutes should skip routes with null id`() {
+    fun `getRoutes должен пропускать маршруты с null id`() {
         val validRoute = createRoute("/api/orders", "http://order-service:8080", RouteStatus.PUBLISHED)
         val nullIdRoute = createRoute("/api/null", "http://null-service:8080", RouteStatus.PUBLISHED).copy(id = null)
 
@@ -75,42 +75,42 @@ class DynamicRouteLocatorTest {
     }
 
     @Test
-    fun `matchesPrefix should match exact path`() {
+    fun `matchesPrefix должен совпадать с точным путём`() {
         assert(dynamicRouteLocator.matchesPrefix("/api/orders", "/api/orders"))
     }
 
     @Test
-    fun `matchesPrefix should match path with trailing slash`() {
+    fun `matchesPrefix должен совпадать с путём со слэшем в конце`() {
         assert(dynamicRouteLocator.matchesPrefix("/api/orders/", "/api/orders"))
     }
 
     @Test
-    fun `matchesPrefix should match path with ID suffix`() {
+    fun `matchesPrefix должен совпадать с путём с ID суффиксом`() {
         assert(dynamicRouteLocator.matchesPrefix("/api/orders/123", "/api/orders"))
     }
 
     @Test
-    fun `matchesPrefix should match nested path`() {
+    fun `matchesPrefix должен совпадать с вложенным путём`() {
         assert(dynamicRouteLocator.matchesPrefix("/api/orders/123/items", "/api/orders"))
     }
 
     @Test
-    fun `matchesPrefix should NOT match path without separator`() {
+    fun `matchesPrefix НЕ должен совпадать с путём без разделителя`() {
         assert(!dynamicRouteLocator.matchesPrefix("/api/ordershistory", "/api/orders"))
     }
 
     @Test
-    fun `matchesPrefix should NOT match different path`() {
+    fun `matchesPrefix НЕ должен совпадать с другим путём`() {
         assert(!dynamicRouteLocator.matchesPrefix("/api/users", "/api/orders"))
     }
 
     @Test
-    fun `matchesPrefix should NOT match partial prefix`() {
+    fun `matchesPrefix НЕ должен совпадать с частичным префиксом`() {
         assert(!dynamicRouteLocator.matchesPrefix("/api/ord", "/api/orders"))
     }
 
     @Test
-    fun `route with specific methods should only match those methods`() {
+    fun `маршрут с определёнными методами должен совпадать только с этими методами`() {
         val route = createRouteWithMethods("/api/orders", "http://order-service:8080", listOf("GET", "POST"))
 
         whenever(cacheManager.getCachedRoutes())
@@ -118,14 +118,14 @@ class DynamicRouteLocatorTest {
 
         StepVerifier.create(dynamicRouteLocator.getRoutes())
             .expectNextMatches { gatewayRoute ->
-                // Route should be created successfully
+                // Маршрут должен быть успешно создан
                 gatewayRoute.id == route.id.toString()
             }
             .verifyComplete()
     }
 
     @Test
-    fun `route with empty methods should be created successfully`() {
+    fun `маршрут с пустым списком методов должен быть успешно создан`() {
         val route = createRouteWithMethods("/api/all", "http://all-service:8080", emptyList())
 
         whenever(cacheManager.getCachedRoutes())
@@ -139,7 +139,7 @@ class DynamicRouteLocatorTest {
     }
 
     @Test
-    fun `multiple routes with different methods are all created`() {
+    fun `множество маршрутов с разными методами все создаются`() {
         val getRoute = createRouteWithMethods("/api/read", "http://read-service:8080", listOf("GET"))
         val postRoute = createRouteWithMethods("/api/write", "http://write-service:8080", listOf("POST", "PUT"))
 

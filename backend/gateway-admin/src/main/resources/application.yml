@@ -65,3 +65,9 @@ app:
   admin:
     password: ${ADMIN_PASSWORD:admin123}
     email: ${ADMIN_EMAIL:admin@gateway.local}
+
+# JWT конфигурация
+# ВАЖНО: В production задать через env var JWT_SECRET! Минимум 32 символа для HS256
+jwt:
+  secret: ${JWT_SECRET:dev-secret-key-minimum-32-characters-long}
+  expiration: ${JWT_EXPIRATION:86400000}  # 24 часа в миллисекундах

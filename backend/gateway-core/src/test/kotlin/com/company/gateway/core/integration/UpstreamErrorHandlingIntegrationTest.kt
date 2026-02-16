@@ -25,14 +25,14 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
 
 /**
- * Integration tests for upstream error handling (Story 1.4)
+ * Integration тесты для обработки ошибок upstream (Story 1.4)
  *
- * Tests AC1-AC5:
- * - AC1: Connection refused -> 502 Bad Gateway with RFC 7807
- * - AC2: Upstream timeout -> 504 Gateway Timeout with RFC 7807
- * - AC3: Upstream 5xx -> Passthrough unchanged
- * - AC4: All gateway-generated errors include correlationId (placeholder)
- * - AC5: No internal details exposed in errors
+ * Тестирование AC1-AC5:
+ * - AC1: Connection refused -> 502 Bad Gateway с RFC 7807
+ * - AC2: Таймаут upstream -> 504 Gateway Timeout с RFC 7807
+ * - AC3: Upstream 5xx -> Передаётся без изменений
+ * - AC4: Все ошибки, генерируемые шлюзом, включают correlationId (placeholder)
+ * - AC5: Внутренние детали не раскрываются в ошибках
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -120,11 +120,11 @@ class UpstreamErrorHandlingIntegrationTest {
     // ============================================
 
     @Test
-    fun `AC1 - connection refused returns 502 Bad Gateway with RFC 7807 format`() {
-        // Arrange: insert route pointing to closed port (connection refused)
+    fun `AC1 - отказ в соединении возвращает 502 Bad Gateway в формате RFC 7807`() {
+        // Подготовка: вставляем маршрут, указывающий на закрытый порт (отказ в соединении)
         insertRoute("/api/dead-service", "http://localhost:$DEAD_PORT", RouteStatus.PUBLISHED)
 
-        // Act & Assert
+        // Выполнение и проверка
         webTestClient.get()
             .uri("/api/dead-service/test")
             .exchange()
@@ -134,25 +134,25 @@ class UpstreamErrorHandlingIntegrationTest {
             .consumeWith { result ->
                 val body = result.responseBody!!
                 assert(body.type == "https://api.gateway/errors/upstream-unavailable") {
-                    "Expected type 'upstream-unavailable', got '${body.type}'"
+                    "Ожидался type 'upstream-unavailable', получено '${body.type}'"
                 }
                 assert(body.title == "Bad Gateway") {
-                    "Expected title 'Bad Gateway', got '${body.title}'"
+                    "Ожидался title 'Bad Gateway', получено '${body.title}'"
                 }
                 assert(body.status == 502) {
-                    "Expected status 502, got ${body.status}"
+                    "Ожидался status 502, получено ${body.status}"
                 }
                 assert(body.detail == "Upstream service is unavailable") {
-                    "Expected detail 'Upstream service is unavailable', got '${body.detail}'"
+                    "Ожидался detail 'Upstream service is unavailable', получено '${body.detail}'"
                 }
                 assert(body.instance == "/api/dead-service/test") {
-                    "Expected instance '/api/dead-service/test', got '${body.instance}'"
+                    "Ожидался instance '/api/dead-service/test', получено '${body.instance}'"
                 }
             }
     }
 
     @Test
-    fun `AC5 - connection refused error does not expose internal details`() {
+    fun `AC5 - ошибка отказа в соединении не раскрывает внутренние детали`() {
         insertRoute("/api/dead-service", "http://localhost:$DEAD_PORT", RouteStatus.PUBLISHED)
 
         webTestClient.get()
@@ -162,15 +162,15 @@ class UpstreamErrorHandlingIntegrationTest {
             .expectBody()
             .consumeWith { result ->
                 val bodyString = String(result.responseBody ?: ByteArray(0))
-                // Should NOT contain internal details
+                // НЕ должен содержать внутренние детали
                 assert(!bodyString.contains("localhost:$DEAD_PORT", ignoreCase = true)) {
-                    "Error response should not expose upstream host:port"
+                    "Ответ с ошибкой не должен раскрывать upstream host:port"
                 }
                 assert(!bodyString.contains("ConnectException", ignoreCase = true)) {
-                    "Error response should not expose exception class names"
+                    "Ответ с ошибкой не должен раскрывать имена классов исключений"
                 }
                 assert(!bodyString.contains("stackTrace", ignoreCase = true)) {
-                    "Error response should not contain stack traces"
+                    "Ответ с ошибкой не должен содержать stack traces"
                 }
             }
     }
@@ -180,13 +180,13 @@ class UpstreamErrorHandlingIntegrationTest {
     // ============================================
 
     @Test
-    fun `AC2 - slow upstream returns 504 Gateway Timeout with RFC 7807 format`() {
-        // Arrange: configure WireMock with delay longer than timeout (3s + buffer)
+    fun `AC2 - медленный upstream возвращает 504 Gateway Timeout в формате RFC 7807`() {
+        // Подготовка: настраиваем WireMock с задержкой больше таймаута (3s + буфер)
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathMatching("/api/slow.*"))
                 .willReturn(
                     WireMock.aResponse()
-                        .withFixedDelay(5000) // 5 seconds > 3s timeout
+                        .withFixedDelay(5000) // 5 секунд > 3s таймаут
                         .withStatus(200)
                         .withBody("{}")
                 )
@@ -194,7 +194,7 @@ class UpstreamErrorHandlingIntegrationTest {
 
         insertRoute("/api/slow", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
-        // Act & Assert
+        // Выполнение и проверка
         webTestClient.get()
             .uri("/api/slow/test")
             .exchange()
@@ -204,22 +204,22 @@ class UpstreamErrorHandlingIntegrationTest {
             .consumeWith { result ->
                 val body = result.responseBody!!
                 assert(body.type == "https://api.gateway/errors/upstream-timeout") {
-                    "Expected type 'upstream-timeout', got '${body.type}'"
+                    "Ожидался type 'upstream-timeout', получено '${body.type}'"
                 }
                 assert(body.title == "Gateway Timeout") {
-                    "Expected title 'Gateway Timeout', got '${body.title}'"
+                    "Ожидался title 'Gateway Timeout', получено '${body.title}'"
                 }
                 assert(body.status == 504) {
-                    "Expected status 504, got ${body.status}"
+                    "Ожидался status 504, получено ${body.status}"
                 }
                 assert(body.detail == "Upstream service did not respond in time") {
-                    "Expected detail 'Upstream service did not respond in time', got '${body.detail}'"
+                    "Ожидался detail 'Upstream service did not respond in time', получено '${body.detail}'"
                 }
             }
     }
 
     @Test
-    fun `AC5 - timeout error does not expose internal details`() {
+    fun `AC5 - ошибка таймаута не раскрывает внутренние детали`() {
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathMatching("/api/slow.*"))
                 .willReturn(
@@ -238,22 +238,22 @@ class UpstreamErrorHandlingIntegrationTest {
             .expectBody()
             .consumeWith { result ->
                 val bodyString = String(result.responseBody ?: ByteArray(0))
-                // Should NOT contain internal details
+                // НЕ должен содержать внутренние детали
                 assert(!bodyString.contains("TimeoutException", ignoreCase = true)) {
-                    "Error response should not expose exception class names"
+                    "Ответ с ошибкой не должен раскрывать имена классов исключений"
                 }
                 assert(!bodyString.contains("ReadTimeoutException", ignoreCase = true)) {
-                    "Error response should not expose internal exception types"
+                    "Ответ с ошибкой не должен раскрывать внутренние типы исключений"
                 }
             }
     }
 
     // ============================================
-    // AC3: Upstream 5xx -> Passthrough unchanged
+    // AC3: Upstream 5xx -> Передаётся без изменений
     // ============================================
 
     @Test
-    fun `AC3 - upstream 500 is passed through unchanged`() {
+    fun `AC3 - upstream 500 передаётся без изменений`() {
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathMatching("/api/failing.*"))
                 .willReturn(
@@ -275,7 +275,7 @@ class UpstreamErrorHandlingIntegrationTest {
     }
 
     @Test
-    fun `AC3 - upstream 502 is passed through unchanged`() {
+    fun `AC3 - upstream 502 передаётся без изменений`() {
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathMatching("/api/failing.*"))
                 .willReturn(
@@ -297,7 +297,7 @@ class UpstreamErrorHandlingIntegrationTest {
     }
 
     @Test
-    fun `AC3 - upstream 503 is passed through unchanged`() {
+    fun `AC3 - upstream 503 передаётся без изменений`() {
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathMatching("/api/failing.*"))
                 .willReturn(
@@ -320,7 +320,7 @@ class UpstreamErrorHandlingIntegrationTest {
     }
 
     @Test
-    fun `AC3 - upstream 504 is passed through unchanged`() {
+    fun `AC3 - upstream 504 передаётся без изменений`() {
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathMatching("/api/failing.*"))
                 .willReturn(
@@ -346,7 +346,7 @@ class UpstreamErrorHandlingIntegrationTest {
     // ============================================
 
     @Test
-    fun `AC4 - error response structure includes correlationId field (null until Story 1_6)`() {
+    fun `AC4 - структура error response включает поле correlationId`() {
         insertRoute("/api/dead-service", "http://localhost:$DEAD_PORT", RouteStatus.PUBLISHED)
 
         webTestClient.get()
@@ -357,43 +357,42 @@ class UpstreamErrorHandlingIntegrationTest {
             .consumeWith { result ->
                 val bodyString = String(result.responseBody ?: ByteArray(0))
 
-                // Verify RFC 7807 required fields are present
+                // Проверяем наличие обязательных полей RFC 7807
                 assert(bodyString.contains("\"type\"")) {
-                    "RFC 7807 error response must contain 'type' field"
+                    "RFC 7807 error response должен содержать поле 'type'"
                 }
                 assert(bodyString.contains("\"title\"")) {
-                    "RFC 7807 error response must contain 'title' field"
+                    "RFC 7807 error response должен содержать поле 'title'"
                 }
                 assert(bodyString.contains("\"status\"")) {
-                    "RFC 7807 error response must contain 'status' field"
+                    "RFC 7807 error response должен содержать поле 'status'"
                 }
                 assert(bodyString.contains("\"detail\"")) {
-                    "RFC 7807 error response must contain 'detail' field"
+                    "RFC 7807 error response должен содержать поле 'detail'"
                 }
                 assert(bodyString.contains("\"instance\"")) {
-                    "RFC 7807 error response must contain 'instance' field"
+                    "RFC 7807 error response должен содержать поле 'instance'"
                 }
 
-                // Note: correlationId is null for now (JsonInclude.NON_NULL excludes it)
-                // Story 1.6 will add actual correlationId generation
-                // This test validates the response follows RFC 7807 structure
+                // Примечание: correlationId добавляется в Story 1.6
+                // Этот тест проверяет, что ответ соответствует структуре RFC 7807
             }
     }
 
     @Test
-    fun `AC4 - ErrorResponse class has correlationId field defined`() {
-        // Verify ErrorResponse data class has correlationId field (compile-time check)
+    fun `AC4 - класс ErrorResponse имеет определённое поле correlationId`() {
+        // Проверяем, что data class ErrorResponse имеет поле correlationId (compile-time check)
         val errorResponse = ErrorResponse(
             type = "https://api.gateway/errors/test",
             title = "Test",
             status = 500,
             detail = "Test detail",
             instance = "/test",
-            correlationId = "test-correlation-id" // Field exists and can be set
+            correlationId = "test-correlation-id" // Поле существует и может быть установлено
         )
 
         assert(errorResponse.correlationId == "test-correlation-id") {
-            "ErrorResponse should have correlationId field"
+            "ErrorResponse должен иметь поле correlationId"
         }
     }
 

@@ -39,7 +39,7 @@ class RouteCacheManagerTest {
     }
 
     @Test
-    fun `refreshCache loads only PUBLISHED routes`() {
+    fun `refreshCache загружает только PUBLISHED маршруты`() {
         val publishedRoute = createRoute(RouteStatus.PUBLISHED)
         whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
             .thenReturn(Flux.just(publishedRoute))
@@ -52,17 +52,17 @@ class RouteCacheManagerTest {
     }
 
     @Test
-    fun `refreshCache atomically replaces routes`() {
+    fun `refreshCache атомарно заменяет маршруты`() {
         val route1 = createRoute(RouteStatus.PUBLISHED, "/api/v1")
         val route2 = createRoute(RouteStatus.PUBLISHED, "/api/v2")
 
-        // First load
+        // Первая загрузка
         whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
             .thenReturn(Flux.just(route1))
         cacheManager.refreshCache().block()
         assertThat(cacheManager.getCachedRoutes()).containsExactly(route1)
 
-        // Second load - atomically replaces
+        // Вторая загрузка - атомарно заменяет
         whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
             .thenReturn(Flux.just(route2))
         cacheManager.refreshCache().block()
@@ -70,7 +70,7 @@ class RouteCacheManagerTest {
     }
 
     @Test
-    fun `getCachedRoutes returns atomic reference first when not empty`() {
+    fun `getCachedRoutes возвращает atomic reference первым когда не пуст`() {
         val route = createRoute(RouteStatus.PUBLISHED)
         whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
             .thenReturn(Flux.just(route))
@@ -82,17 +82,17 @@ class RouteCacheManagerTest {
     }
 
     @Test
-    fun `getCachedRoutes returns Caffeine cache when atomic reference is empty`() {
+    fun `getCachedRoutes возвращает Caffeine cache когда atomic reference пуст`() {
         val caffeineRoutes = listOf(createRoute(RouteStatus.PUBLISHED))
         whenever(caffeineCache.getIfPresent(any<String>())).thenReturn(caffeineRoutes)
 
-        // No routes loaded into atomic reference
+        // Маршруты не загружены в atomic reference
         val routes = cacheManager.getCachedRoutes()
         assertThat(routes).isEqualTo(caffeineRoutes)
     }
 
     @Test
-    fun `getCachedRoutes returns empty list when both caches are empty`() {
+    fun `getCachedRoutes возвращает пустой список когда оба кэша пусты`() {
         whenever(caffeineCache.getIfPresent(any<String>())).thenReturn(null)
 
         val routes = cacheManager.getCachedRoutes()
@@ -100,7 +100,7 @@ class RouteCacheManagerTest {
     }
 
     @Test
-    fun `getCacheSize returns correct count`() {
+    fun `getCacheSize возвращает корректное количество`() {
         val routes = listOf(
             createRoute(RouteStatus.PUBLISHED, "/api/v1"),
             createRoute(RouteStatus.PUBLISHED, "/api/v2"),
@@ -115,7 +115,7 @@ class RouteCacheManagerTest {
     }
 
     @Test
-    fun `refreshCache handles empty result from repository`() {
+    fun `refreshCache обрабатывает пустой результат из репозитория`() {
         whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
             .thenReturn(Flux.empty())
 

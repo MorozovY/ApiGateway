@@ -14,11 +14,11 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
- * Tests for health endpoint behavior when dependencies are unavailable (AC2: Story 1.7).
+ * Тесты для поведения health endpoint когда зависимости недоступны (AC2: Story 1.7).
  *
- * AC2: Given gateway-core is starting but database/redis is not ready
- *      When a request is made to /actuator/health/readiness
- *      Then the response returns HTTP 503 with status "DOWN"
+ * AC2: Given gateway-core запускается, но database/redis не готов
+ *      When делается запрос к /actuator/health/readiness
+ *      Then ответ возвращает HTTP 503 со статусом "DOWN"
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
@@ -59,8 +59,8 @@ class HealthEndpointTest {
     private lateinit var webTestClient: WebTestClient
 
     @Test
-    fun `health endpoint returns 200 even when Redis unavailable`() {
-        // Liveness should be UP regardless of dependencies
+    fun `health endpoint возвращает 200 даже когда Redis недоступен`() {
+        // Liveness должен быть UP независимо от зависимостей
         webTestClient.get()
             .uri("/actuator/health/liveness")
             .exchange()
@@ -70,8 +70,8 @@ class HealthEndpointTest {
     }
 
     @Test
-    fun `readiness probe returns DOWN when Redis unavailable`() {
-        // Readiness should reflect dependency status
+    fun `readiness probe возвращает DOWN когда Redis недоступен`() {
+        // Readiness должен отражать статус зависимостей
         webTestClient.get()
             .uri("/actuator/health/readiness")
             .exchange()
@@ -81,7 +81,7 @@ class HealthEndpointTest {
     }
 
     @Test
-    fun `redis component shows DOWN status when unavailable`() {
+    fun `redis компонент показывает DOWN статус когда недоступен`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()
@@ -90,7 +90,7 @@ class HealthEndpointTest {
     }
 
     @Test
-    fun `r2dbc component shows UP status when database available`() {
+    fun `r2dbc компонент показывает UP статус когда база данных доступна`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()

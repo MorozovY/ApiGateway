@@ -27,6 +27,14 @@ dependencies {
     // Security
     implementation("org.springframework.boot:spring-boot-starter-security")
 
+    // Validation
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+
+    // JWT
+    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
+
     // Actuator
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
@@ -50,6 +58,7 @@ dependencies {
     testImplementation("org.testcontainers:r2dbc:1.19.5")
     testImplementation("org.testcontainers:junit-jupiter:1.19.5")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
 }
 
 java {

@@ -10,15 +10,15 @@ import reactor.util.context.Context
 import java.util.UUID
 
 /**
- * Global filter that manages X-Correlation-ID header for request tracing.
+ * Глобальный фильтр, управляющий заголовком X-Correlation-ID для трассировки запросов.
  *
- * - Generates a UUID correlation ID for new requests without the header
- * - Preserves existing correlation ID if provided by client
- * - Adds correlation ID to request headers (for upstream propagation)
- * - Adds correlation ID to response headers (for client)
- * - Stores correlation ID in Reactor Context for downstream operators
+ * - Генерирует UUID correlation ID для новых запросов без заголовка
+ * - Сохраняет существующий correlation ID, если предоставлен клиентом
+ * - Добавляет correlation ID в заголовки запроса (для propagation на upstream)
+ * - Добавляет correlation ID в заголовки ответа (для клиента)
+ * - Сохраняет correlation ID в Reactor Context для downstream операторов
  *
- * Runs at HIGHEST_PRECEDENCE to ensure correlation ID is available for all other filters.
+ * Выполняется с HIGHEST_PRECEDENCE для обеспечения доступности correlation ID для всех других фильтров.
  */
 @Component
 class CorrelationIdFilter : GlobalFilter, Ordered {
@@ -36,15 +36,15 @@ class CorrelationIdFilter : GlobalFilter, Ordered {
             .getFirst(CORRELATION_ID_HEADER)
             ?: UUID.randomUUID().toString()
 
-        // Add to request for upstream propagation
+        // Добавляем в запрос для propagation на upstream
         val mutatedRequest = exchange.request.mutate()
             .header(CORRELATION_ID_HEADER, correlationId)
             .build()
 
-        // Add to response for client
+        // Добавляем в ответ для клиента
         exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
 
-        // Store in exchange attributes for access in error handlers
+        // Сохраняем в атрибутах exchange для доступа в обработчиках ошибок
         val mutatedExchange = exchange.mutate()
             .request(mutatedRequest)
             .build()

@@ -111,47 +111,47 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `AC1 - route becomes active within 5 seconds of cache refresh`() {
-        // 1. Insert DRAFT route in DB (not accessible)
+    fun `AC1 - маршрут становится активным в течение 5 секунд после обновления кэша`() {
+        // 1. Вставляем DRAFT маршрут в БД (не доступен)
         val routeId = UUID.randomUUID()
         insertRouteWithoutRefresh(routeId, "/api/hotreload", "http://localhost:${wireMock.port()}", RouteStatus.DRAFT)
 
-        // Setup WireMock
+        // Настраиваем WireMock
         wireMock.stubFor(
             WireMock.get(WireMock.urlMatching("/api/hotreload.*"))
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"status":"ok"}"""))
         )
 
-        // 2. Verify route is NOT accessible (404) - draft route not in cache
+        // 2. Проверяем, что маршрут НЕ доступен (404) - черновик не в кэше
         cacheManager.refreshCache().block()
         webTestClient.get()
             .uri("/api/hotreload/test")
             .exchange()
             .expectStatus().isNotFound
 
-        // 3. Update route status to PUBLISHED in DB
+        // 3. Обновляем статус маршрута на PUBLISHED в БД
         updateRouteStatus(routeId, RouteStatus.PUBLISHED)
 
-        // 4. Trigger cache refresh (simulates what Redis invalidation event would do)
+        // 4. Запускаем обновление кэша (симулирует Redis invalidation event)
         val startTime = System.currentTimeMillis()
         cacheManager.refreshCache().block()
         val elapsedTime = System.currentTimeMillis() - startTime
 
-        // 5. Verify route is now accessible
+        // 5. Проверяем, что маршрут теперь доступен
         webTestClient.get()
             .uri("/api/hotreload/test")
             .exchange()
             .expectStatus().isOk
 
-        // Verify NFR3: Configuration Reload < 5 seconds
-        // Note: In production, Redis pub/sub adds ~100ms latency
+        // Проверяем NFR3: Перезагрузка конфигурации < 5 секунд
+        // Примечание: В production Redis pub/sub добавляет ~100ms задержки
         assertThat(elapsedTime).isLessThan(5000)
     }
 
     @Test
-    fun `AC1 - Redis pub-sub triggers cache refresh`() {
-        // This test verifies that Redis pub/sub integration works
-        // Insert a published route
+    fun `AC1 - Redis pub-sub запускает обновление кэша`() {
+        // Этот тест проверяет работу интеграции Redis pub/sub
+        // Вставляем опубликованный маршрут
         insertRoute(UUID.randomUUID(), "/api/pubsub-test", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
         wireMock.stubFor(
@@ -159,19 +159,19 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"status":"ok"}"""))
         )
 
-        // Verify route is accessible (should work after insertRoute refreshes cache)
+        // Проверяем, что маршрут доступен (должен работать после обновления кэша в insertRoute)
         webTestClient.get()
             .uri("/api/pubsub-test")
             .exchange()
             .expectStatus().isOk
 
-        // Send Redis invalidation event and verify cache is still working
+        // Отправляем Redis invalidation event и проверяем, что кэш всё ещё работает
         redisTemplate.convertAndSend("route-cache-invalidation", "*").block()
 
-        // Small delay for async processing
+        // Небольшая задержка для асинхронной обработки
         Thread.sleep(500)
 
-        // Route should still be accessible
+        // Маршрут должен оставаться доступным
         webTestClient.get()
             .uri("/api/pubsub-test")
             .exchange()
@@ -179,10 +179,10 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `AC3 - routes are pre-loaded from DB into cache on startup`() {
-        // Insert published route
+    fun `AC3 - маршруты предзагружаются из БД в кэш при запуске`() {
+        // Вставляем опубликованный маршрут
         insertRoute(UUID.randomUUID(), "/api/startup", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
-        // Refresh cache (simulates startup)
+        // Обновляем кэш (симулирует запуск)
         cacheManager.refreshCache().block()
 
         wireMock.stubFor(
@@ -190,7 +190,7 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("[]"))
         )
 
-        // Gateway should route this request (routes loaded from cache)
+        // Шлюз должен маршрутизировать этот запрос (маршруты загружены из кэша)
         webTestClient.get()
             .uri("/api/startup")
             .exchange()
@@ -198,14 +198,14 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `AC4 - only PUBLISHED routes are loaded into cache`() {
-        // Insert routes with different statuses
+    fun `AC4 - только PUBLISHED маршруты загружаются в кэш`() {
+        // Вставляем маршруты с разными статусами
         insertRoute(UUID.randomUUID(), "/api/draft", "http://localhost:${wireMock.port()}", RouteStatus.DRAFT)
         insertRoute(UUID.randomUUID(), "/api/pending", "http://localhost:${wireMock.port()}", RouteStatus.PENDING)
         insertRoute(UUID.randomUUID(), "/api/rejected", "http://localhost:${wireMock.port()}", RouteStatus.REJECTED)
         insertRoute(UUID.randomUUID(), "/api/published", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
-        // Refresh cache
+        // Обновляем кэш
         cacheManager.refreshCache().block()
 
         wireMock.stubFor(
@@ -213,7 +213,7 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("[]"))
         )
 
-        // Only PUBLISHED route should be accessible
+        // Только PUBLISHED маршрут должен быть доступен
         webTestClient.get().uri("/api/draft/test").exchange().expectStatus().isNotFound
         webTestClient.get().uri("/api/pending/test").exchange().expectStatus().isNotFound
         webTestClient.get().uri("/api/rejected/test").exchange().expectStatus().isNotFound
@@ -221,8 +221,8 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `AC5 - cache refresh is atomic - no partial state visible`() {
-        // Insert initial route
+    fun `AC5 - обновление кэша атомарно - частичное состояние не видимо`() {
+        // Вставляем начальный маршрут
         val routeId1 = UUID.randomUUID()
         insertRoute(routeId1, "/api/route1", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
         cacheManager.refreshCache().block()
@@ -232,26 +232,26 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("[]"))
         )
 
-        // Verify initial route works
+        // Проверяем, что начальный маршрут работает
         webTestClient.get().uri("/api/route1").exchange().expectStatus().isOk
 
-        // Insert new route and update cache atomically
+        // Вставляем новый маршрут и обновляем кэш атомарно
         val routeId2 = UUID.randomUUID()
         insertRoute(routeId2, "/api/route2", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
-        // Delete old route
+        // Удаляем старый маршрут
         deleteRoute(routeId1)
 
-        // Refresh cache atomically
+        // Атомарно обновляем кэш
         cacheManager.refreshCache().block()
 
-        // Old route should be gone, new route should work
+        // Старый маршрут должен быть недоступен, новый должен работать
         webTestClient.get().uri("/api/route1").exchange().expectStatus().isNotFound
         webTestClient.get().uri("/api/route2").exchange().expectStatus().isOk
     }
 
     @Test
-    fun `cache size is reported correctly`() {
+    fun `размер кэша отображается корректно`() {
         insertRoute(UUID.randomUUID(), "/api/test1", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
         insertRoute(UUID.randomUUID(), "/api/test2", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
         cacheManager.refreshCache().block()
@@ -296,8 +296,8 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `routes are filtered by HTTP method`() {
-        // Insert route that only allows GET and POST
+    fun `маршруты фильтруются по HTTP методу`() {
+        // Вставляем маршрут, разрешающий только GET и POST
         val routeId = UUID.randomUUID()
         insertRouteWithMethods(routeId, "/api/methods-test", "http://localhost:${wireMock.port()}",
             RouteStatus.PUBLISHED, listOf("GET", "POST"))
@@ -308,25 +308,25 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"status":"ok"}"""))
         )
 
-        // GET should work
+        // GET должен работать
         webTestClient.get()
             .uri("/api/methods-test")
             .exchange()
             .expectStatus().isOk
 
-        // POST should work
+        // POST должен работать
         webTestClient.post()
             .uri("/api/methods-test")
             .exchange()
             .expectStatus().isOk
 
-        // DELETE should NOT match the route (returns 404)
+        // DELETE НЕ должен совпадать с маршрутом (возвращает 404)
         webTestClient.delete()
             .uri("/api/methods-test")
             .exchange()
             .expectStatus().isNotFound
 
-        // PUT should NOT match the route (returns 404)
+        // PUT НЕ должен совпадать с маршрутом (возвращает 404)
         webTestClient.put()
             .uri("/api/methods-test")
             .exchange()
@@ -334,8 +334,8 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `route with empty methods allows all HTTP methods`() {
-        // Insert route with empty methods list (allows all)
+    fun `маршрут с пустым списком методов разрешает все HTTP методы`() {
+        // Вставляем маршрут с пустым списком методов (разрешает все)
         val routeId = UUID.randomUUID()
         insertRouteWithMethods(routeId, "/api/all-methods", "http://localhost:${wireMock.port()}",
             RouteStatus.PUBLISHED, emptyList())
@@ -346,7 +346,7 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"status":"ok"}"""))
         )
 
-        // All methods should work
+        // Все методы должны работать
         webTestClient.get().uri("/api/all-methods").exchange().expectStatus().isOk
         webTestClient.post().uri("/api/all-methods").exchange().expectStatus().isOk
         webTestClient.put().uri("/api/all-methods").exchange().expectStatus().isOk
@@ -354,9 +354,9 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `AC2 - Caffeine cache serves routes when cache is pre-populated`() {
-        // This test verifies Caffeine fallback behavior
-        // Pre-populate cache with a route
+    fun `AC2 - Caffeine кэш обслуживает маршруты когда кэш предзаполнен`() {
+        // Этот тест проверяет fallback поведение Caffeine
+        // Предзаполняем кэш маршрутом
         val routeId = UUID.randomUUID()
         insertRoute(routeId, "/api/caffeine-test", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
@@ -365,10 +365,10 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"cached":"true"}"""))
         )
 
-        // Verify cache is populated
+        // Проверяем, что кэш заполнен
         assertThat(cacheManager.getCacheSize()).isGreaterThan(0)
 
-        // Route should be accessible from cache
+        // Маршрут должен быть доступен из кэша
         webTestClient.get()
             .uri("/api/caffeine-test")
             .exchange()
@@ -378,29 +378,29 @@ class HotReloadIntegrationTest {
     }
 
     @Test
-    fun `AC2 - RouteRefreshService reports Redis as available when connected`() {
-        // When Redis is available (which it is in this test via testcontainers),
-        // RouteRefreshService should report redis as available
-        // This validates AC2's requirement that "when Redis becomes available again,
-        // the Redis-based subscription resumes"
+    fun `AC2 - RouteRefreshService сообщает что Redis доступен когда подключён`() {
+        // Когда Redis доступен (что верно в этом тесте через testcontainers),
+        // RouteRefreshService должен сообщать что redis доступен
+        // Это проверяет требование AC2 что "когда Redis снова становится доступным,
+        // Redis-based подписка возобновляется"
 
-        // Skip if RouteRefreshService not available (conditional bean)
+        // Пропускаем если RouteRefreshService недоступен (conditional bean)
         if (routeRefreshService == null) {
-            // Service not created - Redis connection factory might not be available
-            // This is acceptable - the Caffeine fallback test covers AC2
+            // Сервис не создан - Redis connection factory может быть недоступен
+            // Это допустимо - тест Caffeine fallback покрывает AC2
             return
         }
 
-        // Give time for subscription to establish
+        // Даём время для установки подписки
         Thread.sleep(1000)
 
-        // Redis should be reported as available
+        // Redis должен сообщаться как доступный
         assertThat(routeRefreshService!!.isRedisAvailable()).isTrue()
     }
 
     @Test
-    fun `AC2 - Routes continue to be served when Redis subscription is active`() {
-        // This verifies that routes work with Redis pub/sub active
+    fun `AC2 - маршруты продолжают обслуживаться когда Redis подписка активна`() {
+        // Проверяем, что маршруты работают с активной Redis pub/sub
         val routeId = UUID.randomUUID()
         insertRoute(routeId, "/api/redis-active", "http://localhost:${wireMock.port()}", RouteStatus.PUBLISHED)
 
@@ -409,13 +409,13 @@ class HotReloadIntegrationTest {
                 .willReturn(WireMock.aResponse().withStatus(200).withBody("""{"redis":"active"}"""))
         )
 
-        // Routes should work regardless of RouteRefreshService availability
+        // Маршруты должны работать независимо от доступности RouteRefreshService
         webTestClient.get()
             .uri("/api/redis-active")
             .exchange()
             .expectStatus().isOk
 
-        // Verify RouteRefreshService is active (if available)
+        // Проверяем, что RouteRefreshService активен (если доступен)
         routeRefreshService?.let { service ->
             assertThat(service.isRedisAvailable()).isTrue()
         }

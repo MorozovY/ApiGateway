@@ -15,27 +15,27 @@ import reactor.util.context.Context
 import java.net.URI
 
 /**
- * Unit tests for LoggingFilter (Story 1.6)
+ * Unit тесты для LoggingFilter (Story 1.6)
  *
- * Tests:
- * - AC3: Logs request completion with required fields
- * - Extracts correlation ID from Reactor Context
- * - Handles error cases with correlation ID
- * - Extracts client IP from X-Forwarded-For or remote address
+ * Тесты:
+ * - AC3: Логирует завершение запроса с обязательными полями
+ * - Извлекает correlation ID из Reactor Context
+ * - Обрабатывает случаи ошибок с correlation ID
+ * - Извлекает client IP из X-Forwarded-For или remote address
  */
 class LoggingFilterTest {
 
     private val filter = LoggingFilter()
 
     @Test
-    fun `uses LOWEST_PRECEDENCE minus 1 order`() {
+    fun `использует LOWEST_PRECEDENCE минус 1 order`() {
         assert(filter.order == org.springframework.core.Ordered.LOWEST_PRECEDENCE - 1) {
-            "LoggingFilter should have order LOWEST_PRECEDENCE - 1"
+            "LoggingFilter должен иметь order LOWEST_PRECEDENCE - 1"
         }
     }
 
     @Test
-    fun `extracts correlation ID from Reactor Context`() {
+    fun `извлекает correlation ID из Reactor Context`() {
         val correlationId = "test-correlation-123"
         val request = MockServerHttpRequest.get("/api/test").build()
         val exchange = MockServerWebExchange.from(request)
@@ -44,22 +44,22 @@ class LoggingFilterTest {
         val chain = mock<GatewayFilterChain>()
         whenever(chain.filter(any())).thenReturn(Mono.empty())
 
-        // Execute filter with correlation ID in context
+        // Выполняем filter с correlation ID в context
         StepVerifier.create(
             filter.filter(exchange, chain)
                 .contextWrite(Context.of(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, correlationId))
         ).verifyComplete()
 
-        // Filter completes successfully - actual logging is verified via integration tests
+        // Filter завершается успешно - фактическое логирование проверяется через integration тесты
     }
 
     @Test
-    fun `handles request completion signal`() {
+    fun `обрабатывает сигнал завершения запроса`() {
         val request = MockServerHttpRequest.get("/api/users").build()
         val exchange = MockServerWebExchange.from(request)
         exchange.response.statusCode = HttpStatus.OK
 
-        // Set upstream URL attribute (normally set by routing filter)
+        // Устанавливаем upstream URL атрибут (обычно устанавливается routing filter)
         exchange.attributes[ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR] = URI.create("http://upstream:8080/users")
 
         val chain = mock<GatewayFilterChain>()
@@ -72,7 +72,7 @@ class LoggingFilterTest {
     }
 
     @Test
-    fun `handles error signal`() {
+    fun `обрабатывает сигнал ошибки`() {
         val request = MockServerHttpRequest.get("/api/error").build()
         val exchange = MockServerWebExchange.from(request)
         exchange.response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR
@@ -88,7 +88,7 @@ class LoggingFilterTest {
     }
 
     @Test
-    fun `extracts client IP from X-Forwarded-For header`() {
+    fun `извлекает client IP из X-Forwarded-For header`() {
         val clientIp = "192.168.1.100"
         val request = MockServerHttpRequest.get("/api/test")
             .header("X-Forwarded-For", "$clientIp, 10.0.0.1, 10.0.0.2")
@@ -104,11 +104,11 @@ class LoggingFilterTest {
                 .contextWrite(Context.of(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, "ip-test-id"))
         ).verifyComplete()
 
-        // Client IP extraction is verified via MDC in integration tests
+        // Извлечение client IP проверяется через MDC в integration тестах
     }
 
     @Test
-    fun `handles missing correlation ID gracefully`() {
+    fun `корректно обрабатывает отсутствующий correlation ID`() {
         val request = MockServerHttpRequest.get("/api/test").build()
         val exchange = MockServerWebExchange.from(request)
         exchange.response.statusCode = HttpStatus.OK
@@ -116,17 +116,17 @@ class LoggingFilterTest {
         val chain = mock<GatewayFilterChain>()
         whenever(chain.filter(any())).thenReturn(Mono.empty())
 
-        // No context set - should use "unknown" as default
+        // Context не установлен - должен использовать "unknown" по умолчанию
         StepVerifier.create(filter.filter(exchange, chain))
             .verifyComplete()
     }
 
     @Test
-    fun `handles missing upstream URL attribute`() {
+    fun `обрабатывает отсутствующий upstream URL атрибут`() {
         val request = MockServerHttpRequest.get("/api/test").build()
         val exchange = MockServerWebExchange.from(request)
         exchange.response.statusCode = HttpStatus.OK
-        // No GATEWAY_REQUEST_URL_ATTR set - should log "N/A"
+        // GATEWAY_REQUEST_URL_ATTR не установлен - должен логировать "N/A"
 
         val chain = mock<GatewayFilterChain>()
         whenever(chain.filter(any())).thenReturn(Mono.empty())
@@ -138,10 +138,10 @@ class LoggingFilterTest {
     }
 
     @Test
-    fun `defaults to status 500 when error signal has no status code set`() {
+    fun `по умолчанию возвращает status 500 когда error signal не имеет установленного status code`() {
         val request = MockServerHttpRequest.get("/api/error").build()
         val exchange = MockServerWebExchange.from(request)
-        // Status code is null (not set by error handler yet)
+        // Status code равен null (ещё не установлен error handler)
 
         val chain = mock<GatewayFilterChain>()
         val testException = RuntimeException("Test error")
@@ -152,6 +152,6 @@ class LoggingFilterTest {
                 .contextWrite(Context.of(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, "error-no-status-test"))
         ).verifyError(RuntimeException::class.java)
 
-        // Filter handles error signal - actual status logging verified in filter implementation
+        // Filter обрабатывает error signal - фактическое логирование status проверяется в реализации filter
     }
 }

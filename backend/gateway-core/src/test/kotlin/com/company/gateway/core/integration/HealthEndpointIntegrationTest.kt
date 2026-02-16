@@ -13,9 +13,9 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
- * Integration tests for health check endpoints (Story 1.7).
+ * Integration тесты для health check endpoints (Story 1.7).
  *
- * Tests AC1, AC2, AC3, AC5, AC6 - Health endpoints with all dependencies running.
+ * Тестирование AC1, AC2, AC3, AC5, AC6 - Health endpoints с работающими зависимостями.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -59,7 +59,7 @@ class HealthEndpointIntegrationTest {
     private lateinit var webTestClient: WebTestClient
 
     @Test
-    fun `AC1 - health endpoint returns 200 with status UP when all components healthy`() {
+    fun `AC1 - health endpoint возвращает 200 со статусом UP когда все компоненты здоровы`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()
@@ -69,7 +69,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC5 - health endpoint includes database component status with details`() {
+    fun `AC5 - health endpoint включает статус database компонента с деталями`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()
@@ -81,7 +81,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC5 - health endpoint includes redis component status with details`() {
+    fun `AC5 - health endpoint включает статус redis компонента с деталями`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()
@@ -93,7 +93,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC5 - health endpoint includes diskSpace component status with details`() {
+    fun `AC5 - health endpoint включает статус diskSpace компонента с деталями`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()
@@ -107,7 +107,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC3 - liveness probe returns 200 with status UP`() {
+    fun `AC3 - liveness probe возвращает 200 со статусом UP`() {
         webTestClient.get()
             .uri("/actuator/health/liveness")
             .exchange()
@@ -117,7 +117,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC2 - readiness probe returns 200 when dependencies are ready`() {
+    fun `AC2 - readiness probe возвращает 200 когда зависимости готовы`() {
         webTestClient.get()
             .uri("/actuator/health/readiness")
             .exchange()
@@ -127,7 +127,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC6 - health endpoint accessible without authentication`() {
+    fun `AC6 - health endpoint доступен без аутентификации`() {
         webTestClient.get()
             .uri("/actuator/health")
             .exchange()
@@ -135,7 +135,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC6 - liveness probe accessible without authentication`() {
+    fun `AC6 - liveness probe доступен без аутентификации`() {
         webTestClient.get()
             .uri("/actuator/health/liveness")
             .exchange()
@@ -143,7 +143,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `AC6 - readiness probe accessible without authentication`() {
+    fun `AC6 - readiness probe доступен без аутентификации`() {
         webTestClient.get()
             .uri("/actuator/health/readiness")
             .exchange()
@@ -151,7 +151,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `info endpoint accessible without authentication`() {
+    fun `info endpoint доступен без аутентификации`() {
         webTestClient.get()
             .uri("/actuator/info")
             .exchange()
@@ -159,7 +159,7 @@ class HealthEndpointIntegrationTest {
     }
 
     @Test
-    fun `prometheus endpoint accessible without authentication`() {
+    fun `prometheus endpoint доступен без аутентификации`() {
         webTestClient.get()
             .uri("/actuator/prometheus")
             .exchange()

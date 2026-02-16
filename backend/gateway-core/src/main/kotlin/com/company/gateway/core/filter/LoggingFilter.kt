@@ -12,19 +12,19 @@ import reactor.core.publisher.Mono
 import java.net.URI
 
 /**
- * Global filter for structured request/response logging with correlation ID.
+ * Глобальный фильтр для структурированного логирования запросов/ответов с correlation ID.
  *
- * Logs request completion with the following fields (AC3):
- * - timestamp (ISO 8601 format via logback configuration)
- * - correlationId (UUID string from Reactor Context)
- * - method (HTTP method: GET, POST, etc.)
- * - path (request path)
- * - status (HTTP response status code)
- * - duration (request duration in milliseconds)
- * - upstreamUrl (target upstream URL)
- * - clientIp (client IP address)
+ * Логирует завершение запроса со следующими полями (AC3):
+ * - timestamp (формат ISO 8601 через конфигурацию logback)
+ * - correlationId (строка UUID из Reactor Context)
+ * - method (HTTP метод: GET, POST и т.д.)
+ * - path (путь запроса)
+ * - status (код статуса HTTP ответа)
+ * - duration (длительность запроса в миллисекундах)
+ * - upstreamUrl (целевой upstream URL)
+ * - clientIp (IP адрес клиента)
  *
- * Runs at LOWEST_PRECEDENCE - 1 to log after routing completes but before response sent.
+ * Выполняется с LOWEST_PRECEDENCE - 1 для логирования после завершения маршрутизации, но до отправки ответа.
  */
 @Component
 class LoggingFilter : GlobalFilter, Ordered {
@@ -44,7 +44,7 @@ class LoggingFilter : GlobalFilter, Ordered {
                         .getOrDefault(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, "unknown")
 
                     val duration = System.currentTimeMillis() - startTime
-                    // Get status code; on error signal, may still be null if error handler hasn't set it
+                    // Получаем код статуса; при error signal может быть null если обработчик ошибок ещё не установил его
                     val status = exchange.response.statusCode?.value()
                         ?: if (signal.isOnError) 500 else 0
                     val upstreamUrl = exchange.getAttribute<URI>(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR)
@@ -84,13 +84,13 @@ class LoggingFilter : GlobalFilter, Ordered {
     }
 
     /**
-     * Extracts client IP address from request.
-     * Checks X-Forwarded-For header first, then falls back to remote address.
+     * Извлекает IP адрес клиента из запроса.
+     * Сначала проверяет заголовок X-Forwarded-For, затем использует remote address.
      */
     private fun extractClientIp(exchange: ServerWebExchange): String {
         val forwardedFor = exchange.request.headers.getFirst("X-Forwarded-For")
         if (!forwardedFor.isNullOrBlank()) {
-            // X-Forwarded-For can contain multiple IPs, take the first (original client)
+            // X-Forwarded-For может содержать несколько IP, берём первый (оригинальный клиент)
             return forwardedFor.split(",").first().trim()
         }
 

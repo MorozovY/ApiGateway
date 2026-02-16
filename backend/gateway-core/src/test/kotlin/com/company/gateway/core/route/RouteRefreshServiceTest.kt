@@ -30,40 +30,40 @@ class RouteRefreshServiceTest {
     }
 
     @Test
-    fun `service initializes with redis available flag true by default`() {
-        // Before any connection attempt, redisAvailable defaults to true
+    fun `сервис инициализируется с флагом redis available равным true по умолчанию`() {
+        // До любой попытки подключения redisAvailable по умолчанию равен true
         assertThat(service.isRedisAvailable()).isTrue()
     }
 
     @Test
-    fun `isRedisAvailable returns current redis connection state`() {
-        // Initial state should be true
+    fun `isRedisAvailable возвращает текущее состояние подключения redis`() {
+        // Начальное состояние должно быть true
         assertThat(service.isRedisAvailable()).isTrue()
     }
 
     @Test
-    fun `cleanup disposes subscription without error when no subscription exists`() {
-        // Should not throw even when no subscription exists
+    fun `cleanup освобождает подписку без ошибки когда подписка не существует`() {
+        // Не должен выбрасывать исключение даже когда подписка не существует
         service.cleanup()
 
-        // State should remain valid
+        // Состояние должно оставаться валидным
         assertThat(service.isRedisAvailable()).isTrue()
     }
 
     @Test
-    fun `multiple cleanup calls are safe and idempotent`() {
-        // Multiple cleanup calls should be safe (idempotent)
+    fun `множественные вызовы cleanup безопасны и идемпотентны`() {
+        // Множественные вызовы cleanup должны быть безопасны (идемпотентны)
         service.cleanup()
         service.cleanup()
         service.cleanup()
 
-        // No exception should be thrown, service should remain valid
+        // Исключение не должно выбрасываться, сервис должен оставаться валидным
         assertThat(service).isNotNull
         assertThat(service.isRedisAvailable()).isTrue()
     }
 
     @Test
-    fun `service can be created with valid dependencies`() {
+    fun `сервис может быть создан с валидными зависимостями`() {
         val newService = RouteRefreshService(redisConnectionFactory, cacheManager)
 
         assertThat(newService).isNotNull
@@ -71,22 +71,22 @@ class RouteRefreshServiceTest {
     }
 
     @Test
-    fun `cleanup is safe to call before subscription is started`() {
-        // Service created but subscribeToInvalidationEvents not called
+    fun `cleanup безопасен для вызова до запуска подписки`() {
+        // Сервис создан, но subscribeToInvalidationEvents не вызван
         val freshService = RouteRefreshService(redisConnectionFactory, cacheManager)
 
-        // Cleanup should work without NPE
+        // Cleanup должен работать без NPE
         freshService.cleanup()
 
         assertThat(freshService.isRedisAvailable()).isTrue()
     }
 
     @Test
-    fun `cacheManager dependency is injected correctly`() {
-        // Verify that cacheManager can be used (proves injection works)
+    fun `зависимость cacheManager внедрена корректно`() {
+        // Проверяем, что cacheManager может быть использован (доказывает работу injection)
         whenever(cacheManager.refreshCache()).thenReturn(Mono.empty())
 
-        // This verifies the dependency is accessible
+        // Это проверяет доступность зависимости
         val result = cacheManager.refreshCache()
 
         assertThat(result).isNotNull
@@ -94,11 +94,11 @@ class RouteRefreshServiceTest {
     }
 
     @Test
-    fun `service does not call cacheManager on construction`() {
-        // Creating service should NOT trigger any cache operations
+    fun `сервис не вызывает cacheManager при конструировании`() {
+        // Создание сервиса НЕ должно вызывать операции с кэшем
         val newService = RouteRefreshService(redisConnectionFactory, cacheManager)
 
-        // CacheManager should not be called during construction
+        // CacheManager не должен вызываться при конструировании
         verify(cacheManager, never()).refreshCache()
         verify(cacheManager, never()).getCachedRoutes()
     }

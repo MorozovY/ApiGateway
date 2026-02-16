@@ -21,10 +21,10 @@ import java.net.ConnectException
 import java.util.concurrent.TimeoutException
 
 /**
- * Global exception handler for the gateway.
+ * Глобальный обработчик исключений для шлюза.
  *
- * Handles upstream errors (connection refused, timeout) and returns RFC 7807 formatted responses.
- * Security: Does NOT expose internal details (hostnames, stack traces, exception class names).
+ * Обрабатывает ошибки upstream (отказ в соединении, таймаут) и возвращает ответы в формате RFC 7807.
+ * Безопасность: НЕ раскрывает внутренние детали (имена хостов, stack traces, имена классов исключений).
  */
 @Component
 @Order(-1) // Intercept before default Spring error handlers (which have Order(0))
@@ -39,18 +39,18 @@ class GlobalExceptionHandler(
             val response = exchange.response
             val requestPath = exchange.request.path.value()
 
-            // Extract correlation ID from Reactor Context, exchange attributes, or request header
-            // Priority: Context > Exchange Attribute > Request Header > Generate new
+            // Извлекаем correlation ID из Reactor Context, атрибутов exchange или заголовка запроса
+            // Приоритет: Context > Exchange Attribute > Request Header > Генерация нового
             val correlationId: String = (context.getOrDefault<String>(
                 CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY,
                 exchange.getAttribute<String>(CorrelationIdFilter.CORRELATION_ID_ATTRIBUTE)
                     ?: exchange.request.headers.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
             ) ?: java.util.UUID.randomUUID().toString())
 
-            // Set MDC for structured logging of error
+            // Устанавливаем MDC для структурированного логирования ошибки
             MDC.put("correlationId", correlationId)
             try {
-                // Log the error for debugging (internal details ok for logs, not for response)
+                // Логируем ошибку для отладки (внутренние детали допустимы в логах, не в ответе)
                 logUpstreamError(requestPath, ex)
 
                 val (httpStatus, errorResponse) = resolveException(ex, requestPath, correlationId)
@@ -58,7 +58,7 @@ class GlobalExceptionHandler(
                 response.statusCode = httpStatus
                 response.headers.contentType = MediaType.APPLICATION_JSON
 
-                // Ensure correlation ID is in response header (may already be set by filter)
+                // Убеждаемся, что correlation ID в заголовке ответа (может уже быть установлен фильтром)
                 if (!response.headers.containsKey(CorrelationIdFilter.CORRELATION_ID_HEADER)) {
                     response.headers.add(CorrelationIdFilter.CORRELATION_ID_HEADER, correlationId)
                 }
@@ -73,28 +73,28 @@ class GlobalExceptionHandler(
     }
 
     /**
-     * Resolves exception to HTTP status and RFC 7807 error response.
-     * Checks root cause for wrapped exceptions (WebClientRequestException).
+     * Преобразует исключение в HTTP статус и RFC 7807 error response.
+     * Проверяет root cause для обёрнутых исключений (WebClientRequestException).
      */
     private fun resolveException(ex: Throwable, requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
-        // First, check if this is a wrapped exception and get the root cause
+        // Сначала проверяем, является ли это обёрнутым исключением и получаем root cause
         val rootCause = getRootCause(ex)
 
-        // Check root cause for upstream errors
+        // Проверяем root cause на ошибки upstream
         return when {
-            // Connection errors -> 502 Bad Gateway
+            // Ошибки соединения -> 502 Bad Gateway
             isConnectionError(rootCause) -> createUpstreamUnavailableResponse(requestPath, correlationId)
 
-            // Timeout errors -> 504 Gateway Timeout
+            // Ошибки таймаута -> 504 Gateway Timeout
             isTimeoutError(rootCause) -> createUpstreamTimeoutResponse(requestPath, correlationId)
 
-            // Check the original exception for non-upstream errors
+            // Проверяем оригинальное исключение для не-upstream ошибок
             else -> resolveNonUpstreamException(ex, requestPath, correlationId)
         }
     }
 
     /**
-     * Resolves non-upstream exceptions (route not found, response status, etc.)
+     * Преобразует не-upstream исключения (route not found, response status и т.д.)
      */
     private fun resolveNonUpstreamException(ex: Throwable, requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         return when (ex) {
@@ -121,11 +121,11 @@ class GlobalExceptionHandler(
                 )
             )
             is ResponseStatusException -> {
-                // Spring 6: statusCode returns HttpStatusCode interface, not HttpStatus enum
+                // Spring 6: statusCode возвращает интерфейс HttpStatusCode, не enum HttpStatus
                 val status = HttpStatus.resolve(ex.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
 
                 when (status) {
-                    // Handle generic 404 from WebFlux as route not found
+                    // Обрабатываем generic 404 от WebFlux как route not found
                     HttpStatus.NOT_FOUND -> Pair(
                         HttpStatus.NOT_FOUND,
                         ErrorResponse(
@@ -137,9 +137,9 @@ class GlobalExceptionHandler(
                             correlationId = correlationId
                         )
                     )
-                    // Spring Cloud Gateway wraps timeouts in ResponseStatusException with 504
+                    // Spring Cloud Gateway оборачивает таймауты в ResponseStatusException с 504
                     HttpStatus.GATEWAY_TIMEOUT -> createUpstreamTimeoutResponse(requestPath, correlationId)
-                    // Spring Cloud Gateway may wrap connection errors in ResponseStatusException with 502
+                    // Spring Cloud Gateway может оборачивать ошибки соединения в ResponseStatusException с 502
                     HttpStatus.BAD_GATEWAY -> createUpstreamUnavailableResponse(requestPath, correlationId)
                     else -> Pair(
                         status,
@@ -169,27 +169,27 @@ class GlobalExceptionHandler(
     }
 
     /**
-     * Checks if the exception represents a connection error (connection refused, connect timeout).
+     * Проверяет, является ли исключение ошибкой соединения (connection refused, connect timeout).
      */
     private fun isConnectionError(ex: Throwable): Boolean {
         return ex is ConnectException || ex is ConnectTimeoutException
     }
 
     /**
-     * Checks if the exception represents a timeout error (read timeout, general timeout).
+     * Проверяет, является ли исключение ошибкой таймаута (read timeout, general timeout).
      */
     private fun isTimeoutError(ex: Throwable): Boolean {
         return ex is ReadTimeoutException || ex is TimeoutException
     }
 
     /**
-     * Gets the root cause of an exception chain.
-     * WebClientRequestException and other wrappers may have deeply nested causes.
-     * Unwraps the full chain to find the actual network error.
+     * Получает root cause цепочки исключений.
+     * WebClientRequestException и другие обёртки могут иметь глубоко вложенные causes.
+     * Разворачивает всю цепочку для нахождения фактической сетевой ошибки.
      */
     private fun getRootCause(ex: Throwable): Throwable {
         var current: Throwable = ex
-        val seen = mutableSetOf<Throwable>() // Prevent infinite loops from circular references
+        val seen = mutableSetOf<Throwable>() // Предотвращаем бесконечные циклы от circular references
 
         while (current.cause != null && current.cause !in seen) {
             seen.add(current)
@@ -200,8 +200,8 @@ class GlobalExceptionHandler(
     }
 
     /**
-     * Creates 502 Bad Gateway response for upstream unavailable.
-     * Does NOT include internal details (hostname, port, stack trace).
+     * Создаёт ответ 502 Bad Gateway для недоступного upstream.
+     * НЕ включает внутренние детали (hostname, port, stack trace).
      */
     private fun createUpstreamUnavailableResponse(requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         return Pair(
@@ -218,8 +218,8 @@ class GlobalExceptionHandler(
     }
 
     /**
-     * Creates 504 Gateway Timeout response for upstream timeout.
-     * Does NOT include internal details.
+     * Создаёт ответ 504 Gateway Timeout для таймаута upstream.
+     * НЕ включает внутренние детали.
      */
     private fun createUpstreamTimeoutResponse(requestPath: String, correlationId: String): Pair<HttpStatus, ErrorResponse> {
         return Pair(
@@ -236,9 +236,9 @@ class GlobalExceptionHandler(
     }
 
     /**
-     * Logs upstream errors for debugging purposes.
-     * Internal details are OK for logs (not for client response).
-     * Logs both wrapper exception and root cause for better debugging.
+     * Логирует ошибки upstream для отладки.
+     * Внутренние детали допустимы в логах (не в ответе клиенту).
+     * Логирует как wrapper исключение, так и root cause для лучшей отладки.
      */
     private fun logUpstreamError(requestPath: String, ex: Throwable) {
         val rootCause = getRootCause(ex)

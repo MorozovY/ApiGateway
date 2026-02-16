@@ -56,7 +56,7 @@ class RouteRepositoryTest {
     }
 
     @Test
-    fun `should save and retrieve route`() {
+    fun `должен сохранять и получать маршрут`() {
         val route = Route(
             path = "/api/orders",
             upstreamUrl = "http://orders-service:8080",
@@ -78,7 +78,7 @@ class RouteRepositoryTest {
     }
 
     @Test
-    fun `should find route by path`() {
+    fun `должен находить маршрут по пути`() {
         val route = Route(
             path = "/api/users",
             upstreamUrl = "http://users-service:8080",
@@ -98,7 +98,7 @@ class RouteRepositoryTest {
     }
 
     @Test
-    fun `should find routes by status`() {
+    fun `должен находить маршруты по статусу`() {
         val draftRoute = Route(
             path = "/api/draft",
             upstreamUrl = "http://draft:8080",
@@ -123,7 +123,7 @@ class RouteRepositoryTest {
     }
 
     @Test
-    fun `should update route status`() {
+    fun `должен обновлять статус маршрута`() {
         val route = Route(
             path = "/api/pending",
             upstreamUrl = "http://pending:8080",
@@ -143,7 +143,7 @@ class RouteRepositoryTest {
     }
 
     @Test
-    fun `should delete route`() {
+    fun `должен удалять маршрут`() {
         val route = Route(
             path = "/api/delete-me",
             upstreamUrl = "http://delete:8080"
@@ -156,18 +156,18 @@ class RouteRepositoryTest {
         val found = routeRepository.findById(savedRoute.id!!)
 
         StepVerifier.create(found)
-            .verifyComplete() // Should complete without emitting any element
+            .verifyComplete() // Должен завершиться без эмиссии элемента
     }
 
     @Test
-    fun `should auto-populate created_at on insert`() {
+    fun `должен автоматически заполнять created_at при вставке`() {
         val route = Route(
             path = "/api/timestamp-test",
             upstreamUrl = "http://timestamp:8080"
         )
 
         val savedRoute = routeRepository.save(route).block()!!
-        // DB generates created_at via DEFAULT, need to re-fetch to see it
+        // БД генерирует created_at через DEFAULT, нужно перезапросить чтобы увидеть его
         val refetchedRoute = routeRepository.findById(savedRoute.id!!)
 
         StepVerifier.create(refetchedRoute)
@@ -178,30 +178,30 @@ class RouteRepositoryTest {
     }
 
     @Test
-    fun `should auto-update updated_at on update`() {
+    fun `должен автоматически обновлять updated_at при обновлении`() {
         val route = Route(
             path = "/api/update-test",
             upstreamUrl = "http://update:8080"
         )
 
         val savedRoute = routeRepository.save(route).block()!!
-        // Re-fetch to get DB-generated created_at/updated_at
+        // Перезапрашиваем чтобы получить сгенерированные БД created_at/updated_at
         val initialRoute = routeRepository.findById(savedRoute.id!!).block()!!
         val originalUpdatedAt = initialRoute.updatedAt
 
-        // Small delay to ensure timestamp difference
+        // Небольшая задержка для обеспечения разницы timestamp
         Thread.sleep(100)
 
-        // Update the route
+        // Обновляем маршрут
         routeRepository.save(initialRoute.copy(upstreamUrl = "http://updated:9090")).block()!!
 
-        // After V2 migration trigger, updated_at should be changed
+        // После триггера миграции V2, updated_at должен быть изменён
         val refetchedRoute = routeRepository.findById(savedRoute.id!!).block()!!
 
-        assert(refetchedRoute.updatedAt != null) { "updated_at should not be null" }
-        // Trigger should have updated the timestamp
+        assert(refetchedRoute.updatedAt != null) { "updated_at не должен быть null" }
+        // Триггер должен обновить timestamp
         assert(originalUpdatedAt == null || refetchedRoute.updatedAt!! >= originalUpdatedAt) {
-            "updated_at should be >= original value"
+            "updated_at должен быть >= оригинального значения"
         }
     }
 }

@@ -31,14 +31,14 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
 
 /**
- * Integration tests for Request Logging & Correlation IDs (Story 1.6)
+ * Integration тесты для Request Logging и Correlation IDs (Story 1.6)
  *
- * Tests:
- * - AC1: Generates correlation ID for new requests
- * - AC2: Preserves existing correlation ID
- * - AC3: Structured JSON logging (verified via log output capture)
- * - AC4: Correlation ID in error responses
- * - AC5: Thread-safe context propagation (verified via concurrent requests)
+ * Тесты:
+ * - AC1: Генерирует correlation ID для новых запросов
+ * - AC2: Сохраняет существующий correlation ID
+ * - AC3: Структурированное JSON логирование (проверяется через захват вывода логов)
+ * - AC4: Correlation ID в error responses
+ * - AC5: Thread-safe propagation контекста (проверяется через конкурентные запросы)
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -112,11 +112,11 @@ class RequestLoggingIntegrationTest {
     }
 
     // ============================================
-    // AC1: Generate Correlation ID for New Requests
+    // AC1: Генерация Correlation ID для новых запросов
     // ============================================
 
     @Test
-    fun `AC1 - generates UUID correlation ID when header missing`() {
+    fun `AC1 - генерирует UUID correlation ID когда header отсутствует`() {
         insertRoute("/api/test", "http://localhost:${wireMock.port()}")
         wireMock.stubFor(
             get(urlEqualTo("/api/test"))
@@ -130,13 +130,13 @@ class RequestLoggingIntegrationTest {
             .expectHeader().exists(CorrelationIdFilter.CORRELATION_ID_HEADER)
             .expectHeader().value(CorrelationIdFilter.CORRELATION_ID_HEADER) { correlationId ->
                 assert(correlationId.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))) {
-                    "Correlation ID should be a valid UUID, got: $correlationId"
+                    "Correlation ID должен быть валидным UUID, получено: $correlationId"
                 }
             }
     }
 
     @Test
-    fun `AC1 - correlation ID is propagated to upstream service`() {
+    fun `AC1 - correlation ID передаётся на upstream сервис`() {
         insertRoute("/api/upstream", "http://localhost:${wireMock.port()}")
         wireMock.stubFor(
             get(urlEqualTo("/api/upstream"))
@@ -148,7 +148,7 @@ class RequestLoggingIntegrationTest {
             .exchange()
             .expectStatus().isOk
 
-        // Verify WireMock received the correlation ID header
+        // Проверяем, что WireMock получил correlation ID header
         wireMock.verify(
             getRequestedFor(urlEqualTo("/api/upstream"))
                 .withHeader(
@@ -159,11 +159,11 @@ class RequestLoggingIntegrationTest {
     }
 
     // ============================================
-    // AC2: Preserve Existing Correlation ID
+    // AC2: Сохранение существующего Correlation ID
     // ============================================
 
     @Test
-    fun `AC2 - preserves existing correlation ID from request header`() {
+    fun `AC2 - сохраняет существующий correlation ID из request header`() {
         val existingCorrelationId = "my-custom-correlation-id-12345"
 
         insertRoute("/api/preserve", "http://localhost:${wireMock.port()}")
@@ -181,7 +181,7 @@ class RequestLoggingIntegrationTest {
     }
 
     @Test
-    fun `AC2 - preserves existing correlation ID when propagating to upstream`() {
+    fun `AC2 - сохраняет существующий correlation ID при передаче на upstream`() {
         val existingCorrelationId = "preserved-correlation-id"
 
         insertRoute("/api/forward", "http://localhost:${wireMock.port()}")
@@ -196,7 +196,7 @@ class RequestLoggingIntegrationTest {
             .exchange()
             .expectStatus().isOk
 
-        // Verify same correlation ID was sent to upstream
+        // Проверяем, что тот же correlation ID был отправлен на upstream
         wireMock.verify(
             getRequestedFor(urlEqualTo("/api/forward"))
                 .withHeader(CorrelationIdFilter.CORRELATION_ID_HEADER, WireMock.equalTo(existingCorrelationId))
@@ -204,12 +204,12 @@ class RequestLoggingIntegrationTest {
     }
 
     // ============================================
-    // AC4: Correlation ID in Error Responses
+    // AC4: Correlation ID в Error Responses
     // ============================================
 
     @Test
-    fun `AC4 - error response includes correlation ID in body for 404`() {
-        // No route configured - should return 404
+    fun `AC4 - error response включает correlation ID в теле для 404`() {
+        // Маршрут не настроен - должен вернуть 404
 
         webTestClient.get()
             .uri("/api/nonexistent")
@@ -222,16 +222,16 @@ class RequestLoggingIntegrationTest {
                 val responseCorrelationId = result.responseHeaders.getFirst(CorrelationIdFilter.CORRELATION_ID_HEADER)
 
                 assert(body.correlationId != null) {
-                    "Error response body should include correlationId"
+                    "Тело error response должно включать correlationId"
                 }
                 assert(body.correlationId == responseCorrelationId) {
-                    "Correlation ID in body (${body.correlationId}) should match header ($responseCorrelationId)"
+                    "Correlation ID в теле (${body.correlationId}) должен совпадать с header ($responseCorrelationId)"
                 }
             }
     }
 
     @Test
-    fun `AC4 - error response preserves provided correlation ID`() {
+    fun `AC4 - error response сохраняет предоставленный correlation ID`() {
         val providedCorrelationId = "error-correlation-id-xyz"
 
         webTestClient.get()
@@ -244,15 +244,15 @@ class RequestLoggingIntegrationTest {
             .consumeWith { result ->
                 val body = result.responseBody!!
                 assert(body.correlationId == providedCorrelationId) {
-                    "Error response should use provided correlation ID"
+                    "Error response должен использовать предоставленный correlation ID"
                 }
             }
     }
 
     @Test
-    fun `AC4 - 502 error response includes correlation ID`() {
-        // Route to non-existent upstream
-        insertRoute("/api/upstream-down", "http://localhost:59999") // Port that won't respond
+    fun `AC4 - 502 error response включает correlation ID`() {
+        // Маршрут на несуществующий upstream
+        insertRoute("/api/upstream-down", "http://localhost:59999") // Порт без ответа
 
         webTestClient.get()
             .uri("/api/upstream-down")
@@ -263,7 +263,7 @@ class RequestLoggingIntegrationTest {
             .consumeWith { result ->
                 val body = result.responseBody!!
                 assert(body.correlationId != null && body.correlationId!!.isNotBlank()) {
-                    "502 error response should include correlationId"
+                    "502 error response должен включать correlationId"
                 }
             }
     }
@@ -273,7 +273,7 @@ class RequestLoggingIntegrationTest {
     // ============================================
 
     @Test
-    fun `AC5 - concurrent requests maintain separate correlation IDs`() {
+    fun `AC5 - конкурентные запросы сохраняют отдельные correlation IDs`() {
         insertRoute("/api/concurrent", "http://localhost:${wireMock.port()}")
         wireMock.stubFor(
             get(urlEqualTo("/api/concurrent"))
@@ -281,14 +281,14 @@ class RequestLoggingIntegrationTest {
                     aResponse()
                         .withStatus(200)
                         .withBody("{}")
-                        .withFixedDelay(50) // Small delay to increase concurrency overlap
+                        .withFixedDelay(50) // Небольшая задержка для увеличения перекрытия конкурентности
                 )
         )
 
         val correlationIds = mutableSetOf<String>()
         val requestCount = 10
 
-        // Make concurrent requests
+        // Выполняем конкурентные запросы
         (1..requestCount).map { i ->
             webTestClient.get()
                 .uri("/api/concurrent")
@@ -302,14 +302,14 @@ class RequestLoggingIntegrationTest {
             correlationId?.let { correlationIds.add(it) }
         }
 
-        // All correlation IDs should be unique (no cross-contamination)
+        // Все correlation IDs должны быть уникальными (без перекрёстного загрязнения)
         assert(correlationIds.size == requestCount) {
-            "Expected $requestCount unique correlation IDs, got ${correlationIds.size}"
+            "Ожидалось $requestCount уникальных correlation IDs, получено ${correlationIds.size}"
         }
     }
 
     @Test
-    fun `AC5 - generated correlation IDs are unique for concurrent requests`() {
+    fun `AC5 - сгенерированные correlation IDs уникальны для конкурентных запросов`() {
         insertRoute("/api/unique", "http://localhost:${wireMock.port()}")
         wireMock.stubFor(
             get(urlEqualTo("/api/unique"))
@@ -318,7 +318,7 @@ class RequestLoggingIntegrationTest {
 
         val correlationIds = mutableSetOf<String>()
 
-        // Make multiple requests without providing correlation ID
+        // Выполняем несколько запросов без предоставления correlation ID
         repeat(5) {
             webTestClient.get()
                 .uri("/api/unique")
@@ -329,9 +329,9 @@ class RequestLoggingIntegrationTest {
                 }
         }
 
-        // All generated IDs should be unique
+        // Все сгенерированные IDs должны быть уникальными
         assert(correlationIds.size == 5) {
-            "Expected 5 unique generated correlation IDs, got ${correlationIds.size}: $correlationIds"
+            "Ожидалось 5 уникальных сгенерированных correlation IDs, получено ${correlationIds.size}: $correlationIds"
         }
     }
 

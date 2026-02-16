@@ -49,7 +49,7 @@ class DatabaseIntegrationTest {
     private lateinit var databaseClient: DatabaseClient
 
     @Test
-    fun `flyway should execute V1 migration and create routes table`() {
+    fun `flyway должен выполнить V1 миграцию и создать таблицу routes`() {
         val result = databaseClient.sql("SELECT COUNT(*)::int as cnt FROM information_schema.tables WHERE table_name = 'routes'")
             .map { row -> row.get("cnt", Integer::class.java)!!.toInt() }
             .one()
@@ -60,7 +60,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `routes table should have correct columns`() {
+    fun `таблица routes должна иметь корректные колонки`() {
         val expectedColumns = listOf("id", "path", "upstream_url", "methods", "status", "created_by", "created_at", "updated_at")
 
         val result = databaseClient.sql(
@@ -82,7 +82,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `routes table should have status check constraint`() {
+    fun `таблица routes должна иметь check constraint на status`() {
         val invalidInsert = databaseClient.sql(
             """
             INSERT INTO routes (path, upstream_url, status)
@@ -96,7 +96,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `routes table should allow valid status values`() {
+    fun `таблица routes должна разрешать валидные значения status`() {
         val validStatuses = listOf("draft", "pending", "published", "rejected")
 
         for (status in validStatuses) {
@@ -114,7 +114,7 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `routes table should have indexes on path and status`() {
+    fun `таблица routes должна иметь индексы на path и status`() {
         val result = databaseClient.sql(
             """
             SELECT indexname FROM pg_indexes
@@ -133,8 +133,8 @@ class DatabaseIntegrationTest {
     }
 
     @Test
-    fun `path column should have unique constraint`() {
-        // First insert
+    fun `колонка path должна иметь уникальное ограничение`() {
+        // Первая вставка
         val firstInsert = databaseClient.sql(
             """
             INSERT INTO routes (path, upstream_url)
@@ -146,7 +146,7 @@ class DatabaseIntegrationTest {
             .expectNext(1L)
             .verifyComplete()
 
-        // Duplicate insert should fail
+        // Дубликат вставки должен завершиться ошибкой
         val duplicateInsert = databaseClient.sql(
             """
             INSERT INTO routes (path, upstream_url)
