@@ -60,7 +60,7 @@ development_status:
   3-1-route-crud-api: done
   3-2-route-list-api-filtering-search: done
   3-3-route-details-clone-api: done
-  3-4-routes-list-ui: backlog
+  3-4-routes-list-ui: done
   3-5-route-create-edit-form-ui: backlog
   3-6-route-details-view-clone-ui: backlog
   epic-3-retrospective: optional
