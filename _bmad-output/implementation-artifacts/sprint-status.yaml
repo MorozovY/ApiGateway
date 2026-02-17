@@ -51,7 +51,7 @@ development_status:
   2-2-jwt-authentication-service: done
   2-3-authentication-middleware: done
   2-4-role-based-access-control: done
-  2-5-admin-ui-login-page: backlog
+  2-5-admin-ui-login-page: done
   2-6-user-management-admin: backlog
   epic-2-retrospective: optional
 

@@ -12,13 +12,18 @@ const { Sider } = Layout
 
 const menuItems = [
   {
+    key: '/dashboard',
+    icon: <DashboardOutlined />,
+    label: 'Dashboard',
+  },
+  {
     key: '/routes',
     icon: <ApiOutlined />,
     label: 'Routes',
   },
   {
     key: '/rate-limits',
-    icon: <DashboardOutlined />,
+    icon: <SafetyOutlined />,
     label: 'Rate Limits',
   },
   {
