@@ -26,11 +26,12 @@ class GlobalExceptionHandler(
 ) : ErrorWebExceptionHandler {
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        // Обрабатываем JWT, AccessDenied и Conflict исключения
+        // Обрабатываем JWT, AccessDenied, Conflict и NotFound исключения
         return when (ex) {
             is JwtAuthenticationException -> handleJwtAuthenticationException(exchange, ex)
             is AccessDeniedException -> handleAccessDeniedException(exchange, ex)
             is ConflictException -> handleConflictException(exchange, ex)
+            is NotFoundException -> handleNotFoundException(exchange, ex)
             else -> {
                 // Пропускаем другие исключения для обработки стандартным механизмом
                 Mono.error(ex)
@@ -116,6 +117,36 @@ class GlobalExceptionHandler(
         )
 
         exchange.response.statusCode = HttpStatus.CONFLICT
+        exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+        exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
+
+        val body = objectMapper.writeValueAsBytes(errorResponse)
+        val buffer = exchange.response.bufferFactory().wrap(body)
+
+        return exchange.response.writeWith(Mono.just(buffer))
+    }
+
+    /**
+     * Обрабатывает NotFoundException и возвращает 404 Not Found.
+     */
+    private fun handleNotFoundException(
+        exchange: ServerWebExchange,
+        ex: NotFoundException
+    ): Mono<Void> {
+        val correlationId = exchange.request.headers
+            .getFirst(CORRELATION_ID_HEADER)
+            ?: UUID.randomUUID().toString()
+
+        val errorResponse = ErrorResponse(
+            type = "https://api.gateway/errors/not-found",
+            title = "Not Found",
+            status = HttpStatus.NOT_FOUND.value(),
+            detail = ex.detail,
+            instance = exchange.request.path.value(),
+            correlationId = correlationId
+        )
+
+        exchange.response.statusCode = HttpStatus.NOT_FOUND
         exchange.response.headers.contentType = MediaType.APPLICATION_JSON
         exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
 

@@ -1,14 +1,24 @@
 package com.company.gateway.admin.controller
 
+import com.company.gateway.admin.dto.CreateUserRequest
+import com.company.gateway.admin.dto.UpdateUserRequest
+import com.company.gateway.admin.dto.UserListResponse
+import com.company.gateway.admin.dto.UserResponse
 import com.company.gateway.admin.security.RequireRole
+import com.company.gateway.admin.security.SecurityContextUtils
+import com.company.gateway.admin.service.UserService
 import com.company.gateway.common.model.Role
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 import java.util.UUID
@@ -16,52 +26,97 @@ import java.util.UUID
 /**
  * Контроллер для управления пользователями.
  *
- * Доступен только для ADMIN роли.
- * Placeholder реализация для тестирования RBAC.
- * Полная реализация будет добавлена в Epic 2 Story 2.6.
+ * Предоставляет REST API для CRUD операций с пользователями.
+ * Доступен только для пользователей с ролью ADMIN.
  */
 @RestController
 @RequestMapping("/api/v1/users")
 @RequireRole(Role.ADMIN)
-class UserController {
+class UserController(
+    private val userService: UserService
+) {
 
     /**
-     * Получение списка пользователей.
+     * Получение списка пользователей с пагинацией.
      *
-     * Доступно только ADMIN роли.
+     * GET /api/v1/users?offset=0&limit=20
+     *
+     * @param offset смещение от начала списка (по умолчанию 0)
+     * @param limit максимальное количество элементов (по умолчанию 20)
+     * @return пагинированный список пользователей
      */
     @GetMapping
-    fun listUsers(): Mono<ResponseEntity<Map<String, Any>>> {
-        // Placeholder — вернуть пустой список
-        return Mono.just(
-            ResponseEntity.ok(
-                mapOf(
-                    "items" to emptyList<Any>(),
-                    "total" to 0
-                )
-            )
-        )
+    fun listUsers(
+        @RequestParam(defaultValue = "0") offset: Int,
+        @RequestParam(defaultValue = "20") limit: Int
+    ): Mono<UserListResponse> {
+        return userService.findAll(offset, limit)
+    }
+
+    /**
+     * Получение пользователя по ID.
+     *
+     * GET /api/v1/users/{id}
+     *
+     * @param id идентификатор пользователя
+     * @return данные пользователя
+     */
+    @GetMapping("/{id}")
+    fun getUser(@PathVariable id: UUID): Mono<UserResponse> {
+        return userService.findById(id)
     }
 
     /**
      * Создание нового пользователя.
      *
-     * Доступно только ADMIN роли.
+     * POST /api/v1/users
+     *
+     * @param request данные для создания пользователя
+     * @return созданный пользователь
      */
     @PostMapping
-    fun createUser(): Mono<ResponseEntity<Void>> {
-        // Placeholder — для тестирования RBAC
-        return Mono.just(ResponseEntity.status(HttpStatus.CREATED).build())
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createUser(@Valid @RequestBody request: CreateUserRequest): Mono<UserResponse> {
+        return userService.create(request)
     }
 
     /**
      * Обновление пользователя.
      *
-     * Доступно только ADMIN роли.
+     * PUT /api/v1/users/{id}
+     *
+     * @param id идентификатор пользователя
+     * @param request данные для обновления
+     * @return обновлённый пользователь
      */
     @PutMapping("/{id}")
-    fun updateUser(@PathVariable id: UUID): Mono<ResponseEntity<Void>> {
-        // Placeholder — для тестирования RBAC
-        return Mono.just(ResponseEntity.ok().build())
+    fun updateUser(
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: UpdateUserRequest
+    ): Mono<UserResponse> {
+        return userService.update(id, request)
+    }
+
+    /**
+     * Деактивация пользователя (soft delete).
+     *
+     * DELETE /api/v1/users/{id}
+     *
+     * @param id идентификатор пользователя
+     */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deactivateUser(@PathVariable id: UUID): Mono<Void> {
+        return SecurityContextUtils.currentUser()
+            .hasElement()
+            .flatMap { hasUser ->
+                if (hasUser) {
+                    SecurityContextUtils.currentUser()
+                        .flatMap { user -> userService.deactivate(id, user.userId) }
+                } else {
+                    // Если SecurityContext недоступен — деактивируем без проверки на self
+                    userService.deactivateWithoutSelfCheck(id)
+                }
+            }
     }
 }

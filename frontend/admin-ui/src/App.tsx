@@ -5,6 +5,7 @@ import MainLayout from '@layouts/MainLayout'
 import { LoginPage, ProtectedRoute } from '@features/auth'
 import { DashboardPage } from '@features/dashboard'
 import { RoutesPage } from '@features/routes'
+import { UsersPage } from '@features/users'
 
 function App() {
   return (
@@ -26,6 +27,8 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         {/* Routes Management */}
         <Route path="/routes" element={<RoutesPage />} />
+        {/* User Management (Story 2.6) — только для admin */}
+        <Route path="/users" element={<UsersPage />} />
         {/* Placeholders для будущих stories */}
         <Route path="/rate-limits" element={<div>Rate Limits Management</div>} />
         <Route path="/approvals" element={<div>Approvals</div>} />

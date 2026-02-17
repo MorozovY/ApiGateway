@@ -24,7 +24,7 @@ class JwtAuthenticationFilter(
 ) : WebFilter {
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
-        // Извлекаем токен из cookie
+        // Извлекаем токен из cookie или header
         val token = extractToken(exchange)
             ?: return chain.filter(exchange)  // Нет токена — пропускаем (SecurityConfig решит)
 
@@ -55,11 +55,27 @@ class JwtAuthenticationFilter(
     }
 
     /**
-     * Извлекает JWT токен из cookie auth_token.
+     * Извлекает JWT токен из cookie auth_token или Authorization header.
+     *
+     * Приоритет: cookie > Authorization header.
+     * Authorization header поддерживает формат "Bearer <token>".
      */
     private fun extractToken(exchange: ServerWebExchange): String? {
-        return exchange.request.cookies
+        // Сначала пробуем cookie
+        val cookieToken = exchange.request.cookies
             .getFirst(AUTH_COOKIE_NAME)
             ?.value
+
+        if (cookieToken != null) {
+            return cookieToken
+        }
+
+        // Если нет cookie, пробуем Authorization header
+        val authHeader = exchange.request.headers.getFirst("Authorization")
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7)
+        }
+
+        return null
     }
 }

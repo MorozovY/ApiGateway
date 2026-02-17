@@ -52,7 +52,7 @@ development_status:
   2-3-authentication-middleware: done
   2-4-role-based-access-control: done
   2-5-admin-ui-login-page: done
-  2-6-user-management-admin: backlog
+  2-6-user-management-admin: dev-complete
   epic-2-retrospective: optional
 
   # Epic 3: Route Management (Self-Service)

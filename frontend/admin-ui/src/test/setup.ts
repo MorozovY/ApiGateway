@@ -17,7 +17,7 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Мок для ResizeObserver (требуется для Ant Design)
-global.ResizeObserver = class ResizeObserver {
+globalThis.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

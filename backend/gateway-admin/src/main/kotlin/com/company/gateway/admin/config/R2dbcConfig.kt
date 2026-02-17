@@ -6,6 +6,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.EventListener
+import org.springframework.data.r2dbc.config.EnableR2dbcAuditing
 import org.springframework.data.r2dbc.convert.R2dbcCustomConversions
 import org.springframework.data.r2dbc.dialect.PostgresDialect
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories
@@ -13,6 +14,7 @@ import reactor.core.publisher.Mono
 
 @Configuration
 @EnableR2dbcRepositories(basePackages = ["com.company.gateway.admin.repository"])
+@EnableR2dbcAuditing
 class R2dbcConfig(
     private val connectionFactory: ConnectionFactory,
     private val stringArrayReadingConverter: StringArrayReadingConverter,

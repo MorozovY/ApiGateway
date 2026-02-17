@@ -1,5 +1,7 @@
 package com.company.gateway.admin.integration
 
+import com.company.gateway.admin.dto.CreateUserRequest
+import com.company.gateway.admin.dto.UpdateUserRequest
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.JwtService
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -141,9 +144,18 @@ class RbacIntegrationTest {
 
         @Test
         fun `developer получает 403 при попытке создать пользователя`() {
+            val request = CreateUserRequest(
+                username = "newuser_forbidden",
+                email = "newuser_forbidden@example.com",
+                password = "password123",
+                role = Role.DEVELOPER
+            )
+
             webTestClient.post()
                 .uri("/api/v1/users")
                 .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isForbidden
         }
@@ -181,9 +193,18 @@ class RbacIntegrationTest {
 
         @Test
         fun `admin успешно создаёт пользователя`() {
+            val request = CreateUserRequest(
+                username = "newuser_ac2",
+                email = "newuser_ac2@example.com",
+                password = "password123",
+                role = Role.DEVELOPER
+            )
+
             webTestClient.post()
                 .uri("/api/v1/users")
                 .cookie("auth_token", adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isCreated
         }
@@ -507,18 +528,45 @@ class RbacIntegrationTest {
 
         @Test
         fun `admin может создать пользователя`() {
+            val request = CreateUserRequest(
+                username = "newuser_rbac",
+                email = "newuser_rbac@example.com",
+                password = "password123",
+                role = Role.DEVELOPER
+            )
+
             webTestClient.post()
                 .uri("/api/v1/users")
                 .cookie("auth_token", adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isCreated
         }
 
         @Test
         fun `admin может обновить пользователя`() {
+            // Сначала создаём пользователя для обновления
+            val hashedPassword = passwordService.hash("password123")
+            val targetUser = User(
+                username = "toupdate_rbac",
+                email = "toupdate_rbac@example.com",
+                passwordHash = hashedPassword,
+                role = Role.DEVELOPER,
+                isActive = true
+            )
+            var savedUser: User? = null
+            StepVerifier.create(userRepository.save(targetUser))
+                .consumeNextWith { savedUser = it }
+                .verifyComplete()
+
+            val request = UpdateUserRequest(role = Role.SECURITY)
+
             webTestClient.put()
-                .uri("/api/v1/users/${UUID.randomUUID()}")
+                .uri("/api/v1/users/${savedUser?.id}")
                 .cookie("auth_token", adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isOk
         }
