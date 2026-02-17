@@ -1,0 +1,30 @@
+package com.company.gateway.admin.dto
+
+import com.company.gateway.common.model.RouteStatus
+
+/**
+ * Параметры фильтрации и пагинации для списка маршрутов.
+ *
+ * Используется для GET /api/v1/routes с query parameters:
+ * - status: фильтр по статусу маршрута (draft, pending, published, rejected)
+ * - createdBy: фильтр по автору ("me" или UUID пользователя)
+ * - search: текстовый поиск по path и description (case-insensitive)
+ * - offset: смещение от начала списка (default 0)
+ * - limit: количество элементов на странице (default 20, max 100)
+ *
+ * Валидация выполняется в RouteController, так как Spring не применяет
+ * JSR-303 аннотации к @RequestParam автоматически.
+ *
+ * @property status статус маршрута для фильтрации (опционально)
+ * @property createdBy "me" для своих маршрутов или UUID пользователя (опционально)
+ * @property search строка поиска (опционально, min 1, max 100 символов)
+ * @property offset смещение от начала списка (default 0, min 0)
+ * @property limit количество элементов (default 20, min 1, max 100)
+ */
+data class RouteFilterRequest(
+    val status: RouteStatus? = null,
+    val createdBy: String? = null,
+    val search: String? = null,
+    val offset: Int = 0,
+    val limit: Int = 20
+)

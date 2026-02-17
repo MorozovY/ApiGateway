@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono
 import java.util.UUID
 
 @Repository
-interface RouteRepository : R2dbcRepository<Route, UUID> {
+interface RouteRepository : R2dbcRepository<Route, UUID>, RouteRepositoryCustom {
 
     /**
      * Находит все маршруты с указанным статусом.

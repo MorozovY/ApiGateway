@@ -26,12 +26,13 @@ class GlobalExceptionHandler(
 ) : ErrorWebExceptionHandler {
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        // Обрабатываем JWT, AccessDenied, Conflict и NotFound исключения
+        // Обрабатываем JWT, AccessDenied, Conflict, NotFound и Validation исключения
         return when (ex) {
             is JwtAuthenticationException -> handleJwtAuthenticationException(exchange, ex)
             is AccessDeniedException -> handleAccessDeniedException(exchange, ex)
             is ConflictException -> handleConflictException(exchange, ex)
             is NotFoundException -> handleNotFoundException(exchange, ex)
+            is ValidationException -> handleValidationException(exchange, ex)
             else -> {
                 // Пропускаем другие исключения для обработки стандартным механизмом
                 Mono.error(ex)
@@ -147,6 +148,36 @@ class GlobalExceptionHandler(
         )
 
         exchange.response.statusCode = HttpStatus.NOT_FOUND
+        exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+        exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
+
+        val body = objectMapper.writeValueAsBytes(errorResponse)
+        val buffer = exchange.response.bufferFactory().wrap(body)
+
+        return exchange.response.writeWith(Mono.just(buffer))
+    }
+
+    /**
+     * Обрабатывает ValidationException и возвращает 400 Bad Request.
+     */
+    private fun handleValidationException(
+        exchange: ServerWebExchange,
+        ex: ValidationException
+    ): Mono<Void> {
+        val correlationId = exchange.request.headers
+            .getFirst(CORRELATION_ID_HEADER)
+            ?: UUID.randomUUID().toString()
+
+        val errorResponse = ErrorResponse(
+            type = "https://api.gateway/errors/validation",
+            title = "Validation Error",
+            status = HttpStatus.BAD_REQUEST.value(),
+            detail = ex.detail,
+            instance = exchange.request.path.value(),
+            correlationId = correlationId
+        )
+
+        exchange.response.statusCode = HttpStatus.BAD_REQUEST
         exchange.response.headers.contentType = MediaType.APPLICATION_JSON
         exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
 

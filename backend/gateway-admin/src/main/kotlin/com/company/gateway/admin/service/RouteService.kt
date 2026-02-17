@@ -1,6 +1,8 @@
 package com.company.gateway.admin.service
 
 import com.company.gateway.admin.dto.CreateRouteRequest
+import com.company.gateway.admin.dto.RouteDetailResponse
+import com.company.gateway.admin.dto.RouteFilterRequest
 import com.company.gateway.admin.dto.RouteListResponse
 import com.company.gateway.admin.dto.RouteResponse
 import com.company.gateway.admin.dto.UpdateRouteRequest
@@ -11,8 +13,10 @@ import com.company.gateway.common.model.Role
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
+import reactor.util.retry.Retry
 import java.time.Instant
 import java.util.UUID
 
@@ -252,6 +256,145 @@ class RouteService(
     }
 
     /**
+     * Получает детальную информацию о маршруте по ID с username создателя.
+     *
+     * Используется для GET /api/v1/routes/{id} (Story 3.3, AC1).
+     * Выполняет JOIN с таблицей users для получения creatorUsername.
+     *
+     * @param id ID маршрута
+     * @return Mono<RouteDetailResponse> детали маршрута с информацией о создателе
+     * @throws NotFoundException если маршрут не найден
+     */
+    fun findByIdWithCreator(id: UUID): Mono<RouteDetailResponse> {
+        return routeRepository.findByIdWithCreator(id)
+            .switchIfEmpty(Mono.error(NotFoundException("Route not found")))
+            .map { it.toResponse() }
+            .doOnSuccess { logger.debug("Получены детали маршрута: id={}", id) }
+    }
+
+    /**
+     * Клонирует существующий маршрут.
+     *
+     * Создаёт копию маршрута со статусом DRAFT и автоматически генерирует
+     * уникальный path с суффиксом -copy или -copy-N (Story 3.3, AC3, AC4).
+     *
+     * @param routeId ID маршрута для клонирования
+     * @param currentUserId ID текущего пользователя (станет владельцем клона)
+     * @param currentUsername username текущего пользователя для аудит-лога
+     * @return Mono<RouteDetailResponse> клонированный маршрут
+     * @throws NotFoundException если маршрут не найден
+     */
+    fun cloneRoute(
+        routeId: UUID,
+        currentUserId: UUID,
+        currentUsername: String
+    ): Mono<RouteDetailResponse> {
+        return routeRepository.findById(routeId)
+            .switchIfEmpty(Mono.error(NotFoundException("Route not found")))
+            .flatMap { original ->
+                // Оборачиваем генерацию path + save в retry для обработки race condition
+                // При параллельном клонировании может возникнуть конфликт path
+                generateUniquePath(original.path)
+                    .flatMap { newPath ->
+                        val cloned = Route(
+                            path = newPath,
+                            upstreamUrl = original.upstreamUrl,
+                            methods = original.methods,
+                            description = original.description,
+                            status = RouteStatus.DRAFT,
+                            createdBy = currentUserId,
+                            createdAt = Instant.now(),
+                            updatedAt = Instant.now()
+                        )
+                        routeRepository.save(cloned)
+                    }
+                    .retryWhen(
+                        Retry.max(3)
+                            .filter { it is DataIntegrityViolationException }
+                            .doBeforeRetry { logger.debug("Retry клонирования из-за конфликта path, попытка {}", it.totalRetries() + 1) }
+                    )
+                    .flatMap { savedRoute ->
+                        // Логируем клонирование
+                        auditService.logCreated(
+                            entityType = "route",
+                            entityId = savedRoute.id.toString(),
+                            userId = currentUserId,
+                            username = currentUsername,
+                            entity = mapOf(
+                                "path" to savedRoute.path,
+                                "upstreamUrl" to savedRoute.upstreamUrl,
+                                "methods" to savedRoute.methods,
+                                "description" to savedRoute.description,
+                                "clonedFrom" to routeId.toString()
+                            )
+                        ).thenReturn(savedRoute)
+                    }
+            }
+            .flatMap { savedRoute ->
+                // Возвращаем детали с username создателя
+                routeRepository.findByIdWithCreator(savedRoute.id!!)
+                    .map { it.toResponse() }
+            }
+            .doOnSuccess { logger.info("Маршрут клонирован: sourceId={}, newPath={}", routeId, it.path) }
+    }
+
+    /**
+     * Генерирует уникальный path для клонированного маршрута.
+     *
+     * Алгоритм:
+     * 1. Пробует originalPath-copy
+     * 2. Если занят — пробует originalPath-copy-2, -copy-3 и т.д.
+     *
+     * @param originalPath оригинальный path маршрута
+     * @return Mono<String> уникальный path для клона
+     */
+    private fun generateUniquePath(originalPath: String): Mono<String> {
+        val baseCopyPath = "$originalPath-copy"
+
+        return routeRepository.existsByPath(baseCopyPath)
+            .flatMap { exists ->
+                if (!exists) {
+                    // -copy свободен
+                    Mono.just(baseCopyPath)
+                } else {
+                    // Ищем следующий свободный суффикс
+                    findNextAvailablePath(originalPath)
+                }
+            }
+    }
+
+    /**
+     * Находит следующий свободный номер для суффикса -copy-N.
+     *
+     * Загружает все существующие пути с паттерном originalPath-copy%,
+     * извлекает максимальный номер и возвращает следующий.
+     */
+    private fun findNextAvailablePath(originalPath: String): Mono<String> {
+        val pattern = "$originalPath-copy%"
+
+        return routeRepository.findByPathLike(pattern)
+            .map { it.path }
+            .collectList()
+            .map { existingPaths ->
+                // Находим максимальный суффикс среди путей вида:
+                // /api/orders-copy (считается как 1)
+                // /api/orders-copy-2, /api/orders-copy-3, etc.
+                val regex = Regex("${Regex.escape(originalPath)}-copy(?:-(\\d+))?$")
+
+                val maxSuffix = existingPaths
+                    .mapNotNull { path ->
+                        regex.find(path)?.let { match ->
+                            // Если группа (\\d+) не захвачена — это -copy без номера, считаем как 1
+                            match.groupValues.getOrNull(1)?.toIntOrNull() ?: 1
+                        }
+                    }
+                    .maxOrNull() ?: 1
+
+                "$originalPath-copy-${maxSuffix + 1}"
+            }
+    }
+
+    /**
      * Получает список маршрутов с пагинацией.
      *
      * @param offset смещение от начала списка
@@ -259,20 +402,96 @@ class RouteService(
      * @return Mono<RouteListResponse> пагинированный список маршрутов
      */
     fun findAll(offset: Int, limit: Int): Mono<RouteListResponse> {
-        val routesMono = routeRepository.findAllWithPagination(offset, limit)
-            .map { RouteResponse.from(it) }
-            .collectList()
+        return findAllWithFilters(RouteFilterRequest(offset = offset, limit = limit), null)
+    }
 
-        val totalMono = routeRepository.count()
+    /**
+     * Получает список маршрутов с фильтрацией и пагинацией.
+     *
+     * Поддерживает фильтрацию по:
+     * - status: статус маршрута (draft, pending, published, rejected)
+     * - createdBy: "me" преобразуется в userId текущего пользователя
+     * - search: текстовый поиск по path и description (case-insensitive)
+     *
+     * Фильтры применяются с AND логикой.
+     *
+     * @param filter параметры фильтрации и пагинации
+     * @param currentUserId ID текущего пользователя (для преобразования "me")
+     * @return Mono<RouteListResponse> пагинированный список маршрутов
+     */
+    fun findAllWithFilters(filter: RouteFilterRequest, currentUserId: UUID?): Mono<RouteListResponse> {
+        logger.debug(
+            "Поиск маршрутов: status={}, createdBy={}, search={}, offset={}, limit={}",
+            filter.status, filter.createdBy, filter.search, filter.offset, filter.limit
+        )
+
+        // Преобразуем createdBy="me" в UUID текущего пользователя
+        // Если createdBy указан, но не является "me" и не валидный UUID — возвращаем пустой результат
+        val createdByResult = parseCreatedBy(filter.createdBy, currentUserId)
+        if (createdByResult.isInvalid) {
+            logger.debug("Невалидный createdBy={}, возвращаем пустой результат", filter.createdBy)
+            return Mono.just(
+                RouteListResponse(
+                    items = emptyList(),
+                    total = 0,
+                    offset = filter.offset,
+                    limit = filter.limit
+                )
+            )
+        }
+
+        val routesMono = routeRepository.findWithFilters(
+            status = filter.status,
+            createdBy = createdByResult.uuid,
+            search = filter.search,
+            offset = filter.offset,
+            limit = filter.limit
+        ).map { RouteResponse.from(it) }.collectList()
+
+        val totalMono = routeRepository.countWithFilters(
+            status = filter.status,
+            createdBy = createdByResult.uuid,
+            search = filter.search
+        )
 
         return Mono.zip(routesMono, totalMono)
             .map { tuple ->
                 RouteListResponse(
                     items = tuple.t1,
                     total = tuple.t2,
-                    offset = offset,
-                    limit = limit
+                    offset = filter.offset,
+                    limit = filter.limit
                 )
             }
+    }
+
+    /**
+     * Результат парсинга createdBy параметра.
+     *
+     * @property uuid распарсенный UUID (null если не указан или "me" без currentUserId)
+     * @property isInvalid true если createdBy указан, но невалиден
+     */
+    private data class CreatedByParseResult(val uuid: UUID?, val isInvalid: Boolean)
+
+    /**
+     * Парсит createdBy параметр в UUID.
+     *
+     * - "me" → currentUserId
+     * - валидный UUID → UUID
+     * - невалидная строка → isInvalid=true
+     * - null → uuid=null, isInvalid=false
+     */
+    private fun parseCreatedBy(createdBy: String?, currentUserId: UUID?): CreatedByParseResult {
+        return when {
+            createdBy == null -> CreatedByParseResult(null, false)
+            createdBy == "me" -> CreatedByParseResult(currentUserId, false)
+            else -> {
+                try {
+                    CreatedByParseResult(UUID.fromString(createdBy), false)
+                } catch (e: IllegalArgumentException) {
+                    CreatedByParseResult(null, true)
+                }
+            }
+        }
     }
 }
