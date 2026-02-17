@@ -46,18 +46,18 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: User Authentication & Access Control
-  epic-2: in-progress
+  epic-2: done
   2-1-user-entity-database-schema: done
   2-2-jwt-authentication-service: done
   2-3-authentication-middleware: done
   2-4-role-based-access-control: done
   2-5-admin-ui-login-page: done
-  2-6-user-management-admin: dev-complete
-  epic-2-retrospective: optional
+  2-6-user-management-admin: done
+  epic-2-retrospective: done
 
   # Epic 3: Route Management (Self-Service)
-  epic-3: backlog
-  3-1-route-crud-api: backlog
+  epic-3: in-progress
+  3-1-route-crud-api: done
   3-2-route-list-api-filtering-search: backlog
   3-3-route-details-clone-api: backlog
   3-4-routes-list-ui: backlog

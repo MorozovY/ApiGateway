@@ -1,6 +1,7 @@
 package com.company.gateway.admin.integration
 
 import com.company.gateway.admin.dto.CreateUserRequest
+import com.company.gateway.admin.dto.UpdateRouteRequest
 import com.company.gateway.admin.dto.UpdateUserRequest
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
@@ -275,9 +276,13 @@ class RbacIntegrationTest {
             // Создаём маршрут, принадлежащий developer
             val route = createTestRoute(developerUser.id!!, RouteStatus.DRAFT)
 
+            val request = UpdateRouteRequest(description = "Updated description")
+
             webTestClient.put()
                 .uri("/api/v1/routes/${route.id}")
                 .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isOk
         }
@@ -287,9 +292,13 @@ class RbacIntegrationTest {
             // Создаём маршрут, принадлежащий другому developer
             val route = createTestRoute(otherDeveloperUser.id!!, RouteStatus.DRAFT)
 
+            val request = UpdateRouteRequest(description = "Try to update")
+
             webTestClient.put()
                 .uri("/api/v1/routes/${route.id}")
                 .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isForbidden
                 .expectBody()
@@ -327,9 +336,13 @@ class RbacIntegrationTest {
             // Создаём маршрут, принадлежащий developer
             val route = createTestRoute(developerUser.id!!, RouteStatus.DRAFT)
 
+            val request = UpdateRouteRequest(description = "Security updated")
+
             webTestClient.put()
                 .uri("/api/v1/routes/${route.id}")
                 .cookie("auth_token", securityToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isOk
         }
@@ -339,9 +352,13 @@ class RbacIntegrationTest {
             // Создаём маршрут, принадлежащий developer
             val route = createTestRoute(developerUser.id!!, RouteStatus.DRAFT)
 
+            val request = UpdateRouteRequest(description = "Admin updated")
+
             webTestClient.put()
                 .uri("/api/v1/routes/${route.id}")
                 .cookie("auth_token", adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
                 .exchange()
                 .expectStatus().isOk
         }
@@ -396,15 +413,17 @@ class RbacIntegrationTest {
         }
 
         @Test
-        fun `admin может удалить PUBLISHED маршрут`() {
-            // Создаём PUBLISHED маршрут, принадлежащий developer
+        fun `admin НЕ может удалить PUBLISHED маршрут - Story 3-1 требует draft статус`() {
+            // Story 3.1 AC5: Только draft маршруты могут быть удалены (даже admin)
             val route = createTestRoute(developerUser.id!!, RouteStatus.PUBLISHED)
 
             webTestClient.delete()
                 .uri("/api/v1/routes/${route.id}")
                 .cookie("auth_token", adminToken)
                 .exchange()
-                .expectStatus().isNoContent
+                .expectStatus().isEqualTo(409)
+                .expectBody()
+                .jsonPath("$.detail").isEqualTo("Only draft routes can be deleted")
         }
 
         @Test
