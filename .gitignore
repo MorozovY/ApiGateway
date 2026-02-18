@@ -65,6 +65,11 @@ pnpm-debug.log*
 coverage/
 *.lcov
 
+# Playwright E2E
+playwright-report/
+test-results/
+frontend/admin-ui/.env.e2e
+
 # Build outputs
 *.jar
 *.war
