@@ -9,11 +9,12 @@ const BASE_URL = '/api/v1/routes'
  * Получение списка маршрутов ожидающих согласования.
  *
  * GET /api/v1/routes/pending
+ * Бэкенд возвращает PagedResponse — извлекаем items.
  * Требует роль security или admin.
  */
 export async function fetchPendingRoutes(): Promise<PendingRoute[]> {
-  const { data } = await axios.get<PendingRoute[]>(`${BASE_URL}/pending`)
-  return data
+  const { data } = await axios.get<{ items: PendingRoute[] }>(`${BASE_URL}/pending`)
+  return data.items
 }
 
 /**
