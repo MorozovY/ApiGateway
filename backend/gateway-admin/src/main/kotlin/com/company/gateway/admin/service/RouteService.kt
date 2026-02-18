@@ -256,6 +256,19 @@ class RouteService(
     }
 
     /**
+     * Проверяет существование маршрута с указанным path.
+     *
+     * Используется для inline валидации уникальности path в форме.
+     * Story 3.5, AC2.
+     *
+     * @param path путь маршрута для проверки
+     * @return Mono<Boolean> true если маршрут с таким path существует
+     */
+    fun existsByPath(path: String): Mono<Boolean> {
+        return routeRepository.existsByPath(path)
+    }
+
+    /**
      * Получает детальную информацию о маршруте по ID с username создателя.
      *
      * Используется для GET /api/v1/routes/{id} (Story 3.3, AC1).

@@ -197,6 +197,23 @@ class RouteController(
     }
 
     /**
+     * Проверка существования маршрута с указанным path.
+     *
+     * Используется для inline валидации уникальности path в форме создания/редактирования.
+     * Возвращает { "exists": true/false }.
+     *
+     * Story 3.5, AC2 — валидация уникальности path.
+     */
+    @GetMapping("/check-path")
+    @RequireRole(Role.DEVELOPER)
+    fun checkPathExists(@RequestParam path: String): Mono<ResponseEntity<Map<String, Boolean>>> {
+        return routeService.existsByPath(path)
+            .map { exists ->
+                ResponseEntity.ok(mapOf("exists" to exists))
+            }
+    }
+
+    /**
      * Одобрение маршрута.
      *
      * Доступно только SECURITY и ADMIN ролям.

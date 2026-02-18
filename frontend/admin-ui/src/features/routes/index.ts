@@ -1,6 +1,8 @@
-// Публичный API модуля routes (Story 3.4)
+// Публичный API модуля routes (Story 3.4, 3.5)
 export { RoutesPage } from './components/RoutesPage'
 export { RoutesTable } from './components/RoutesTable'
+export { RouteFormPage } from './components/RouteFormPage'
+export { RouteForm } from './components/RouteForm'
 
 // Hooks
 export {

@@ -68,3 +68,17 @@ export async function cloneRoute(id: string): Promise<Route> {
   const { data } = await axios.post<Route>(`${BASE_URL}/${id}/clone`)
   return data
 }
+
+/**
+ * Проверка существования маршрута с указанным path.
+ *
+ * GET /api/v1/routes/check-path?path=...
+ *
+ * Используется для inline валидации уникальности path в форме.
+ */
+export async function checkPathExists(path: string): Promise<boolean> {
+  const { data } = await axios.get<{ exists: boolean }>(`${BASE_URL}/check-path`, {
+    params: { path },
+  })
+  return data.exists
+}
