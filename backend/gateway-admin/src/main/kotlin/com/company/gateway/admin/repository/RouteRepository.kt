@@ -51,4 +51,20 @@ interface RouteRepository : R2dbcRepository<Route, UUID>, RouteRepositoryCustom 
      */
     @Query("SELECT * FROM routes WHERE rate_limit_id = :rateLimitId")
     fun findByRateLimitId(rateLimitId: UUID): Flux<Route>
+
+    /**
+     * Подсчитывает количество маршрутов для каждой политики rate limiting.
+     * Возвращает пары (rateLimitId, count) для всех политик, имеющих хотя бы один маршрут.
+     * Используется для batch-загрузки usageCount (решение N+1 проблемы).
+     */
+    @Query("SELECT rate_limit_id, COUNT(*) as usage_count FROM routes WHERE rate_limit_id IS NOT NULL GROUP BY rate_limit_id")
+    fun countByRateLimitIdGrouped(): Flux<RateLimitUsageCount>
 }
+
+/**
+ * DTO для результата группировки usageCount по rate_limit_id.
+ */
+data class RateLimitUsageCount(
+    val rateLimitId: UUID,
+    val usageCount: Long
+)

@@ -253,27 +253,39 @@ class RateLimitService(
     /**
      * Получает список всех политик с пагинацией и usageCount.
      *
+     * Оптимизировано: использует SQL OFFSET/LIMIT и batch-загрузку usageCount
+     * (3 запроса вместо N+1).
+     *
      * @param offset смещение от начала списка
      * @param limit максимальное количество элементов (default 100)
      * @return Mono<PagedResponse<RateLimitResponse>> пагинированный список политик
      */
     fun findAll(offset: Int = 0, limit: Int = 100): Mono<PagedResponse<RateLimitResponse>> {
-        val policiesMono = rateLimitRepository.findAll()
-            .skip(offset.toLong())
-            .take(limit.toLong())
-            .flatMap { policy ->
-                routeRepository.countByRateLimitId(policy.id!!)
-                    .map { count -> RateLimitResponse.from(policy, usageCount = count) }
-            }
+        // Загружаем политики с SQL OFFSET/LIMIT (сортировка по created_at DESC)
+        val policiesMono = rateLimitRepository.findAllWithPagination(offset, limit)
             .collectList()
+
+        // Загружаем usageCount для всех политик за один запрос
+        val usageCountsMono = routeRepository.countByRateLimitIdGrouped()
+            .collectMap({ it.rateLimitId }, { it.usageCount })
 
         val totalMono = rateLimitRepository.count()
 
-        return Mono.zip(policiesMono, totalMono)
+        return Mono.zip(policiesMono, usageCountsMono, totalMono)
             .map { tuple ->
+                val policies = tuple.t1
+                val usageCounts = tuple.t2
+                val total = tuple.t3
+
+                // Объединяем политики с usageCount (default 0 если нет маршрутов)
+                val items = policies.map { policy ->
+                    val usageCount = usageCounts[policy.id] ?: 0L
+                    RateLimitResponse.from(policy, usageCount = usageCount)
+                }
+
                 PagedResponse(
-                    items = tuple.t1,
-                    total = tuple.t2,
+                    items = items,
+                    total = total,
                     offset = offset,
                     limit = limit
                 )

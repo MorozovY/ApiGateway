@@ -14,9 +14,10 @@ import jakarta.validation.constraints.Size
  * @property burstSize новый размер burst (опционально, > 0)
  */
 data class UpdateRateLimitRequest(
-    @field:Size(max = 100, message = "Name must not exceed 100 characters")
+    @field:Size(min = 1, max = 100, message = "Name must be between 1 and 100 characters")
     val name: String? = null,
 
+    @field:Size(max = 1000, message = "Description must not exceed 1000 characters")
     val description: String? = null,
 
     @field:Min(value = 1, message = "Requests per second must be positive")

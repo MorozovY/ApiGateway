@@ -17,6 +17,7 @@ data class CreateRateLimitRequest(
     @field:Size(max = 100, message = "Name must not exceed 100 characters")
     val name: String,
 
+    @field:Size(max = 1000, message = "Description must not exceed 1000 characters")
     val description: String? = null,
 
     @field:Min(value = 1, message = "Requests per second must be positive")

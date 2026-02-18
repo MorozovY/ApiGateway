@@ -1,6 +1,6 @@
 # Story 5.1: Rate Limit Policy CRUD API
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -489,3 +489,4 @@ claude-sonnet-4-5-20250929
 | Дата | Изменение |
 |------|-----------|
 | 2026-02-18 | Story 5.1 реализована: Rate Limit Policy CRUD API — миграции V7/V8, entity RateLimit, RateLimitRepository, DTO, RateLimitService, RateLimitController (замена placeholder), cache invalidation через RouteEventPublisher, интеграционные тесты (472 тестов, все проходят) |
+| 2026-02-18 | Code Review (AI): исправлены 8 issues — H1: валидация пустой строки в UpdateRateLimitRequest.name, M1: N+1 оптимизация (batch usageCount), M2: комментарий в V7 миграции, M3: SQL OFFSET/LIMIT вместо skip/take, M4: @Size для description, L2: улучшены тесты AC7, L3: сортировка по created_at DESC. Добавлен тест на пустое имя. |

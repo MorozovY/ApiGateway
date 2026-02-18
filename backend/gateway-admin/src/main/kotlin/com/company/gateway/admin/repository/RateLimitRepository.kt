@@ -4,6 +4,7 @@ import com.company.gateway.common.model.RateLimit
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.r2dbc.repository.R2dbcRepository
 import org.springframework.stereotype.Repository
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.UUID
 
@@ -29,4 +30,11 @@ interface RateLimitRepository : R2dbcRepository<RateLimit, UUID> {
      */
     @Query("SELECT EXISTS(SELECT 1 FROM rate_limits WHERE name = :name AND id != :excludeId)")
     fun existsByNameAndIdNot(name: String, excludeId: UUID): Mono<Boolean>
+
+    /**
+     * Получает политики с пагинацией (сортировка по created_at DESC).
+     * Использует SQL OFFSET/LIMIT вместо skip/take для эффективности.
+     */
+    @Query("SELECT * FROM rate_limits ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    fun findAllWithPagination(offset: Int, limit: Int): Flux<RateLimit>
 }

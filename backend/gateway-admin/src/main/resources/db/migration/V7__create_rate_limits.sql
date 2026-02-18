@@ -28,7 +28,7 @@ COMMENT ON COLUMN rate_limits.id IS 'Уникальный идентификат
 COMMENT ON COLUMN rate_limits.name IS 'Уникальное имя политики';
 COMMENT ON COLUMN rate_limits.description IS 'Описание политики (опционально)';
 COMMENT ON COLUMN rate_limits.requests_per_second IS 'Лимит запросов в секунду (> 0)';
-COMMENT ON COLUMN rate_limits.burst_size IS 'Максимальный размер burst (>= requests_per_second)';
+COMMENT ON COLUMN rate_limits.burst_size IS 'Максимальный размер burst (> 0, валидация burst >= requests в application layer)';
 COMMENT ON COLUMN rate_limits.created_by IS 'ID пользователя, создавшего политику (FK на users)';
 COMMENT ON COLUMN rate_limits.created_at IS 'Дата и время создания политики';
 COMMENT ON COLUMN rate_limits.updated_at IS 'Дата и время последнего обновления политики';

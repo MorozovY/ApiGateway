@@ -344,6 +344,20 @@ class RateLimitControllerIntegrationTest {
                 .jsonPath("$.type").isEqualTo("https://api.gateway/errors/not-found")
                 .jsonPath("$.detail").isEqualTo("Rate limit policy not found")
         }
+
+        @Test
+        fun `обновление политики с пустым именем возвращает 400`() {
+            val policy = createTestPolicy("original-name", 100, 150)
+            val request = mapOf("name" to "")
+
+            webTestClient.put()
+                .uri("/api/v1/rate-limits/${policy.id}")
+                .cookie("auth_token", adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isBadRequest
+        }
     }
 
     // ============================================
@@ -399,7 +413,7 @@ class RateLimitControllerIntegrationTest {
         @Test
         fun `список политик возвращает 200 с usageCount`() {
             val policy1 = createTestPolicy("policy-1", 100, 150)
-            createTestPolicy("policy-2", 200, 300)
+            val policy2 = createTestPolicy("policy-2", 200, 300)
             // Привязываем один маршрут к policy1
             createTestRouteWithPolicy(adminUser.id!!, policy1.id!!)
 
@@ -413,6 +427,12 @@ class RateLimitControllerIntegrationTest {
                 .jsonPath("$.total").isEqualTo(2)
                 .jsonPath("$.offset").isEqualTo(0)
                 .jsonPath("$.limit").isEqualTo(100)
+                // Проверяем конкретные значения usageCount для каждой политики
+                // Список сортируется по created_at DESC, поэтому policy-2 первая
+                .jsonPath("$.items[0].id").isEqualTo(policy2.id.toString())
+                .jsonPath("$.items[0].usageCount").isEqualTo(0)
+                .jsonPath("$.items[1].id").isEqualTo(policy1.id.toString())
+                .jsonPath("$.items[1].usageCount").isEqualTo(1)
         }
 
         @Test
