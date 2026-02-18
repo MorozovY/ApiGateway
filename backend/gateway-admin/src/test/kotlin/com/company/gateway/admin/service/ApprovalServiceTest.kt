@@ -241,7 +241,7 @@ class ApprovalServiceTest {
     // ============================================
 
     @Nested
-    inner class Story44_AC4_ResubmissionFlow {
+    inner class Story44_AC4_ПовторнаяПодача {
 
         @Test
         fun `успешно повторно подаёт rejected маршрут`() {

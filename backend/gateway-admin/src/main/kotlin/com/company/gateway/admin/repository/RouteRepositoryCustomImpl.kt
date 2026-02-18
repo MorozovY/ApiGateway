@@ -185,7 +185,7 @@ class RouteRepositoryCustomImpl(
         limit: Int
     ): Flux<RouteWithCreator> {
         // Допускаем только безопасные значения для предотвращения SQL injection
-        val safeField = if (sortField == "submitted_at") "submitted_at" else "submitted_at"
+        val safeField = if (sortField in setOf("submitted_at", "created_at", "updated_at", "path")) sortField else "submitted_at"
         val safeDirection = if (sortDirection.uppercase() == "DESC") "DESC" else "ASC"
 
         val sql = """

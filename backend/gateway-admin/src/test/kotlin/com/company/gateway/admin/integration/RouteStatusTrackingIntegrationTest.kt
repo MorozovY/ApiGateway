@@ -124,7 +124,7 @@ class RouteStatusTrackingIntegrationTest {
     // ============================================
 
     @Nested
-    inner class AC2_RejectedМаршрутСодержитRejectorUsername {
+    inner class AC2_ОтклонённыйМаршрутСодержитRejectorUsername {
 
         @Test
         fun `GET routes по id возвращает rejectorUsername для rejected маршрута`() {
@@ -171,7 +171,7 @@ class RouteStatusTrackingIntegrationTest {
     // ============================================
 
     @Nested
-    inner class AC3_PublishedМаршрутСодержитApproverUsername {
+    inner class AC3_ОдобренныйМаршрутСодержитApproverUsername {
 
         @Test
         fun `GET routes по id возвращает approverUsername для published маршрута`() {
@@ -216,7 +216,7 @@ class RouteStatusTrackingIntegrationTest {
     // ============================================
 
     @Nested
-    inner class AC4_ПовторнаяПодачаRejectedМаршрута {
+    inner class AC4_ПовторнаяПодачаОтклонённогоМаршрута {
 
         @Test
         fun `POST submit для rejected маршрута меняет статус на pending`() {
@@ -255,14 +255,16 @@ class RouteStatusTrackingIntegrationTest {
                 .exchange()
                 .expectStatus().isOk
 
-            // Then — проверяем в базе, что rejection поля очищены
+            // Then — проверяем в базе, что rejection поля очищены и submittedAt обновлён
             StepVerifier.create(routeRepository.findById(route.id!!))
                 .expectNextMatches { savedRoute ->
                     savedRoute.status == RouteStatus.PENDING &&
                     savedRoute.rejectionReason == null &&
                     savedRoute.rejectedBy == null &&
                     savedRoute.rejectedAt == null &&
-                    savedRoute.submittedAt != null
+                    savedRoute.submittedAt != null &&
+                    // submittedAt должен быть позже исходного значения (1 час назад)
+                    savedRoute.submittedAt!! > route.submittedAt!!
                 }
                 .verifyComplete()
         }

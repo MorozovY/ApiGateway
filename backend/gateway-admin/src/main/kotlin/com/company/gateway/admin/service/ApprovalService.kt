@@ -93,8 +93,6 @@ class ApprovalService(
                 }
 
                 // Валидируем маршрут перед отправкой
-                // auditAction захватывается из внешней lambda через closure
-                val capturedAuditAction = auditAction
                 validateRouteForSubmission(route)
                     .flatMap {
                         // Для повторной подачи очищаем rejection-поля
@@ -114,7 +112,7 @@ class ApprovalService(
                         auditService.log(
                             entityType = "route",
                             entityId = savedRoute.id.toString(),
-                            action = capturedAuditAction,
+                            action = auditAction,
                             userId = userId,
                             username = username,
                             changes = mapOf(
