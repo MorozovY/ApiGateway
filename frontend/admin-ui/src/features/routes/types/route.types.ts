@@ -27,6 +27,12 @@ export interface Route {
   createdAt: string
   updatedAt: string
   rateLimitId: string | null
+  // Поля rejection/approval (Story 4.5) — nullable, т.к. большинство маршрутов их не имеют
+  rejectionReason?: string | null
+  rejectorUsername?: string | null
+  rejectedAt?: string | null
+  approverUsername?: string | null
+  approvedAt?: string | null
 }
 
 /**

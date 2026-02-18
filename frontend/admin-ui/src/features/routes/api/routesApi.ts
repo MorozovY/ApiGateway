@@ -70,6 +70,18 @@ export async function cloneRoute(id: string): Promise<Route> {
 }
 
 /**
+ * Отправка маршрута на согласование.
+ *
+ * POST /api/v1/routes/{id}/submit
+ *
+ * Работает для статусов draft и rejected.
+ */
+export async function submitForApproval(id: string): Promise<Route> {
+  const { data } = await axios.post<Route>(`${BASE_URL}/${id}/submit`)
+  return data
+}
+
+/**
  * Проверка существования маршрута с указанным path.
  *
  * GET /api/v1/routes/check-path?path=...

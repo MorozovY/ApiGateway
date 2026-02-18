@@ -100,6 +100,27 @@ export function useDeleteRoute() {
 }
 
 /**
+ * Hook для отправки маршрута на согласование.
+ *
+ * После успеха инвалидирует кэш маршрута и списка.
+ */
+export function useSubmitRoute() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => routesApi.submitForApproval(id),
+    onSuccess: () => {
+      // Инвалидируем и конкретный маршрут, и список
+      queryClient.invalidateQueries({ queryKey: [ROUTES_QUERY_KEY], refetchType: 'all' })
+      message.success('Маршрут отправлен на согласование')
+    },
+    onError: (error: Error) => {
+      message.error(error.message || 'Ошибка при отправке на согласование')
+    },
+  })
+}
+
+/**
  * Hook для клонирования маршрута.
  *
  * После успешного клонирования инвалидирует кэш списка.

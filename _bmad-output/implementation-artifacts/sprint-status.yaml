@@ -71,7 +71,7 @@ development_status:
   4-2-approval-rejection-api: done
   4-3-pending-approvals-list-api: done
   4-4-route-status-tracking: done
-  4-5-submit-approval-ui: backlog
+  4-5-submit-approval-ui: done
   4-6-pending-approvals-ui-inline-actions: backlog
   epic-4-retrospective: optional
 

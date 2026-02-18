@@ -1,11 +1,12 @@
-// Карточка с деталями маршрута (Story 3.6)
-import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip } from 'antd'
-import { EditOutlined, CopyOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5)
+import { useState } from 'react'
+import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Modal, Alert } from 'antd'
+import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/ru'
-import { useCloneRoute } from '../hooks/useRoutes'
+import { useCloneRoute, useSubmitRoute } from '../hooks/useRoutes'
 import type { Route } from '../types/route.types'
 import { useAuth } from '@features/auth'
 import { STATUS_COLORS, STATUS_LABELS, METHOD_COLORS } from '@shared/constants'
@@ -28,15 +29,23 @@ interface RouteDetailsCardProps {
  * - Configuration: upstream URL, methods
  * - Metadata: автор, даты создания/обновления
  * - Rate Limit: информация если назначен
- * - Actions: Back, Edit (для draft + owner), Clone
+ * - Статус rejected: причина отклонения + кнопка "Редактировать и повторно отправить"
+ * - Статус pending: сообщение "Ожидает одобрения Security"
+ * - Actions: Back, Submit (для draft + owner), Edit (для draft + owner), Clone
  */
 export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const cloneMutation = useCloneRoute()
+  const submitMutation = useSubmitRoute()
 
-  // Проверка: можно ли редактировать (draft + owner)
-  const canEdit = route.status === 'draft' && route.createdBy === user?.userId
+  // Состояние модального окна подтверждения submit
+  const [submitModalVisible, setSubmitModalVisible] = useState(false)
+
+  // Проверка прав для разных действий (canEdit и canSubmit — одно условие: draft + owner)
+  const canSubmit = route.status === 'draft' && route.createdBy === user?.userId
+  const canResubmit = route.status === 'rejected' && route.createdBy === user?.userId
+  const isPendingOwner = route.status === 'pending' && route.createdBy === user?.userId
 
   /**
    * Переход на страницу редактирования.
@@ -66,71 +75,152 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
     navigate('/routes')
   }
 
+  /**
+   * Подтверждение отправки на согласование.
+   * Ошибки обрабатываются в useSubmitRoute hook (message.error).
+   */
+  const handleSubmitConfirm = async () => {
+    try {
+      await submitMutation.mutateAsync(route.id)
+      setSubmitModalVisible(false)
+    } catch {
+      // Ошибка уже обработана в useSubmitRoute hook (message.error)
+    }
+  }
+
   return (
-    <Card
-      title={
-        <Space align="center">
-          <Title level={4} style={{ margin: 0 }}>{route.path}</Title>
-          <Tag color={STATUS_COLORS[route.status]}>{STATUS_LABELS[route.status]}</Tag>
-        </Space>
-      }
-      extra={
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-            Назад
-          </Button>
-          {canEdit && (
-            <Button type="primary" icon={<EditOutlined />} onClick={handleEdit}>
-              Редактировать
-            </Button>
-          )}
-          <Button
-            icon={<CopyOutlined />}
-            onClick={handleClone}
-            loading={cloneMutation.isPending}
-          >
-            Клонировать
-          </Button>
-        </Space>
-      }
-    >
-      <Descriptions column={1} bordered>
-        {/* Configuration секция */}
-        <Descriptions.Item label="Upstream URL">{route.upstreamUrl}</Descriptions.Item>
-        <Descriptions.Item label="HTTP Methods">
-          <Space size={4} wrap>
-            {route.methods.map(method => (
-              <Tag key={method} color={METHOD_COLORS[method] || 'default'}>
-                {method}
-              </Tag>
-            ))}
+    <>
+      <Card
+        title={
+          <Space align="center">
+            <Title level={4} style={{ margin: 0 }}>{route.path}</Title>
+            <Tag color={STATUS_COLORS[route.status]}>{STATUS_LABELS[route.status]}</Tag>
           </Space>
-        </Descriptions.Item>
-        <Descriptions.Item label="Описание">
-          {route.description || '—'}
-        </Descriptions.Item>
-
-        {/* Metadata секция */}
-        <Descriptions.Item label="Автор">{route.creatorUsername || '—'}</Descriptions.Item>
-        <Descriptions.Item label="Создан">
-          <Tooltip title={dayjs(route.createdAt).format('DD.MM.YYYY HH:mm')}>
-            {dayjs(route.createdAt).fromNow()}
-          </Tooltip>
-        </Descriptions.Item>
-        <Descriptions.Item label="Обновлён">
-          <Tooltip title={dayjs(route.updatedAt).format('DD.MM.YYYY HH:mm')}>
-            {dayjs(route.updatedAt).fromNow()}
-          </Tooltip>
-        </Descriptions.Item>
-
-        {/* Rate Limit секция — если назначен */}
-        {/* TODO: После реализации API rate limits (Epic 4) загружать название и лимиты политики */}
-        {route.rateLimitId && (
-          <Descriptions.Item label="Rate Limit">
-            <Tag color="blue">Политика назначена</Tag>
-          </Descriptions.Item>
+        }
+        extra={
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
+              Назад
+            </Button>
+            {/* Кнопка Submit — только для draft + owner */}
+            {canSubmit && (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={() => setSubmitModalVisible(true)}
+              >
+                Отправить на согласование
+              </Button>
+            )}
+            {/* Кнопка Edit — только для draft + owner */}
+            {canSubmit && (
+              <Button type="default" icon={<EditOutlined />} onClick={handleEdit}>
+                Редактировать
+              </Button>
+            )}
+            {/* Кнопка "Редактировать и повторно отправить" — только для rejected + owner */}
+            {canResubmit && (
+              <Button
+                type="primary"
+                icon={<EditOutlined />}
+                onClick={handleEdit}
+              >
+                Редактировать и повторно отправить
+              </Button>
+            )}
+            <Button
+              icon={<CopyOutlined />}
+              onClick={handleClone}
+              loading={cloneMutation.isPending}
+            >
+              Клонировать
+            </Button>
+          </Space>
+        }
+      >
+        {/* Блок pending — ожидает одобрения, только для owner */}
+        {isPendingOwner && (
+          <Alert
+            type="info"
+            message="Ожидает одобрения Security"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
         )}
-      </Descriptions>
-    </Card>
+
+        {/* Блок rejection reason — только для rejected + owner */}
+        {canResubmit && route.rejectionReason && (
+          <Alert
+            type="error"
+            message="Маршрут отклонён"
+            description={
+              <>
+                <div><strong>Причина:</strong> {route.rejectionReason}</div>
+                {route.rejectorUsername && (
+                  <div><strong>Отклонил:</strong> {route.rejectorUsername}</div>
+                )}
+              </>
+            }
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        <Descriptions column={1} bordered>
+          {/* Configuration секция */}
+          <Descriptions.Item label="Upstream URL">{route.upstreamUrl}</Descriptions.Item>
+          <Descriptions.Item label="HTTP Methods">
+            <Space size={4} wrap>
+              {route.methods.map(method => (
+                <Tag key={method} color={METHOD_COLORS[method] || 'default'}>
+                  {method}
+                </Tag>
+              ))}
+            </Space>
+          </Descriptions.Item>
+          <Descriptions.Item label="Описание">
+            {route.description || '—'}
+          </Descriptions.Item>
+
+          {/* Metadata секция */}
+          <Descriptions.Item label="Автор">{route.creatorUsername || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Создан">
+            <Tooltip title={dayjs(route.createdAt).format('DD.MM.YYYY HH:mm')}>
+              {dayjs(route.createdAt).fromNow()}
+            </Tooltip>
+          </Descriptions.Item>
+          <Descriptions.Item label="Обновлён">
+            <Tooltip title={dayjs(route.updatedAt).format('DD.MM.YYYY HH:mm')}>
+              {dayjs(route.updatedAt).fromNow()}
+            </Tooltip>
+          </Descriptions.Item>
+
+          {/* Rate Limit секция — если назначен */}
+          {/* TODO: После реализации API rate limits (Epic 4) загружать название и лимиты политики */}
+          {route.rateLimitId && (
+            <Descriptions.Item label="Rate Limit">
+              <Tag color="blue">Политика назначена</Tag>
+            </Descriptions.Item>
+          )}
+        </Descriptions>
+      </Card>
+
+      {/* Модальное окно подтверждения submit */}
+      <Modal
+        title="Отправить на согласование"
+        open={submitModalVisible}
+        onCancel={() => setSubmitModalVisible(false)}
+        onOk={handleSubmitConfirm}
+        okText="Отправить"
+        cancelText="Отмена"
+        confirmLoading={submitMutation.isPending}
+        destroyOnHidden
+      >
+        <p>
+          Маршрут будет отправлен в Security на проверку. Вы не сможете
+          редактировать его до одобрения или отклонения.
+        </p>
+      </Modal>
+    </>
   )
 }

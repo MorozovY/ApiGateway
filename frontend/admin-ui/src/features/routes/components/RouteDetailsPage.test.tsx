@@ -54,6 +54,10 @@ vi.mock('../hooks/useRoutes', () => ({
     isPending: mockCloneIsPending,
     reset: vi.fn(),
   }),
+  useSubmitRoute: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }))
 
 // Мок useAuth
