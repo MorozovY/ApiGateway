@@ -160,7 +160,7 @@ describe('RoutesPage', () => {
     expect(screen.getByText('DELETE')).toBeInTheDocument()
   })
 
-  it('отображает статус badges', async () => {
+  it('отображает статус badges на русском языке', async () => {
     renderWithMockAuth(<RoutesPage />, {
       authValue: {
         user: { userId: 'current-user', username: 'testuser', role: 'developer' },
@@ -169,11 +169,11 @@ describe('RoutesPage', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Published')).toBeInTheDocument()
+      expect(screen.getByText('Опубликован')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Draft')).toBeInTheDocument()
-    expect(screen.getByText('Pending')).toBeInTheDocument()
+    expect(screen.getByText('Черновик')).toBeInTheDocument()
+    expect(screen.getByText('На согласовании')).toBeInTheDocument()
   })
 
   it('отображает имя автора', async () => {
@@ -380,7 +380,7 @@ describe('RoutesPage поиск и фильтрация', () => {
     )
 
     // Проверяем что chip с фильтром статуса отображается (используем getAllByText из-за дубликатов)
-    const draftElements = screen.getAllByText('Draft')
+    const draftElements = screen.getAllByText('Черновик')
     expect(draftElements.length).toBeGreaterThan(0)
   })
 
@@ -598,8 +598,9 @@ describe('RoutesPage удаление маршрута', () => {
     const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
     // Должна быть только одна кнопка удаления (для draft маршрута текущего пользователя)
     expect(deleteButtons.length).toBeGreaterThan(0)
+    const firstDeleteButton = deleteButtons[0]!
 
-    await user.click(deleteButtons[0])
+    await user.click(firstDeleteButton)
 
     // Проверяем что появился Popconfirm
     await waitFor(() => {
@@ -623,7 +624,8 @@ describe('RoutesPage удаление маршрута', () => {
 
     // Находим и кликаем кнопку удаления
     const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
-    await user.click(deleteButtons[0])
+    const firstDeleteButton = deleteButtons[0]!
+    await user.click(firstDeleteButton)
 
     // Подтверждаем удаление
     const confirmButton = await screen.findByRole('button', { name: /да/i })

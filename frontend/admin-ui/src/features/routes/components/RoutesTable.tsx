@@ -86,46 +86,18 @@ function highlightSearchTerm(text: string, searchTerm: string | undefined): Reac
  */
 const SEARCH_DEBOUNCE_MS = 300
 
-/**
- * Цвета для badges статусов.
- */
-const STATUS_COLORS: Record<RouteStatus, string> = {
-  draft: 'default',
-  pending: 'processing',
-  published: 'success',
-  rejected: 'error',
-}
-
-/**
- * Человекочитаемые названия статусов.
- */
-const STATUS_LABELS: Record<RouteStatus, string> = {
-  draft: 'Draft',
-  pending: 'Pending',
-  published: 'Published',
-  rejected: 'Rejected',
-}
-
-/**
- * Цвета для HTTP методов.
- */
-const METHOD_COLORS: Record<string, string> = {
-  GET: 'green',
-  POST: 'blue',
-  PUT: 'orange',
-  DELETE: 'red',
-  PATCH: 'purple',
-}
+// Импортируем shared константы для статусов и методов
+import { STATUS_COLORS, STATUS_LABELS, METHOD_COLORS } from '@shared/constants'
 
 /**
  * Опции для фильтра по статусу.
  */
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'published', label: 'Published' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'draft', label: STATUS_LABELS.draft },
+  { value: 'pending', label: STATUS_LABELS.pending },
+  { value: 'published', label: STATUS_LABELS.published },
+  { value: 'rejected', label: STATUS_LABELS.rejected },
 ]
 
 /**

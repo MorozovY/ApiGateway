@@ -13,3 +13,11 @@ body {
 .logo {
   border-bottom: 1px solid #f0f0f0;
 }
+
+/* Центрированный spinner для страниц загрузки */
+.page-loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}

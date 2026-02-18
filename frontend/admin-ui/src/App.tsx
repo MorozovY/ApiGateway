@@ -4,7 +4,7 @@ import AuthLayout from '@layouts/AuthLayout'
 import MainLayout from '@layouts/MainLayout'
 import { LoginPage, ProtectedRoute } from '@features/auth'
 import { DashboardPage } from '@features/dashboard'
-import { RoutesPage, RouteFormPage } from '@features/routes'
+import { RoutesPage, RouteFormPage, RouteDetailsPage } from '@features/routes'
 import { UsersPage } from '@features/users'
 
 function App() {
@@ -29,6 +29,7 @@ function App() {
         <Route path="/routes" element={<RoutesPage />} />
         <Route path="/routes/new" element={<RouteFormPage />} />
         <Route path="/routes/:id/edit" element={<RouteFormPage />} />
+        <Route path="/routes/:id" element={<RouteDetailsPage />} />
         {/* User Management (Story 2.6) — только для admin */}
         <Route path="/users" element={<UsersPage />} />
         {/* Placeholders для будущих stories */}
