@@ -83,6 +83,19 @@ fun `generates UUID when X-Correlation-ID header missing`() {
 
 ---
 
+## Git-процесс
+
+### Коммит
+
+Просьба "закоммить" означает:
+1. `git add` нужных файлов
+2. `git commit` с message на английском языке
+3. `git push` в GitHub
+
+Оба шага (локальный коммит и push) выполняются всегда вместе, если явно не указано иное.
+
+---
+
 ## Конвенции именования
 
 | Область | Конвенция | Пример |
@@ -96,4 +109,4 @@ fun `generates UUID when X-Correlation-ID header missing`() {
 
 ---
 
-*Последнее обновление: 2026-02-15 (Epic 1 Retrospective)*
+*Последнее обновление: 2026-02-18 (Epic 4 Retrospective)*
