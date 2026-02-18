@@ -1,5 +1,10 @@
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+// ESM-совместимый аналог __dirname
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 /**
  * Загрузка переменных из файла .env.e2e (если существует).
@@ -100,7 +105,7 @@ async function globalSetup(): Promise<void> {
   console.log('[E2E Setup] Вход выполнен успешно.')
 
   // Шаг 2: Получение списка существующих пользователей
-  const usersResponse = await fetch(`${apiBase}/api/v1/admin/users`, {
+  const usersResponse = await fetch(`${apiBase}/api/v1/users`, {
     headers: {
       'Content-Type': 'application/json',
       'Cookie': authCookie,
@@ -123,7 +128,7 @@ async function globalSetup(): Promise<void> {
 
     console.log(`[E2E Setup] Создаём пользователя ${testUser.username} (${testUser.role})...`)
 
-    const createResponse = await fetch(`${apiBase}/api/v1/admin/users`, {
+    const createResponse = await fetch(`${apiBase}/api/v1/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

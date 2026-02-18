@@ -13,7 +13,8 @@ const BASE_URL = '/api/v1/routes'
  * Требует роль security или admin.
  */
 export async function fetchPendingRoutes(): Promise<PendingRoute[]> {
-  const { data } = await axios.get<{ items: PendingRoute[] }>(`${BASE_URL}/pending`)
+  // limit=100 — загружаем все pending маршруты (максимум бэкенда — 100)
+  const { data } = await axios.get<{ items: PendingRoute[] }>(`${BASE_URL}/pending?limit=100`)
   return data.items
 }
 
