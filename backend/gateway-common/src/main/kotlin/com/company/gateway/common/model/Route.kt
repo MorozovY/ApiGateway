@@ -79,7 +79,13 @@ data class Route(
 
     /** Причина отклонения */
     @Column("rejection_reason")
-    val rejectionReason: String? = null
+    val rejectionReason: String? = null,
+
+    // === Rate Limiting Fields (Epic 5) ===
+
+    /** ID политики rate limiting, назначенной маршруту */
+    @Column("rate_limit_id")
+    val rateLimitId: UUID? = null
 )
 
 /**

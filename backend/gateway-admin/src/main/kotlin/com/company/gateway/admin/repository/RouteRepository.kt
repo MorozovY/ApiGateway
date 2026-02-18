@@ -37,4 +37,18 @@ interface RouteRepository : R2dbcRepository<Route, UUID>, RouteRepositoryCustom 
      * Подсчитывает количество маршрутов по статусу.
      */
     fun countByStatus(status: RouteStatus): Mono<Long>
+
+    /**
+     * Подсчитывает количество маршрутов, использующих указанную политику rate limiting.
+     * Используется для usageCount и проверки перед удалением политики.
+     */
+    @Query("SELECT COUNT(*) FROM routes WHERE rate_limit_id = :rateLimitId")
+    fun countByRateLimitId(rateLimitId: UUID): Mono<Long>
+
+    /**
+     * Находит все маршруты, использующие указанную политику rate limiting.
+     * Используется для cache invalidation при обновлении политики.
+     */
+    @Query("SELECT * FROM routes WHERE rate_limit_id = :rateLimitId")
+    fun findByRateLimitId(rateLimitId: UUID): Flux<Route>
 }
