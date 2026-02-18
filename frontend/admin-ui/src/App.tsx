@@ -6,6 +6,7 @@ import { LoginPage, ProtectedRoute } from '@features/auth'
 import { DashboardPage } from '@features/dashboard'
 import { RoutesPage, RouteFormPage, RouteDetailsPage } from '@features/routes'
 import { UsersPage } from '@features/users'
+import { ApprovalsPage } from '@features/approval'
 
 function App() {
   return (
@@ -41,7 +42,15 @@ function App() {
         />
         {/* Placeholders для будущих stories */}
         <Route path="/rate-limits" element={<div>Rate Limits Management</div>} />
-        <Route path="/approvals" element={<div>Approvals</div>} />
+        {/* Согласование маршрутов (Story 4.6) — только для security и admin */}
+        <Route
+          path="/approvals"
+          element={
+            <ProtectedRoute requiredRole={['security', 'admin']}>
+              <ApprovalsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/audit" element={<div>Audit Logs</div>} />
       </Route>
 

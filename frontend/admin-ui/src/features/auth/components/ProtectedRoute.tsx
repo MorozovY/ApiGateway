@@ -5,8 +5,8 @@ import type { ReactNode } from 'react'
 
 interface ProtectedRouteProps {
   children: ReactNode
-  /** Если указана — проверяет роль пользователя, иначе только аутентификацию */
-  requiredRole?: string
+  /** Если указана — проверяет роль пользователя, иначе только аутентификацию. Поддерживает одну роль или массив ролей. */
+  requiredRole?: string | string[]
 }
 
 /**
@@ -30,8 +30,11 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   // Проверка роли — только если requiredRole указана
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />
+  if (requiredRole) {
+    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+      return <Navigate to="/dashboard" replace />
+    }
   }
 
   return <>{children}</>

@@ -1,6 +1,6 @@
-// Боковая панель навигации (Story 2.6 — добавлен Users для admin)
+// Боковая панель навигации (Story 2.6 — добавлен Users для admin, Story 4.6 — Badge для pending)
 import { useMemo } from 'react'
-import { Layout, Menu } from 'antd'
+import { Layout, Menu, Badge } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   ApiOutlined,
@@ -11,6 +11,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
+import { usePendingRoutesCount } from '@features/approval'
 import type { ItemType } from 'antd/es/menu/interface'
 
 const { Sider } = Layout
@@ -60,9 +61,25 @@ function Sidebar() {
   const location = useLocation()
   const { user } = useAuth()
 
+  // Счётчик pending маршрутов для Badge (только для security/admin, enabled=false для developer)
+  const pendingCount = usePendingRoutesCount()
+
   // Формируем меню на основе роли пользователя
   const menuItems = useMemo(() => {
-    const items = [...baseMenuItems]
+    const items: ItemType[] = baseMenuItems.map((item) => {
+      // Добавляем Badge к пункту /approvals если есть pending маршруты
+      if (item && 'key' in item && item.key === '/approvals' && pendingCount > 0) {
+        return {
+          ...item,
+          label: (
+            <Badge count={pendingCount} offset={[8, 0]} size="small">
+              Approvals
+            </Badge>
+          ),
+        }
+      }
+      return item
+    })
 
     // Добавляем Users только для admin
     if (user?.role === 'admin') {
@@ -71,7 +88,7 @@ function Sidebar() {
     }
 
     return items
-  }, [user?.role])
+  }, [user?.role, pendingCount])
 
   return (
     <Sider theme="light" width={220}>
