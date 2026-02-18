@@ -184,4 +184,24 @@ describe('UsersPage', () => {
       expect(screen.getByText(/всего 3 пользователей/i)).toBeInTheDocument()
     })
   })
+
+  it('кнопка Edit отключена для деактивированных пользователей', async () => {
+    renderWithMockAuth(<UsersPage />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Inactive')).toBeInTheDocument()
+    })
+
+    // security1 (isActive: false) — 3 кнопки Edit, но одна disabled
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    const disabledEditButtons = editButtons.filter(
+      (btn) => btn.getAttribute('disabled') !== null
+    )
+    expect(disabledEditButtons).toHaveLength(1) // только security1 (inactive)
+  })
 })

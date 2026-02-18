@@ -117,10 +117,13 @@ function UsersTable({ onEdit }: UsersTableProps) {
       key: 'actions',
       render: (_, record) => (
         <Space>
+          {/* Edit доступен только для активных пользователей.
+              Деактивированных можно только просматривать. */}
           <Button
             type="text"
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
+            disabled={!record.isActive}
           >
             Edit
           </Button>
@@ -136,7 +139,7 @@ function UsersTable({ onEdit }: UsersTableProps) {
                 type="text"
                 danger
                 icon={<StopOutlined />}
-                loading={deactivateMutation.isPending}
+                loading={deactivateMutation.isPending && deactivateMutation.variables === record.id}
               >
                 Deactivate
               </Button>

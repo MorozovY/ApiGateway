@@ -53,9 +53,15 @@ class RoleAuthorizationAspect {
 
     /**
      * Оборачивает Mono в проверку ролей.
+     *
+     * ВАЖНО: switchIfEmpty применяется к проверке аутентификации ДО flatMap,
+     * чтобы не перехватывать Mono<Void> (DELETE endpoints), которые завершаются
+     * без эмиссии элемента — это нормальное поведение для 204 No Content.
      */
     private fun wrapMonoWithRoleCheck(mono: Mono<*>, requiredRoles: Set<Role>): Mono<*> {
         return SecurityContextUtils.currentUser()
+            // Если пользователь не аутентифицирован — 401 Unauthorized
+            .switchIfEmpty(Mono.error(JwtAuthenticationException.TokenMissing()))
             .flatMap { user ->
                 val hasAccess = requiredRoles.any { requiredRole ->
                     RoleHierarchy.hasRequiredRole(user.role, requiredRole)
@@ -67,15 +73,18 @@ class RoleAuthorizationAspect {
                     Mono.error(AccessDeniedException("Insufficient permissions"))
                 }
             }
-            // Если пользователь не аутентифицирован — 401 Unauthorized
-            .switchIfEmpty(Mono.error(JwtAuthenticationException.TokenMissing()))
     }
 
     /**
      * Оборачивает Flux в проверку ролей.
+     *
+     * ВАЖНО: switchIfEmpty применяется к проверке аутентификации ДО flatMapMany,
+     * чтобы корректно работать с пустыми Flux результатами (легитимный пустой список).
      */
     private fun wrapFluxWithRoleCheck(flux: Flux<*>, requiredRoles: Set<Role>): Flux<*> {
         return SecurityContextUtils.currentUser()
+            // Если пользователь не аутентифицирован — 401 Unauthorized
+            .switchIfEmpty(Mono.error(JwtAuthenticationException.TokenMissing()))
             .flatMapMany { user ->
                 val hasAccess = requiredRoles.any { requiredRole ->
                     RoleHierarchy.hasRequiredRole(user.role, requiredRole)
@@ -87,8 +96,6 @@ class RoleAuthorizationAspect {
                     Flux.error(AccessDeniedException("Insufficient permissions"))
                 }
             }
-            // Если пользователь не аутентифицирован — 401 Unauthorized
-            .switchIfEmpty(Flux.error(JwtAuthenticationException.TokenMissing()))
     }
 
     /**

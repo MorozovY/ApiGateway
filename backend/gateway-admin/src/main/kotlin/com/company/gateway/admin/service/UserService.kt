@@ -6,11 +6,13 @@ import com.company.gateway.admin.dto.UserListResponse
 import com.company.gateway.admin.dto.UserResponse
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
+import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.SecurityContextUtils
 import com.company.gateway.common.model.Role
 import com.company.gateway.common.model.User
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.util.UUID
@@ -39,11 +41,18 @@ class UserService(
     fun findAll(offset: Int, limit: Int): Mono<UserListResponse> {
         logger.debug("Получение списка пользователей: offset={}, limit={}", offset, limit)
 
+        // Валидация параметров пагинации
+        if (limit < 1 || limit > 100) {
+            return Mono.error(ValidationException("Некорректный limit", "limit должен быть от 1 до 100"))
+        }
+        if (offset < 0) {
+            return Mono.error(ValidationException("Некорректный offset", "offset должен быть >= 0"))
+        }
+
+        // Используем пагинацию на уровне БД — избегаем full table scan
         return userRepository.count()
             .flatMap { total ->
-                userRepository.findAll()
-                    .skip(offset.toLong())
-                    .take(limit.toLong())
+                userRepository.findAllPaginated(limit, offset)
                     .map { it.toResponse() }
                     .collectList()
                     .map { items ->
@@ -97,6 +106,14 @@ class UserService(
                     userRepository.save(user)
                         .map { it.toResponse() }
                         .doOnSuccess { logger.info("Пользователь создан: id={}", it.id) }
+                        // Страховка от race condition: если два запроса прошли проверку одновременно,
+                        // unique constraint БД выбросит DataIntegrityViolationException → 409
+                        .onErrorMap(DataIntegrityViolationException::class.java) {
+                            ConflictException(
+                                "Конфликт при создании пользователя",
+                                "Пользователь с таким username или email уже существует"
+                            )
+                        }
                 }
             )
     }
@@ -131,7 +148,29 @@ class UserService(
                 val oldRole = existingUser.role
                 val roleChanged = request.role != null && request.role != oldRole
 
-                emailValidation.then(
+                // Проверяем, не деактивируется ли единственный активный admin через PUT
+                val lastAdminDeactivation = request.isActive == false &&
+                    existingUser.isActive &&
+                    existingUser.role == Role.ADMIN
+
+                val lastAdminCheck = if (lastAdminDeactivation) {
+                    countActiveAdmins().flatMap { count ->
+                        if (count <= 1) {
+                            Mono.error(
+                                ConflictException(
+                                    "Нельзя деактивировать единственного admin",
+                                    "В системе должен оставаться хотя бы один активный администратор"
+                                )
+                            )
+                        } else {
+                            Mono.empty()
+                        }
+                    }
+                } else {
+                    Mono.empty()
+                }
+
+                emailValidation.then(lastAdminCheck).then(
                     Mono.defer {
                         val updatedUser = existingUser.copy(
                             email = request.email ?: existingUser.email,
@@ -224,45 +263,6 @@ class UserService(
     }
 
     /**
-     * Деактивация пользователя без проверки на self-deactivation.
-     *
-     * Используется когда SecurityContext недоступен.
-     * ВАЖНО: Этот метод всё ещё проверяет что не деактивируем единственного admin.
-     *
-     * @param id идентификатор пользователя
-     * @throws NotFoundException если пользователь не найден
-     * @throws ConflictException если это единственный admin
-     */
-    fun deactivateWithoutSelfCheck(id: UUID): Mono<Void> {
-        logger.info("Деактивация пользователя (без проверки self): id={}", id)
-
-        return userRepository.findById(id)
-            .switchIfEmpty(
-                Mono.error(NotFoundException("Пользователь не найден", "Пользователь с ID $id не найден"))
-            )
-            .flatMap { user ->
-                // Проверяем, что это не единственный активный admin
-                if (user.role == Role.ADMIN) {
-                    countActiveAdmins()
-                        .flatMap { count ->
-                            if (count <= 1) {
-                                Mono.error(
-                                    ConflictException(
-                                        "Нельзя деактивировать единственного admin",
-                                        "В системе должен оставаться хотя бы один активный администратор"
-                                    )
-                                )
-                            } else {
-                                performDeactivation(user)
-                            }
-                        }
-                } else {
-                    performDeactivation(user)
-                }
-            }
-    }
-
-    /**
      * Проверка уникальности username и email.
      */
     private fun validateUniqueness(username: String, email: String): Mono<Void> {
@@ -313,12 +313,10 @@ class UserService(
     }
 
     /**
-     * Подсчёт активных администраторов.
+     * Подсчёт активных администраторов (запрос на уровне БД).
      */
     private fun countActiveAdmins(): Mono<Long> {
-        return userRepository.findAll()
-            .filter { it.role == Role.ADMIN && it.isActive }
-            .count()
+        return userRepository.countActiveByRole(Role.ADMIN.toDbValue())
     }
 
     /**

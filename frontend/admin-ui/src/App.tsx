@@ -30,8 +30,15 @@ function App() {
         <Route path="/routes/new" element={<RouteFormPage />} />
         <Route path="/routes/:id/edit" element={<RouteFormPage />} />
         <Route path="/routes/:id" element={<RouteDetailsPage />} />
-        {/* User Management (Story 2.6) — только для admin */}
-        <Route path="/users" element={<UsersPage />} />
+        {/* User Management (Story 2.6) — только для admin, защита и на клиенте */}
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Placeholders для будущих stories */}
         <Route path="/rate-limits" element={<div>Rate Limits Management</div>} />
         <Route path="/approvals" element={<div>Approvals</div>} />

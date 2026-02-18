@@ -94,6 +94,11 @@ class UserControllerIntegrationTest {
 
     @BeforeEach
     fun setUp() {
+        // Сначала очищаем аудит-логи (FK RESTRICT не даст удалить пользователей иначе)
+        StepVerifier.create(
+            auditLogRepository.deleteAll()
+        ).verifyComplete()
+
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(
             userRepository.findAll()
@@ -470,6 +475,27 @@ class UserControllerIntegrationTest {
         }
 
         @Test
+        fun `возвращает 409 при попытке деактивировать единственного admin через PUT isActive=false`() {
+            // В системе есть только один активный admin (testadmin) — нельзя деактивировать его через PUT
+            val request = UpdateUserRequest(isActive = false)
+
+            webTestClient.put()
+                .uri("/api/v1/users/${adminUser.id}")
+                .cookie("auth_token", adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isEqualTo(409)
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/conflict")
+                .jsonPath("$.detail").value<String> { detail ->
+                    assert(detail.contains("администратор") || detail.contains("admin")) {
+                        "Сообщение должно объяснять причину запрета"
+                    }
+                }
+        }
+
+        @Test
         fun `создаёт запись в аудит-логе при смене роли`() {
             val targetUser = createTestUser("auditloguser", "password", Role.DEVELOPER)
 
@@ -508,21 +534,12 @@ class UserControllerIntegrationTest {
     inner class DeactivateUser {
 
         /**
-         * TODO: Исследовать проблему с DELETE запросом.
-         *
-         * Наблюдения из логов:
-         * - Cookie передаётся корректно: cookies=[auth_token]
-         * - Токен извлекается: extractToken returned: token(223)
-         * - Токен валидируется: validateTokenWithResult returned: Valid
-         * - Запрос обрабатывается ДВАЖДЫ (flux-http-nio-2 и parallel-2)
-         * - Но ответ всё равно 401 UNAUTHORIZED
-         *
-         * Другие DELETE тесты (404, 409) работают с тем же паттерном.
-         * Возможно связано с порядком выполнения тестов или особенностями
-         * Spring Security reactive context propagation.
+         * Root cause 401 был исправлен в RoleAuthorizationAspect:
+         * switchIfEmpty стоял ПОСЛЕ flatMap, поэтому Mono<Void> (нет эмиссии элемента)
+         * запускал switchIfEmpty → TokenMissing() → 401, даже при успешной деактивации.
+         * Исправление: switchIfEmpty перемещён ДО flatMap.
          */
         @Test
-        @org.junit.jupiter.api.Disabled("401 даже с валидным токеном — требуется глубокое исследование")
         fun `деактивирует пользователя и возвращает 204`() {
             webTestClient.delete()
                 .uri("/api/v1/users/${developerUser.id}")

@@ -232,6 +232,24 @@ describe('UserFormModal', () => {
       })
     })
 
+    it('не отправляет username в запросе обновления', async () => {
+      const user = userEvent.setup()
+
+      renderWithMockAuth(
+        <UserFormModal open={true} user={testUser} onClose={mockOnClose} />,
+        { authValue: { isAuthenticated: true } }
+      )
+
+      // Меняем только role
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      await waitFor(() => {
+        const callArgs = mockUpdateUser.mock.calls[0]
+        // Второй аргумент — тело запроса не должно содержать username
+        expect(callArgs?.[1]).not.toHaveProperty('username')
+      })
+    })
+
     it('показывает кнопку Save вместо Create', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={testUser} onClose={mockOnClose} />,

@@ -107,16 +107,9 @@ class UserController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deactivateUser(@PathVariable id: UUID): Mono<Void> {
+        // Используем единственную подписку на SecurityContext через flatMap.
+        // RoleAuthorizationAspect гарантирует наличие SecurityContext до этой точки.
         return SecurityContextUtils.currentUser()
-            .hasElement()
-            .flatMap { hasUser ->
-                if (hasUser) {
-                    SecurityContextUtils.currentUser()
-                        .flatMap { user -> userService.deactivate(id, user.userId) }
-                } else {
-                    // Если SecurityContext недоступен — деактивируем без проверки на self
-                    userService.deactivateWithoutSelfCheck(id)
-                }
-            }
+            .flatMap { user -> userService.deactivate(id, user.userId) }
     }
 }
