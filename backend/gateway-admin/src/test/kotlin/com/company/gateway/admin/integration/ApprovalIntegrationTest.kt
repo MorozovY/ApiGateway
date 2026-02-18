@@ -109,8 +109,9 @@ class ApprovalIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        // Очищаем маршруты
+        // Очищаем маршруты и audit_logs (FK: users → audit_logs с RESTRICT, V5_1 миграция)
         StepVerifier.create(routeRepository.deleteAll()).verifyComplete()
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(
@@ -192,7 +193,7 @@ class ApprovalIntegrationTest {
             // Then - проверяем audit log
             StepVerifier.create(
                 auditLogRepository.findAll()
-                    .filter { it.entityId == route.id.toString() && it.action == "submitted" }
+                    .filter { it.entityId == route.id.toString() && it.action == "route.submitted" }
             )
                 .expectNextMatches { auditLog ->
                     auditLog.entityType == "route" &&
@@ -223,7 +224,7 @@ class ApprovalIntegrationTest {
                 .expectBody()
                 .jsonPath("$.type").isEqualTo("https://api.gateway/errors/conflict")
                 .jsonPath("$.status").isEqualTo(409)
-                .jsonPath("$.detail").isEqualTo("Only draft routes can be submitted for approval")
+                .jsonPath("$.detail").isEqualTo("Only draft or rejected routes can be submitted for approval")
         }
 
         @Test
@@ -238,20 +239,22 @@ class ApprovalIntegrationTest {
                 .exchange()
                 .expectStatus().isEqualTo(409)
                 .expectBody()
-                .jsonPath("$.detail").isEqualTo("Only draft routes can be submitted for approval")
+                .jsonPath("$.detail").isEqualTo("Only draft or rejected routes can be submitted for approval")
         }
 
         @Test
-        fun `POST submit возвращает 409 для rejected маршрута`() {
-            // Given
+        fun `POST submit возвращает 200 для rejected маршрута (resubmission разрешён в Story 4_4)`() {
+            // Given — rejected маршрут теперь можно повторно подать (Story 4.4, AC4)
             val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.REJECTED)
 
-            // When & Then
+            // When & Then — 200 OK, статус меняется на pending
             webTestClient.post()
                 .uri("/api/v1/routes/${route.id}/submit")
                 .cookie("auth_token", developerToken)
                 .exchange()
-                .expectStatus().isEqualTo(409)
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.status").isEqualTo("pending")
         }
     }
 

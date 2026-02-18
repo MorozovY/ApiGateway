@@ -1,5 +1,6 @@
 package com.company.gateway.admin.integration
 
+import com.company.gateway.admin.repository.AuditLogRepository
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.JwtService
@@ -83,6 +84,9 @@ class RouteListFilteringIntegrationTest {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var auditLogRepository: AuditLogRepository
+
+    @Autowired
     private lateinit var passwordService: PasswordService
 
     @Autowired
@@ -97,6 +101,8 @@ class RouteListFilteringIntegrationTest {
     fun setUp() {
         // Очищаем маршруты
         StepVerifier.create(routeRepository.deleteAll()).verifyComplete()
+        // Очищаем audit_logs перед пользователями (FK RESTRICT, V5_1 миграция)
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(

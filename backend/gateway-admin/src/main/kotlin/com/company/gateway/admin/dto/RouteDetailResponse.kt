@@ -7,7 +7,7 @@ import java.util.UUID
  * Детальные данные маршрута для API response с информацией о создателе.
  *
  * Используется для GET /api/v1/routes/{id} — возвращает полную информацию о маршруте
- * включая username создателя (AC1).
+ * включая username создателя, одобрившего и отклонившего (AC1, AC2, AC3).
  *
  * @property id уникальный идентификатор маршрута
  * @property path URL path для маршрутизации
@@ -17,6 +17,8 @@ import java.util.UUID
  * @property status статус маршрута (draft, pending, published, rejected)
  * @property createdBy ID пользователя, создавшего маршрут
  * @property creatorUsername username создателя (JOIN с таблицей users)
+ * @property approverUsername username пользователя, одобрившего маршрут (AC3)
+ * @property rejectorUsername username пользователя, отклонившего маршрут (AC2)
  * @property createdAt дата создания маршрута
  * @property updatedAt дата последнего обновления
  * @property rateLimitId ID политики rate limiting (если назначена)
@@ -30,6 +32,8 @@ data class RouteDetailResponse(
     val status: String,
     val createdBy: UUID?,
     val creatorUsername: String?,
+    val approverUsername: String? = null,
+    val rejectorUsername: String? = null,
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val submittedAt: Instant? = null,
@@ -45,6 +49,7 @@ data class RouteDetailResponse(
  * Промежуточная модель для маппинга результата JOIN запроса.
  *
  * Используется в RouteRepositoryCustomImpl для передачи данных из SQL в сервис.
+ * Включает username создателя, одобрившего и отклонившего маршрут (AC2, AC3).
  */
 data class RouteWithCreator(
     val id: UUID,
@@ -55,6 +60,8 @@ data class RouteWithCreator(
     val status: String,
     val createdBy: UUID?,
     val creatorUsername: String?,
+    val approverUsername: String? = null,
+    val rejectorUsername: String? = null,
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val submittedAt: Instant? = null,
@@ -78,6 +85,8 @@ data class RouteWithCreator(
             status = status,
             createdBy = createdBy,
             creatorUsername = creatorUsername,
+            approverUsername = approverUsername,
+            rejectorUsername = rejectorUsername,
             createdAt = createdAt,
             updatedAt = updatedAt,
             submittedAt = submittedAt,

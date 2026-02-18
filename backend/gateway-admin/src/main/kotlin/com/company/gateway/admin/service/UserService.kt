@@ -138,7 +138,7 @@ class UserService(
             )
             .flatMap { existingUser ->
                 // Проверяем уникальность email если он изменяется
-                val emailValidation = if (request.email != null && request.email != existingUser.email) {
+                val emailValidation: Mono<Void> = if (request.email != null && request.email != existingUser.email) {
                     validateEmailUniqueness(request.email)
                 } else {
                     Mono.empty()
@@ -153,21 +153,21 @@ class UserService(
                     existingUser.isActive &&
                     existingUser.role == Role.ADMIN
 
-                val lastAdminCheck = if (lastAdminDeactivation) {
+                val lastAdminCheck: Mono<Void> = if (lastAdminDeactivation) {
                     countActiveAdmins().flatMap { count ->
                         if (count <= 1) {
-                            Mono.error(
+                            Mono.error<Void>(
                                 ConflictException(
                                     "Нельзя деактивировать единственного admin",
                                     "В системе должен оставаться хотя бы один активный администратор"
                                 )
                             )
                         } else {
-                            Mono.empty()
+                            Mono.empty<Void>()
                         }
                     }
                 } else {
-                    Mono.empty()
+                    Mono.empty<Void>()
                 }
 
                 emailValidation.then(lastAdminCheck).then(

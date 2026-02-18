@@ -2,6 +2,7 @@ package com.company.gateway.admin.integration
 
 import com.company.gateway.admin.dto.CreateRouteRequest
 import com.company.gateway.admin.dto.UpdateRouteRequest
+import com.company.gateway.admin.repository.AuditLogRepository
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.JwtService
@@ -86,6 +87,9 @@ class RouteControllerIntegrationTest {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var auditLogRepository: AuditLogRepository
+
+    @Autowired
     private lateinit var passwordService: PasswordService
 
     @Autowired
@@ -101,8 +105,9 @@ class RouteControllerIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        // Очищаем маршруты
+        // Очищаем маршруты и audit_logs (FK: users → audit_logs с RESTRICT, V5_1 миграция)
         StepVerifier.create(routeRepository.deleteAll()).verifyComplete()
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(

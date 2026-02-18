@@ -95,17 +95,11 @@ class UserControllerIntegrationTest {
     @BeforeEach
     fun setUp() {
         // Сначала очищаем аудит-логи (FK RESTRICT не даст удалить пользователей иначе)
-        StepVerifier.create(
-            auditLogRepository.deleteAll()
-        ).verifyComplete()
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 
-        // Очищаем тестовых пользователей (кроме admin из миграции)
-        StepVerifier.create(
-            userRepository.findAll()
-                .filter { it.username != "admin" }
-                .flatMap { userRepository.delete(it) }
-                .then()
-        ).verifyComplete()
+        // Очищаем ВСЕХ пользователей включая seed-admin (иначе в тесте "единственный admin"
+        // будет 2 активных admin: seed 'admin' + тестовый 'testadmin')
+        StepVerifier.create(userRepository.deleteAll()).verifyComplete()
 
         // Создаём тестовых пользователей
         adminUser = createTestUser("testadmin", "password", Role.ADMIN)

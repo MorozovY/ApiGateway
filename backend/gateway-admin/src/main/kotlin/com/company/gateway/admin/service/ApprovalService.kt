@@ -37,23 +37,22 @@ class ApprovalService(
     /**
      * Отправляет маршрут на согласование.
      *
+     * Поддерживает два сценария (Story 4.4, AC4):
+     * - DRAFT → PENDING: первичная подача, action = "route.submitted"
+     * - REJECTED → PENDING: повторная подача, очищает rejection-поля, action = "route.resubmitted"
+     *
      * Проверяет:
      * - Маршрут существует
-     * - Маршрут в статусе DRAFT
+     * - Маршрут в статусе DRAFT или REJECTED
      * - Текущий пользователь является владельцем маршрута
      * - Маршрут проходит валидацию перед отправкой
-     *
-     * При успехе:
-     * - Статус меняется на PENDING
-     * - Устанавливается submittedAt timestamp
-     * - Создаётся audit log entry
      *
      * @param routeId ID маршрута
      * @param userId ID пользователя, отправляющего маршрут
      * @param username имя пользователя для аудит-лога
      * @return Mono<RouteResponse> обновлённый маршрут
      * @throws NotFoundException если маршрут не найден
-     * @throws ConflictException если маршрут не в статусе DRAFT
+     * @throws ConflictException если маршрут не в статусе DRAFT или REJECTED
      * @throws AccessDeniedException если пользователь не владелец маршрута
      * @throws ValidationException если маршрут не проходит валидацию
      */
@@ -78,43 +77,52 @@ class ApprovalService(
                     )
                 }
 
-                // Проверяем статус — только DRAFT маршруты можно отправить
-                if (route.status != RouteStatus.DRAFT) {
-                    logger.warn(
-                        "Попытка отправки не-draft маршрута: routeId={}, status={}",
-                        routeId, route.status
-                    )
-                    return@flatMap Mono.error<Route>(
-                        ConflictException("Only draft routes can be submitted for approval")
-                    )
+                // Определяем audit action по статусу маршрута (DRAFT или REJECTED)
+                val auditAction = when (route.status) {
+                    RouteStatus.DRAFT     -> "route.submitted"
+                    RouteStatus.REJECTED  -> "route.resubmitted"
+                    else -> {
+                        logger.warn(
+                            "Попытка отправки маршрута в неподходящем статусе: routeId={}, status={}",
+                            routeId, route.status
+                        )
+                        return@flatMap Mono.error<Route>(
+                            ConflictException("Only draft or rejected routes can be submitted for approval")
+                        )
+                    }
                 }
 
                 // Валидируем маршрут перед отправкой
+                // auditAction захватывается из внешней lambda через closure
+                val capturedAuditAction = auditAction
                 validateRouteForSubmission(route)
                     .flatMap {
-                        // Обновляем статус и submittedAt
+                        // Для повторной подачи очищаем rejection-поля
                         val updatedRoute = route.copy(
                             status = RouteStatus.PENDING,
                             submittedAt = Instant.now(),
-                            updatedAt = Instant.now()
+                            updatedAt = Instant.now(),
+                            // При resubmission сбрасываем rejection-данные
+                            rejectionReason = null,
+                            rejectedBy = null,
+                            rejectedAt = null
                         )
                         routeRepository.save(updatedRoute)
                     }
-            }
-            .flatMap { savedRoute ->
-                // Записываем audit log
-                auditService.log(
-                    entityType = "route",
-                    entityId = savedRoute.id.toString(),
-                    action = "submitted",
-                    userId = userId,
-                    username = username,
-                    changes = mapOf(
-                        "oldStatus" to RouteStatus.DRAFT.name.lowercase(),
-                        "newStatus" to RouteStatus.PENDING.name.lowercase(),
-                        "submittedAt" to savedRoute.submittedAt.toString()
-                    )
-                ).thenReturn(savedRoute)
+                    .flatMap { savedRoute ->
+                        // Записываем audit log с соответствующим action
+                        auditService.log(
+                            entityType = "route",
+                            entityId = savedRoute.id.toString(),
+                            action = capturedAuditAction,
+                            userId = userId,
+                            username = username,
+                            changes = mapOf(
+                                "newStatus" to RouteStatus.PENDING.name.lowercase(),
+                                "submittedAt" to savedRoute.submittedAt.toString()
+                            )
+                        ).thenReturn(savedRoute)
+                    }
             }
             .map { RouteResponse.from(it) }
             .doOnSuccess {

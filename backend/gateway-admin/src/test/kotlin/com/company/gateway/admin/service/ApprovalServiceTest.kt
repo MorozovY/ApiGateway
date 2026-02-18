@@ -25,11 +25,11 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Unit тесты для ApprovalService (Story 4.1, Story 4.2).
+ * Unit тесты для ApprovalService (Story 4.1, Story 4.2, Story 4.4).
  *
  * Story 4.1: Submit for Approval API
  * - AC1: Успешная отправка на согласование
- * - AC2: Нельзя отправить не-draft маршрут
+ * - AC2: Нельзя отправить не-draft и не-rejected маршрут
  * - AC3: Нельзя отправить чужой маршрут
  * - AC4: Валидация перед отправкой
  *
@@ -38,6 +38,9 @@ import java.util.UUID
  * - AC3: Успешное отклонение маршрута
  * - AC4: Отклонение без причины
  * - AC6: Маршрут не в статусе pending
+ *
+ * Story 4.4: Route Status Tracking
+ * - AC4: Повторная подача отклонённого маршрута (resubmission flow)
  */
 class ApprovalServiceTest {
 
@@ -149,7 +152,7 @@ class ApprovalServiceTest {
             verify(auditService).log(
                 eq("route"),
                 eq(routeId.toString()),
-                eq("submitted"),
+                eq("route.submitted"),
                 eq(userId),
                 eq(username),
                 any()
@@ -157,18 +160,17 @@ class ApprovalServiceTest {
 
             // Then — проверяем содержимое changes map
             val changes = changesCaptor.firstValue
-            assert(changes["oldStatus"] == "draft") { "oldStatus должен быть 'draft'" }
             assert(changes["newStatus"] == "pending") { "newStatus должен быть 'pending'" }
             assert(changes["submittedAt"] != null) { "submittedAt должен быть указан" }
         }
     }
 
     // ============================================
-    // AC2: Нельзя отправить не-draft маршрут
+    // AC2: Нельзя отправить маршрут в недопустимом статусе
     // ============================================
 
     @Nested
-    inner class AC2_НельзяОтправитьНеDraft {
+    inner class AC2_НедопустимыйСтатусДляОтправки {
 
         @Test
         fun `отклоняет отправку pending маршрута`() {
@@ -186,7 +188,7 @@ class ApprovalServiceTest {
             StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
                 .expectErrorMatches { ex ->
                     ex is ConflictException &&
-                    ex.detail == "Only draft routes can be submitted for approval"
+                    ex.detail == "Only draft or rejected routes can be submitted for approval"
                 }
                 .verify()
         }
@@ -207,28 +209,7 @@ class ApprovalServiceTest {
             StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
                 .expectErrorMatches { ex ->
                     ex is ConflictException &&
-                    ex.detail == "Only draft routes can be submitted for approval"
-                }
-                .verify()
-        }
-
-        @Test
-        fun `отклоняет отправку rejected маршрута`() {
-            // Given
-            val routeId = UUID.randomUUID()
-            val route = createTestRoute(
-                id = routeId,
-                status = RouteStatus.REJECTED,
-                createdBy = userId
-            )
-
-            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
-
-            // When & Then
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
-                .expectErrorMatches { ex ->
-                    ex is ConflictException &&
-                    ex.detail == "Only draft routes can be submitted for approval"
+                    ex.detail == "Only draft or rejected routes can be submitted for approval"
                 }
                 .verify()
         }
@@ -252,6 +233,174 @@ class ApprovalServiceTest {
 
             // Then
             verify(routeRepository, never()).save(any<Route>())
+        }
+    }
+
+    // ============================================
+    // Story 4.4 AC4: Повторная подача отклонённого маршрута
+    // ============================================
+
+    @Nested
+    inner class Story44_AC4_ResubmissionFlow {
+
+        @Test
+        fun `успешно повторно подаёт rejected маршрут`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val rejectorId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.REJECTED,
+                createdBy = userId
+            ).copy(
+                rejectedBy = rejectorId,
+                rejectedAt = Instant.now(),
+                rejectionReason = "Security issue"
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(mock()))
+
+            // When
+            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+                // Then
+                .expectNextMatches { response ->
+                    response.status == "pending" &&
+                    response.id == routeId
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `очищает rejection-поля при resubmission`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val rejectorId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.REJECTED,
+                createdBy = userId
+            ).copy(
+                rejectedBy = rejectorId,
+                rejectedAt = Instant.now(),
+                rejectionReason = "Security issue"
+            )
+
+            val routeCaptor = argumentCaptor<Route>()
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(routeCaptor.capture())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(mock()))
+
+            // When
+            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+                .expectNextCount(1)
+                .verifyComplete()
+
+            // Then — rejection-поля должны быть очищены
+            val savedRoute = routeCaptor.firstValue
+            assert(savedRoute.rejectionReason == null) { "rejectionReason должен быть null после resubmission" }
+            assert(savedRoute.rejectedBy == null) { "rejectedBy должен быть null после resubmission" }
+            assert(savedRoute.rejectedAt == null) { "rejectedAt должен быть null после resubmission" }
+            assert(savedRoute.status == RouteStatus.PENDING) { "status должен быть PENDING" }
+            assert(savedRoute.submittedAt != null) { "submittedAt должен быть обновлён" }
+        }
+
+        @Test
+        fun `создаёт audit log с action route_resubmitted для rejected маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.REJECTED,
+                createdBy = userId
+            ).copy(
+                rejectedBy = UUID.randomUUID(),
+                rejectedAt = Instant.now(),
+                rejectionReason = "Security issue"
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(mock()))
+
+            // When
+            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+                .expectNextCount(1)
+                .verifyComplete()
+
+            // Then — audit log должен использовать action "route.resubmitted"
+            verify(auditService).log(
+                eq("route"),
+                eq(routeId.toString()),
+                eq("route.resubmitted"),
+                eq(userId),
+                eq(username),
+                any()
+            )
+        }
+
+        @Test
+        fun `создаёт audit log с action route_submitted для draft маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.DRAFT,
+                createdBy = userId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(mock()))
+
+            // When
+            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+                .expectNextCount(1)
+                .verifyComplete()
+
+            // Then — audit log должен использовать action "route.submitted"
+            verify(auditService).log(
+                eq("route"),
+                eq(routeId.toString()),
+                eq("route.submitted"),
+                eq(userId),
+                eq(username),
+                any()
+            )
+        }
+
+        @Test
+        fun `отклоняет resubmission чужого rejected маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.REJECTED,
+                createdBy = otherUserId // другой пользователь
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+
+            // When & Then
+            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+                .expectErrorMatches { ex ->
+                    ex is AccessDeniedException &&
+                    ex.detail == "You can only submit your own routes"
+                }
+                .verify()
         }
     }
 

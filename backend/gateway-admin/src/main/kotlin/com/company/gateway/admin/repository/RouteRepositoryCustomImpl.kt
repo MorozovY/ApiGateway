@@ -147,20 +147,25 @@ class RouteRepositoryCustomImpl(
     }
 
     override fun findByIdWithCreator(id: UUID): Mono<RouteWithCreator> {
+        // Три LEFT JOIN: создатель, одобривший, отклонивший маршрут
         val sql = """
             SELECT r.id, r.path, r.upstream_url, r.methods, r.description,
                    r.status, r.created_by, r.created_at, r.updated_at,
                    r.submitted_at, r.approved_by, r.approved_at,
                    r.rejected_by, r.rejected_at, r.rejection_reason,
-                   u.username as creator_username
+                   creator.username  AS creator_username,
+                   approver.username AS approver_username,
+                   rejector.username AS rejector_username
             FROM routes r
-            LEFT JOIN users u ON r.created_by = u.id
+            LEFT JOIN users creator  ON r.created_by  = creator.id
+            LEFT JOIN users approver ON r.approved_by = approver.id
+            LEFT JOIN users rejector ON r.rejected_by = rejector.id
             WHERE r.id = :id
         """.trimIndent()
 
         return databaseClient.sql(sql)
             .bind("id", id)
-            .map { row, _ -> mapRowToRouteWithCreator(row) }
+            .map { row, _ -> mapRowToRouteWithCreatorAndApprovers(row) }
             .one()
     }
 
@@ -218,6 +223,7 @@ class RouteRepositoryCustomImpl(
 
     /**
      * Маппинг строки результата JOIN запроса в RouteWithCreator.
+     * Используется для findPendingWithCreator — без approver/rejector username.
      */
     private fun mapRowToRouteWithCreator(row: Row): RouteWithCreator {
         // Используем mapNotNull для фильтрации null элементов
@@ -233,6 +239,38 @@ class RouteRepositoryCustomImpl(
             status = row.get("status", String::class.java)!!,
             createdBy = row.get("created_by", UUID::class.java),
             creatorUsername = row.get("creator_username", String::class.java),
+            createdAt = row.get("created_at", Instant::class.java),
+            updatedAt = row.get("updated_at", Instant::class.java),
+            submittedAt = row.get("submitted_at", Instant::class.java),
+            approvedBy = row.get("approved_by", UUID::class.java),
+            approvedAt = row.get("approved_at", Instant::class.java),
+            rejectedBy = row.get("rejected_by", UUID::class.java),
+            rejectedAt = row.get("rejected_at", Instant::class.java),
+            rejectionReason = row.get("rejection_reason", String::class.java),
+            rateLimitId = null // rate_limit_id будет добавлен в Epic 5
+        )
+    }
+
+    /**
+     * Маппинг строки результата с тремя JOIN в RouteWithCreator.
+     * Используется для findByIdWithCreator — включает approver_username и rejector_username.
+     */
+    private fun mapRowToRouteWithCreatorAndApprovers(row: Row): RouteWithCreator {
+        // Используем mapNotNull для фильтрации null элементов
+        val methodsRaw = row.get("methods", Array::class.java)
+        val methods = methodsRaw?.mapNotNull { it?.toString() } ?: emptyList()
+
+        return RouteWithCreator(
+            id = row.get("id", UUID::class.java)!!,
+            path = row.get("path", String::class.java)!!,
+            upstreamUrl = row.get("upstream_url", String::class.java)!!,
+            methods = methods,
+            description = row.get("description", String::class.java),
+            status = row.get("status", String::class.java)!!,
+            createdBy = row.get("created_by", UUID::class.java),
+            creatorUsername = row.get("creator_username", String::class.java),
+            approverUsername = row.get("approver_username", String::class.java),
+            rejectorUsername = row.get("rejector_username", String::class.java),
             createdAt = row.get("created_at", Instant::class.java),
             updatedAt = row.get("updated_at", Instant::class.java),
             submittedAt = row.get("submitted_at", Instant::class.java),

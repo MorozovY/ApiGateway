@@ -3,6 +3,7 @@ package com.company.gateway.admin.integration
 import com.company.gateway.admin.dto.CreateUserRequest
 import com.company.gateway.admin.dto.UpdateRouteRequest
 import com.company.gateway.admin.dto.UpdateUserRequest
+import com.company.gateway.admin.repository.AuditLogRepository
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.JwtService
@@ -90,6 +91,9 @@ class RbacIntegrationTest {
     private lateinit var routeRepository: RouteRepository
 
     @Autowired
+    private lateinit var auditLogRepository: AuditLogRepository
+
+    @Autowired
     private lateinit var passwordService: PasswordService
 
     @Autowired
@@ -105,8 +109,9 @@ class RbacIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        // Очищаем тестовые маршруты
+        // Очищаем тестовые маршруты и audit_logs (FK: users → audit_logs с RESTRICT, V5_1 миграция)
         StepVerifier.create(routeRepository.deleteAll()).verifyComplete()
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(
@@ -454,16 +459,19 @@ class RbacIntegrationTest {
                 .uri("/api/v1/routes/${UUID.randomUUID()}/approve")
                 .cookie("auth_token", securityToken)
                 .exchange()
-                .expectStatus().isOk
+                .expectStatus().isNotFound // 404 — маршрут не существует, но доступ разрешён
         }
 
         @Test
         fun `security может вызвать reject endpoint`() {
+            // Передаём reason — без него API вернёт 400, не достигнув RBAC-проверки
             webTestClient.post()
                 .uri("/api/v1/routes/${UUID.randomUUID()}/reject")
                 .cookie("auth_token", securityToken)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("""{"reason": "Security issue"}""")
                 .exchange()
-                .expectStatus().isOk
+                .expectStatus().isNotFound // 404 — маршрут не существует, но доступ разрешён
         }
 
         @Test
@@ -472,7 +480,7 @@ class RbacIntegrationTest {
                 .uri("/api/v1/routes/${UUID.randomUUID()}/approve")
                 .cookie("auth_token", adminToken)
                 .exchange()
-                .expectStatus().isOk
+                .expectStatus().isNotFound // 404 — маршрут не существует, но доступ разрешён
         }
 
         @Test
@@ -486,9 +494,12 @@ class RbacIntegrationTest {
 
         @Test
         fun `developer получает 403 при попытке reject`() {
+            // Передаём reason, чтобы RBAC-проверка выполнялась раньше body-валидации
             webTestClient.post()
                 .uri("/api/v1/routes/${UUID.randomUUID()}/reject")
                 .cookie("auth_token", developerToken)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("""{"reason": "Security issue"}""")
                 .exchange()
                 .expectStatus().isForbidden
         }

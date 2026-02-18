@@ -1,6 +1,7 @@
 package com.company.gateway.admin.integration
 
 import com.company.gateway.admin.dto.LoginRequest
+import com.company.gateway.admin.repository.AuditLogRepository
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.JwtService
 import com.company.gateway.admin.service.PasswordService
@@ -76,6 +77,9 @@ class AuthMiddlewareIntegrationTest {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var auditLogRepository: AuditLogRepository
+
+    @Autowired
     private lateinit var passwordService: PasswordService
 
     @Autowired
@@ -86,6 +90,9 @@ class AuthMiddlewareIntegrationTest {
 
     @BeforeEach
     fun setUp() {
+        // Очищаем audit_logs перед пользователями (FK RESTRICT, V5_1 миграция)
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
+
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(
             userRepository.findAll()
