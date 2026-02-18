@@ -1,6 +1,7 @@
 package com.company.gateway.admin.service
 
 import com.company.gateway.admin.dto.CreateRouteRequest
+import com.company.gateway.admin.dto.PagedResponse
 import com.company.gateway.admin.dto.RouteDetailResponse
 import com.company.gateway.admin.dto.RouteFilterRequest
 import com.company.gateway.admin.dto.RouteListResponse
@@ -405,6 +406,63 @@ class RouteService(
 
                 "$originalPath-copy-${maxSuffix + 1}"
             }
+    }
+
+    /**
+     * Получает список маршрутов со статусом pending с сортировкой и пагинацией.
+     *
+     * Default сортировка: submittedAt ascending (FIFO очередь).
+     * Поддерживает sort parameter в формате "field:direction".
+     *
+     * Story 4.3, AC1, AC2, AC3, AC5.
+     *
+     * @param sort параметр сортировки в формате "submittedAt:asc" или "submittedAt:desc"
+     * @param offset смещение от начала списка
+     * @param limit максимальное количество элементов
+     * @return Mono<PagedResponse<RouteDetailResponse>> пагинированный список pending маршрутов
+     */
+    fun findPendingRoutes(sort: String?, offset: Int, limit: Int): Mono<PagedResponse<RouteDetailResponse>> {
+        val (sortField, sortDirection) = parseSort(sort)
+
+        logger.debug("Получение pending маршрутов: sort={}, offset={}, limit={}", sort, offset, limit)
+
+        val routesMono = routeRepository.findPendingWithCreator(sortField, sortDirection, offset, limit)
+            .map { it.toResponse() }
+            .collectList()
+
+        val totalMono = routeRepository.countPending()
+
+        return Mono.zip(routesMono, totalMono)
+            .map { tuple ->
+                PagedResponse(
+                    items = tuple.t1,
+                    total = tuple.t2,
+                    offset = offset,
+                    limit = limit
+                )
+            }
+    }
+
+    /**
+     * Парсит sort parameter в пару (поле, направление).
+     *
+     * Формат: "field:direction", например "submittedAt:asc" или "submittedAt:desc".
+     * Default: ("submitted_at", "ASC") — FIFO очередь.
+     *
+     * @param sort строка сортировки или null
+     * @return Pair<String, String> — (имя колонки БД, направление ASC/DESC)
+     */
+    internal fun parseSort(sort: String?): Pair<String, String> {
+        if (sort.isNullOrBlank()) {
+            return "submitted_at" to "ASC"
+        }
+        val parts = sort.split(":")
+        val field = when (parts[0].trim()) {
+            "submittedAt" -> "submitted_at"
+            else -> "submitted_at"
+        }
+        val direction = if (parts.getOrNull(1)?.trim()?.lowercase() == "desc") "DESC" else "ASC"
+        return field to direction
     }
 
     /**

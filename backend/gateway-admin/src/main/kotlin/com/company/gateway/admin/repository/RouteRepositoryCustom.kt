@@ -70,4 +70,33 @@ interface RouteRepositoryCustom {
      * @return Flux<Route> маршруты с path, соответствующим паттерну
      */
     fun findByPathLike(pattern: String): Flux<Route>
+
+    /**
+     * Находит все маршруты со статусом pending с поддержкой сортировки и пагинации.
+     *
+     * Выполняет JOIN с таблицей users для получения username создателя.
+     * Story 4.3, AC1, AC2, AC3, AC5.
+     *
+     * @param sortField поле сортировки (submitted_at)
+     * @param sortDirection направление сортировки (ASC или DESC)
+     * @param offset смещение от начала списка
+     * @param limit максимальное количество элементов
+     * @return Flux<RouteWithCreator> pending маршруты с информацией о создателе
+     */
+    fun findPendingWithCreator(
+        sortField: String,
+        sortDirection: String,
+        offset: Int,
+        limit: Int
+    ): Flux<RouteWithCreator>
+
+    /**
+     * Подсчитывает общее количество маршрутов со статусом pending.
+     *
+     * Используется для вычисления total в пагинированном ответе.
+     * Story 4.3, AC1, AC3, AC5.
+     *
+     * @return Mono<Long> количество pending маршрутов
+     */
+    fun countPending(): Mono<Long>
 }

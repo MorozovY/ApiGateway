@@ -173,6 +173,49 @@ class RouteRepositoryCustomImpl(
             .all()
     }
 
+    override fun findPendingWithCreator(
+        sortField: String,
+        sortDirection: String,
+        offset: Int,
+        limit: Int
+    ): Flux<RouteWithCreator> {
+        // Допускаем только безопасные значения для предотвращения SQL injection
+        val safeField = if (sortField == "submitted_at") "submitted_at" else "submitted_at"
+        val safeDirection = if (sortDirection.uppercase() == "DESC") "DESC" else "ASC"
+
+        val sql = """
+            SELECT r.id, r.path, r.upstream_url, r.methods, r.description,
+                   r.status, r.created_by, r.created_at, r.updated_at,
+                   r.submitted_at, r.approved_by, r.approved_at,
+                   r.rejected_by, r.rejected_at, r.rejection_reason,
+                   u.username as creator_username
+            FROM routes r
+            JOIN users u ON r.created_by = u.id
+            WHERE r.status = 'pending'
+            ORDER BY r.$safeField $safeDirection
+            LIMIT :limit OFFSET :offset
+        """.trimIndent()
+
+        return databaseClient.sql(sql)
+            .bind("limit", limit)
+            .bind("offset", offset)
+            .map { row, _ -> mapRowToRouteWithCreator(row) }
+            .all()
+    }
+
+    override fun countPending(): Mono<Long> {
+        val sql = "SELECT COUNT(*) FROM routes WHERE status = 'pending'"
+
+        return databaseClient.sql(sql)
+            .map { row, _ ->
+                // COUNT(*) возвращает BIGINT, используем Number для универсального маппинга
+                val count = row.get(0, java.lang.Number::class.java)
+                count?.longValue() ?: 0L
+            }
+            .one()
+            .defaultIfEmpty(0L)
+    }
+
     /**
      * Маппинг строки результата JOIN запроса в RouteWithCreator.
      */

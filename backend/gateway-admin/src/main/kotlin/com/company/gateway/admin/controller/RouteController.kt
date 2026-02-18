@@ -1,6 +1,7 @@
 package com.company.gateway.admin.controller
 
 import com.company.gateway.admin.dto.CreateRouteRequest
+import com.company.gateway.admin.dto.PagedResponse
 import com.company.gateway.admin.dto.RejectRouteRequest
 import com.company.gateway.admin.dto.RouteDetailResponse
 import com.company.gateway.admin.dto.RouteFilterRequest
@@ -61,6 +62,34 @@ class RouteController(
         const val MAX_LIMIT = 100
         /** Максимальная длина поискового запроса */
         const val MAX_SEARCH_LENGTH = 100
+    }
+
+    /**
+     * Получение списка маршрутов, ожидающих согласования.
+     *
+     * Возвращает все маршруты со статусом pending.
+     * Default сортировка: submittedAt ascending (FIFO очередь).
+     *
+     * Доступно только SECURITY и ADMIN ролям (AC4).
+     * Story 4.3, AC1-AC5.
+     */
+    @GetMapping("/pending")
+    @RequireRole(Role.SECURITY)
+    fun listPendingRoutes(
+        @RequestParam(required = false) sort: String?,
+        @RequestParam(defaultValue = "0") offset: Int,
+        @RequestParam(defaultValue = "20") limit: Int
+    ): Mono<ResponseEntity<PagedResponse<RouteDetailResponse>>> {
+        // Валидация параметров пагинации
+        if (offset < 0) {
+            return Mono.error(ValidationException("Offset must be greater than or equal to 0"))
+        }
+        if (limit < 1 || limit > MAX_LIMIT) {
+            return Mono.error(ValidationException("Limit must be between 1 and $MAX_LIMIT"))
+        }
+
+        return routeService.findPendingRoutes(sort, offset, limit)
+            .map { ResponseEntity.ok(it) }
     }
 
     /**
