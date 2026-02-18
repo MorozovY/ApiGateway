@@ -53,7 +53,33 @@ data class Route(
 
     /** Дата и время последнего обновления */
     @Column("updated_at")
-    val updatedAt: Instant? = null
+    val updatedAt: Instant? = null,
+
+    // === Approval Workflow Fields (Epic 4) ===
+
+    /** Время отправки на согласование */
+    @Column("submitted_at")
+    val submittedAt: Instant? = null,
+
+    /** ID пользователя, одобрившего маршрут */
+    @Column("approved_by")
+    val approvedBy: UUID? = null,
+
+    /** Время одобрения */
+    @Column("approved_at")
+    val approvedAt: Instant? = null,
+
+    /** ID пользователя, отклонившего маршрут */
+    @Column("rejected_by")
+    val rejectedBy: UUID? = null,
+
+    /** Время отклонения */
+    @Column("rejected_at")
+    val rejectedAt: Instant? = null,
+
+    /** Причина отклонения */
+    @Column("rejection_reason")
+    val rejectionReason: String? = null
 )
 
 /**

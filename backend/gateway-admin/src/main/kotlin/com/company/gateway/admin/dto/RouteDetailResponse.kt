@@ -32,6 +32,12 @@ data class RouteDetailResponse(
     val creatorUsername: String?,
     val createdAt: Instant?,
     val updatedAt: Instant?,
+    val submittedAt: Instant? = null,
+    val approvedBy: UUID? = null,
+    val approvedAt: Instant? = null,
+    val rejectedBy: UUID? = null,
+    val rejectedAt: Instant? = null,
+    val rejectionReason: String? = null,
     val rateLimitId: UUID? = null
 )
 
@@ -51,6 +57,12 @@ data class RouteWithCreator(
     val creatorUsername: String?,
     val createdAt: Instant?,
     val updatedAt: Instant?,
+    val submittedAt: Instant? = null,
+    val approvedBy: UUID? = null,
+    val approvedAt: Instant? = null,
+    val rejectedBy: UUID? = null,
+    val rejectedAt: Instant? = null,
+    val rejectionReason: String? = null,
     val rateLimitId: UUID? = null
 ) {
     /**
@@ -68,6 +80,12 @@ data class RouteWithCreator(
             creatorUsername = creatorUsername,
             createdAt = createdAt,
             updatedAt = updatedAt,
+            submittedAt = submittedAt,
+            approvedBy = approvedBy,
+            approvedAt = approvedAt,
+            rejectedBy = rejectedBy,
+            rejectedAt = rejectedAt,
+            rejectionReason = rejectionReason,
             rateLimitId = rateLimitId
         )
     }

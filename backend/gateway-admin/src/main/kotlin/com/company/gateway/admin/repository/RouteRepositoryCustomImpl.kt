@@ -136,7 +136,13 @@ class RouteRepositoryCustomImpl(
             status = RouteStatus.valueOf(row.get("status", String::class.java)!!.uppercase()),
             createdBy = row.get("created_by", UUID::class.java),
             createdAt = row.get("created_at", Instant::class.java),
-            updatedAt = row.get("updated_at", Instant::class.java)
+            updatedAt = row.get("updated_at", Instant::class.java),
+            submittedAt = row.get("submitted_at", Instant::class.java),
+            approvedBy = row.get("approved_by", UUID::class.java),
+            approvedAt = row.get("approved_at", Instant::class.java),
+            rejectedBy = row.get("rejected_by", UUID::class.java),
+            rejectedAt = row.get("rejected_at", Instant::class.java),
+            rejectionReason = row.get("rejection_reason", String::class.java)
         )
     }
 
@@ -144,6 +150,8 @@ class RouteRepositoryCustomImpl(
         val sql = """
             SELECT r.id, r.path, r.upstream_url, r.methods, r.description,
                    r.status, r.created_by, r.created_at, r.updated_at,
+                   r.submitted_at, r.approved_by, r.approved_at,
+                   r.rejected_by, r.rejected_at, r.rejection_reason,
                    u.username as creator_username
             FROM routes r
             LEFT JOIN users u ON r.created_by = u.id
@@ -184,6 +192,12 @@ class RouteRepositoryCustomImpl(
             creatorUsername = row.get("creator_username", String::class.java),
             createdAt = row.get("created_at", Instant::class.java),
             updatedAt = row.get("updated_at", Instant::class.java),
+            submittedAt = row.get("submitted_at", Instant::class.java),
+            approvedBy = row.get("approved_by", UUID::class.java),
+            approvedAt = row.get("approved_at", Instant::class.java),
+            rejectedBy = row.get("rejected_by", UUID::class.java),
+            rejectedAt = row.get("rejected_at", Instant::class.java),
+            rejectionReason = row.get("rejection_reason", String::class.java),
             rateLimitId = null // rate_limit_id будет добавлен в Epic 5
         )
     }

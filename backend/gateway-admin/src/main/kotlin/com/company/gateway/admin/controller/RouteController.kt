@@ -1,6 +1,7 @@
 package com.company.gateway.admin.controller
 
 import com.company.gateway.admin.dto.CreateRouteRequest
+import com.company.gateway.admin.dto.RejectRouteRequest
 import com.company.gateway.admin.dto.RouteDetailResponse
 import com.company.gateway.admin.dto.RouteFilterRequest
 import com.company.gateway.admin.dto.RouteListResponse
@@ -10,6 +11,7 @@ import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.common.model.RouteStatus
 import com.company.gateway.admin.security.RequireRole
 import com.company.gateway.admin.security.SecurityContextUtils
+import com.company.gateway.admin.service.ApprovalService
 import com.company.gateway.admin.service.RouteService
 import com.company.gateway.common.model.Role
 import jakarta.validation.Valid
@@ -51,7 +53,8 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/v1/routes")
 class RouteController(
-    private val routeService: RouteService
+    private val routeService: RouteService,
+    private val approvalService: ApprovalService
 ) {
     companion object {
         /** Максимальное количество элементов на странице */
@@ -214,28 +217,60 @@ class RouteController(
     }
 
     /**
+     * Отправка маршрута на согласование.
+     *
+     * Доступно только владельцу маршрута (DEVELOPER и выше).
+     * Маршрут должен быть в статусе DRAFT.
+     * Story 4.1, AC1-AC5.
+     */
+    @PostMapping("/{id}/submit")
+    @RequireRole(Role.DEVELOPER)
+    fun submitRoute(@PathVariable id: UUID): Mono<ResponseEntity<RouteResponse>> {
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                approvalService.submitForApproval(id, user.userId, user.username)
+            }
+            .map { ResponseEntity.ok(it) }
+    }
+
+    /**
      * Одобрение маршрута.
      *
      * Доступно только SECURITY и ADMIN ролям.
-     * Будет реализовано в Epic 4 (Approval Workflow).
+     * Переводит маршрут из PENDING в PUBLISHED и публикует
+     * событие cache invalidation в Redis.
+     *
+     * Story 4.2, AC1, AC2, AC5, AC6, AC7.
      */
     @PostMapping("/{id}/approve")
     @RequireRole(Role.SECURITY)
-    fun approveRoute(@PathVariable id: UUID): Mono<ResponseEntity<Void>> {
-        // TODO(Epic 4, Story 4.1): Реализовать approve workflow — переход PENDING → PUBLISHED
-        return Mono.just(ResponseEntity.ok().build())
+    fun approveRoute(@PathVariable id: UUID): Mono<ResponseEntity<RouteResponse>> {
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                approvalService.approve(id, user.userId, user.username)
+            }
+            .map { ResponseEntity.ok(it) }
     }
 
     /**
      * Отклонение маршрута.
      *
      * Доступно только SECURITY и ADMIN ролям.
-     * Будет реализовано в Epic 4 (Approval Workflow).
+     * Требует указания причины отклонения.
+     * Переводит маршрут из PENDING в REJECTED.
+     *
+     * Story 4.2, AC3, AC4, AC5, AC6, AC7.
      */
     @PostMapping("/{id}/reject")
     @RequireRole(Role.SECURITY)
-    fun rejectRoute(@PathVariable id: UUID): Mono<ResponseEntity<Void>> {
-        // TODO(Epic 4, Story 4.2): Реализовать reject workflow — переход PENDING → REJECTED с reason
-        return Mono.just(ResponseEntity.ok().build())
+    fun rejectRoute(
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: RejectRouteRequest
+    ): Mono<ResponseEntity<RouteResponse>> {
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                approvalService.reject(id, user.userId, user.username, request.reason)
+            }
+            .map { ResponseEntity.ok(it) }
     }
 }

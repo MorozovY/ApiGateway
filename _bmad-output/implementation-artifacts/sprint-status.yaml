@@ -56,19 +56,19 @@ development_status:
   epic-2-retrospective: done
 
   # Epic 3: Route Management (Self-Service)
-  epic-3: in-progress
+  epic-3: done
   3-1-route-crud-api: done
   3-2-route-list-api-filtering-search: done
   3-3-route-details-clone-api: done
   3-4-routes-list-ui: done
   3-5-route-create-edit-form-ui: done
   3-6-route-details-view-clone-ui: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   # Epic 4: Approval Workflow
-  epic-4: backlog
-  4-1-submit-approval-api: backlog
-  4-2-approval-rejection-api: backlog
+  epic-4: in-progress
+  4-1-submit-approval-api: done
+  4-2-approval-rejection-api: done
   4-3-pending-approvals-list-api: backlog
   4-4-route-status-tracking: backlog
   4-5-submit-approval-ui: backlog

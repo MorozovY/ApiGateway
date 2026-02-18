@@ -18,6 +18,12 @@ import java.util.UUID
  * @property createdBy ID пользователя, создавшего маршрут
  * @property createdAt дата создания маршрута
  * @property updatedAt дата последнего обновления
+ * @property submittedAt время отправки на согласование
+ * @property approvedBy ID пользователя, одобрившего маршрут
+ * @property approvedAt время одобрения
+ * @property rejectedBy ID пользователя, отклонившего маршрут
+ * @property rejectedAt время отклонения
+ * @property rejectionReason причина отклонения
  */
 data class RouteResponse(
     val id: UUID,
@@ -28,7 +34,13 @@ data class RouteResponse(
     val status: String,
     val createdBy: UUID?,
     val createdAt: Instant?,
-    val updatedAt: Instant?
+    val updatedAt: Instant?,
+    val submittedAt: Instant? = null,
+    val approvedBy: UUID? = null,
+    val approvedAt: Instant? = null,
+    val rejectedBy: UUID? = null,
+    val rejectedAt: Instant? = null,
+    val rejectionReason: String? = null
 ) {
     companion object {
         /**
@@ -44,7 +56,13 @@ data class RouteResponse(
                 status = route.status.name.lowercase(),
                 createdBy = route.createdBy,
                 createdAt = route.createdAt,
-                updatedAt = route.updatedAt
+                updatedAt = route.updatedAt,
+                submittedAt = route.submittedAt,
+                approvedBy = route.approvedBy,
+                approvedAt = route.approvedAt,
+                rejectedBy = route.rejectedBy,
+                rejectedAt = route.rejectedAt,
+                rejectionReason = route.rejectionReason
             )
         }
     }
