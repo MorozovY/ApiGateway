@@ -257,11 +257,13 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       <Form.Item
         name="rateLimitId"
         label="Rate Limit Policy"
+        data-testid="rate-limit-form-item"
       >
         <Select
           placeholder="Выберите политику (опционально)"
           allowClear
           loading={rateLimitsLoading}
+          data-testid="rate-limit-select"
           options={[
             { value: '', label: 'None' },
             ...(rateLimitsData?.items || []).map((policy) => ({

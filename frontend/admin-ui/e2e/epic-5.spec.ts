@@ -3,12 +3,27 @@ import { login } from './helpers/auth'
 
 /**
  * Уникальный суффикс для изоляции данных между тест-ранами.
+ * Генерируется per-test для поддержки параллельного запуска в будущем.
  */
-const TIMESTAMP = Date.now()
+let TIMESTAMP: number
+
+/**
+ * Хранилище для cleanup ресурсов после тестов.
+ */
+interface TestResources {
+  policyIds: string[]
+  routeIds: string[]
+}
+
+const resources: TestResources = {
+  policyIds: [],
+  routeIds: [],
+}
 
 /**
  * Создаёт политику rate limit через API.
  * Использует cookie текущей сессии (после login).
+ * Автоматически регистрирует ресурс для cleanup.
  */
 async function createRateLimitPolicy(
   page: Page,
@@ -16,7 +31,7 @@ async function createRateLimitPolicy(
   requestsPerSecond: number,
   burstSize: number
 ): Promise<string> {
-  const response = await page.request.post('http://localhost:3000/api/v1/rate-limits', {
+  const response = await page.request.post('/api/v1/rate-limits', {
     data: {
       name,
       description: 'E2E тестовая политика',
@@ -26,19 +41,21 @@ async function createRateLimitPolicy(
   })
   expect(response.ok()).toBeTruthy()
   const policy = (await response.json()) as { id: string }
+  resources.policyIds.push(policy.id)
   return policy.id
 }
 
 /**
  * Создаёт маршрут с rate limit через API.
  * Не публикует — только создаёт draft.
+ * Автоматически регистрирует ресурс для cleanup.
  */
 async function createRouteWithRateLimit(
   page: Page,
   pathSuffix: string,
   rateLimitId: string
 ): Promise<string> {
-  const response = await page.request.post('http://localhost:3000/api/v1/routes', {
+  const response = await page.request.post('/api/v1/routes', {
     data: {
       path: `/e2e-rl-${pathSuffix}`,
       upstreamUrl: 'http://httpbin.org/get',
@@ -48,12 +65,14 @@ async function createRouteWithRateLimit(
   })
   expect(response.ok()).toBeTruthy()
   const route = (await response.json()) as { id: string }
+  resources.routeIds.push(route.id)
   return route.id
 }
 
 /**
  * Создаёт маршрут с rate limit и публикует его (submit + approve).
  * Требует admin/security роль для approve.
+ * Автоматически регистрирует ресурс для cleanup.
  */
 async function createPublishedRouteWithRateLimit(
   page: Page,
@@ -64,15 +83,11 @@ async function createPublishedRouteWithRateLimit(
   const routeId = await createRouteWithRateLimit(page, pathSuffix, rateLimitId)
 
   // Submit на согласование
-  const submitResponse = await page.request.post(
-    `http://localhost:3000/api/v1/routes/${routeId}/submit`
-  )
+  const submitResponse = await page.request.post(`/api/v1/routes/${routeId}/submit`)
   expect(submitResponse.ok()).toBeTruthy()
 
   // Approve (admin или security роль)
-  const approveResponse = await page.request.post(
-    `http://localhost:3000/api/v1/routes/${routeId}/approve`
-  )
+  const approveResponse = await page.request.post(`/api/v1/routes/${routeId}/approve`)
   expect(approveResponse.ok()).toBeTruthy()
 
   return routeId
@@ -80,18 +95,22 @@ async function createPublishedRouteWithRateLimit(
 
 /**
  * Удаляет политику rate limit через API.
+ * Идемпотентная операция — не падает на 404.
  */
 async function deleteRateLimitPolicy(page: Page, policyId: string): Promise<void> {
-  const response = await page.request.delete(`http://localhost:3000/api/v1/rate-limits/${policyId}`)
-  expect(response.ok()).toBeTruthy()
+  const response = await page.request.delete(`/api/v1/rate-limits/${policyId}`)
+  // 200, 204 — успех; 404 — уже удалено; 409 — используется (игнорируем при cleanup)
+  expect([200, 204, 404, 409].includes(response.status())).toBeTruthy()
 }
 
 /**
  * Удаляет маршрут через API.
+ * Идемпотентная операция — не падает на 404.
  */
 async function deleteRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.delete(`http://localhost:3000/api/v1/routes/${routeId}`)
-  expect(response.ok()).toBeTruthy()
+  const response = await page.request.delete(`/api/v1/routes/${routeId}`)
+  // 200, 204 — успех; 404 — уже удалён
+  expect([200, 204, 404].includes(response.status())).toBeTruthy()
 }
 
 /**
@@ -103,6 +122,35 @@ async function deleteRoute(page: Page, routeId: string): Promise<void> {
  * - Admin редактирует и удаляет политику
  */
 test.describe('Epic 5: Rate Limiting', () => {
+  // Генерируем уникальный timestamp для каждого теста
+  test.beforeEach(() => {
+    TIMESTAMP = Date.now()
+  })
+
+  // Cleanup ресурсов после каждого теста
+  test.afterEach(async ({ page }) => {
+    // Логинимся как admin для cleanup (имеет права на удаление)
+    try {
+      await login(page, 'test-admin', 'Test1234!', '/dashboard')
+
+      // Удаляем маршруты (сначала, т.к. они могут использовать политики)
+      for (const routeId of resources.routeIds) {
+        await deleteRoute(page, routeId)
+      }
+
+      // Удаляем политики
+      for (const policyId of resources.policyIds) {
+        await deleteRateLimitPolicy(page, policyId)
+      }
+    } catch {
+      // Игнорируем ошибки cleanup — тесты не должны падать из-за cleanup
+    } finally {
+      // Очищаем списки
+      resources.routeIds = []
+      resources.policyIds = []
+    }
+  })
+
   test('Admin создаёт политику rate limit', async ({ page }) => {
     // AC1: Admin логинится и создаёт политику через UI
     await login(page, 'test-admin', 'Test1234!', '/rate-limits')
@@ -114,12 +162,12 @@ test.describe('Epic 5: Rate Limiting', () => {
     await page.locator('button:has-text("New Policy")').click()
     await expect(page.locator('.ant-modal-title:has-text("New Policy")')).toBeVisible()
 
-    // Заполняем форму
+    // Заполняем форму используя data-testid
     const policyName = `e2e-create-${TIMESTAMP}`
     const modal = page.locator('.ant-modal')
-    await modal.locator('input#name').fill(policyName)
-    await modal.locator('input#requestsPerSecond').fill('10')
-    await modal.locator('input#burstSize').fill('15')
+    await modal.locator('[data-testid="policy-name-input"]').fill(policyName)
+    await modal.locator('[data-testid="policy-requests-input"]').fill('10')
+    await modal.locator('[data-testid="policy-burst-input"]').fill('15')
 
     // Сохраняем — модал закрывается
     await modal.locator('button:has-text("Create")').click()
@@ -131,18 +179,21 @@ test.describe('Epic 5: Rate Limiting', () => {
     const policyRow = page.locator(`tr:has-text("${policyName}")`)
     await expect(policyRow).toBeVisible({ timeout: 10_000 })
 
-    // Cleanup: удаляем созданную политику через UI
-    await policyRow.locator('button[type="button"]:has(.anticon-delete)').click()
-    await page.locator('.ant-popconfirm button:has-text("Да")').click()
-    await expect(policyRow).not.toBeVisible({ timeout: 10_000 })
+    // Получаем ID политики для cleanup (из кнопки delete)
+    const deleteButton = policyRow.locator('button[data-testid^="delete-policy-"]')
+    const testId = await deleteButton.getAttribute('data-testid')
+    if (testId) {
+      const policyId = testId.replace('delete-policy-', '')
+      resources.policyIds.push(policyId)
+    }
   })
 
-  // TODO: Ant Design Select interaction needs investigation - rateLimitId not being saved
-  test.skip('Developer назначает политику на маршрут', async ({ page }) => {
+  test('Developer назначает политику на маршрут', async ({ page }) => {
     // AC2: Setup — создаём политику через API (admin)
     await login(page, 'test-admin', 'Test1234!', '/dashboard')
     const policyName = `e2e-assign-${TIMESTAMP}`
-    const policyId = await createRateLimitPolicy(page, policyName, 5, 10)
+    // policyId автоматически регистрируется для cleanup в createRateLimitPolicy
+    await createRateLimitPolicy(page, policyName, 5, 10)
 
     // Переключаемся на developer
     await login(page, 'test-developer', 'Test1234!', '/routes')
@@ -164,19 +215,25 @@ test.describe('Epic 5: Rate Limiting', () => {
     await page.keyboard.press('Escape')
     await page.locator('.ant-select-dropdown').first().waitFor({ state: 'hidden' })
 
-    // Выбираем Rate Limit Policy в dropdown (Story 5.5)
-    // Используем Form.Item контейнер для поиска select
-    const rateLimitFormItem = page.locator('.ant-form-item:has-text("Rate Limit Policy")')
-    const rateLimitSelect = rateLimitFormItem.locator('.ant-select')
+    // Выбираем Rate Limit Policy в dropdown используя data-testid
+    const rateLimitSelect = page.locator('[data-testid="rate-limit-select"]')
     await rateLimitSelect.click()
-    // Ждём видимый dropdown
-    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { state: 'visible' })
-    // Ждём пока политика появится и кликаем
-    const policyOption = page.locator(`.ant-select-item-option[title*="${policyName}"]`)
+
+    // Ждём видимый dropdown и выбираем политику по тексту
+    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', {
+      state: 'visible',
+    })
+
+    // Кликаем по опции содержащей имя политики
+    const policyOption = page.locator(`.ant-select-item-option:has-text("${policyName}")`)
     await expect(policyOption).toBeVisible({ timeout: 10_000 })
     await policyOption.click()
+
     // Проверяем что dropdown закрылся и значение выбрано
-    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { state: 'hidden', timeout: 5_000 })
+    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', {
+      state: 'hidden',
+      timeout: 5_000,
+    })
     await expect(rateLimitSelect.locator('.ant-select-selection-item')).toContainText(policyName)
 
     // Сохраняем маршрут
@@ -186,18 +243,15 @@ test.describe('Epic 5: Rate Limiting', () => {
     await expect(page).toHaveURL(/\/routes\/[a-f0-9-]+$/, { timeout: 10_000 })
     const url = page.url()
     const routeId = url.split('/').pop()!
+    resources.routeIds.push(routeId)
 
     // Проверяем отображение rate limit info в секции деталей
     await expect(page.locator(`text=${policyName}`)).toBeVisible()
-
-    // Cleanup: удаляем маршрут, затем политику
-    await login(page, 'test-admin', 'Test1234!', '/dashboard')
-    await deleteRoute(page, routeId)
-    await deleteRateLimitPolicy(page, policyId)
   })
 
-  // TODO: Требует настройки Redis pub/sub для синхронизации gateway-core
-  test.skip('Rate limiting применяется в Gateway', { timeout: 90_000 }, async ({ page }) => {
+  // Тест требует работающего Redis pub/sub для синхронизации gateway-core
+  // При отсутствии Redis используется Caffeine cache с TTL 60 секунд
+  test('Rate limiting применяется в Gateway', { timeout: 90_000 }, async ({ page }) => {
     // AC3: Setup — создаём published маршрут с rate limit
     await login(page, 'test-admin', 'Test1234!', '/dashboard')
 
@@ -206,19 +260,20 @@ test.describe('Epic 5: Rate Limiting', () => {
 
     // Создаём и публикуем маршрут
     const routePath = `gateway-${TIMESTAMP}`
-    const routeId = await createPublishedRouteWithRateLimit(page, routePath, policyId)
+    await createPublishedRouteWithRateLimit(page, routePath, policyId)
 
-    // Ожидаем синхронизации gateway с retry вместо фиксированной задержки
+    // Ожидаем синхронизации gateway с retry
+    // Gateway-core слушает Redis pub/sub, но fallback на Caffeine cache (TTL 60s)
     const gatewayUrl = `http://localhost:8080/e2e-rl-${routePath}`
     let firstResponse: Awaited<ReturnType<typeof page.request.get>>
 
-    // Ждём синхронизации gateway (TTL кеша 60 сек, если Redis pub/sub не работает)
+    // Ждём синхронизации gateway
     await expect(async () => {
       firstResponse = await page.request.get(gatewayUrl, { failOnStatusCode: false })
       expect(firstResponse.status()).toBe(200)
     }).toPass({ timeout: 65_000 })
 
-    // Проверяем заголовки X-RateLimit-* (обязательно, не conditional)
+    // Проверяем заголовки X-RateLimit-*
     const headers = firstResponse!.headers()
     expect(headers['x-ratelimit-limit']).toBe('3')
     expect(Number(headers['x-ratelimit-remaining'])).toBeGreaterThanOrEqual(0)
@@ -236,36 +291,31 @@ test.describe('Epic 5: Rate Limiting', () => {
     // Проверяем заголовок Retry-After
     const retryAfter = overLimitResponse.headers()['retry-after']
     expect(retryAfter).toBeTruthy()
-
-    // Cleanup: удаляем маршрут и политику
-    await deleteRoute(page, routeId)
-    await deleteRateLimitPolicy(page, policyId)
   })
 
-  // TODO: API requests via page.request may not have proper auth for rateLimitId assignment
-  test.skip('Admin редактирует и удаляет политику', async ({ page }) => {
+  test('Admin редактирует и удаляет политику', async ({ page }) => {
     // AC4: Setup — создаём политику через API
     await login(page, 'test-admin', 'Test1234!', '/rate-limits')
     const policyName = `e2e-edit-${TIMESTAMP}`
     const policyId = await createRateLimitPolicy(page, policyName, 10, 20)
 
-    // После API запроса нужен повторный login (сессия сбрасывается)
-    await login(page, 'test-admin', 'Test1234!', '/rate-limits')
+    // Обновляем страницу чтобы увидеть новую политику
+    await page.reload()
     await expect(page.locator('text=Rate Limit Policies')).toBeVisible({ timeout: 10_000 })
 
     // --- Редактирование политики ---
     // Находим строку с политикой и нажимаем Edit
     const policyRow = page.locator(`tr:has-text("${policyName}")`)
     await expect(policyRow).toBeVisible({ timeout: 10_000 })
-    await policyRow.locator('button[type="button"]:has(.anticon-edit)').click()
+    await policyRow.locator(`[data-testid="edit-policy-${policyId}"]`).click()
 
     // Ждём открытия модального окна редактирования
     await expect(page.locator('.ant-modal-title:has-text("Edit Policy")')).toBeVisible()
 
     // Изменяем requestsPerSecond
     const modal = page.locator('.ant-modal')
-    await modal.locator('input#requestsPerSecond').clear()
-    await modal.locator('input#requestsPerSecond').fill('15')
+    await modal.locator('[data-testid="policy-requests-input"]').clear()
+    await modal.locator('[data-testid="policy-requests-input"]').fill('15')
 
     // Сохраняем
     await modal.locator('button:has-text("Save")').click()
@@ -277,19 +327,19 @@ test.describe('Epic 5: Rate Limiting', () => {
     await expect(policyRow.locator('td').nth(2)).toContainText('15')
 
     // --- Попытка удаления используемой политики (должна показать ошибку) ---
-    // Создаём маршрут, использующий эту политику
-    const usedRouteId = await createRouteWithRateLimit(page, `used-${TIMESTAMP}`, policyId)
+    // Создаём маршрут, использующий эту политику (ID регистрируется автоматически для cleanup)
+    await createRouteWithRateLimit(page, `used-${TIMESTAMP}`, policyId)
 
-    // После API запроса нужен login (сессия сбрасывается)
-    await login(page, 'test-admin', 'Test1234!', '/rate-limits')
+    // Обновляем страницу чтобы обновить usageCount
+    await page.reload()
     await expect(page.locator(`tr:has-text("${policyName}")`)).toBeVisible({ timeout: 10_000 })
 
     // Пытаемся удалить — нажимаем Delete
     const usedPolicyRow = page.locator(`tr:has-text("${policyName}")`)
-    await usedPolicyRow.locator('button[type="button"]:has(.anticon-delete)').click()
+    await usedPolicyRow.locator(`[data-testid="delete-policy-${policyId}"]`).click()
 
     // Подтверждаем удаление в Popconfirm
-    await page.locator('.ant-popconfirm button:has-text("Да")').click()
+    await page.locator('[data-testid="confirm-delete-policy"]').click()
 
     // Ожидаем ошибку (политика используется) — проверяем notification
     await expect(
@@ -299,7 +349,7 @@ test.describe('Epic 5: Rate Limiting', () => {
     // --- Удаление неиспользуемой политики ---
     // Создаём новую политику для удаления
     const unusedPolicyName = `e2e-delete-${TIMESTAMP}`
-    await createRateLimitPolicy(page, unusedPolicyName, 5, 10)
+    const unusedPolicyId = await createRateLimitPolicy(page, unusedPolicyName, 5, 10)
 
     // Обновляем страницу
     await page.reload()
@@ -307,16 +357,19 @@ test.describe('Epic 5: Rate Limiting', () => {
 
     // Удаляем неиспользуемую политику
     const unusedRow = page.locator(`tr:has-text("${unusedPolicyName}")`)
-    await unusedRow.locator('button[type="button"]:has(.anticon-delete)').click()
-    await page.locator('.ant-popconfirm button:has-text("Да")').click()
+    await unusedRow.locator(`[data-testid="delete-policy-${unusedPolicyId}"]`).click()
+    await page.locator('[data-testid="confirm-delete-policy"]').click()
 
     // Политика исчезает из таблицы
     await expect(page.locator(`tr:has-text("${unusedPolicyName}")`)).not.toBeVisible({
       timeout: 10_000,
     })
 
-    // Cleanup: удаляем маршрут, затем политику
-    await deleteRoute(page, usedRouteId)
-    await deleteRateLimitPolicy(page, policyId)
+    // Убираем из cleanup т.к. уже удалено через UI
+    resources.policyIds = resources.policyIds.filter((id) => id !== unusedPolicyId)
+
+    // Cleanup: удаляем маршрут, затем политику (в afterEach)
+    // Маршрут usedRouteId уже в resources.routeIds
+    // Политика policyId уже в resources.policyIds
   })
 })

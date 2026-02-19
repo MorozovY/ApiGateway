@@ -126,7 +126,7 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
             { max: 100, message: 'Максимум 100 символов' },
           ]}
         >
-          <Input placeholder="Введите название политики" />
+          <Input placeholder="Введите название политики" data-testid="policy-name-input" />
         </Form.Item>
 
         {/* Description — опциональное */}
@@ -154,6 +154,7 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
             min={1}
             style={{ width: '100%' }}
             placeholder="Количество запросов в секунду"
+            data-testid="policy-requests-input"
           />
         </Form.Item>
 
@@ -172,6 +173,7 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
             min={1}
             style={{ width: '100%' }}
             placeholder="Размер burst (максимум токенов)"
+            data-testid="policy-burst-input"
           />
         </Form.Item>
       </Form>

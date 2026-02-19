@@ -147,6 +147,7 @@ function RateLimitsTable({
                   type="text"
                   icon={<EditOutlined />}
                   onClick={() => onEdit(record)}
+                  data-testid={`edit-policy-${record.id}`}
                 />
               </Tooltip>
             )}
@@ -161,6 +162,7 @@ function RateLimitsTable({
                 onConfirm={() => onDelete(record)}
                 okText="Да"
                 cancelText="Нет"
+                okButtonProps={{ 'data-testid': 'confirm-delete-policy' }}
               >
                 <Tooltip title="Удалить">
                   <Button
@@ -168,6 +170,7 @@ function RateLimitsTable({
                     danger
                     icon={<DeleteOutlined />}
                     loading={isDeleting}
+                    data-testid={`delete-policy-${record.id}`}
                   />
                 </Tooltip>
               </Popconfirm>
