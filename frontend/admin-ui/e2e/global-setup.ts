@@ -1,10 +1,13 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import pg from 'pg'
 
 // ESM-совместимый аналог __dirname
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+const { Pool } = pg
 
 /**
  * Загрузка переменных из файла .env.e2e (если существует).
@@ -46,6 +49,60 @@ const TEST_USERS = [
 ]
 
 /**
+ * Очистка тестовых данных в БД перед прогоном E2E тестов.
+ *
+ * Удаляет все данные с E2E паттернами:
+ * - routes: path LIKE '/e2e-%'
+ * - rate_limits: name LIKE 'e2e-%'
+ *
+ * Порядок удаления учитывает FK constraints:
+ * routes зависит от rate_limits через rate_limit_id.
+ *
+ * Не удаляет:
+ * - users (тестовые пользователи создаются в global-setup и переиспользуются)
+ * - audit_logs (каскадно удаляются с users, не мешают тестам)
+ */
+async function cleanupTestData(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
+
+  const pool = new Pool({ connectionString: databaseUrl })
+
+  try {
+    console.log('[E2E Cleanup] Очистка тестовых данных...')
+
+    // Удаляем route_versions если существует (route_versions -> routes FK)
+    // Игнорируем ошибку 42P01 (table does not exist), логируем другие
+    await pool.query(`
+      DELETE FROM route_versions
+      WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%')
+    `).catch((err: { code?: string }) => {
+      if (err.code !== '42P01') {
+        console.warn('[E2E Cleanup] Ошибка при удалении route_versions:', err)
+      }
+    })
+
+    // Удаляем маршруты с E2E паттерном в path
+    const routesResult = await pool.query(`DELETE FROM routes WHERE path LIKE '/e2e-%'`)
+    console.log(`[E2E Cleanup] Удалено маршрутов (по path): ${routesResult.rowCount ?? 0}`)
+
+    // Удаляем маршруты которые ссылаются на E2E политики (по rate_limit_id)
+    const routesByPolicyResult = await pool.query(`
+      DELETE FROM routes
+      WHERE rate_limit_id IN (SELECT id FROM rate_limits WHERE name LIKE 'e2e-%')
+    `)
+    console.log(`[E2E Cleanup] Удалено маршрутов (по политике): ${routesByPolicyResult.rowCount ?? 0}`)
+
+    // Удаляем политики rate limit с E2E паттерном
+    const policiesResult = await pool.query(`DELETE FROM rate_limits WHERE name LIKE 'e2e-%'`)
+    console.log(`[E2E Cleanup] Удалено политик: ${policiesResult.rowCount ?? 0}`)
+
+    console.log('[E2E Cleanup] Очистка завершена.')
+  } finally {
+    await pool.end()
+  }
+}
+
+/**
  * Global setup для Playwright.
  *
  * Создаёт тестовых пользователей через API если они ещё не существуют.
@@ -54,6 +111,9 @@ const TEST_USERS = [
 async function globalSetup(): Promise<void> {
   // Загружаем .env.e2e если он существует
   loadEnvFile()
+
+  // Шаг 0: Очистка тестовых данных от предыдущих прогонов
+  await cleanupTestData()
 
   const adminUsername = process.env.E2E_ADMIN_USERNAME
   const adminPassword = process.env.E2E_ADMIN_PASSWORD

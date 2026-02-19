@@ -1,7 +1,7 @@
-// Таблица Rate Limit политик с пагинацией (Story 5.4, AC1, AC8)
-import { useState } from 'react'
-import { Table, Button, Space, Popconfirm, Tooltip } from 'antd'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+// Таблица Rate Limit политик с пагинацией и поиском (Story 5.4, AC1, AC8; Story 5.7, AC2)
+import { useState, useMemo } from 'react'
+import { Table, Button, Space, Popconfirm, Tooltip, Input } from 'antd'
+import { EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useRateLimits } from '../hooks/useRateLimits'
 import type { RateLimit } from '../types/rateLimit.types'
@@ -56,6 +56,9 @@ function RateLimitsTable({
   onViewRoutes,
   isDeleting = false,
 }: RateLimitsTableProps) {
+  // Состояние поиска (Story 5.7, AC2)
+  const [searchText, setSearchText] = useState('')
+
   // Состояние пагинации
   const [pagination, setPagination] = useState({
     current: 1,
@@ -78,6 +81,17 @@ function RateLimitsTable({
       pageSize: newPagination.pageSize || DEFAULT_PAGE_SIZE,
     })
   }
+
+  // Клиентская фильтрация по имени (Story 5.7, AC2)
+  const filteredItems = useMemo(() => {
+    if (!data?.items || !searchText.trim()) {
+      return data?.items
+    }
+    const lowerSearch = searchText.toLowerCase()
+    return data.items.filter((item) =>
+      item.name.toLowerCase().includes(lowerSearch)
+    )
+  }, [data?.items, searchText])
 
   // Определение колонок таблицы
   const columns: ColumnsType<RateLimit> = [
@@ -182,20 +196,32 @@ function RateLimitsTable({
   ]
 
   return (
-    <Table
-      dataSource={data?.items}
-      columns={columns}
-      rowKey="id"
-      loading={isLoading}
-      pagination={{
-        current: pagination.current,
-        pageSize: pagination.pageSize,
-        total: data?.total,
-        showSizeChanger: true,
-        showTotal: (total) => `Всего ${pluralizePolicies(total)}`,
-      }}
-      onChange={handleTableChange}
-    />
+    <div>
+      {/* Поле поиска (Story 5.7, AC2) */}
+      <Input
+        placeholder="Поиск по имени..."
+        prefix={<SearchOutlined />}
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        allowClear
+        style={{ marginBottom: 16, maxWidth: 300 }}
+        data-testid="search-input"
+      />
+      <Table
+        dataSource={filteredItems}
+        columns={columns}
+        rowKey="id"
+        loading={isLoading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: searchText ? filteredItems?.length : data?.total,
+          showSizeChanger: true,
+          showTotal: (total) => `Всего ${pluralizePolicies(total)}`,
+        }}
+        onChange={handleTableChange}
+      />
+    </div>
   )
 }
 

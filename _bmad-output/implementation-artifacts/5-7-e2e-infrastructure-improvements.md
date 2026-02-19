@@ -1,6 +1,6 @@
 # Story 5.7: E2E Infrastructure Improvements
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -40,22 +40,24 @@ so that tests run consistently without interference from stale data.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Database cleanup в global-setup.ts (AC1)
-  - [ ] Создать SQL скрипт очистки тестовых данных
-  - [ ] Добавить cleanup в `e2e/global-setup.ts` перед созданием тестовых пользователей
-  - [ ] Сохранить системные данные (admin, базовые роли)
-  - [ ] Протестировать что cleanup работает
+- [x] Task 1: Database cleanup в global-setup.ts (AC1)
+  - [x] Создать SQL скрипт очистки тестовых данных
+  - [x] Добавить cleanup в `e2e/global-setup.ts` перед созданием тестовых пользователей
+  - [x] Сохранить системные данные (admin, базовые роли)
+  - [x] Протестировать что cleanup работает
 
-- [ ] Task 2: Фильтрация в E2E тестах (AC2)
-  - [ ] Добавить helper функцию для фильтрации таблиц по имени
-  - [ ] Обновить существующие тесты использовать фильтры перед поиском
-  - [ ] Убедиться что все тесты используют `e2e-{TIMESTAMP}` префикс
+- [x] Task 2: Фильтрация в E2E тестах (AC2)
+  - [x] Добавить helper функцию для фильтрации таблиц по имени
+  - [x] Добавить поиск на страницу RateLimitsTable
+  - [x] Добавить поиск на страницу ApprovalsPage
+  - [x] Обновить существующие тесты использовать фильтры перед поиском
+  - [x] Убедиться что все тесты используют `e2e-{TIMESTAMP}` префикс
 
-- [ ] Task 3: Документация команд в CLAUDE.md (AC3)
-  - [ ] Добавить секцию "Development Commands" в CLAUDE.md
-  - [ ] Документировать: запуск Docker, backend, frontend
-  - [ ] Документировать: запуск E2E тестов
-  - [ ] Документировать: очистка/сброс среды
+- [x] Task 3: Документация команд в CLAUDE.md (AC3)
+  - [x] Добавить секцию "Development Commands" в CLAUDE.md
+  - [x] Документировать: запуск Docker, backend, frontend
+  - [x] Документировать: запуск E2E тестов
+  - [x] Документировать: очистка/сброс среды
 
 ## Dev Notes
 
@@ -176,3 +178,57 @@ cd frontend/admin-ui && npm run dev
 - [Source: frontend/admin-ui/e2e/global-setup.ts] — текущий global setup
 - [Source: frontend/admin-ui/playwright.config.ts] — конфигурация Playwright
 - [Source: CLAUDE.md] — правила проекта
+
+## Dev Agent Record
+
+### Implementation Notes
+
+**AC1 — Database Cleanup:**
+- Добавлена функция `cleanupTestData()` в `e2e/global-setup.ts`
+- Использует `pg` пакет для прямого подключения к PostgreSQL
+- Удаляет маршруты по паттерну `/e2e-%` и политики по паттерну `e2e-%`
+- Учитывает FK constraints — сначала маршруты, затем политики
+- Также удаляет маршруты, ссылающиеся на e2e политики через rate_limit_id
+- Default connection string: `postgresql://gateway:gateway@localhost:5432/gateway`
+
+**AC2 — Фильтрация:**
+- Создан helper `e2e/helpers/table.ts` с функцией `filterTableByName()`
+- Добавлен поиск (Input.Search) в `RateLimitsTable.tsx` с клиентской фильтрацией
+- Добавлен поиск в `ApprovalsPage.tsx` с клиентской фильтрацией по path
+- Обновлён `epic-5.spec.ts` — импорт и использование `filterTableByName`
+- Все поля поиска имеют `data-testid="search-input"` для E2E тестов
+
+**AC3 — Документация:**
+- Добавлена секция "Development Commands" в CLAUDE.md
+- Документированы: Docker, backend (gateway-admin, gateway-core), frontend
+- Документированы: E2E тесты, unit/integration тесты
+- Документированы: полный рестарт, очистка и сброс
+
+### Debug Log
+
+- Исправлен default DATABASE_URL: `postgres:postgres` → `gateway:gateway`
+- Исправлен FK constraint: добавлено удаление маршрутов по rate_limit_id перед удалением политик
+
+## File List
+
+- frontend/admin-ui/e2e/global-setup.ts (modified)
+- frontend/admin-ui/e2e/helpers/table.ts (new)
+- frontend/admin-ui/e2e/epic-5.spec.ts (modified)
+- frontend/admin-ui/src/features/rate-limits/components/RateLimitsTable.tsx (modified)
+- frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx (modified)
+- frontend/admin-ui/package.json (modified — added pg, @types/pg)
+- CLAUDE.md (modified)
+
+## Change Log
+
+- 2026-02-19: Code Review fixes (5 MEDIUM issues)
+  - M1: Fixed placeholder language in RateLimitsTable.tsx and ApprovalsPage.tsx (Russian)
+  - M2: Replaced waitForTimeout with waitForLoadState in table.ts helper
+  - M3: Improved error handling in cleanupTestData (log non-42P01 errors)
+  - M4: Increased isVisible timeout from 1s to 5s in table.ts
+  - M5: Added Windows alternative for pkill in CLAUDE.md
+- 2026-02-19: Implemented Story 5.7 — E2E Infrastructure Improvements
+  - Added database cleanup in global-setup.ts (AC1)
+  - Added search/filter to RateLimitsTable and ApprovalsPage (AC2)
+  - Created filter helper for E2E tests (AC2)
+  - Added Development Commands section to CLAUDE.md (AC3)

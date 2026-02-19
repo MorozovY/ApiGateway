@@ -1,5 +1,5 @@
-// Страница согласования маршрутов с inline-действиями (Story 4.6)
-import { useState } from 'react'
+// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2)
+import { useState, useMemo } from 'react'
 import {
   Table,
   Tag,
@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -35,6 +35,9 @@ const { Text } = Typography
  * Доступ только для ролей security и admin — контролируется ProtectedRoute в App.tsx (AC9).
  */
 export function ApprovalsPage() {
+  // Состояние поиска (Story 5.7, AC2)
+  const [searchText, setSearchText] = useState('')
+
   // Состояние модального окна отклонения
   const [rejectModalVisible, setRejectModalVisible] = useState(false)
   const [selectedRoute, setSelectedRoute] = useState<PendingRoute | null>(null)
@@ -48,6 +51,17 @@ export function ApprovalsPage() {
 
   // Загрузка данных и мутации
   const { data: pendingRoutes, isLoading } = usePendingRoutes()
+
+  // Клиентская фильтрация по path (Story 5.7, AC2)
+  const filteredRoutes = useMemo(() => {
+    if (!pendingRoutes || !searchText.trim()) {
+      return pendingRoutes
+    }
+    const lowerSearch = searchText.toLowerCase()
+    return pendingRoutes.filter((route) =>
+      route.path.toLowerCase().includes(lowerSearch)
+    )
+  }, [pendingRoutes, searchText])
   const approveMutation = useApproveRoute()
   const rejectMutation = useRejectRoute()
 
@@ -203,9 +217,20 @@ export function ApprovalsPage() {
         Согласование маршрутов
       </Typography.Title>
 
+      {/* Поле поиска (Story 5.7, AC2) */}
+      <Input
+        placeholder="Поиск по пути..."
+        prefix={<SearchOutlined />}
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        allowClear
+        style={{ marginBottom: 16, maxWidth: 300 }}
+        data-testid="search-input"
+      />
+
       {/* Таблица pending маршрутов (AC1) */}
       <Table<PendingRoute>
-        dataSource={pendingRoutes}
+        dataSource={filteredRoutes}
         columns={columns}
         rowKey="id"
         loading={isLoading}

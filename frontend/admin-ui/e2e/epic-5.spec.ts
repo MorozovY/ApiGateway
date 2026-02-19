@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { login } from './helpers/auth'
+import { filterTableByName } from './helpers/table'
 
 /**
  * Уникальный суффикс для изоляции данных между тест-ранами.
@@ -175,6 +176,9 @@ test.describe('Epic 5: Rate Limiting', () => {
       timeout: 10_000,
     })
 
+    // Фильтруем таблицу по имени политики для изоляции от других данных
+    await filterTableByName(page, policyName)
+
     // Проверяем появление политики в таблице
     const policyRow = page.locator(`tr:has-text("${policyName}")`)
     await expect(policyRow).toBeVisible({ timeout: 10_000 })
@@ -308,6 +312,9 @@ test.describe('Epic 5: Rate Limiting', () => {
     await expect(page.locator('text=Rate Limit Policies')).toBeVisible({ timeout: 10_000 })
 
     // --- Редактирование политики ---
+    // Фильтруем таблицу для изоляции тестовых данных
+    await filterTableByName(page, policyName)
+
     // Находим строку с политикой и нажимаем Edit
     const policyRow = page.locator(`tr:has-text("${policyName}")`)
     await expect(policyRow).toBeVisible({ timeout: 10_000 })
@@ -337,6 +344,9 @@ test.describe('Epic 5: Rate Limiting', () => {
     // Навигация на страницу Rate Limits через меню чтобы обновить usageCount
     await page.locator('a:has-text("Rate Limits"), [role="menuitem"]:has-text("Rate Limits")').click()
     await page.waitForURL(/\/rate-limits/)
+
+    // Фильтруем таблицу для изоляции тестовых данных
+    await filterTableByName(page, policyName)
     await expect(page.locator(`tr:has-text("${policyName}")`)).toBeVisible({ timeout: 10_000 })
 
     // Пытаемся удалить — нажимаем Delete
@@ -359,6 +369,9 @@ test.describe('Epic 5: Rate Limiting', () => {
     // Навигация на страницу Rate Limits через меню
     await page.locator('a:has-text("Rate Limits"), [role="menuitem"]:has-text("Rate Limits")').click()
     await page.waitForURL(/\/rate-limits/)
+
+    // Фильтруем таблицу по новой политике
+    await filterTableByName(page, unusedPolicyName)
     await expect(page.locator(`tr:has-text("${unusedPolicyName}")`)).toBeVisible({ timeout: 10_000 })
 
     // Удаляем неиспользуемую политику

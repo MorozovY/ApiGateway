@@ -109,4 +109,94 @@ fun `generates UUID when X-Correlation-ID header missing`() {
 
 ---
 
-*Последнее обновление: 2026-02-18 (Epic 4 Retrospective)*
+## Development Commands
+
+### Запуск инфраструктуры
+
+```bash
+# Docker (PostgreSQL, Redis)
+docker-compose up -d
+
+# Проверка статуса
+docker-compose ps
+```
+
+### Запуск backend
+
+```bash
+# Gateway Admin (port 8081)
+./gradlew :gateway-admin:bootRun
+
+# Gateway Core (port 8080)
+./gradlew :gateway-core:bootRun
+```
+
+### Запуск frontend
+
+```bash
+cd frontend/admin-ui
+npm run dev  # port 3000
+```
+
+### E2E тесты
+
+```bash
+cd frontend/admin-ui
+npx playwright test                    # все тесты
+npx playwright test e2e/epic-5.spec.ts # конкретный файл
+npx playwright test --ui               # UI режим
+npx playwright test --headed           # с браузером
+```
+
+### Unit/Integration тесты
+
+```bash
+# Backend (Kotlin)
+./gradlew test                         # все тесты
+./gradlew :gateway-admin:test          # только gateway-admin
+./gradlew :gateway-core:test           # только gateway-core
+
+# Frontend (Vitest)
+cd frontend/admin-ui
+npm run test                           # watch режим
+npm run test:run                       # однократный запуск
+npm run test:coverage                  # с coverage
+```
+
+### Полный рестарт
+
+```bash
+# Остановить всё
+docker-compose down
+
+# Linux/macOS: остановить Gradle процессы
+pkill -f "bootRun" || true
+
+# Windows (PowerShell): остановить Gradle процессы
+# Get-Process -Name java -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -like '*bootRun*'} | Stop-Process
+
+# Запустить заново
+docker-compose up -d
+./gradlew :gateway-admin:bootRun &
+./gradlew :gateway-core:bootRun &
+cd frontend/admin-ui && npm run dev
+```
+
+### Очистка и сброс
+
+```bash
+# Очистка Docker volumes (УДАЛЯЕТ ДАННЫЕ!)
+docker-compose down -v
+
+# Очистка build артефактов
+./gradlew clean
+
+# Переустановка npm зависимостей
+cd frontend/admin-ui
+rm -rf node_modules
+npm install
+```
+
+---
+
+*Последнее обновление: 2026-02-19 (Story 5.7)*
