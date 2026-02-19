@@ -52,7 +52,7 @@ test.describe('Epic 4: Approval Workflow', () => {
     const routePath = `e2e-submit-${TIMESTAMP}`
     await page.locator('input[placeholder="api/service"]').fill(routePath)
     await page.locator('input[placeholder="http://service:8080"]').fill('http://submit-test.local:8000')
-    await page.locator('.ant-select-selector').click()
+    await page.getByTestId('methods-select').locator('.ant-select-selector').click()
     // Ждём появления dropdown перед кликом по опциям
     await page.locator('.ant-select-dropdown').waitFor({ state: 'visible' })
     await page.locator('.ant-select-dropdown .ant-select-item-option-content:has-text("GET")').click()

@@ -15,7 +15,7 @@ async function fillRouteForm(page: Page, routePath: string, upstreamUrl: string)
   await page.locator('input[placeholder="http://service:8080"]').fill(upstreamUrl)
 
   // Выбор методов в Ant Design Select (multiple mode)
-  await page.locator('.ant-select-selector').click()
+  await page.getByTestId('methods-select').locator('.ant-select-selector').click()
   // Ждём появления dropdown перед кликом по опциям
   await page.locator('.ant-select-dropdown').waitFor({ state: 'visible' })
   await page.locator('.ant-select-dropdown .ant-select-item-option-content:has-text("GET")').click()

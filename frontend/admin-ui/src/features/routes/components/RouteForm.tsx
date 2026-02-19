@@ -249,6 +249,7 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
         <Select
           mode="multiple"
           placeholder="Выберите методы"
+          data-testid="methods-select"
           options={HTTP_METHODS.map((m) => ({ value: m, label: m }))}
         />
       </Form.Item>
