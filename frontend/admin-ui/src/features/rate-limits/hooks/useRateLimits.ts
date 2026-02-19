@@ -25,6 +25,13 @@ export function useRateLimits(params?: { offset?: number; limit?: number }) {
   return useQuery({
     queryKey: [...QUERY_KEYS.rateLimits, params],
     queryFn: () => rateLimitsApi.getRateLimits(params),
+    // Story 5.9: Гарантируем refetch при каждом mount компонента.
+    // Решает проблему stale данных после API вызовов вне React Query (E2E тесты).
+    // Используем обе опции (belt-and-suspenders):
+    // - staleTime: 0 — данные сразу считаются устаревшими
+    // - refetchOnMount: 'always' — форсирует refetch даже если данные "свежие"
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 

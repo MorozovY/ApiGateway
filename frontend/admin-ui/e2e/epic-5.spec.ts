@@ -306,16 +306,16 @@ test.describe('Epic 5: Rate Limiting', () => {
     expect(retryAfter).toBeTruthy()
   })
 
-  // TODO: Тест требует исправления навигации и refresh таблицы после API запросов
-  // Known issue: После создания политики через API, навигация через меню не обновляет таблицу
-  test.skip('Admin редактирует и удаляет политику', async ({ page }) => {
+  // Story 5.9: Тест включён после добавления staleTime: 0 + refetchOnMount: 'always' в useRateLimits
+  test('Admin редактирует и удаляет политику', async ({ page }) => {
     // AC4: Setup — создаём политику через API
     await login(page, 'test-admin', 'Test1234!', '/rate-limits')
     const policyName = `e2e-edit-${TIMESTAMP}`
     const policyId = await createRateLimitPolicy(page, policyName, 10, 20)
 
-    // Навигация на страницу Rate Limits через меню (вместо goto который может сбросить state)
-    await page.locator('text=Rate Limits').click()
+    // Навигация через sidebar меню для триггера refetch (SPA навигация сохраняет auth state)
+    // Story 5.9: staleTime: 0 гарантирует refetch при каждом mount компонента
+    await page.getByRole('menuitem', { name: 'Rate Limits' }).click()
     await page.waitForURL(/\/rate-limits/)
     await expect(page.locator('text=Rate Limit Policies')).toBeVisible({ timeout: 10_000 })
 
@@ -349,8 +349,10 @@ test.describe('Epic 5: Rate Limiting', () => {
     // Создаём маршрут, использующий эту политику (ID регистрируется автоматически для cleanup)
     await createRouteWithRateLimit(page, `used-${TIMESTAMP}`, policyId)
 
-    // Навигация на страницу Rate Limits через меню чтобы обновить usageCount
-    await page.locator('a:has-text("Rate Limits"), [role="menuitem"]:has-text("Rate Limits")').click()
+    // Навигация на другую страницу и обратно для триггера refetch (обновление usageCount)
+    await page.getByRole('menuitem', { name: 'Dashboard' }).click()
+    await page.waitForURL(/\/dashboard/)
+    await page.getByRole('menuitem', { name: 'Rate Limits' }).click()
     await page.waitForURL(/\/rate-limits/)
 
     // Фильтруем таблицу для изоляции тестовых данных
@@ -374,8 +376,10 @@ test.describe('Epic 5: Rate Limiting', () => {
     const unusedPolicyName = `e2e-delete-${TIMESTAMP}`
     const unusedPolicyId = await createRateLimitPolicy(page, unusedPolicyName, 5, 10)
 
-    // Навигация на страницу Rate Limits через меню
-    await page.locator('a:has-text("Rate Limits"), [role="menuitem"]:has-text("Rate Limits")').click()
+    // Навигация на другую страницу и обратно для триггера refetch (отображение новой политики)
+    await page.getByRole('menuitem', { name: 'Dashboard' }).click()
+    await page.waitForURL(/\/dashboard/)
+    await page.getByRole('menuitem', { name: 'Rate Limits' }).click()
     await page.waitForURL(/\/rate-limits/)
 
     // Фильтруем таблицу по новой политике

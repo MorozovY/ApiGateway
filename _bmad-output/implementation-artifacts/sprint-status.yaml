@@ -82,10 +82,10 @@ development_status:
   5-3-rate-limiting-filter-implementation: done
   5-4-rate-limit-policies-management-ui: done
   5-5-assign-rate-limit-route-ui: done
-  5-6-e2e-playwright-happy-path: in-progress  # 3/4 tests pass, AC4 blocked by 5-9
+  5-6-e2e-playwright-happy-path: done  # All 4 E2E tests pass (AC4 unblocked by 5-9)
   5-7-e2e-infrastructure-improvements: done  # DB cleanup, filters, dev commands docs
   5-8-fix-e2e-gateway-cache-sync: done  # Redis pub/sub, cache sync, E2E AC3 проходит
-  5-9-fix-e2e-rate-limits-table-refetch: backlog  # Fix AC4: UI table refetch after mutations
+  5-9-fix-e2e-rate-limits-table-refetch: done  # Fix AC4: UI table refetch after mutations
   5-10-fix-gateway-routing-path: done  # RewritePath filter (OrderedGatewayFilter order=10001)
   epic-5-retrospective: optional
 
