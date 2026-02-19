@@ -1,6 +1,6 @@
 # Story 5.6: E2E Playwright Happy Path Tests
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -70,18 +70,20 @@ so that critical user flows are verified in a real browser environment.
   - [x] Сохранить маршрут
   - [x] Проверить rate limit info на странице деталей
 
-- [x] Task 4: Тест 'Rate limiting применяется в Gateway' (AC3)
+- [ ] Task 4: Тест 'Rate limiting применяется в Gateway' (AC3) — **SKIPPED: требует Redis pub/sub, см. Story 5.8**
   - [x] Setup: создать published маршрут с rate limit через API
   - [x] Отправить запросы к gateway-core (localhost:8080)
   - [x] Проверить заголовки X-RateLimit-Limit, X-RateLimit-Remaining
   - [x] Превысить лимит → проверить HTTP 429 и Retry-After
+  - [ ] Убрать test.skip после исправления инфраструктуры
 
-- [x] Task 5: Тест 'Admin редактирует/удаляет политику' (AC4)
+- [ ] Task 5: Тест 'Admin редактирует/удаляет политику' (AC4) — **SKIPPED: требует fix навигации, см. Story 5.9**
   - [x] Setup: создать политику через API
   - [x] Login как test-admin
   - [x] Редактирование: изменить requestsPerSecond, сохранить, проверить
   - [x] Удаление используемой: создать маршрут с политикой, попытка удаления → ошибка
   - [x] Удаление неиспользуемой: создать новую политику, удалить → успех
+  - [ ] Убрать test.skip после исправления навигации/refresh
 
 - [x] Task 6: Запуск и отладка E2E тестов
   - [x] Проверить ESLint — тесты проходят проверку
@@ -450,7 +452,6 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - **RouteService.create()** was not passing `rateLimitId` to Route entity
 
 **Code Review Fixes Applied (2026-02-19):**
-- ✅ Removed test.skip — all 4 tests now enabled
 - ✅ Added afterEach cleanup with idempotent delete functions
 - ✅ Replaced hardcoded localhost:3000 URLs with relative paths
 - ✅ Fixed helper functions to handle 404 gracefully (idempotent cleanup)
@@ -474,6 +475,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Change Log
 
+- 2026-02-19: **CODE REVIEW** — Task 4, Task 5 помечены [ ] (тесты skipped), Status → in-progress. Исправления AC3/AC4 запланированы в Stories 5.8/5.9
 - 2026-02-19: **CRITICAL BUG FIX** — CreateRouteRequest.kt missing rateLimitId field; RouteService.create() not passing rateLimitId
 - 2026-02-19: E2E verification — 2/4 tests passing (AC1, AC2), 2 skipped (AC3, AC4 require infra fixes)
 - 2026-02-19: Adversarial code review — fixed 15 issues (3 critical, 5 high, 4 medium, 3 low)

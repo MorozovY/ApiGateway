@@ -82,7 +82,7 @@ development_status:
   5-3-rate-limiting-filter-implementation: done
   5-4-rate-limit-policies-management-ui: done
   5-5-assign-rate-limit-route-ui: done
-  5-6-e2e-playwright-happy-path: review  # 2/4 tests pass, AC3+AC4 blocked by 5-8 and 5-9
+  5-6-e2e-playwright-happy-path: in-progress  # 2/4 tests pass, AC3+AC4 blocked by 5-8 and 5-9
   5-7-e2e-infrastructure-improvements: done  # DB cleanup, filters, dev commands docs
   5-8-fix-e2e-gateway-cache-sync: backlog  # Fix AC3: Gateway cache invalidation
   5-9-fix-e2e-rate-limits-table-refetch: backlog  # Fix AC4: UI table refetch after mutations
