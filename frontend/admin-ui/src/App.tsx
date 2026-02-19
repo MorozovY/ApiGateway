@@ -7,6 +7,7 @@ import { DashboardPage } from '@features/dashboard'
 import { RoutesPage, RouteFormPage, RouteDetailsPage } from '@features/routes'
 import { UsersPage } from '@features/users'
 import { ApprovalsPage } from '@features/approval'
+import { RateLimitsPage } from '@features/rate-limits'
 
 function App() {
   return (
@@ -40,8 +41,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* Placeholders для будущих stories */}
-        <Route path="/rate-limits" element={<div>Rate Limits Management</div>} />
+        {/* Rate Limits Management (Story 5.4) — доступ для developer, security, admin */}
+        <Route path="/rate-limits" element={<RateLimitsPage />} />
         {/* Согласование маршрутов (Story 4.6) — только для security и admin */}
         <Route
           path="/approvals"

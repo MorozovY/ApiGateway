@@ -74,13 +74,6 @@ const securityUser = {
   role: 'security' as const,
 }
 
-// Мок пользователя developer (не должен видеть страницу)
-const developerUser = {
-  userId: 'dev-1',
-  username: 'developer-user',
-  role: 'developer' as const,
-}
-
 describe('Страница согласования маршрутов (ApprovalsPage)', () => {
   beforeEach(() => {
     vi.clearAllMocks()

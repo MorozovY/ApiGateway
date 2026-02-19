@@ -80,7 +80,7 @@ development_status:
   5-1-rate-limit-policy-crud-api: done
   5-2-assign-rate-limit-route-api: review
   5-3-rate-limiting-filter-implementation: done
-  5-4-rate-limit-policies-management-ui: ready-for-dev
+  5-4-rate-limit-policies-management-ui: done
   5-5-assign-rate-limit-route-ui: backlog
   epic-5-retrospective: optional
 
