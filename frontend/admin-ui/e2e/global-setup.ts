@@ -54,13 +54,16 @@ const TEST_USERS = [
  * Удаляет все данные с E2E паттернами:
  * - routes: path LIKE '/e2e-%'
  * - rate_limits: name LIKE 'e2e-%'
+ * - users: username LIKE 'e2e-%'
  *
  * Порядок удаления учитывает FK constraints:
- * routes зависит от rate_limits через rate_limit_id.
+ * 1. audit_logs → users (ON DELETE RESTRICT)
+ * 2. routes.approved_by/rejected_by → users
+ * 3. rate_limits.created_by → users (NOT NULL)
+ * 4. routes → rate_limits (rate_limit_id)
  *
  * Не удаляет:
- * - users (тестовые пользователи создаются в global-setup и переиспользуются)
- * - audit_logs (каскадно удаляются с users, не мешают тестам)
+ * - test-developer, test-security, test-admin (системные тестовые пользователи)
  */
 async function cleanupTestData(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
@@ -95,6 +98,46 @@ async function cleanupTestData(): Promise<void> {
     // Удаляем политики rate limit с E2E паттерном
     const policiesResult = await pool.query(`DELETE FROM rate_limits WHERE name LIKE 'e2e-%'`)
     console.log(`[E2E Cleanup] Удалено политик: ${policiesResult.rowCount ?? 0}`)
+
+    // --- Очистка E2E пользователей (username LIKE 'e2e-%') ---
+    // Шаг 1: Удаляем audit_logs для e2e пользователей (FK ON DELETE RESTRICT)
+    const auditLogsResult = await pool.query(`
+      DELETE FROM audit_logs
+      WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'e2e-%')
+    `).catch((err: { code?: string }) => {
+      if (err.code !== '42P01') {
+        console.warn('[E2E Cleanup] Ошибка при удалении audit_logs:', err)
+      }
+      return { rowCount: 0 }
+    })
+    console.log(`[E2E Cleanup] Удалено audit_logs: ${auditLogsResult.rowCount ?? 0}`)
+
+    // Шаг 2: Обнуляем FK ссылки на e2e пользователей в routes
+    await pool.query(`
+      UPDATE routes SET approved_by = NULL
+      WHERE approved_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%')
+    `).catch(() => { /* игнорируем если колонка не существует */ })
+
+    await pool.query(`
+      UPDATE routes SET rejected_by = NULL
+      WHERE rejected_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%')
+    `).catch(() => { /* игнорируем если колонка не существует */ })
+
+    // Шаг 3: Удаляем rate_limits, созданные e2e пользователями (created_by NOT NULL)
+    const rateLimitsByUserResult = await pool.query(`
+      DELETE FROM rate_limits
+      WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%')
+    `).catch((err: { code?: string }) => {
+      if (err.code !== '42P01') {
+        console.warn('[E2E Cleanup] Ошибка при удалении rate_limits по created_by:', err)
+      }
+      return { rowCount: 0 }
+    })
+    console.log(`[E2E Cleanup] Удалено rate_limits (по created_by): ${rateLimitsByUserResult.rowCount ?? 0}`)
+
+    // Шаг 4: Удаляем e2e пользователей
+    const usersResult = await pool.query(`DELETE FROM users WHERE username LIKE 'e2e-%'`)
+    console.log(`[E2E Cleanup] Удалено пользователей: ${usersResult.rowCount ?? 0}`)
 
     console.log('[E2E Cleanup] Очистка завершена.')
   } finally {

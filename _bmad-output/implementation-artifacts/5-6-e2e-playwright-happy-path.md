@@ -1,6 +1,6 @@
 # Story 5.6: E2E Playwright Happy Path Tests
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
