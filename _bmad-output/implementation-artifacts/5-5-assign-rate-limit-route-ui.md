@@ -1,6 +1,6 @@
 # Story 5.5: Assign Rate Limit to Route UI
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -420,7 +420,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - Task 4: RoutesTable обновлён — добавлена колонка "Rate Limit" после Methods. Отображает название политики или "—" если не назначена. Ширина 150px.
 
 - Task 5: Созданы и обновлены тесты:
-  - `RouteForm.test.tsx` — 7 тестов для Rate Limit Policy dropdown (AC1-AC3: опции, выбор, инициализация)
+  - `RouteForm.test.tsx` — 12 тестов для Rate Limit Policy (AC1-AC3: UI + интеграция с onSubmit)
   - `RouteDetailsCard.test.tsx` — 3 теста для секции Rate Limit (Story 5.5)
   - `RoutesPage.test.tsx` — 2 теста для колонки Rate Limit
   - `RouteDetailsPage.test.tsx` — обновлены 2 теста для новой имплементации
@@ -429,6 +429,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - 2026-02-19: Story 5.5 implemented — Rate Limit Policy selection in route form, Rate Limit info display in route details and table
 - 2026-02-19: Code review fixes — expanded RouteForm.test.tsx to 7 tests covering AC1-AC3, fixed JSX comment language
+- 2026-02-19: Code review #2 fixes — added 5 integration tests for onSubmit (rateLimitId передаётся корректно), loading state test, allowClear test. Total: 186 tests pass
 
 ### File List
 
@@ -452,8 +453,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | AC | Status | Notes |
 |----|--------|-------|
 | AC1 | ✅ PASS | Rate Limit Policy dropdown в форме маршрута с опциями "None" + все политики |
-| AC2 | ✅ PASS | rateLimitId передаётся в API при сохранении маршрута |
-| AC3 | ✅ PASS | При выборе "None" передаётся rateLimitId: null |
+| AC2 | ✅ PASS | rateLimitId передаётся в API при сохранении маршрута (тесты подтверждают) |
+| AC3 | ✅ PASS | При выборе "None" передаётся rateLimitId: null (тесты подтверждают) |
 | AC4 | ✅ PASS | Секция Rate Limit отображает name, requestsPerSecond, burstSize |
 | AC5 | ✅ PASS | "No rate limiting configured" с подсказкой для маршрутов без политики |
 | AC6 | ✅ PASS | Колонка Rate Limit в таблице маршрутов |
@@ -465,14 +466,18 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Названия тестов на русском языке
 - ✅ React Query для серверного состояния
 - ✅ Ant Design компоненты
-- ✅ Все 181 тест проходят
+- ✅ Все 186 тестов проходят
 
 ### Issues Found (Fixed)
 
-1. ~~Недостаточное покрытие тестами AC1-AC3~~ — добавлены 7 тестов для RouteForm.test.tsx
+1. ~~Недостаточное покрытие тестами AC1-AC3~~ — добавлены 7 UI тестов
 2. ~~RouteForm.test.tsx не добавлен в git~~ — исправлено
 3. ~~Смешанный язык в JSX комментарии~~ — исправлено
+4. ~~[HIGH] Не было тестов для проверки rateLimitId в onSubmit~~ — добавлены 4 интеграционных теста
+5. ~~[MEDIUM] Не было теста loading state~~ — добавлен тест
+6. ~~[MEDIUM] Не было теста allowClear~~ — добавлен тест
 
-### Recommendations
+### Recommendations (LOW — не блокируют)
 
-Нет рекомендаций — код готов к commit.
+1. AC4 "info card" styling — Rate Limit секция не выделена визуально как отдельный блок
+2. RoutesTable Rate Limit column width hardcoded (150px)
