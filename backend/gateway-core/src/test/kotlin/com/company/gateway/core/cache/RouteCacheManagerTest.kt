@@ -19,6 +19,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationEventPublisher
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.time.Instant
 import java.util.UUID
@@ -271,4 +272,95 @@ class RouteCacheManagerTest {
         createdBy = UUID.randomUUID(),
         createdAt = Instant.now()
     )
+
+    // Story 5.8 тесты: refreshRateLimitCache и loadRateLimitSync
+
+    @Test
+    fun `refreshRateLimitCache загружает политику по ID и обновляет кэш`() {
+        val rateLimitId = UUID.randomUUID()
+        val rateLimit = createRateLimit(rateLimitId)
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.just(rateLimit))
+
+        StepVerifier.create(cacheManager.refreshRateLimitCache(rateLimitId))
+            .verifyComplete()
+
+        // Проверяем что политика в кэше
+        assertThat(cacheManager.getCachedRateLimit(rateLimitId)).isEqualTo(rateLimit)
+        verify(caffeineRateLimitCache).put(eq(rateLimitId), eq(rateLimit))
+    }
+
+    @Test
+    fun `refreshRateLimitCache удаляет политику из кэша когда она не найдена в БД`() {
+        val rateLimitId = UUID.randomUUID()
+        val rateLimit = createRateLimit(rateLimitId)
+
+        // Сначала загружаем политику
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.just(rateLimit))
+        cacheManager.refreshRateLimitCache(rateLimitId).block()
+        assertThat(cacheManager.getCachedRateLimit(rateLimitId)).isEqualTo(rateLimit)
+
+        // Затем политика удалена из БД
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.empty())
+
+        StepVerifier.create(cacheManager.refreshRateLimitCache(rateLimitId))
+            .verifyComplete()
+
+        // Проверяем что политика удалена из кэша
+        verify(caffeineRateLimitCache).invalidate(eq(rateLimitId))
+    }
+
+    @Test
+    fun `refreshRateLimitCache обрабатывает ошибку БД gracefully`() {
+        val rateLimitId = UUID.randomUUID()
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.error(RuntimeException("Database error")))
+
+        StepVerifier.create(cacheManager.refreshRateLimitCache(rateLimitId))
+            .verifyError(RuntimeException::class.java)
+    }
+
+    @Test
+    fun `loadRateLimitSync загружает и кэширует политику`() {
+        val rateLimitId = UUID.randomUUID()
+        val rateLimit = createRateLimit(rateLimitId)
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.just(rateLimit))
+
+        val result = cacheManager.loadRateLimitSync(rateLimitId)
+
+        assertThat(result).isEqualTo(rateLimit)
+        // Политика должна быть закэширована
+        assertThat(cacheManager.getCachedRateLimit(rateLimitId)).isEqualTo(rateLimit)
+        verify(caffeineRateLimitCache).put(eq(rateLimitId), eq(rateLimit))
+    }
+
+    @Test
+    fun `loadRateLimitSync возвращает null когда политика не найдена`() {
+        val rateLimitId = UUID.randomUUID()
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.empty())
+
+        val result = cacheManager.loadRateLimitSync(rateLimitId)
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `loadRateLimitSync возвращает null при ошибке БД`() {
+        val rateLimitId = UUID.randomUUID()
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.error(RuntimeException("Database error")))
+
+        val result = cacheManager.loadRateLimitSync(rateLimitId)
+
+        assertThat(result).isNull()
+    }
 }

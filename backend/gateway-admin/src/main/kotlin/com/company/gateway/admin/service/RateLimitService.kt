@@ -7,6 +7,7 @@ import com.company.gateway.admin.dto.UpdateRateLimitRequest
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
+import com.company.gateway.admin.publisher.RateLimitEventPublisher
 import com.company.gateway.admin.publisher.RouteEventPublisher
 import com.company.gateway.admin.repository.RateLimitRepository
 import com.company.gateway.admin.repository.RouteRepository
@@ -26,12 +27,16 @@ import java.util.UUID
  * - Удаление политики с проверкой использования
  * - Получение политики по ID с usageCount
  * - Получение списка политик с пагинацией
+ *
+ * При создании/обновлении/удалении политики публикуется событие
+ * через RateLimitEventPublisher для синхронизации кэша gateway-core.
  */
 @Service
 class RateLimitService(
     private val rateLimitRepository: RateLimitRepository,
     private val routeRepository: RouteRepository,
     private val routeEventPublisher: RouteEventPublisher,
+    private val rateLimitEventPublisher: RateLimitEventPublisher,
     private val auditService: AuditService
 ) {
     private val logger = LoggerFactory.getLogger(RateLimitService::class.java)
@@ -90,6 +95,11 @@ class RateLimitService(
                         "burstSize" to saved.burstSize
                     )
                 ).thenReturn(saved)
+            }
+            .flatMap { saved ->
+                // Публикуем событие для синхронизации кэша gateway-core
+                rateLimitEventPublisher.publishRateLimitChanged(saved.id!!)
+                    .thenReturn(saved)
             }
             .map { RateLimitResponse.from(it, usageCount = 0) }
             .doOnSuccess { logger.info("Политика rate limiting создана: name={}, userId={}", request.name, userId) }
@@ -180,6 +190,11 @@ class RateLimitService(
                 }
             }
             .flatMap { saved ->
+                // Публикуем событие для синхронизации кэша rate limit в gateway-core
+                rateLimitEventPublisher.publishRateLimitChanged(saved.id!!)
+                    .thenReturn(saved)
+            }
+            .flatMap { saved ->
                 // Инвалидируем кэш для всех маршрутов с этой политикой
                 routeRepository.findByRateLimitId(id)
                     .flatMap { route -> routeEventPublisher.publishRouteChanged(route.id!!) }
@@ -226,6 +241,10 @@ class RateLimitService(
                                         userId = userId,
                                         username = username
                                     )
+                                )
+                                .then(
+                                    // Публикуем событие для синхронизации кэша gateway-core
+                                    rateLimitEventPublisher.publishRateLimitChanged(id)
                                 )
                                 .then()
                         }

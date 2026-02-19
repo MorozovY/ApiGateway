@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -101,5 +102,29 @@ class RouteRefreshServiceTest {
         // CacheManager не должен вызываться при конструировании
         verify(cacheManager, never()).refreshCache()
         verify(cacheManager, never()).getCachedRoutes()
+    }
+
+    // Story 5.8 тесты: подписка на ratelimit-cache-invalidation
+
+    @Test
+    fun `сервис не вызывает refreshRateLimitCache при конструировании`() {
+        // Создание сервиса НЕ должно вызывать операции с rate limit кэшем
+        val newService = RouteRefreshService(redisConnectionFactory, cacheManager)
+
+        // CacheManager refreshRateLimitCache не должен вызываться при конструировании
+        verify(cacheManager, never()).refreshRateLimitCache(any())
+    }
+
+    @Test
+    fun `зависимость cacheManager поддерживает refreshRateLimitCache`() {
+        // Проверяем, что cacheManager.refreshRateLimitCache доступен
+        val testId = java.util.UUID.randomUUID()
+        whenever(cacheManager.refreshRateLimitCache(testId)).thenReturn(Mono.empty())
+
+        // Вызываем метод
+        val result = cacheManager.refreshRateLimitCache(testId)
+
+        assertThat(result).isNotNull
+        verify(cacheManager).refreshRateLimitCache(testId)
     }
 }

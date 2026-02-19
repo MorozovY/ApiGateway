@@ -1,10 +1,10 @@
 package com.company.gateway.admin.publisher
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.stereotype.Component
 import reactor.core.publisher.Mono
-import java.util.Optional
 import java.util.UUID
 
 /**
@@ -21,7 +21,8 @@ import java.util.UUID
  */
 @Component
 class RouteEventPublisher(
-    private val redisTemplate: Optional<ReactiveStringRedisTemplate>
+    @Autowired(required = false)
+    private val redisTemplate: ReactiveStringRedisTemplate?
 ) {
     private val logger = LoggerFactory.getLogger(RouteEventPublisher::class.java)
 
@@ -50,12 +51,12 @@ class RouteEventPublisher(
         logger.debug("Публикация cache invalidation для маршрута: routeId={}", routeId)
 
         // Если Redis недоступен — пропускаем публикацию
-        if (!redisTemplate.isPresent) {
+        if (redisTemplate == null) {
             logger.warn("Redis недоступен — cache invalidation не опубликован: routeId={}", routeId)
             return Mono.just(0L)
         }
 
-        return redisTemplate.get().convertAndSend(ROUTE_CACHE_CHANNEL, routeId.toString())
+        return redisTemplate.convertAndSend(ROUTE_CACHE_CHANNEL, routeId.toString())
             .doOnSuccess { subscribersCount ->
                 logger.info(
                     "Cache invalidation опубликован: routeId={}, subscribers={}",

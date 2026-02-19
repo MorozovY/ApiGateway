@@ -132,4 +132,71 @@ class RouteCacheManager(
      * Возвращает количество закэшированных rate limit политик.
      */
     fun getRateLimitCacheSize(): Int = cachedRateLimits.get().size
+
+    /**
+     * Загружает одну политику rate limit по ID и обновляет кэш.
+     * Используется при получении события из Redis pub/sub.
+     *
+     * Story 5.8, AC1: Rate limit политики синхронизируются немедленно
+     *
+     * @param rateLimitId ID политики для загрузки
+     * @return Mono<Void> завершение операции
+     */
+    fun refreshRateLimitCache(rateLimitId: UUID): Mono<Void> =
+        rateLimitRepository.findById(rateLimitId)
+            .doOnNext { rateLimit ->
+                // Обновляем AtomicReference map
+                cachedRateLimits.updateAndGet { currentMap ->
+                    currentMap.toMutableMap().apply {
+                        put(rateLimitId, rateLimit)
+                    }
+                }
+                // Обновляем Caffeine кэш
+                caffeineRateLimitCache.put(rateLimitId, rateLimit)
+                logger.info("Политика rate limit обновлена в кэше: {}", rateLimitId)
+
+                // Уведомляем Spring Cloud Gateway о необходимости обновить маршруты
+                eventPublisher.publishEvent(RefreshRoutesEvent(this))
+            }
+            .switchIfEmpty(
+                Mono.fromRunnable {
+                    // Политика удалена — удаляем из кэша
+                    cachedRateLimits.updateAndGet { currentMap ->
+                        currentMap.toMutableMap().apply { remove(rateLimitId) }
+                    }
+                    caffeineRateLimitCache.invalidate(rateLimitId)
+                    logger.info("Политика rate limit удалена из кэша: {}", rateLimitId)
+                }
+            )
+            .doOnError { e ->
+                logger.warn("Ошибка загрузки политики {}: {}", rateLimitId, e.message)
+            }
+            .then()
+
+    /**
+     * Синхронная загрузка политики — fallback для DynamicRouteLocator.
+     * ВАЖНО: Блокирующий вызов, использовать только для fallback!
+     *
+     * Story 5.8, AC2: Маршруты с rate limit работают сразу после publish
+     *
+     * @param rateLimitId ID политики для загрузки
+     * @return RateLimit или null если политика не найдена
+     */
+    fun loadRateLimitSync(rateLimitId: UUID): RateLimit? {
+        return try {
+            rateLimitRepository.findById(rateLimitId)
+                .doOnNext { rateLimit ->
+                    // Кэшируем загруженную политику для следующих запросов
+                    cachedRateLimits.updateAndGet { map ->
+                        map.toMutableMap().apply { put(rateLimitId, rateLimit) }
+                    }
+                    caffeineRateLimitCache.put(rateLimitId, rateLimit)
+                    logger.info("Политика rate limit загружена через fallback и закэширована: {}", rateLimitId)
+                }
+                .block(java.time.Duration.ofSeconds(5))
+        } catch (e: Exception) {
+            logger.error("Ошибка синхронной загрузки политики {}: {}", rateLimitId, e.message)
+            null
+        }
+    }
 }

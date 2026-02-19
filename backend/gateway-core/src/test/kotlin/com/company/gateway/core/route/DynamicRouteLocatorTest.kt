@@ -1,5 +1,6 @@
 package com.company.gateway.core.route
 
+import com.company.gateway.common.model.RateLimit
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import com.company.gateway.core.cache.RouteCacheManager
@@ -8,6 +9,9 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import reactor.test.StepVerifier
 import java.time.Instant
@@ -172,4 +176,57 @@ class DynamicRouteLocatorTest {
         createdAt = Instant.now(),
         updatedAt = Instant.now()
     )
+
+    private fun createRouteWithRateLimit(path: String, upstreamUrl: String, rateLimitId: UUID) = Route(
+        id = UUID.randomUUID(),
+        path = path,
+        upstreamUrl = upstreamUrl,
+        methods = listOf("GET"),
+        status = RouteStatus.PUBLISHED,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+        rateLimitId = rateLimitId
+    )
+
+    private fun createRateLimit(id: UUID) = RateLimit(
+        id = id,
+        name = "test-policy",
+        requestsPerSecond = 10,
+        burstSize = 15,
+        createdBy = UUID.randomUUID(),
+        createdAt = Instant.now()
+    )
+
+    // Story 5.8 тесты: маршруты с rate limit
+
+    @Test
+    fun `getRoutes создаёт маршрут с rateLimitId`() {
+        // Тест проверяет что маршрут с rateLimitId успешно создаётся
+        // Фактическая загрузка rate limit происходит в predicate при обработке запроса
+        val rateLimitId = UUID.randomUUID()
+        val route = createRouteWithRateLimit("/api/limited", "http://limited-service:8080", rateLimitId)
+
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(route))
+
+        StepVerifier.create(dynamicRouteLocator.getRoutes())
+            .expectNextMatches { gatewayRoute ->
+                gatewayRoute.id == route.id.toString()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `getRoutes создаёт маршрут без rate limit когда rateLimitId null`() {
+        val route = createRoute("/api/unlimited", "http://unlimited-service:8080", RouteStatus.PUBLISHED)
+
+        whenever(cacheManager.getCachedRoutes())
+            .thenReturn(listOf(route))
+
+        StepVerifier.create(dynamicRouteLocator.getRoutes())
+            .expectNextMatches { gatewayRoute ->
+                gatewayRoute.id == route.id.toString()
+            }
+            .verifyComplete()
+    }
 }

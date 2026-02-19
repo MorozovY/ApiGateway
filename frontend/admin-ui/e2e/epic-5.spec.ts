@@ -56,10 +56,11 @@ async function createRouteWithRateLimit(
   pathSuffix: string,
   rateLimitId: string
 ): Promise<string> {
+  // Используем /anything/* — httpbin возвращает 200 для любого пути после /anything
   const response = await page.request.post('/api/v1/routes', {
     data: {
       path: `/e2e-rl-${pathSuffix}`,
-      upstreamUrl: 'http://httpbin.org/get',
+      upstreamUrl: 'http://httpbin.org/anything',
       methods: ['GET'],
       rateLimitId,
     },
@@ -253,34 +254,41 @@ test.describe('Epic 5: Rate Limiting', () => {
     await expect(page.locator(`text=${policyName}`)).toBeVisible()
   })
 
-  // TODO: Тест требует работающего Redis pub/sub для синхронизации gateway-core
-  // При отсутствии Redis используется Caffeine cache с TTL 60 секунд
-  // Known issue: gateway-core не получает cache invalidation события
-  test.skip('Rate limiting применяется в Gateway', { timeout: 90_000 }, async ({ page }) => {
+  // Story 5.8: Rate limit политики синхронизируются немедленно через Redis pub/sub
+  // Gateway-core подписан на канал ratelimit-cache-invalidation и обновляет кэш
+  // Fallback: если политика не в кэше, загружается напрямую из БД
+  test('Rate limiting применяется в Gateway', { timeout: 90_000 }, async ({ page }) => {
     // AC3: Setup — создаём published маршрут с rate limit
     await login(page, 'test-admin', 'Test1234!', '/dashboard')
 
     // Создаём политику с низким лимитом для быстрого теста
-    const policyId = await createRateLimitPolicy(page, `e2e-gateway-${TIMESTAMP}`, 3, 5)
+    // requestsPerSecond=2, burstSize=2 — позволяет ~4-5 запросов до 429
+    const policyId = await createRateLimitPolicy(page, `e2e-gateway-${TIMESTAMP}`, 2, 2)
 
     // Создаём и публикуем маршрут
     const routePath = `gateway-${TIMESTAMP}`
     await createPublishedRouteWithRateLimit(page, routePath, policyId)
 
-    // Ожидаем синхронизации gateway с retry
-    // Gateway-core слушает Redis pub/sub, но fallback на Caffeine cache (TTL 60s)
+    // Ждём синхронизации кэша через Redis pub/sub (Story 5.8)
+    // Политика должна быть доступна в течение 5 секунд (AC1)
+    await page.waitForTimeout(3000)
+
+    // Gateway URL для тестирования rate limit
     const gatewayUrl = `http://localhost:8080/e2e-rl-${routePath}`
     let firstResponse: Awaited<ReturnType<typeof page.request.get>>
 
-    // Ждём синхронизации gateway
+    // Ждём синхронизации gateway с retry (fallback на Caffeine TTL если Redis недоступен)
+    // Проверяем что маршрут доступен И rate limiting активен (X-RateLimit-Limit присутствует)
     await expect(async () => {
       firstResponse = await page.request.get(gatewayUrl, { failOnStatusCode: false })
       expect(firstResponse.status()).toBe(200)
-    }).toPass({ timeout: 65_000 })
+      // Важно: ждём пока rate limit headers появятся (AC2)
+      expect(firstResponse.headers()['x-ratelimit-limit']).toBe('2')
+    }).toPass({ timeout: 30_000 })
 
-    // Проверяем заголовки X-RateLimit-*
+    // Проверяем заголовки X-RateLimit-* (AC2)
     const headers = firstResponse!.headers()
-    expect(headers['x-ratelimit-limit']).toBe('3')
+    expect(headers['x-ratelimit-limit']).toBe('2')
     expect(Number(headers['x-ratelimit-remaining'])).toBeGreaterThanOrEqual(0)
     expect(headers['x-ratelimit-reset']).toBeTruthy()
 
