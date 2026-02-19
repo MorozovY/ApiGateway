@@ -90,9 +90,10 @@ development_status:
   epic-5-retrospective: done
 
   # Epic 6: Monitoring & Observability
-  epic-6: backlog
-  6-1-metrics-collection-micrometer: backlog
-  6-2-per-route-metrics: backlog
+  epic-6: in-progress
+  6-0-theme-switcher-ui: done  # Mini-story: dark/light theme toggle
+  6-1-metrics-collection-micrometer: done
+  6-2-per-route-metrics: ready-for-dev
   6-3-metrics-summary-api: backlog
   6-4-prometheus-grafana-setup: backlog
   6-5-basic-metrics-view-admin-ui: backlog

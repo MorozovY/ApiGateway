@@ -1,10 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>API Gateway Admin</title>
+    <script>
+      // Раннее определение темы до рендера React (FOUC prevention)
+      (function() {
+        var stored = localStorage.getItem('app-theme');
+        var system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        // Валидация: используем stored только если это 'light' или 'dark'
+      var theme = (stored === 'light' || stored === 'dark') ? stored : system;
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+        // Установка фона для предотвращения белой вспышки при dark теме
+        if (theme === 'dark') {
+          document.documentElement.style.backgroundColor = '#141414';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
