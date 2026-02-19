@@ -1360,6 +1360,46 @@ So that I can protect my service endpoints.
 
 ---
 
+### Story 5.6: E2E Playwright Happy Path Tests
+
+As a **QA Engineer**,
+I want E2E tests covering the Rate Limiting happy path,
+So that critical user flows are verified in a real browser environment.
+
+**Acceptance Criteria:**
+
+**Given** Playwright test suite is configured
+**When** E2E tests for Epic 5 are executed
+**Then** the following scenarios pass:
+
+**Scenario 1 — Admin создаёт политику rate limit:**
+- Admin логинится
+- Переходит на /rate-limits
+- Нажимает "New Policy"
+- Заполняет форму (name, requestsPerSecond, burstSize)
+- Сохраняет → видит политику в таблице
+
+**Scenario 2 — Developer назначает политику на маршрут:**
+- Developer логинится
+- Создаёт новый маршрут
+- Выбирает Rate Limit Policy в dropdown
+- Сохраняет маршрут
+- Переходит на детали маршрута → видит rate limit info
+
+**Scenario 3 — Rate limiting применяется в Gateway:**
+- Published маршрут с rate limit существует
+- Отправляются запросы через Gateway
+- При превышении лимита возвращается HTTP 429
+- Заголовки X-RateLimit-* присутствуют
+
+**Scenario 4 — Admin редактирует/удаляет политику:**
+- Admin редактирует существующую политику
+- Изменения сохраняются
+- Admin пытается удалить используемую политику → ошибка
+- Admin удаляет неиспользуемую политику → успех
+
+---
+
 ## Epic 6: Monitoring & Observability
 
 DevOps видит real-time метрики (RPS, latency, errors), может экспортировать в Prometheus, проверять health. Алексей за 5 минут находит проблему при инциденте.
@@ -1580,6 +1620,42 @@ So that I have quick visibility without opening Grafana.
 **When** accessing dashboard
 **Then** basic metrics widget is visible (read-only)
 **And** limited to routes they created
+
+---
+
+### Story 6.6: E2E Playwright Happy Path Tests
+
+As a **QA Engineer**,
+I want E2E tests covering the Monitoring & Observability happy path,
+So that critical user flows are verified in a real browser environment.
+
+**Acceptance Criteria:**
+
+**Given** Playwright test suite is configured
+**When** E2E tests for Epic 6 are executed
+**Then** the following scenarios pass:
+
+**Scenario 1 — Prometheus метрики доступны:**
+- Gateway-core запущен
+- GET /actuator/prometheus возвращает метрики в Prometheus формате
+- Метрики включают gateway_requests_total, gateway_request_duration_seconds
+
+**Scenario 2 — Per-route метрики работают:**
+- Запрос через published маршрут
+- Метрики содержат labels route_path, method, status
+- Prometheus query по route_path возвращает данные
+
+**Scenario 3 — Admin видит метрики в UI:**
+- Admin/DevOps логинится
+- Переходит на /dashboard
+- Виджет метрик отображает RPS, Latency, Error Rate
+- Данные обновляются автоматически
+
+**Scenario 4 — Grafana dashboard работает:**
+- docker-compose --profile monitoring up
+- Grafana доступен на port 3000
+- Dashboard "API Gateway" отображает графики
+- Prometheus datasource подключен
 
 ---
 
@@ -1925,3 +2001,45 @@ So that I can conduct thorough audits.
 - Route owners
 - Current status
 - Last modified date
+
+---
+
+### Story 7.7: E2E Playwright Happy Path Tests
+
+As a **QA Engineer**,
+I want E2E tests covering the Audit & Compliance happy path,
+So that critical user flows are verified in a real browser environment.
+
+**Acceptance Criteria:**
+
+**Given** Playwright test suite is configured
+**When** E2E tests for Epic 7 are executed
+**Then** the following scenarios pass:
+
+**Scenario 1 — Audit log записывает события:**
+- Developer создаёт маршрут → audit log содержит route.created
+- Developer редактирует маршрут → audit log содержит route.updated с before/after
+- Security approve/reject → audit log содержит соответствующее событие
+
+**Scenario 2 — Security просматривает audit log UI:**
+- Security логинится
+- Переходит на /audit
+- Таблица отображает события
+- Фильтры по user, action, entityType работают
+- Экспорт в CSV скачивает файл
+
+**Scenario 3 — Route History отображается:**
+- Security открывает детали маршрута
+- Переключается на вкладку "History"
+- Timeline показывает все изменения
+- Раскрытие события показывает diff
+
+**Scenario 4 — Upstream Report работает:**
+- Security переходит на /audit/integrations
+- Таблица upstream сервисов отображается
+- Клик на upstream показывает все маршруты к нему
+- Экспорт отчёта работает
+
+**Scenario 5 — Developer не имеет доступа к audit:**
+- Developer логинится
+- Попытка доступа к /audit → 403 или редирект
