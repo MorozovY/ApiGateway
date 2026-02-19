@@ -1,0 +1,387 @@
+package com.company.gateway.core.integration
+
+import com.company.gateway.common.model.RouteStatus
+import com.company.gateway.core.cache.RouteCacheManager
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import com.redis.testcontainers.RedisContainer
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.redis.core.ReactiveRedisTemplate
+import org.springframework.r2dbc.core.DatabaseClient
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
+import org.springframework.test.web.reactive.server.WebTestClient
+import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.UUID
+
+/**
+ * Интеграционные тесты для Rate Limiting (Story 5.3)
+ *
+ * Тесты:
+ * - AC1: Запросы в пределах лимита проходят
+ * - AC2: Превышение burst возвращает 429
+ * - AC3: Token bucket replenishment (тестируется в TokenBucketScriptTest)
+ * - AC4: Graceful degradation при недоступности Redis (тестируется отдельно)
+ * - AC5: Маршрут без rate limit проходит без заголовков
+ * - AC6: Distributed rate limiting — разные клиенты имеют независимые лимиты
+ * - AC7: Rate limit заголовки в успешных ответах
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Testcontainers
+@ActiveProfiles("test")
+class RateLimitIntegrationTest {
+
+    companion object {
+        @Container
+        @JvmStatic
+        val postgres = PostgreSQLContainer("postgres:16")
+            .withDatabaseName("gateway")
+            .withUsername("gateway")
+            .withPassword("gateway")
+
+        @Container
+        @JvmStatic
+        val redis = RedisContainer("redis:7")
+
+        lateinit var wireMock: WireMockServer
+
+        @BeforeAll
+        @JvmStatic
+        fun startWireMock() {
+            wireMock = WireMockServer(WireMockConfiguration.options().dynamicPort())
+            wireMock.start()
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopWireMock() {
+            wireMock.stop()
+        }
+
+        @DynamicPropertySource
+        @JvmStatic
+        fun configureProperties(registry: DynamicPropertyRegistry) {
+            registry.add("spring.r2dbc.url") {
+                "r2dbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+            }
+            registry.add("spring.r2dbc.username", postgres::getUsername)
+            registry.add("spring.r2dbc.password", postgres::getPassword)
+            registry.add("spring.flyway.url", postgres::getJdbcUrl)
+            registry.add("spring.flyway.user", postgres::getUsername)
+            registry.add("spring.flyway.password", postgres::getPassword)
+            registry.add("spring.data.redis.host", redis::getHost)
+            registry.add("spring.data.redis.port") { redis.firstMappedPort }
+            registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
+            registry.add("gateway.cache.ttl-seconds") { 60 }
+            registry.add("gateway.cache.max-routes") { 1000 }
+            registry.add("gateway.ratelimit.fallback-enabled") { true }
+            registry.add("gateway.ratelimit.fallback-reduction") { 0.5 }
+        }
+    }
+
+    @Autowired
+    private lateinit var webTestClient: WebTestClient
+
+    @Autowired
+    private lateinit var databaseClient: DatabaseClient
+
+    @Autowired
+    private lateinit var cacheManager: RouteCacheManager
+
+    @Autowired
+    private lateinit var redisTemplate: ReactiveRedisTemplate<String, String>
+
+    private lateinit var rateLimitId: UUID
+
+    @BeforeEach
+    fun setUp() {
+        // Очищаем Redis ключи rate limit для изоляции тестов
+        redisTemplate.keys("ratelimit:*")
+            .flatMap { key -> redisTemplate.delete(key) }
+            .blockLast()
+
+        // Очищаем данные (порядок важен из-за FK)
+        databaseClient.sql("UPDATE routes SET rate_limit_id = NULL").fetch().rowsUpdated().block()
+        databaseClient.sql("DELETE FROM routes").fetch().rowsUpdated().block()
+        databaseClient.sql("DELETE FROM rate_limits").fetch().rowsUpdated().block()
+
+        // Очищаем кэш маршрутов
+        cacheManager.refreshCache().block()
+
+        // Создаём rate limit policy
+        rateLimitId = UUID.randomUUID()
+        databaseClient.sql(
+            """
+            INSERT INTO rate_limits (id, name, requests_per_second, burst_size, created_by)
+            VALUES (:id, :name, :rps, :burst, :createdBy)
+            """.trimIndent()
+        )
+            .bind("id", rateLimitId)
+            .bind("name", "test-policy-${UUID.randomUUID()}")
+            .bind("rps", 5) // 5 запросов в секунду
+            .bind("burst", 3) // burst = 3 токена
+            .bind("createdBy", UUID.randomUUID())
+            .fetch()
+            .rowsUpdated()
+            .block()
+
+        // Настраиваем WireMock для всех /api/* путей
+        wireMock.stubFor(
+            WireMock.get(WireMock.urlMatching("/api/.*"))
+                .willReturn(
+                    WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""{"status": "ok"}""")
+                )
+        )
+    }
+
+    @AfterEach
+    fun tearDown() {
+        wireMock.resetAll()
+    }
+
+    @Test
+    fun `AC1 - запросы в пределах лимита проходят успешно`() {
+        // Создаём маршрут с rate limit
+        insertRouteWithRateLimit("/api/test", rateLimitId)
+
+        // Первые 3 запроса должны пройти (burst = 3)
+        repeat(3) {
+            webTestClient.get()
+                .uri("/api/test")
+                .exchange()
+                .expectStatus().isOk
+                .expectHeader().exists("X-RateLimit-Limit")
+                .expectHeader().exists("X-RateLimit-Remaining")
+                .expectHeader().exists("X-RateLimit-Reset")
+        }
+
+        // Проверяем, что WireMock получил запросы
+        wireMock.verify(3, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/api/test")))
+    }
+
+    @Test
+    fun `AC2 - превышение burst возвращает 429`() {
+        // Создаём маршрут с rate limit
+        insertRouteWithRateLimit("/api/limited", rateLimitId)
+
+        // Исчерпываем burst (3 запроса)
+        repeat(3) {
+            webTestClient.get()
+                .uri("/api/limited")
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        // Следующий запрос должен получить 429
+        webTestClient.get()
+            .uri("/api/limited")
+            .exchange()
+            .expectStatus().isEqualTo(429)
+            .expectHeader().valueEquals("X-RateLimit-Limit", "5")
+            .expectHeader().valueEquals("X-RateLimit-Remaining", "0")
+            .expectHeader().exists("X-RateLimit-Reset")
+            .expectHeader().exists("Retry-After")
+            .expectBody()
+            .jsonPath("$.type").isEqualTo("https://api.gateway/errors/rate-limit-exceeded")
+            .jsonPath("$.status").isEqualTo(429)
+            .jsonPath("$.title").isEqualTo("Too Many Requests")
+    }
+
+    @Test
+    fun `AC5 - маршрут без rate limit проходит без заголовков rate limit`() {
+        // Создаём маршрут БЕЗ rate limit
+        insertRoute("/api/unlimited")
+
+        webTestClient.get()
+            .uri("/api/unlimited")
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().doesNotExist("X-RateLimit-Limit")
+            .expectHeader().doesNotExist("X-RateLimit-Remaining")
+    }
+
+    @Test
+    fun `AC7 - rate limit заголовки в успешных ответах`() {
+        // Создаём маршрут с rate limit
+        insertRouteWithRateLimit("/api/headers", rateLimitId)
+
+        webTestClient.get()
+            .uri("/api/headers")
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().valueEquals("X-RateLimit-Limit", "5")
+            .expectHeader().exists("X-RateLimit-Remaining")
+            .expectHeader().exists("X-RateLimit-Reset")
+    }
+
+    @Test
+    fun `разные клиенты имеют независимые rate limits`() {
+        // Создаём маршрут с rate limit
+        insertRouteWithRateLimit("/api/multiuser", rateLimitId)
+
+        // Клиент 1 исчерпывает лимит
+        repeat(3) {
+            webTestClient.get()
+                .uri("/api/multiuser")
+                .header("X-Forwarded-For", "10.0.0.1")
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        // Клиент 1 получает 429
+        webTestClient.get()
+            .uri("/api/multiuser")
+            .header("X-Forwarded-For", "10.0.0.1")
+            .exchange()
+            .expectStatus().isEqualTo(429)
+
+        // Клиент 2 всё ещё может отправлять запросы
+        webTestClient.get()
+            .uri("/api/multiuser")
+            .header("X-Forwarded-For", "10.0.0.2")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `AC3 - токены восполняются со временем`() {
+        // Создаём маршрут с rate limit (5 req/s, burst 3)
+        insertRouteWithRateLimit("/api/replenish", rateLimitId)
+
+        // Исчерпываем все токены (burst = 3)
+        repeat(3) {
+            webTestClient.get()
+                .uri("/api/replenish")
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        // Следующий запрос должен быть заблокирован
+        webTestClient.get()
+            .uri("/api/replenish")
+            .exchange()
+            .expectStatus().isEqualTo(429)
+
+        // Ждём 1 секунду — восполнится 5 токенов (5 req/s)
+        Thread.sleep(1100)
+
+        // Теперь запрос должен пройти
+        webTestClient.get()
+            .uri("/api/replenish")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `AC6 - distributed rate limiting через Redis`() {
+        // Этот тест проверяет, что rate limit работает через Redis
+        // и несколько клиентов с одним IP разделяют общий bucket
+
+        insertRouteWithRateLimit("/api/distributed", rateLimitId)
+
+        val clientIp = "192.168.1.100"
+
+        // Отправляем 3 запроса с одного IP (burst = 3)
+        repeat(3) {
+            webTestClient.get()
+                .uri("/api/distributed")
+                .header("X-Forwarded-For", clientIp)
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        // 4-й запрос с того же IP должен быть заблокирован
+        webTestClient.get()
+            .uri("/api/distributed")
+            .header("X-Forwarded-For", clientIp)
+            .exchange()
+            .expectStatus().isEqualTo(429)
+
+        // Запрос с другого IP должен пройти (независимый bucket)
+        webTestClient.get()
+            .uri("/api/distributed")
+            .header("X-Forwarded-For", "192.168.1.200")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `AC2 - 429 ответ содержит RFC 7807 структуру с correlationId`() {
+        insertRouteWithRateLimit("/api/rfc7807", rateLimitId)
+
+        // Используем уникальный IP для изоляции от других тестов
+        val testClientIp = "10.99.99.99"
+
+        // Исчерпываем burst
+        repeat(3) {
+            webTestClient.get()
+                .uri("/api/rfc7807")
+                .header("X-Forwarded-For", testClientIp)
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        // Проверяем RFC 7807 формат
+        webTestClient.get()
+            .uri("/api/rfc7807")
+            .header("X-Forwarded-For", testClientIp)
+            .exchange()
+            .expectStatus().isEqualTo(429)
+            .expectBody()
+            .jsonPath("$.type").isEqualTo("https://api.gateway/errors/rate-limit-exceeded")
+            .jsonPath("$.title").isEqualTo("Too Many Requests")
+            .jsonPath("$.status").isEqualTo(429)
+            .jsonPath("$.detail").exists()
+            .jsonPath("$.correlationId").exists()
+    }
+
+    private fun insertRouteWithRateLimit(path: String, rateLimitId: UUID) {
+        databaseClient.sql(
+            """
+            INSERT INTO routes (id, path, upstream_url, methods, status, rate_limit_id)
+            VALUES (:id, :path, :upstreamUrl, ARRAY['GET','POST'], :status, :rateLimitId)
+            """.trimIndent()
+        )
+            .bind("id", UUID.randomUUID())
+            .bind("path", path)
+            .bind("upstreamUrl", "http://localhost:${wireMock.port()}")
+            .bind("status", RouteStatus.PUBLISHED.name.lowercase())
+            .bind("rateLimitId", rateLimitId)
+            .fetch()
+            .rowsUpdated()
+            .block()
+
+        cacheManager.refreshCache().block()
+    }
+
+    private fun insertRoute(path: String) {
+        databaseClient.sql(
+            """
+            INSERT INTO routes (id, path, upstream_url, methods, status)
+            VALUES (:id, :path, :upstreamUrl, ARRAY['GET','POST'], :status)
+            """.trimIndent()
+        )
+            .bind("id", UUID.randomUUID())
+            .bind("path", path)
+            .bind("upstreamUrl", "http://localhost:${wireMock.port()}")
+            .bind("status", RouteStatus.PUBLISHED.name.lowercase())
+            .fetch()
+            .rowsUpdated()
+            .block()
+
+        cacheManager.refreshCache().block()
+    }
+}

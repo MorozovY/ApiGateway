@@ -6,7 +6,13 @@ gateway:
     invalidation-channel: route-cache-invalidation
     ttl-seconds: 60
     max-routes: 1000
+    max-rate-limits: 100
     reconnect-delay-seconds: 30
+  ratelimit:
+    fallback-enabled: true           # Включить Caffeine fallback при недоступности Redis
+    fallback-reduction: 0.5          # 50% от policy при fallback
+    redis-key-prefix: ratelimit      # Префикс ключей Redis
+    local-cache-ttl-seconds: 60      # TTL локального кэша fallback
 
 spring:
   application:
