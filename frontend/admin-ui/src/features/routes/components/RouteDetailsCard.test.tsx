@@ -1,4 +1,4 @@
-// Тесты для Submit for Approval UI (Story 4.5)
+// Тесты для Submit for Approval UI (Story 4.5), Rate Limit секция (Story 5.5)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
 import { renderWithMockAuth } from '../../../test/test-utils'
@@ -327,5 +327,80 @@ describe('Submit for Approval UI', () => {
     expect(
       screen.getByText(/маршрут будет отправлен в security на проверку/i)
     ).toBeInTheDocument()
+  })
+})
+
+describe('секция Rate Limit (Story 5.5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSubmitMutateAsync = vi.fn()
+    mockSubmitIsPending = false
+    mockCloneMutateAsync = vi.fn()
+    mockCloneIsPending = false
+    mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  // Маршрут с назначенной политикой rate limit
+  const mockRouteWithRateLimit: Route = {
+    ...mockDraftRoute,
+    rateLimit: {
+      id: 'policy-1',
+      name: 'standard',
+      requestsPerSecond: 100,
+      burstSize: 150,
+    },
+  }
+
+  // Маршрут без rate limit
+  const mockRouteWithoutRateLimit: Route = {
+    ...mockDraftRoute,
+    rateLimitId: null,
+    rateLimit: null,
+  }
+
+  it('отображает name, requestsPerSecond, burstSize когда политика назначена', async () => {
+    renderWithMockAuth(<RouteDetailsCard route={mockRouteWithRateLimit} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      // Проверяем отображение названия политики
+      expect(screen.getByText('standard')).toBeInTheDocument()
+      // Проверяем отображение requests per second
+      expect(screen.getByText('100')).toBeInTheDocument()
+      // Проверяем отображение burst size
+      expect(screen.getByText('150')).toBeInTheDocument()
+    })
+
+    // Проверяем labels
+    expect(screen.getByText('Rate Limit Policy')).toBeInTheDocument()
+    expect(screen.getByText('Requests per Second')).toBeInTheDocument()
+    expect(screen.getByText('Burst Size')).toBeInTheDocument()
+  })
+
+  it('отображает "No rate limiting configured" когда политика не назначена', async () => {
+    renderWithMockAuth(<RouteDetailsCard route={mockRouteWithoutRateLimit} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('No rate limiting configured')).toBeInTheDocument()
+    })
+  })
+
+  it('показывает подсказку о добавлении rate limiting', async () => {
+    renderWithMockAuth(<RouteDetailsCard route={mockRouteWithoutRateLimit} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Consider adding rate limiting for production routes')
+      ).toBeInTheDocument()
+    })
   })
 })

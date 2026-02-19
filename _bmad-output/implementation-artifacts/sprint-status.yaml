@@ -78,10 +78,11 @@ development_status:
   # Epic 5: Rate Limiting
   epic-5: in-progress
   5-1-rate-limit-policy-crud-api: done
-  5-2-assign-rate-limit-route-api: review
+  5-2-assign-rate-limit-route-api: done
   5-3-rate-limiting-filter-implementation: done
   5-4-rate-limit-policies-management-ui: done
-  5-5-assign-rate-limit-route-ui: backlog
+  5-5-assign-rate-limit-route-ui: done
+  5-6-e2e-playwright-happy-path: backlog
   epic-5-retrospective: optional
 
   # Epic 6: Monitoring & Observability
@@ -91,6 +92,7 @@ development_status:
   6-3-metrics-summary-api: backlog
   6-4-prometheus-grafana-setup: backlog
   6-5-basic-metrics-view-admin-ui: backlog
+  6-6-e2e-playwright-happy-path: backlog
   epic-6-retrospective: optional
 
   # Epic 7: Audit & Compliance
@@ -101,4 +103,5 @@ development_status:
   7-4-routes-upstream-filter: backlog
   7-5-audit-log-ui: backlog
   7-6-route-history-upstream-report-ui: backlog
+  7-7-e2e-playwright-happy-path: backlog
   epic-7-retrospective: optional

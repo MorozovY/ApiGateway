@@ -1,8 +1,9 @@
-// Компонент формы маршрута (Story 3.5)
+// Компонент формы маршрута (Story 3.5, расширен в Story 5.5)
 import { forwardRef, useImperativeHandle, useCallback, useRef, useState, useEffect } from 'react'
 import { Form, Input, Select, Button, Space } from 'antd'
 import type { Route, CreateRouteRequest, UpdateRouteRequest } from '../types/route.types'
 import { checkPathExists } from '../api/routesApi'
+import { useRateLimits } from '@features/rate-limits'
 
 /**
  * Доступные HTTP методы для маршрута.
@@ -56,6 +57,9 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentPathRef = useRef<string | null>(null)
 
+  // Загрузка списка Rate Limit политик (Story 5.5)
+  const { data: rateLimitsData, isLoading: rateLimitsLoading } = useRateLimits()
+
   // Сохраняем оригинальный path для режима редактирования
   // (не проверяем уникальность для собственного path)
   const originalPath = initialValues?.path
@@ -74,6 +78,7 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
         upstreamUrl: initialValues.upstreamUrl,
         methods: initialValues.methods,
         description: initialValues.description || '',
+        rateLimitId: initialValues.rateLimitId || null,
       })
     }
   }, [initialValues, form])
@@ -146,7 +151,13 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
    * Обработчик отправки формы.
    */
   const handleFinish = useCallback(
-    async (values: { path: string; upstreamUrl: string; methods: string[]; description?: string }) => {
+    async (values: {
+      path: string
+      upstreamUrl: string
+      methods: string[]
+      description?: string
+      rateLimitId?: string | null
+    }) => {
       // Блокируем отправку если есть ошибка уникальности path
       if (pathError) {
         return
@@ -155,11 +166,15 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       // Добавляем "/" к path если его нет
       const fullPath = values.path.startsWith('/') ? values.path : `/${values.path}`
 
+      // Преобразуем пустую строку (опция "None") в null
+      const rateLimitId = values.rateLimitId && values.rateLimitId !== '' ? values.rateLimitId : null
+
       const request: CreateRouteRequest | UpdateRouteRequest = {
         path: fullPath,
         upstreamUrl: values.upstreamUrl,
         methods: values.methods,
         description: values.description || undefined,
+        rateLimitId,
       }
 
       await onSubmit(request)
@@ -235,6 +250,25 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
           mode="multiple"
           placeholder="Выберите методы"
           options={HTTP_METHODS.map((m) => ({ value: m, label: m }))}
+        />
+      </Form.Item>
+
+      {/* Поле выбора политики Rate Limit (Story 5.5) */}
+      <Form.Item
+        name="rateLimitId"
+        label="Rate Limit Policy"
+      >
+        <Select
+          placeholder="Выберите политику (опционально)"
+          allowClear
+          loading={rateLimitsLoading}
+          options={[
+            { value: '', label: 'None' },
+            ...(rateLimitsData?.items || []).map((policy) => ({
+              value: policy.id,
+              label: `${policy.name} (${policy.requestsPerSecond}/sec)`,
+            })),
+          ]}
         />
       </Form.Item>
 

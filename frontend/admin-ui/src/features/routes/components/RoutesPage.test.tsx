@@ -573,6 +573,73 @@ describe('RoutesPage пагинация', () => {
   })
 })
 
+describe('колонка Rate Limit (Story 5.5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('отображает название политики когда назначена', async () => {
+    // Мокаем ответ с rate limit
+    const routeWithRateLimit = {
+      ...mockRoutesResponse.items[0],
+      rateLimit: {
+        id: 'policy-1',
+        name: 'standard',
+        requestsPerSecond: 100,
+        burstSize: 150,
+      },
+    }
+    mockFetchRoutes.mockResolvedValue({
+      items: [routeWithRateLimit],
+      total: 1,
+      offset: 0,
+      limit: 20,
+    })
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    // Проверяем что название политики отображается в таблице
+    expect(screen.getByText('standard')).toBeInTheDocument()
+  })
+
+  it('отображает "—" когда политика не назначена', async () => {
+    // Мокаем ответ без rate limit
+    const routeWithoutRateLimit = {
+      ...mockRoutesResponse.items[0],
+      rateLimit: null,
+    }
+    mockFetchRoutes.mockResolvedValue({
+      items: [routeWithoutRateLimit],
+      total: 1,
+      offset: 0,
+      limit: 20,
+    })
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    // Проверяем что em dash отображается для отсутствующей политики
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+})
+
 describe('RoutesPage удаление маршрута', () => {
   beforeEach(() => {
     vi.clearAllMocks()

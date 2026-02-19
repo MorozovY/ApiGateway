@@ -1,4 +1,4 @@
-// Типы для управления маршрутами (Story 3.4)
+// Типы для управления маршрутами (Story 3.4, расширено в Story 5.5)
 
 /**
  * Статус маршрута в системе.
@@ -9,6 +9,17 @@
  * rejected — отклонён
  */
 export type RouteStatus = 'draft' | 'pending' | 'published' | 'rejected'
+
+/**
+ * Краткая информация о политике rate limit (из API response).
+ * Соответствует RateLimitInfo DTO на backend (Story 5.2).
+ */
+export interface RateLimitInfo {
+  id: string
+  name: string
+  requestsPerSecond: number
+  burstSize: number
+}
 
 /**
  * Данные маршрута.
@@ -27,6 +38,8 @@ export interface Route {
   createdAt: string
   updatedAt: string
   rateLimitId: string | null
+  /** Полная информация о rate limit политике (Story 5.5) */
+  rateLimit?: RateLimitInfo | null
   // Поля rejection/approval (Story 4.5) — nullable, т.к. большинство маршрутов их не имеют
   rejectionReason?: string | null
   rejectorUsername?: string | null
@@ -66,6 +79,8 @@ export interface CreateRouteRequest {
   upstreamUrl: string
   methods: string[]
   description?: string
+  /** ID политики rate limit (Story 5.5) */
+  rateLimitId?: string | null
 }
 
 /**
@@ -78,4 +93,6 @@ export interface UpdateRouteRequest {
   upstreamUrl?: string
   methods?: string[]
   description?: string
+  /** ID политики rate limit (Story 5.5) */
+  rateLimitId?: string | null
 }

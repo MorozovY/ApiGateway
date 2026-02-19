@@ -1,4 +1,4 @@
-// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4)
+// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5)
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Table, Tag, Button, Space, Popconfirm, Input, Select, Tooltip, Alert } from 'antd'
@@ -280,6 +280,14 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
           ))}
         </Space>
       ),
+    },
+    {
+      title: 'Rate Limit',
+      dataIndex: ['rateLimit', 'name'],
+      key: 'rateLimit',
+      render: (_: unknown, record: Route) =>
+        record.rateLimit?.name || '—',
+      width: 150,
     },
     {
       title: 'Status',

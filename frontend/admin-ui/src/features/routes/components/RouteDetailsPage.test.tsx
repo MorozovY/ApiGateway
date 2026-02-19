@@ -318,9 +318,19 @@ describe('RouteDetailsPage', () => {
     })
   })
 
-  describe('отображение Rate Limit (AC: #5)', () => {
+  describe('отображение Rate Limit (Story 5.5)', () => {
     it('отображает rate limit информацию если назначен', async () => {
-      mockRouteData = { ...mockRoute, rateLimitId: 'rate-limit-1' }
+      // Story 5.5: маршрут с полными данными rate limit
+      mockRouteData = {
+        ...mockRoute,
+        rateLimitId: 'rate-limit-1',
+        rateLimit: {
+          id: 'rate-limit-1',
+          name: 'standard',
+          requestsPerSecond: 100,
+          burstSize: 150,
+        },
+      }
 
       renderWithMockAuth(<RouteDetailsPage />, {
         authValue: { isAuthenticated: true, user: mockUser },
@@ -328,13 +338,16 @@ describe('RouteDetailsPage', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('Rate Limit')).toBeInTheDocument()
-        expect(screen.getByText('Политика назначена')).toBeInTheDocument()
+        expect(screen.getByText('Rate Limit Policy')).toBeInTheDocument()
+        expect(screen.getByText('standard')).toBeInTheDocument()
+        expect(screen.getByText('100')).toBeInTheDocument()
+        expect(screen.getByText('150')).toBeInTheDocument()
       })
     })
 
-    it('не отображает секцию rate limit если не назначен', async () => {
-      mockRouteData = { ...mockRoute, rateLimitId: null }
+    it('отображает сообщение "No rate limiting configured" если не назначен', async () => {
+      // Story 5.5: маршрут без rate limit
+      mockRouteData = { ...mockRoute, rateLimitId: null, rateLimit: null }
 
       renderWithMockAuth(<RouteDetailsPage />, {
         authValue: { isAuthenticated: true, user: mockUser },
@@ -345,8 +358,9 @@ describe('RouteDetailsPage', () => {
         expect(screen.getByText('/api/orders')).toBeInTheDocument()
       })
 
-      // Rate Limit label не должен отображаться
-      expect(screen.queryByText('Rate Limit')).not.toBeInTheDocument()
+      // Story 5.5: секция Rate Limit всегда отображается, но с сообщением о её отсутствии
+      expect(screen.getByText('No rate limiting configured')).toBeInTheDocument()
+      expect(screen.getByText('Consider adding rate limiting for production routes')).toBeInTheDocument()
     })
   })
 

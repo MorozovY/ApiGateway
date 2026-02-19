@@ -1,4 +1,4 @@
-// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5)
+// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5 и Story 5.5)
 import { useState } from 'react'
 import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Modal, Alert } from 'antd'
 import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined } from '@ant-design/icons'
@@ -195,11 +195,27 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
             </Tooltip>
           </Descriptions.Item>
 
-          {/* Rate Limit секция — если назначен */}
-          {/* TODO: После реализации API rate limits (Epic 4) загружать название и лимиты политики */}
-          {route.rateLimitId && (
+          {/* Rate Limit секция (Story 5.5) */}
+          {route.rateLimit ? (
+            <>
+              <Descriptions.Item label="Rate Limit Policy">
+                <strong>{route.rateLimit.name}</strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Requests per Second">
+                {route.rateLimit.requestsPerSecond}
+              </Descriptions.Item>
+              <Descriptions.Item label="Burst Size">
+                {route.rateLimit.burstSize}
+              </Descriptions.Item>
+            </>
+          ) : (
             <Descriptions.Item label="Rate Limit">
-              <Tag color="blue">Политика назначена</Tag>
+              <Space direction="vertical" size={4}>
+                <span style={{ color: '#8c8c8c' }}>No rate limiting configured</span>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Consider adding rate limiting for production routes
+                </Typography.Text>
+              </Space>
             </Descriptions.Item>
           )}
         </Descriptions>
