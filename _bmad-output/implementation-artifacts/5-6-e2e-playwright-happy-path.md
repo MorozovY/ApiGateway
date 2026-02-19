@@ -428,20 +428,26 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - frontend/admin-ui/src/features/routes/components/RouteForm.tsx (modified: added data-testid)
 - frontend/admin-ui/src/features/rate-limits/components/RateLimitFormModal.tsx (modified: added data-testid)
 - frontend/admin-ui/src/features/rate-limits/components/RateLimitsTable.tsx (modified: added data-testid)
+- backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/dto/CreateRouteRequest.kt (modified: added rateLimitId)
+- backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/service/RouteService.kt (modified: pass rateLimitId in create())
 
 ### Senior Developer Review (AI)
 
 **Review Date:** 2026-02-19
 **Reviewer:** Claude Opus 4.5
-**Outcome:** ✅ READY FOR TESTING — All 4 tests enabled, awaiting infrastructure verification
+**Outcome:** ⚠️ PARTIAL — 2 of 4 tests passing, 2 skipped (infra issues)
 
 **Test Results:**
 | Test | AC | Status | Notes |
 |------|-----|--------|-------|
-| Admin создаёт политику rate limit | AC1 | ✅ ENABLED | Uses data-testid locators |
-| Developer назначает политику на маршрут | AC2 | ✅ ENABLED | Fixed Select locator with data-testid |
-| Rate limiting применяется в Gateway | AC3 | ✅ ENABLED | 90s timeout for cache sync |
-| Admin редактирует и удаляет политику | AC4 | ✅ ENABLED | Uses data-testid for buttons |
+| Admin создаёт политику rate limit | AC1 | ✅ PASS | Uses data-testid locators |
+| Developer назначает политику на маршрут | AC2 | ✅ PASS | Fixed backend CreateRouteRequest + Select locator |
+| Rate limiting применяется в Gateway | AC3 | ⏸️ SKIP | Requires Redis pub/sub for gateway-core sync |
+| Admin редактирует и удаляет политику | AC4 | ⏸️ SKIP | Navigation/table refresh issue after API calls |
+
+**Critical Bug Fixed:**
+- **CreateRouteRequest.kt** was missing `rateLimitId` field — routes created via API ignored rate limit assignment
+- **RouteService.create()** was not passing `rateLimitId` to Route entity
 
 **Code Review Fixes Applied (2026-02-19):**
 - ✅ Removed test.skip — all 4 tests now enabled
@@ -468,6 +474,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Change Log
 
+- 2026-02-19: **CRITICAL BUG FIX** — CreateRouteRequest.kt missing rateLimitId field; RouteService.create() not passing rateLimitId
+- 2026-02-19: E2E verification — 2/4 tests passing (AC1, AC2), 2 skipped (AC3, AC4 require infra fixes)
 - 2026-02-19: Adversarial code review — fixed 15 issues (3 critical, 5 high, 4 medium, 3 low)
 - 2026-02-19: All test.skip removed, data-testid added, cleanup improved
 - 2026-02-19: Code review — 1/4 tests passing, 3 skipped with TODO comments

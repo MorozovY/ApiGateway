@@ -64,17 +64,34 @@ class RouteService(
                 if (exists) {
                     Mono.error(ConflictException("Route with this path already exists"))
                 } else {
-                    val route = Route(
-                        path = request.path,
-                        upstreamUrl = request.upstreamUrl,
-                        methods = request.methods,
-                        description = request.description,
-                        status = RouteStatus.DRAFT,
-                        createdBy = userId,
-                        createdAt = Instant.now(),
-                        updatedAt = Instant.now()
-                    )
-                    routeRepository.save(route)
+                    // Валидация rateLimitId если указан (Story 5.5)
+                    val rateLimitValidation: Mono<Boolean> = if (request.rateLimitId != null) {
+                        rateLimitRepository.existsById(request.rateLimitId)
+                            .flatMap { exists ->
+                                if (!exists) {
+                                    Mono.error(ValidationException("Rate limit policy not found"))
+                                } else {
+                                    Mono.just(true)
+                                }
+                            }
+                    } else {
+                        Mono.just(true) // Нет rateLimitId — валидация пройдена
+                    }
+
+                    rateLimitValidation.flatMap {
+                        val route = Route(
+                            path = request.path,
+                            upstreamUrl = request.upstreamUrl,
+                            methods = request.methods,
+                            description = request.description,
+                            status = RouteStatus.DRAFT,
+                            createdBy = userId,
+                            createdAt = Instant.now(),
+                            updatedAt = Instant.now(),
+                            rateLimitId = request.rateLimitId
+                        )
+                        routeRepository.save(route)
+                    }
                 }
             }
             .flatMap { savedRoute ->
@@ -88,11 +105,17 @@ class RouteService(
                         "path" to savedRoute.path,
                         "upstreamUrl" to savedRoute.upstreamUrl,
                         "methods" to savedRoute.methods,
-                        "description" to savedRoute.description
+                        "description" to savedRoute.description,
+                        "rateLimitId" to savedRoute.rateLimitId
                     )
                 ).thenReturn(savedRoute)
             }
-            .map { RouteResponse.from(it) }
+            .flatMap { savedRoute ->
+                // Загружаем информацию о rate limit для response (Story 5.5)
+                loadRateLimitInfo(savedRoute.rateLimitId)
+                    .map { rateLimitInfo -> RouteResponse.from(savedRoute, rateLimitInfo) }
+                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(savedRoute, null)) })
+            }
             .doOnSuccess { logger.info("Маршрут создан: path={}, userId={}", request.path, userId) }
     }
 

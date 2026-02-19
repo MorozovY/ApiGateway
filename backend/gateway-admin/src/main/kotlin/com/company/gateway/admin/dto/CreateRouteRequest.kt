@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
+import java.util.UUID
 
 /**
  * Запрос на создание нового маршрута.
@@ -14,6 +15,7 @@ import jakarta.validation.constraints.Size
  * @property upstreamUrl URL целевого сервиса (обязателен)
  * @property methods список разрешённых HTTP методов (обязателен, не пустой)
  * @property description описание маршрута (опционально)
+ * @property rateLimitId ID политики rate limit (опционально, Story 5.5)
  */
 data class CreateRouteRequest(
     @field:NotBlank(message = "Path обязателен")
@@ -38,5 +40,8 @@ data class CreateRouteRequest(
     val methods: List<String>,
 
     @field:Size(max = 1000, message = "Описание не должно превышать 1000 символов")
-    val description: String? = null
+    val description: String? = null,
+
+    /** ID политики rate limit (Story 5.5). Null = без rate limit. */
+    val rateLimitId: UUID? = null
 )
