@@ -24,6 +24,8 @@ import java.util.UUID
  * @property rejectedBy ID пользователя, отклонившего маршрут
  * @property rejectedAt время отклонения
  * @property rejectionReason причина отклонения
+ * @property rateLimitId ID назначенной политики rate limiting
+ * @property rateLimit детали политики rate limiting (если назначена)
  */
 data class RouteResponse(
     val id: UUID,
@@ -40,13 +42,18 @@ data class RouteResponse(
     val approvedAt: Instant? = null,
     val rejectedBy: UUID? = null,
     val rejectedAt: Instant? = null,
-    val rejectionReason: String? = null
+    val rejectionReason: String? = null,
+    val rateLimitId: UUID? = null,
+    val rateLimit: RateLimitInfo? = null
 ) {
     companion object {
         /**
          * Создаёт RouteResponse из Route entity.
+         *
+         * @param route маршрут
+         * @param rateLimit информация о политике rate limit (опционально)
          */
-        fun from(route: Route): RouteResponse {
+        fun from(route: Route, rateLimit: RateLimitInfo? = null): RouteResponse {
             return RouteResponse(
                 id = route.id!!,
                 path = route.path,
@@ -62,7 +69,9 @@ data class RouteResponse(
                 approvedAt = route.approvedAt,
                 rejectedBy = route.rejectedBy,
                 rejectedAt = route.rejectedAt,
-                rejectionReason = route.rejectionReason
+                rejectionReason = route.rejectionReason,
+                rateLimitId = route.rateLimitId,
+                rateLimit = rateLimit
             )
         }
     }

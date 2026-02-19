@@ -2,6 +2,7 @@ package com.company.gateway.admin.service
 
 import com.company.gateway.admin.dto.CreateRouteRequest
 import com.company.gateway.admin.dto.PagedResponse
+import com.company.gateway.admin.dto.RateLimitInfo
 import com.company.gateway.admin.dto.RouteDetailResponse
 import com.company.gateway.admin.dto.RouteFilterRequest
 import com.company.gateway.admin.dto.RouteListResponse
@@ -9,6 +10,8 @@ import com.company.gateway.admin.dto.RouteResponse
 import com.company.gateway.admin.dto.UpdateRouteRequest
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
+import com.company.gateway.admin.exception.ValidationException
+import com.company.gateway.admin.repository.RateLimitRepository
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.common.model.Role
 import com.company.gateway.common.model.Route
@@ -34,6 +37,7 @@ import java.util.UUID
 @Service
 class RouteService(
     private val routeRepository: RouteRepository,
+    private val rateLimitRepository: RateLimitRepository,
     private val auditService: AuditService
 ) {
     private val logger = LoggerFactory.getLogger(RouteService::class.java)
@@ -135,9 +139,14 @@ class RouteService(
                     )
                 }
 
+                // Сохраняем значения из mutable request в локальные val для smart cast
+                val requestPath = request.path
+                val requestRateLimitId = request.rateLimitId
+                val rateLimitIdProvided = request.rateLimitIdProvided
+
                 // Проверяем уникальность нового path (если изменяется)
-                val pathCheck = if (request.path != null && request.path != route.path) {
-                    routeRepository.existsByPath(request.path)
+                val pathCheck = if (requestPath != null && requestPath != route.path) {
+                    routeRepository.existsByPath(requestPath)
                         .flatMap { exists ->
                             if (exists) {
                                 Mono.error<Boolean>(ConflictException("Route with this path already exists"))
@@ -149,19 +158,47 @@ class RouteService(
                     Mono.just(false)
                 }
 
-                pathCheck.flatMap {
+                // Валидация rateLimitId (только если явно передан в запросе)
+                val rateLimitCheck = if (rateLimitIdProvided && requestRateLimitId != null) {
+                    // rateLimitId явно указан — проверяем существование политики
+                    rateLimitRepository.existsById(requestRateLimitId)
+                        .flatMap { exists ->
+                            if (!exists) {
+                                Mono.error<Boolean>(ValidationException("Rate limit policy not found"))
+                            } else {
+                                Mono.just(true)
+                            }
+                        }
+                } else {
+                    // rateLimitId не передан (partial update) или передан как null (удаление) — валидно
+                    Mono.just(true)
+                }
+
+                // Объединяем проверку path и rateLimitId
+                pathCheck.then(rateLimitCheck).flatMap {
                     val oldValues = mapOf(
                         "path" to route.path,
                         "upstreamUrl" to route.upstreamUrl,
                         "methods" to route.methods,
-                        "description" to route.description
+                        "description" to route.description,
+                        "rateLimitId" to route.rateLimitId
                     )
+
+                    // Определяем новое значение rateLimitId:
+                    // - Если rateLimitIdProvided = false → сохраняем текущее (partial update)
+                    // - Если rateLimitIdProvided = true → используем requestRateLimitId (назначить или удалить)
+                    val newRateLimitId = if (rateLimitIdProvided) {
+                        requestRateLimitId // null = удалить, UUID = назначить
+                    } else {
+                        route.rateLimitId // partial update — сохранить текущее
+                    }
 
                     val updatedRoute = route.copy(
                         path = request.path ?: route.path,
                         upstreamUrl = request.upstreamUrl ?: route.upstreamUrl,
                         methods = request.methods ?: route.methods,
                         description = request.description ?: route.description,
+                        rateLimitId = newRateLimitId,
                         updatedAt = Instant.now()
                     )
 
@@ -171,7 +208,8 @@ class RouteService(
                                 "path" to saved.path,
                                 "upstreamUrl" to saved.upstreamUrl,
                                 "methods" to saved.methods,
-                                "description" to saved.description
+                                "description" to saved.description,
+                                "rateLimitId" to saved.rateLimitId
                             )
                             auditService.logUpdated(
                                 entityType = "route",
@@ -184,8 +222,30 @@ class RouteService(
                         }
                 }
             }
-            .map { RouteResponse.from(it) }
+            .flatMap { saved ->
+                // Загружаем информацию о rate limit для response
+                loadRateLimitInfo(saved.rateLimitId)
+                    .map { rateLimitInfo -> RouteResponse.from(saved, rateLimitInfo) }
+                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(saved, null)) })
+            }
             .doOnSuccess { logger.info("Маршрут обновлён: id={}, userId={}", id, userId) }
+    }
+
+    /**
+     * Загружает информацию о политике rate limit по ID.
+     *
+     * Возвращает Mono с RateLimitInfo если политика найдена, или пустой Mono если не найдена/не указана.
+     *
+     * @param rateLimitId ID политики (может быть null)
+     * @return Mono<RateLimitInfo> информация о политике (может быть пустым)
+     */
+    private fun loadRateLimitInfo(rateLimitId: UUID?): Mono<RateLimitInfo> {
+        return if (rateLimitId != null) {
+            rateLimitRepository.findById(rateLimitId)
+                .map { RateLimitInfo.from(it) }
+        } else {
+            Mono.empty()
+        }
     }
 
     /**
@@ -244,16 +304,20 @@ class RouteService(
     }
 
     /**
-     * Получает маршрут по ID.
+     * Получает маршрут по ID с информацией о rate limit.
      *
      * @param id ID маршрута
-     * @return Mono<RouteResponse> маршрут
+     * @return Mono<RouteResponse> маршрут с данными rate limit
      * @throws NotFoundException если маршрут не найден
      */
     fun findById(id: UUID): Mono<RouteResponse> {
         return routeRepository.findById(id)
             .switchIfEmpty(Mono.error(NotFoundException("Route not found")))
-            .map { RouteResponse.from(it) }
+            .flatMap { route ->
+                loadRateLimitInfo(route.rateLimitId)
+                    .map { rateLimitInfo -> RouteResponse.from(route, rateLimitInfo) }
+                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(route, null)) })
+            }
     }
 
     /**
@@ -511,13 +575,14 @@ class RouteService(
             )
         }
 
+        // Загружаем маршруты
         val routesMono = routeRepository.findWithFilters(
             status = filter.status,
             createdBy = createdByResult.uuid,
             search = filter.search,
             offset = filter.offset,
             limit = filter.limit
-        ).map { RouteResponse.from(it) }.collectList()
+        ).collectList()
 
         val totalMono = routeRepository.countWithFilters(
             status = filter.status,
@@ -526,13 +591,38 @@ class RouteService(
         )
 
         return Mono.zip(routesMono, totalMono)
-            .map { tuple ->
-                RouteListResponse(
-                    items = tuple.t1,
-                    total = tuple.t2,
-                    offset = filter.offset,
-                    limit = filter.limit
-                )
+            .flatMap { tuple ->
+                val routes = tuple.t1
+                val total = tuple.t2
+
+                // Собираем уникальные rateLimitId (исключая null)
+                val rateLimitIds = routes.mapNotNull { it.rateLimitId }.distinct()
+
+                if (rateLimitIds.isEmpty()) {
+                    // Нет rate limits — возвращаем маршруты без загрузки политик
+                    Mono.just(
+                        RouteListResponse(
+                            items = routes.map { RouteResponse.from(it, null) },
+                            total = total,
+                            offset = filter.offset,
+                            limit = filter.limit
+                        )
+                    )
+                } else {
+                    // Batch-загрузка всех политик за один запрос (решение N+1)
+                    rateLimitRepository.findAllById(rateLimitIds)
+                        .collectMap({ it.id!! }, { RateLimitInfo.from(it) })
+                        .map { rateLimitsMap ->
+                            RouteListResponse(
+                                items = routes.map { route ->
+                                    RouteResponse.from(route, rateLimitsMap[route.rateLimitId])
+                                },
+                                total = total,
+                                offset = filter.offset,
+                                limit = filter.limit
+                            )
+                        }
+                }
             }
     }
 

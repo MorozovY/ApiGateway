@@ -78,7 +78,7 @@ development_status:
   # Epic 5: Rate Limiting
   epic-5: in-progress
   5-1-rate-limit-policy-crud-api: done
-  5-2-assign-rate-limit-route-api: backlog
+  5-2-assign-rate-limit-route-api: review
   5-3-rate-limiting-filter-implementation: backlog
   5-4-rate-limit-policies-management-ui: backlog
   5-5-assign-rate-limit-route-ui: backlog

@@ -22,6 +22,7 @@ import java.util.UUID
  * @property createdAt дата создания маршрута
  * @property updatedAt дата последнего обновления
  * @property rateLimitId ID политики rate limiting (если назначена)
+ * @property rateLimit детали политики rate limiting (если назначена)
  */
 data class RouteDetailResponse(
     val id: UUID,
@@ -42,14 +43,16 @@ data class RouteDetailResponse(
     val rejectedBy: UUID? = null,
     val rejectedAt: Instant? = null,
     val rejectionReason: String? = null,
-    val rateLimitId: UUID? = null
+    val rateLimitId: UUID? = null,
+    val rateLimit: RateLimitInfo? = null
 )
 
 /**
  * Промежуточная модель для маппинга результата JOIN запроса.
  *
  * Используется в RouteRepositoryCustomImpl для передачи данных из SQL в сервис.
- * Включает username создателя, одобрившего и отклонившего маршрут (AC2, AC3).
+ * Включает username создателя, одобрившего и отклонившего маршрут (AC2, AC3),
+ * а также данные rate limit политики (Story 5.2).
  */
 data class RouteWithCreator(
     val id: UUID,
@@ -70,12 +73,25 @@ data class RouteWithCreator(
     val rejectedBy: UUID? = null,
     val rejectedAt: Instant? = null,
     val rejectionReason: String? = null,
-    val rateLimitId: UUID? = null
+    val rateLimitId: UUID? = null,
+    val rateLimitName: String? = null,
+    val rateLimitRequestsPerSecond: Int? = null,
+    val rateLimitBurstSize: Int? = null
 ) {
     /**
      * Преобразует в RouteDetailResponse для API.
      */
     fun toResponse(): RouteDetailResponse {
+        // Собираем RateLimitInfo если есть данные rate limit
+        val rateLimitInfo = if (rateLimitId != null && rateLimitName != null) {
+            RateLimitInfo(
+                id = rateLimitId,
+                name = rateLimitName,
+                requestsPerSecond = rateLimitRequestsPerSecond!!,
+                burstSize = rateLimitBurstSize!!
+            )
+        } else null
+
         return RouteDetailResponse(
             id = id,
             path = path,
@@ -95,7 +111,8 @@ data class RouteWithCreator(
             rejectedBy = rejectedBy,
             rejectedAt = rejectedAt,
             rejectionReason = rejectionReason,
-            rateLimitId = rateLimitId
+            rateLimitId = rateLimitId,
+            rateLimit = rateLimitInfo
         )
     }
 }

@@ -142,24 +142,30 @@ class RouteRepositoryCustomImpl(
             approvedAt = row.get("approved_at", Instant::class.java),
             rejectedBy = row.get("rejected_by", UUID::class.java),
             rejectedAt = row.get("rejected_at", Instant::class.java),
-            rejectionReason = row.get("rejection_reason", String::class.java)
+            rejectionReason = row.get("rejection_reason", String::class.java),
+            rateLimitId = row.get("rate_limit_id", UUID::class.java)
         )
     }
 
     override fun findByIdWithCreator(id: UUID): Mono<RouteWithCreator> {
-        // Три LEFT JOIN: создатель, одобривший, отклонивший маршрут
+        // Четыре LEFT JOIN: создатель, одобривший, отклонивший маршрут, rate limit
         val sql = """
             SELECT r.id, r.path, r.upstream_url, r.methods, r.description,
                    r.status, r.created_by, r.created_at, r.updated_at,
                    r.submitted_at, r.approved_by, r.approved_at,
                    r.rejected_by, r.rejected_at, r.rejection_reason,
+                   r.rate_limit_id,
                    creator.username  AS creator_username,
                    approver.username AS approver_username,
-                   rejector.username AS rejector_username
+                   rejector.username AS rejector_username,
+                   rl.name AS rl_name,
+                   rl.requests_per_second AS rl_requests_per_second,
+                   rl.burst_size AS rl_burst_size
             FROM routes r
             LEFT JOIN users creator  ON r.created_by  = creator.id
             LEFT JOIN users approver ON r.approved_by = approver.id
             LEFT JOIN users rejector ON r.rejected_by = rejector.id
+            LEFT JOIN rate_limits rl ON r.rate_limit_id = rl.id
             WHERE r.id = :id
         """.trimIndent()
 
@@ -193,9 +199,14 @@ class RouteRepositoryCustomImpl(
                    r.status, r.created_by, r.created_at, r.updated_at,
                    r.submitted_at, r.approved_by, r.approved_at,
                    r.rejected_by, r.rejected_at, r.rejection_reason,
-                   u.username as creator_username
+                   r.rate_limit_id,
+                   u.username as creator_username,
+                   rl.name AS rl_name,
+                   rl.requests_per_second AS rl_requests_per_second,
+                   rl.burst_size AS rl_burst_size
             FROM routes r
             JOIN users u ON r.created_by = u.id
+            LEFT JOIN rate_limits rl ON r.rate_limit_id = rl.id
             WHERE r.status = 'pending'
             ORDER BY r.$safeField $safeDirection
             LIMIT :limit OFFSET :offset
@@ -223,7 +234,7 @@ class RouteRepositoryCustomImpl(
 
     /**
      * Маппинг строки результата JOIN запроса в RouteWithCreator.
-     * Используется для findPendingWithCreator — без approver/rejector username.
+     * Используется для findPendingWithCreator — без approver/rejector username, но с rate limit данными.
      */
     private fun mapRowToRouteWithCreator(row: Row): RouteWithCreator {
         // Используем mapNotNull для фильтрации null элементов
@@ -247,13 +258,16 @@ class RouteRepositoryCustomImpl(
             rejectedBy = row.get("rejected_by", UUID::class.java),
             rejectedAt = row.get("rejected_at", Instant::class.java),
             rejectionReason = row.get("rejection_reason", String::class.java),
-            rateLimitId = null // rate_limit_id будет добавлен в Epic 5
+            rateLimitId = row.get("rate_limit_id", UUID::class.java),
+            rateLimitName = row.get("rl_name", String::class.java),
+            rateLimitRequestsPerSecond = row.get("rl_requests_per_second", java.lang.Number::class.java)?.intValue(),
+            rateLimitBurstSize = row.get("rl_burst_size", java.lang.Number::class.java)?.intValue()
         )
     }
 
     /**
-     * Маппинг строки результата с тремя JOIN в RouteWithCreator.
-     * Используется для findByIdWithCreator — включает approver_username и rejector_username.
+     * Маппинг строки результата с JOIN в RouteWithCreator.
+     * Используется для findByIdWithCreator — включает approver_username, rejector_username и rate limit данные.
      */
     private fun mapRowToRouteWithCreatorAndApprovers(row: Row): RouteWithCreator {
         // Используем mapNotNull для фильтрации null элементов
@@ -279,7 +293,10 @@ class RouteRepositoryCustomImpl(
             rejectedBy = row.get("rejected_by", UUID::class.java),
             rejectedAt = row.get("rejected_at", Instant::class.java),
             rejectionReason = row.get("rejection_reason", String::class.java),
-            rateLimitId = null // rate_limit_id будет добавлен в Epic 5
+            rateLimitId = row.get("rate_limit_id", UUID::class.java),
+            rateLimitName = row.get("rl_name", String::class.java),
+            rateLimitRequestsPerSecond = row.get("rl_requests_per_second", java.lang.Number::class.java)?.intValue(),
+            rateLimitBurstSize = row.get("rl_burst_size", java.lang.Number::class.java)?.intValue()
         )
     }
 }
