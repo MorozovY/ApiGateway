@@ -7,9 +7,9 @@
 export const GRAFANA_URL = import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001'
 
 /**
- * ID Grafana dashboard для API Gateway.
+ * UID Grafana dashboard для API Gateway.
  */
-export const GRAFANA_DASHBOARD_ID = 'gateway-dashboard'
+export const GRAFANA_DASHBOARD_ID = 'api-gateway-dashboard'
 
 /**
  * Полный URL Grafana dashboard.

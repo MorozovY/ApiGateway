@@ -156,7 +156,7 @@ describe('MetricsPage', () => {
     const grafanaButton = screen.getByTestId('open-grafana-button')
     expect(grafanaButton).toHaveAttribute(
       'href',
-      'http://localhost:3001/d/gateway-dashboard/api-gateway'
+      'http://localhost:3001/d/api-gateway-dashboard/api-gateway'
     )
     expect(grafanaButton).toHaveAttribute('target', '_blank')
   })
