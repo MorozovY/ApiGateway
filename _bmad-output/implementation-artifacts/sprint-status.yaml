@@ -99,7 +99,7 @@ development_status:
   6-5-basic-metrics-view-admin-ui: done  # All ACs complete, sparkline charts, code review fixes
   6-5-1-metrics-api-role-filtering: done  # Hotfix: role-based filtering for top-routes
   6-6-e2e-playwright-happy-path: done  # Code review fixes: AC3 auto-refresh, constants, test isolation
-  epic-6-retrospective: optional
+  epic-6-retrospective: done  # 2026-02-20: Team retro completed, 12 action items, retro-actions.yaml created
 
   # Epic 7: Audit & Compliance
   epic-7: backlog

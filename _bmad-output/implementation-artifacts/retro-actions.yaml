@@ -1,0 +1,143 @@
+# Retrospective Action Items Tracker
+# =================================
+# Этот файл отслеживает action items из ретроспектив между эпиками.
+# SM агент проверяет этот файл при Sprint Planning.
+# Статусы: open, in-progress, done, cancelled
+#
+# Формат:
+#   - id: уникальный идентификатор
+#     description: описание action item
+#     owner: владелец (имя или роль)
+#     priority: critical, high, medium, low
+#     status: open, in-progress, done, cancelled
+#     source: из какой ретроспективы (epic-N-retro)
+#     deadline: когда должно быть выполнено
+#     created: дата создания
+#     completed: дата завершения (если done)
+#     notes: дополнительные заметки
+
+generated: 2026-02-20
+last_updated: 2026-02-20
+
+# =================================
+# OPEN ACTION ITEMS
+# =================================
+
+action_items:
+  # --- Epic 6 Retro: Process Improvements ---
+
+  - id: E6-01
+    description: "Добавить API Dependencies checklist в UI story template — проверять что backend поддерживает все AC"
+    owner: "SM (Bob)"
+    priority: high
+    status: open
+    source: epic-6-retro
+    deadline: "До Epic 7 start"
+    created: 2026-02-20
+    notes: "При создании UI story проверять наличие нужных фильтров, параметров, role-based access в API"
+
+  - id: E6-02
+    description: "Документировать что создаёт gateway метрики (только published routes, не actuator endpoints)"
+    owner: "Dev (Charlie)"
+    priority: medium
+    status: open
+    source: epic-6-retro
+    deadline: "Sprint 1 Epic 7"
+    created: 2026-02-20
+    notes: "/actuator/* endpoints не проходят через MetricsFilter"
+
+  # --- Epic 6 Retro: Technical Debt ---
+
+  - id: E6-03
+    description: "Filter ordering documentation в architecture.md"
+    owner: "Dev (Charlie)"
+    priority: medium
+    status: open
+    source: epic-5-retro
+    deadline: "Sprint 1 Epic 7"
+    created: 2026-02-19
+    notes: "Перенесён из Epic 5 retro. Документировать HIGHEST_PRECEDENCE+10 для MetricsFilter, order=10001 для RewritePath"
+
+  - id: E6-04
+    description: "correlationId logging через MDC"
+    owner: "Dev"
+    priority: low
+    status: open
+    source: epic-5-retro
+    deadline: "Backlog Epic 7"
+    created: 2026-02-19
+    notes: "Перенесён из Epic 5 retro"
+
+  - id: E6-05
+    description: "Документировать Redis pub/sub channels в architecture.md"
+    owner: "Dev (Charlie)"
+    priority: low
+    status: open
+    source: epic-5-retro
+    deadline: "Sprint 1 Epic 7"
+    created: 2026-02-19
+    notes: "Перенесён из Epic 5 retro. rateLimit:cache:invalidate channel"
+
+  # --- Epic 6 Retro: Critical Path for Epic 7 ---
+
+  - id: E6-06
+    description: "Аудит skipped тестов — собрать все .skip(), @Disabled, @Ignore по проекту"
+    owner: "Elena"
+    priority: high
+    status: open
+    source: epic-6-retro
+    deadline: "До Epic 7 start"
+    created: 2026-02-20
+    notes: "Классифицировать: намеренно skipped (документировать) vs забытые (исправить)"
+
+  - id: E6-07
+    description: "Создать Story для устранения skipped тестов"
+    owner: "SM (Bob)"
+    priority: high
+    status: open
+    source: epic-6-retro
+    deadline: "Backlog Epic 7"
+    created: 2026-02-20
+    notes: "Зависит от результатов аудита E6-06"
+
+  - id: E6-08
+    description: "Story 7.0: MetricsService → Prometheus HTTP API — UI метрики должны показывать реальные данные"
+    owner: "Charlie"
+    priority: critical
+    status: open
+    source: epic-6-retro
+    deadline: "Sprint 1 Epic 7"
+    created: 2026-02-20
+    notes: "CRITICAL: Текущий MetricsService читает локальный MeterRegistry gateway-admin, а не gateway-core метрики. Переработать для query Prometheus HTTP API."
+
+# =================================
+# PROCESS AGREEMENTS
+# =================================
+
+process_agreements:
+  - id: PA-01
+    description: "LOW issues исправляем сразу — code review не approved пока все severity levels не resolved"
+    source: epic-6-retro
+    created: 2026-02-20
+    status: active
+
+  - id: PA-02
+    description: "API Dependencies checklist — при создании UI story проверять что backend поддерживает все AC"
+    source: epic-6-retro
+    created: 2026-02-20
+    status: active
+
+# =================================
+# COMPLETED ACTION ITEMS
+# =================================
+
+completed_items:
+  - id: E6-00
+    description: "Создать retro-actions.yaml для трекинга action items"
+    owner: "SM (Bob)"
+    priority: high
+    status: done
+    source: epic-6-retro
+    created: 2026-02-20
+    completed: 2026-02-20
+    notes: "Этот файл"
