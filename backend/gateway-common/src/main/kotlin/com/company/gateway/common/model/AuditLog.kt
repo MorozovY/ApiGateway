@@ -42,6 +42,14 @@ data class AuditLog(
     @Column("changes")
     val changes: String? = null,
 
+    /** IP адрес клиента (X-Forwarded-For или remote) — Story 7.1, AC3 */
+    @Column("ip_address")
+    val ipAddress: String? = null,
+
+    /** Correlation ID запроса для трассировки — Story 7.1, AC3 */
+    @Column("correlation_id")
+    val correlationId: String? = null,
+
     @CreatedDate
     @Column("created_at")
     val createdAt: Instant? = null

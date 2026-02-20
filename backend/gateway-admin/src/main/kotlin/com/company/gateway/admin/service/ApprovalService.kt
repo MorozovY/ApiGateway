@@ -7,6 +7,8 @@ import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.admin.publisher.RouteEventPublisher
 import com.company.gateway.admin.repository.RouteRepository
+import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_CORRELATION_ID_KEY
+import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_IP_ADDRESS_KEY
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import org.slf4j.LoggerFactory
@@ -108,18 +110,26 @@ class ApprovalService(
                         routeRepository.save(updatedRoute)
                     }
                     .flatMap { savedRoute ->
-                        // Записываем audit log с соответствующим action
-                        auditService.log(
-                            entityType = "route",
-                            entityId = savedRoute.id.toString(),
-                            action = auditAction,
-                            userId = userId,
-                            username = username,
-                            changes = mapOf(
-                                "newStatus" to RouteStatus.PENDING.name.lowercase(),
-                                "submittedAt" to savedRoute.submittedAt.toString()
+                        // Fire-and-forget audit log с извлечением IP и correlationId из context
+                        // (Story 7.1, AC3, AC5, AC6)
+                        Mono.deferContextual { ctx ->
+                            val ipAddress = ctx.getOrDefault<String>(AUDIT_IP_ADDRESS_KEY, null)
+                            val correlationId = ctx.getOrDefault<String>(AUDIT_CORRELATION_ID_KEY, null)
+                            auditService.logAsync(
+                                entityType = "route",
+                                entityId = savedRoute.id.toString(),
+                                action = auditAction,
+                                userId = userId,
+                                username = username,
+                                changes = mapOf(
+                                    "newStatus" to RouteStatus.PENDING.name.lowercase(),
+                                    "submittedAt" to savedRoute.submittedAt.toString()
+                                ),
+                                ipAddress = ipAddress,
+                                correlationId = correlationId
                             )
-                        ).thenReturn(savedRoute)
+                            Mono.just(savedRoute)
+                        }
                     }
             }
             .map { RouteResponse.from(it) }
@@ -235,19 +245,45 @@ class ApprovalService(
                     .thenReturn(savedRoute)
             }
             .flatMap { savedRoute ->
-                // Записываем audit log
-                auditService.log(
-                    entityType = "route",
-                    entityId = savedRoute.id.toString(),
-                    action = "approved",
-                    userId = userId,
-                    username = username,
-                    changes = mapOf(
-                        "oldStatus" to RouteStatus.PENDING.name.lowercase(),
-                        "newStatus" to RouteStatus.PUBLISHED.name.lowercase(),
-                        "approvedAt" to savedRoute.approvedAt.toString()
+                // Fire-and-forget audit logs с извлечением IP и correlationId из context
+                // (Story 7.1, AC2, AC3, AC4, AC5, AC6)
+                Mono.deferContextual { ctx ->
+                    val ipAddress = ctx.getOrDefault<String>(AUDIT_IP_ADDRESS_KEY, null)
+                    val correlationId = ctx.getOrDefault<String>(AUDIT_CORRELATION_ID_KEY, null)
+
+                    // Audit log для approved
+                    auditService.logAsync(
+                        entityType = "route",
+                        entityId = savedRoute.id.toString(),
+                        action = "approved",
+                        userId = userId,
+                        username = username,
+                        changes = mapOf(
+                            "previousStatus" to RouteStatus.PENDING.name.lowercase(),
+                            "newStatus" to RouteStatus.PUBLISHED.name.lowercase(),
+                            "approvedAt" to savedRoute.approvedAt.toString()
+                        ),
+                        ipAddress = ipAddress,
+                        correlationId = correlationId
                     )
-                ).thenReturn(savedRoute)
+
+                    // Audit log для published
+                    auditService.logAsync(
+                        entityType = "route",
+                        entityId = savedRoute.id.toString(),
+                        action = "published",
+                        userId = userId,
+                        username = username,
+                        changes = mapOf(
+                            "publishedAt" to savedRoute.approvedAt.toString(),
+                            "approvedBy" to username
+                        ),
+                        ipAddress = ipAddress,
+                        correlationId = correlationId
+                    )
+
+                    Mono.just(savedRoute)
+                }
             }
             .map { RouteResponse.from(it) }
             .doOnSuccess {
@@ -315,20 +351,30 @@ class ApprovalService(
                 routeRepository.save(updatedRoute)
             }
             .flatMap { savedRoute ->
-                // Записываем audit log
-                auditService.log(
-                    entityType = "route",
-                    entityId = savedRoute.id.toString(),
-                    action = "rejected",
-                    userId = userId,
-                    username = username,
-                    changes = mapOf(
-                        "oldStatus" to RouteStatus.PENDING.name.lowercase(),
-                        "newStatus" to RouteStatus.REJECTED.name.lowercase(),
-                        "rejectedAt" to savedRoute.rejectedAt.toString(),
-                        "rejectionReason" to reason
+                // Fire-and-forget audit log с извлечением IP и correlationId из context
+                // (Story 7.1, AC2, AC3, AC5, AC6)
+                Mono.deferContextual { ctx ->
+                    val ipAddress = ctx.getOrDefault<String>(AUDIT_IP_ADDRESS_KEY, null)
+                    val correlationId = ctx.getOrDefault<String>(AUDIT_CORRELATION_ID_KEY, null)
+
+                    auditService.logAsync(
+                        entityType = "route",
+                        entityId = savedRoute.id.toString(),
+                        action = "rejected",
+                        userId = userId,
+                        username = username,
+                        changes = mapOf(
+                            "previousStatus" to RouteStatus.PENDING.name.lowercase(),
+                            "newStatus" to RouteStatus.REJECTED.name.lowercase(),
+                            "rejectedAt" to savedRoute.rejectedAt.toString(),
+                            "rejectionReason" to reason
+                        ),
+                        ipAddress = ipAddress,
+                        correlationId = correlationId
                     )
-                ).thenReturn(savedRoute)
+
+                    Mono.just(savedRoute)
+                }
             }
             .map { RouteResponse.from(it) }
             .doOnSuccess {

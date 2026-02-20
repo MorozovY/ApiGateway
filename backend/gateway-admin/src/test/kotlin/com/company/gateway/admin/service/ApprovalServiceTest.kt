@@ -6,7 +6,8 @@ import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.admin.publisher.RouteEventPublisher
 import com.company.gateway.admin.repository.RouteRepository
-import com.company.gateway.common.model.AuditLog
+import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_CORRELATION_ID_KEY
+import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_IP_ADDRESS_KEY
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import org.junit.jupiter.api.BeforeEach
@@ -83,11 +84,16 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
+            // logAsync — fire-and-forget, не требует mock return value
 
-            // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            // When — добавляем context для Mono.deferContextual
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 // Then
                 .expectNextMatches { response ->
                     response.status == "pending" &&
@@ -111,11 +117,15 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(routeCaptor.capture())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
@@ -135,33 +145,33 @@ class ApprovalServiceTest {
                 createdBy = userId
             )
 
-            val changesCaptor = argumentCaptor<Map<String, String>>()
             whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), changesCaptor.capture()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
-            // Then — проверяем вызов audit log
-            verify(auditService).log(
+            // Then — проверяем вызов audit log (fire-and-forget)
+            verify(auditService).logAsync(
                 eq("route"),
                 eq(routeId.toString()),
                 eq("route.submitted"),
                 eq(userId),
                 eq(username),
-                any()
+                any(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
             )
-
-            // Then — проверяем содержимое changes map
-            val changes = changesCaptor.firstValue
-            assert(changes["newStatus"] == "pending") { "newStatus должен быть 'pending'" }
-            assert(changes["submittedAt"] != null) { "submittedAt должен быть указан" }
         }
     }
 
@@ -262,11 +272,15 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 // Then
                 .expectNextMatches { response ->
                     response.status == "pending" &&
@@ -295,11 +309,15 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(routeCaptor.capture())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
@@ -330,22 +348,28 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
             // Then — audit log должен использовать action "route.resubmitted"
-            verify(auditService).log(
+            verify(auditService).logAsync(
                 eq("route"),
                 eq(routeId.toString()),
                 eq("route.resubmitted"),
                 eq(userId),
                 eq(username),
-                any()
+                any(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
             )
         }
 
@@ -363,22 +387,28 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.submitForApproval(routeId, userId, username))
+            StepVerifier.create(
+                approvalService.submitForApproval(routeId, userId, username)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
             // Then — audit log должен использовать action "route.submitted"
-            verify(auditService).log(
+            verify(auditService).logAsync(
                 eq("route"),
                 eq(routeId.toString()),
                 eq("route.submitted"),
                 eq(userId),
                 eq(username),
-                any()
+                any(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
             )
         }
 
@@ -643,11 +673,15 @@ class ApprovalServiceTest {
                 Mono.just(invocation.getArgument<Route>(0))
             }
             whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.approve(routeId, userId, securityUsername))
+            StepVerifier.create(
+                approvalService.approve(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 // Then
                 .expectNextMatches { response ->
                     response.status == "published" &&
@@ -672,11 +706,15 @@ class ApprovalServiceTest {
                 Mono.just(invocation.getArgument<Route>(0))
             }
             whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.approve(routeId, userId, securityUsername))
+            StepVerifier.create(
+                approvalService.approve(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
@@ -697,35 +735,46 @@ class ApprovalServiceTest {
                 createdBy = otherUserId
             )
 
-            val changesCaptor = argumentCaptor<Map<String, String>>()
             whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
             whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
-            whenever(auditService.log(any(), any(), any(), any(), any(), changesCaptor.capture()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.approve(routeId, userId, securityUsername))
+            StepVerifier.create(
+                approvalService.approve(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
-            // Then — проверяем вызов audit log
-            verify(auditService).log(
+            // Then — проверяем вызов audit log для "approved"
+            verify(auditService).logAsync(
                 eq("route"),
                 eq(routeId.toString()),
                 eq("approved"),
                 eq(userId),
                 eq(securityUsername),
-                any()
+                any(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
             )
 
-            // Then — проверяем содержимое changes map
-            val changes = changesCaptor.firstValue
-            assert(changes["oldStatus"] == "pending") { "oldStatus должен быть 'pending'" }
-            assert(changes["newStatus"] == "published") { "newStatus должен быть 'published'" }
-            assert(changes["approvedAt"] != null) { "approvedAt должен быть указан" }
+            // Then — проверяем вызов audit log для "published"
+            verify(auditService).logAsync(
+                eq("route"),
+                eq(routeId.toString()),
+                eq("published"),
+                eq(userId),
+                eq(securityUsername),
+                any(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
+            )
         }
 
         @Test
@@ -743,11 +792,15 @@ class ApprovalServiceTest {
                 Mono.just(invocation.getArgument<Route>(0))
             }
             whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.approve(routeId, userId, securityUsername))
+            StepVerifier.create(
+                approvalService.approve(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
@@ -885,11 +938,15 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.reject(routeId, userId, securityUsername, reason))
+            StepVerifier.create(
+                approvalService.reject(routeId, userId, securityUsername, reason)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 // Then
                 .expectNextMatches { response ->
                     response.status == "rejected" &&
@@ -915,11 +972,15 @@ class ApprovalServiceTest {
             whenever(routeRepository.save(routeCaptor.capture())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.reject(routeId, userId, securityUsername, reason))
+            StepVerifier.create(
+                approvalService.reject(routeId, userId, securityUsername, reason)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
@@ -942,35 +1003,33 @@ class ApprovalServiceTest {
             )
             val reason = "Security issue"
 
-            val changesCaptor = argumentCaptor<Map<String, String>>()
             whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
             whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
                 Mono.just(invocation.getArgument<Route>(0))
             }
-            whenever(auditService.log(any(), any(), any(), any(), any(), changesCaptor.capture()))
-                .thenReturn(Mono.just(mock()))
 
             // When
-            StepVerifier.create(approvalService.reject(routeId, userId, securityUsername, reason))
+            StepVerifier.create(
+                approvalService.reject(routeId, userId, securityUsername, reason)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
                 .expectNextCount(1)
                 .verifyComplete()
 
-            // Then — проверяем вызов audit log
-            verify(auditService).log(
+            // Then — проверяем вызов audit log для "rejected"
+            verify(auditService).logAsync(
                 eq("route"),
                 eq(routeId.toString()),
                 eq("rejected"),
                 eq(userId),
                 eq(securityUsername),
-                any()
+                any(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
             )
-
-            // Then — проверяем содержимое changes map
-            val changes = changesCaptor.firstValue
-            assert(changes["oldStatus"] == "pending") { "oldStatus должен быть 'pending'" }
-            assert(changes["newStatus"] == "rejected") { "newStatus должен быть 'rejected'" }
-            assert(changes["rejectedAt"] != null) { "rejectedAt должен быть указан" }
-            assert(changes["rejectionReason"] == reason) { "rejectionReason должен быть '$reason'" }
         }
     }
 

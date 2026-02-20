@@ -1,11 +1,14 @@
 package com.company.gateway.admin.service
 
 import com.company.gateway.admin.repository.AuditLogRepository
+import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_CORRELATION_ID_KEY
+import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_IP_ADDRESS_KEY
 import com.company.gateway.common.model.AuditLog
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.util.UUID
 
 /**
@@ -27,10 +30,12 @@ class AuditService(
      *
      * @param entityType тип сущности (user, route, rate_limit)
      * @param entityId ID сущности
-     * @param action действие (created, updated, deleted, role_changed)
+     * @param action действие (created, updated, deleted, role_changed, approved, rejected, published)
      * @param userId ID пользователя, выполнившего действие
      * @param username имя пользователя
      * @param changes карта изменений (oldValue, newValue)
+     * @param ipAddress IP адрес клиента (Story 7.1, AC3)
+     * @param correlationId Correlation ID запроса (Story 7.1, AC3)
      * @return Mono<AuditLog> сохранённая запись
      */
     fun log(
@@ -39,7 +44,9 @@ class AuditService(
         action: String,
         userId: UUID,
         username: String,
-        changes: Map<String, Any?>? = null
+        changes: Map<String, Any?>? = null,
+        ipAddress: String? = null,
+        correlationId: String? = null
     ): Mono<AuditLog> {
         val changesJson = changes?.let {
             try {
@@ -56,14 +63,16 @@ class AuditService(
             action = action,
             userId = userId,
             username = username,
-            changes = changesJson
+            changes = changesJson,
+            ipAddress = ipAddress,
+            correlationId = correlationId
         )
 
         return auditLogRepository.save(auditLog)
             .doOnSuccess {
                 logger.info(
-                    "Аудит-лог: action={}, entityType={}, entityId={}, userId={}",
-                    action, entityType, entityId, userId
+                    "Аудит-лог: action={}, entityType={}, entityId={}, userId={}, correlationId={}",
+                    action, entityType, entityId, userId, correlationId
                 )
             }
             .doOnError { e ->
@@ -75,6 +84,44 @@ class AuditService(
     }
 
     /**
+     * Асинхронная запись аудит-лога с graceful degradation.
+     *
+     * Используется для fire-and-forget записи, которая не блокирует
+     * основную операцию и не пропагирует ошибки к вызывающему коду.
+     * (Story 7.1, AC5, AC6)
+     *
+     * @param entityType тип сущности
+     * @param entityId ID сущности
+     * @param action действие
+     * @param userId ID пользователя
+     * @param username имя пользователя
+     * @param changes карта изменений
+     * @param ipAddress IP адрес клиента
+     * @param correlationId Correlation ID запроса
+     */
+    fun logAsync(
+        entityType: String,
+        entityId: String,
+        action: String,
+        userId: UUID,
+        username: String,
+        changes: Map<String, Any?>? = null,
+        ipAddress: String? = null,
+        correlationId: String? = null
+    ) {
+        log(entityType, entityId, action, userId, username, changes, ipAddress, correlationId)
+            .subscribeOn(Schedulers.boundedElastic())
+            .onErrorResume { e ->
+                logger.warn(
+                    "Ошибка асинхронной записи аудит-лога: action={}, entityId={}, error={}",
+                    action, entityId, e.message
+                )
+                Mono.empty()
+            }
+            .subscribe()
+    }
+
+    /**
      * Записать событие создания сущности.
      */
     fun logCreated(
@@ -82,10 +129,12 @@ class AuditService(
         entityId: String,
         userId: UUID,
         username: String,
-        entity: Any? = null
+        entity: Any? = null,
+        ipAddress: String? = null,
+        correlationId: String? = null
     ): Mono<AuditLog> {
         val changes = entity?.let { mapOf("created" to it) }
-        return log(entityType, entityId, "created", userId, username, changes)
+        return log(entityType, entityId, "created", userId, username, changes, ipAddress, correlationId)
     }
 
     /**
@@ -97,10 +146,12 @@ class AuditService(
         userId: UUID,
         username: String,
         oldValues: Map<String, Any?>,
-        newValues: Map<String, Any?>
+        newValues: Map<String, Any?>,
+        ipAddress: String? = null,
+        correlationId: String? = null
     ): Mono<AuditLog> {
         val changes = mapOf("old" to oldValues, "new" to newValues)
-        return log(entityType, entityId, "updated", userId, username, changes)
+        return log(entityType, entityId, "updated", userId, username, changes, ipAddress, correlationId)
     }
 
     /**
@@ -112,7 +163,9 @@ class AuditService(
         oldRole: String,
         newRole: String,
         performedByUserId: UUID,
-        performedByUsername: String
+        performedByUsername: String,
+        ipAddress: String? = null,
+        correlationId: String? = null
     ): Mono<AuditLog> {
         val changes = mapOf(
             "oldRole" to oldRole,
@@ -125,7 +178,9 @@ class AuditService(
             action = "role_changed",
             userId = performedByUserId,
             username = performedByUsername,
-            changes = changes
+            changes = changes,
+            ipAddress = ipAddress,
+            correlationId = correlationId
         )
     }
 
@@ -136,8 +191,123 @@ class AuditService(
         entityType: String,
         entityId: String,
         userId: UUID,
-        username: String
+        username: String,
+        ipAddress: String? = null,
+        correlationId: String? = null
     ): Mono<AuditLog> {
-        return log(entityType, entityId, "deleted", userId, username)
+        return log(entityType, entityId, "deleted", userId, username, null, ipAddress, correlationId)
+    }
+
+    /**
+     * Записать событие одобрения маршрута (Story 7.1, AC2).
+     */
+    fun logApproved(
+        entityType: String,
+        entityId: String,
+        userId: UUID,
+        username: String,
+        changes: Map<String, Any?>? = null,
+        ipAddress: String? = null,
+        correlationId: String? = null
+    ): Mono<AuditLog> {
+        return log(entityType, entityId, "approved", userId, username, changes, ipAddress, correlationId)
+    }
+
+    /**
+     * Записать событие отклонения маршрута (Story 7.1, AC2).
+     */
+    fun logRejected(
+        entityType: String,
+        entityId: String,
+        userId: UUID,
+        username: String,
+        changes: Map<String, Any?>? = null,
+        ipAddress: String? = null,
+        correlationId: String? = null
+    ): Mono<AuditLog> {
+        return log(entityType, entityId, "rejected", userId, username, changes, ipAddress, correlationId)
+    }
+
+    /**
+     * Записать событие публикации маршрута (Story 7.1, AC4).
+     */
+    fun logPublished(
+        entityType: String,
+        entityId: String,
+        userId: UUID,
+        username: String,
+        changes: Map<String, Any?>? = null,
+        ipAddress: String? = null,
+        correlationId: String? = null
+    ): Mono<AuditLog> {
+        return log(entityType, entityId, "published", userId, username, changes, ipAddress, correlationId)
+    }
+
+    /**
+     * Записать событие аудит-лога с автоматическим извлечением IP и correlationId из Reactor Context.
+     *
+     * Использует данные, сохранённые в Context через AuditContextFilter.
+     * (Story 7.1, AC3)
+     *
+     * @param entityType тип сущности (user, route, rate_limit)
+     * @param entityId ID сущности
+     * @param action действие (created, updated, deleted, approved, rejected, published)
+     * @param userId ID пользователя, выполнившего действие
+     * @param username имя пользователя
+     * @param changes карта изменений
+     * @return Mono<AuditLog> сохранённая запись
+     */
+    fun logWithContext(
+        entityType: String,
+        entityId: String,
+        action: String,
+        userId: UUID,
+        username: String,
+        changes: Map<String, Any?>? = null
+    ): Mono<AuditLog> {
+        return Mono.deferContextual { ctx ->
+            val ipAddress = ctx.getOrDefault<String>(AUDIT_IP_ADDRESS_KEY, null)
+            val correlationId = ctx.getOrDefault<String>(AUDIT_CORRELATION_ID_KEY, null)
+            log(entityType, entityId, action, userId, username, changes, ipAddress, correlationId)
+        }
+    }
+
+    /**
+     * Асинхронная запись аудит-лога с извлечением IP и correlationId из Reactor Context.
+     *
+     * Версия logWithContext() с graceful degradation для fire-and-forget записи.
+     * (Story 7.1, AC3, AC5, AC6)
+     *
+     * @param entityType тип сущности
+     * @param entityId ID сущности
+     * @param action действие
+     * @param userId ID пользователя
+     * @param username имя пользователя
+     * @param changes карта изменений
+     * @return Mono<Void> — можно цеплять через flatMap для сохранения context
+     */
+    fun logWithContextAsync(
+        entityType: String,
+        entityId: String,
+        action: String,
+        userId: UUID,
+        username: String,
+        changes: Map<String, Any?>? = null
+    ): Mono<Void> {
+        return Mono.deferContextual { ctx ->
+            val ipAddress = ctx.getOrDefault<String>(AUDIT_IP_ADDRESS_KEY, null)
+            val correlationId = ctx.getOrDefault<String>(AUDIT_CORRELATION_ID_KEY, null)
+
+            log(entityType, entityId, action, userId, username, changes, ipAddress, correlationId)
+                .subscribeOn(Schedulers.boundedElastic())
+                .onErrorResume { e ->
+                    logger.warn(
+                        "Ошибка асинхронной записи аудит-лога: action={}, entityId={}, error={}",
+                        action, entityId, e.message
+                    )
+                    Mono.empty()
+                }
+                .then()
+        }
     }
 }
