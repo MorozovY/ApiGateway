@@ -136,7 +136,8 @@ class AuditService(
         ipAddress: String? = null,
         correlationId: String? = null
     ): Mono<AuditLog> {
-        val changes = entity?.let { mapOf("created" to it) }
+        // Story 7.3 AC1: структура changes должна быть {"after": {...}} для created
+        val changes = entity?.let { mapOf("after" to it) }
         return log(entityType, entityId, "created", userId, username, changes, ipAddress, correlationId)
     }
 
@@ -153,7 +154,8 @@ class AuditService(
         ipAddress: String? = null,
         correlationId: String? = null
     ): Mono<AuditLog> {
-        val changes = mapOf("old" to oldValues, "new" to newValues)
+        // Story 7.3 AC1: структура changes должна быть {"before": {...}, "after": {...}}
+        val changes = mapOf("before" to oldValues, "after" to newValues)
         return log(entityType, entityId, "updated", userId, username, changes, ipAddress, correlationId)
     }
 
