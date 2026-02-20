@@ -1,20 +1,21 @@
 package com.company.gateway.admin.integration
 
+import com.company.gateway.admin.config.TestPrometheusClient
+import com.company.gateway.admin.config.TestPrometheusConfig
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.JwtService
-import com.company.gateway.admin.service.MetricsService
 import com.company.gateway.admin.service.PasswordService
 import com.company.gateway.common.model.Role
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import com.company.gateway.common.model.User
-import io.micrometer.core.instrument.MeterRegistry
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -27,7 +28,10 @@ import reactor.test.StepVerifier
 import java.util.UUID
 
 /**
- * Интеграционные тесты для MetricsController (Story 6.3).
+ * Интеграционные тесты для MetricsController (Story 7.0).
+ *
+ * Обновлено для работы с PrometheusClient вместо MeterRegistry.
+ * Использует TestPrometheusConfig для mock Prometheus API.
  *
  * Покрывает AC1-AC5:
  * - AC1: endpoint /metrics/summary возвращает 200
@@ -41,6 +45,7 @@ import java.util.UUID
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @ActiveProfiles("test")
+@Import(TestPrometheusConfig::class)
 class MetricsControllerIntegrationTest {
 
     companion object {
@@ -91,7 +96,7 @@ class MetricsControllerIntegrationTest {
     private lateinit var jwtService: JwtService
 
     @Autowired
-    private lateinit var meterRegistry: MeterRegistry
+    private lateinit var testPrometheusClient: TestPrometheusClient
 
     private lateinit var developerToken: String
     private lateinit var developerUser: User
@@ -114,8 +119,8 @@ class MetricsControllerIntegrationTest {
                 .then()
         ).verifyComplete()
 
-        // Очищаем метрики от предыдущих тестов
-        meterRegistry.clear()
+        // Сбрасываем mock Prometheus к дефолтному состоянию
+        testPrometheusClient.reset()
 
         // Создаём тестового пользователя
         developerUser = createTestUser("metrics_dev", "password", Role.DEVELOPER)
@@ -126,14 +131,10 @@ class MetricsControllerIntegrationTest {
         // Создаём тестовый маршрут
         testRoute = createTestRoute("/api/test-metrics", developerUser.id!!)
 
-        // Регистрируем тестовые метрики
-        repeat(10) {
-            meterRegistry.counter(
-                MetricsService.METRIC_REQUESTS_TOTAL,
-                MetricsService.TAG_ROUTE_ID, testRoute.id.toString(),
-                MetricsService.TAG_STATUS, "2xx"
-            ).increment()
-        }
+        // Настраиваем mock Prometheus для возврата данных тестового маршрута
+        testPrometheusClient.setTopRoutesResponse(
+            testRoute.id.toString() to 10.0
+        )
     }
 
     // ============================================
@@ -438,14 +439,11 @@ class MetricsControllerIntegrationTest {
             val developer2 = createTestUser("metrics_dev2", "password", Role.DEVELOPER)
             val developer2Route = createTestRoute("/api/other-route", developer2.id!!)
 
-            // Регистрируем метрики для обоих маршрутов
-            repeat(20) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, developer2Route.id.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
+            // Настраиваем mock Prometheus для возврата обоих маршрутов
+            testPrometheusClient.setTopRoutesResponse(
+                testRoute.id.toString() to 10.0,
+                developer2Route.id.toString() to 20.0
+            )
 
             // When: developer1 запрашивает top-routes
             webTestClient.get()
@@ -466,15 +464,10 @@ class MetricsControllerIntegrationTest {
             val anotherUser = createTestUser("another_dev", "password", Role.DEVELOPER)
             val otherRoute = createTestRoute("/api/hidden-route", anotherUser.id!!)
 
-            // Регистрируем метрики только для чужого маршрута
-            meterRegistry.clear()
-            repeat(50) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, otherRoute.id.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
+            // Настраиваем mock Prometheus для возврата только чужого маршрута
+            testPrometheusClient.setTopRoutesResponse(
+                otherRoute.id.toString() to 50.0
+            )
 
             // When: текущий developer запрашивает top-routes
             webTestClient.get()
@@ -501,14 +494,11 @@ class MetricsControllerIntegrationTest {
             val developer2 = createTestUser("dev_for_admin_test", "password", Role.DEVELOPER)
             val developer2Route = createTestRoute("/api/admin-sees-this", developer2.id!!)
 
-            // Регистрируем метрики для маршрута developer2
-            repeat(30) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, developer2Route.id.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
+            // Настраиваем mock Prometheus для возврата обоих маршрутов
+            testPrometheusClient.setTopRoutesResponse(
+                testRoute.id.toString() to 10.0,
+                developer2Route.id.toString() to 30.0
+            )
 
             // When: admin запрашивает top-routes
             webTestClient.get()
@@ -531,14 +521,11 @@ class MetricsControllerIntegrationTest {
             val developer2 = createTestUser("dev_for_security_test", "password", Role.DEVELOPER)
             val developer2Route = createTestRoute("/api/security-sees-this", developer2.id!!)
 
-            // Регистрируем метрики для маршрута developer2
-            repeat(25) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, developer2Route.id.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
+            // Настраиваем mock Prometheus для возврата обоих маршрутов
+            testPrometheusClient.setTopRoutesResponse(
+                testRoute.id.toString() to 10.0,
+                developer2Route.id.toString() to 25.0
+            )
 
             // When: security запрашивает top-routes
             webTestClient.get()

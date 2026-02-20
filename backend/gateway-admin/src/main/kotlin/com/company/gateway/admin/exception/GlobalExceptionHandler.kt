@@ -26,13 +26,14 @@ class GlobalExceptionHandler(
 ) : ErrorWebExceptionHandler {
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        // Обрабатываем JWT, AccessDenied, Conflict, NotFound и Validation исключения
+        // Обрабатываем JWT, AccessDenied, Conflict, NotFound, Validation и Prometheus исключения
         return when (ex) {
             is JwtAuthenticationException -> handleJwtAuthenticationException(exchange, ex)
             is AccessDeniedException -> handleAccessDeniedException(exchange, ex)
             is ConflictException -> handleConflictException(exchange, ex)
             is NotFoundException -> handleNotFoundException(exchange, ex)
             is ValidationException -> handleValidationException(exchange, ex)
+            is PrometheusUnavailableException -> handlePrometheusUnavailableException(exchange, ex)
             else -> {
                 // Пропускаем другие исключения для обработки стандартным механизмом
                 Mono.error(ex)
@@ -180,6 +181,40 @@ class GlobalExceptionHandler(
         exchange.response.statusCode = HttpStatus.BAD_REQUEST
         exchange.response.headers.contentType = MediaType.APPLICATION_JSON
         exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
+
+        val body = objectMapper.writeValueAsBytes(errorResponse)
+        val buffer = exchange.response.bufferFactory().wrap(body)
+
+        return exchange.response.writeWith(Mono.just(buffer))
+    }
+
+    /**
+     * Обрабатывает PrometheusUnavailableException и возвращает 503 Service Unavailable.
+     *
+     * Согласно AC4 Story 7.0: возвращается HTTP 503 с RFC 7807 error
+     * и retry-after header с рекомендуемым интервалом.
+     */
+    private fun handlePrometheusUnavailableException(
+        exchange: ServerWebExchange,
+        ex: PrometheusUnavailableException
+    ): Mono<Void> {
+        val correlationId = exchange.request.headers
+            .getFirst(CORRELATION_ID_HEADER)
+            ?: UUID.randomUUID().toString()
+
+        val errorResponse = ErrorResponse(
+            type = "https://api.gateway/errors/service-unavailable",
+            title = "Service Unavailable",
+            status = HttpStatus.SERVICE_UNAVAILABLE.value(),
+            detail = ex.message,
+            instance = exchange.request.path.value(),
+            correlationId = correlationId
+        )
+
+        exchange.response.statusCode = HttpStatus.SERVICE_UNAVAILABLE
+        exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+        exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
+        exchange.response.headers.add("Retry-After", ex.retryAfterSeconds.toString())
 
         val body = objectMapper.writeValueAsBytes(errorResponse)
         val buffer = exchange.response.bufferFactory().wrap(body)

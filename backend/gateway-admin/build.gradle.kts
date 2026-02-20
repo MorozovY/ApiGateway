@@ -62,6 +62,8 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.19.5")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+    // MockWebServer для PrometheusClient тестов (Story 7.0)
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
 java {

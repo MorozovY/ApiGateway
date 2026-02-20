@@ -1,18 +1,16 @@
 package com.company.gateway.admin.service
 
+import com.company.gateway.admin.client.PrometheusClient
+import com.company.gateway.admin.client.dto.PrometheusData
+import com.company.gateway.admin.client.dto.PrometheusMetric
+import com.company.gateway.admin.client.dto.PrometheusQueryResponse
 import com.company.gateway.admin.dto.MetricsPeriod
 import com.company.gateway.admin.dto.MetricsSortBy
 import com.company.gateway.admin.exception.NotFoundException
+import com.company.gateway.admin.exception.PrometheusUnavailableException
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Tag
-import io.micrometer.core.instrument.Timer
-import io.micrometer.core.instrument.search.MeterNotFoundException
-import io.micrometer.core.instrument.search.Search
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -24,67 +22,52 @@ import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.time.Instant
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 /**
- * Unit тесты для MetricsService (Story 6.3).
+ * Unit тесты для MetricsService (Story 7.0).
  *
- * Покрывает AC1, AC2, AC3, AC4:
- * - AC1: getSummary возвращает корректные агрегированные метрики
- * - AC2: различные значения period для getSummary
- * - AC3: getRouteMetrics для существующего маршрута
- * - AC4: getTopRoutes с разными параметрами сортировки
+ * Покрывает AC1-AC5:
+ * - AC1: getSummary возвращает метрики из Prometheus
+ * - AC2: getTopRoutes возвращает top маршруты с role-based filtering
+ * - AC3: getRouteMetrics возвращает метрики конкретного маршрута
+ * - AC4: Graceful degradation при недоступности Prometheus
+ * - AC5: API контракт сохранён (те же DTO)
  */
 class MetricsServiceTest {
 
-    private lateinit var meterRegistry: SimpleMeterRegistry
+    private lateinit var prometheusClient: PrometheusClient
     private lateinit var routeRepository: RouteRepository
     private lateinit var metricsService: MetricsService
 
     @BeforeEach
     fun setUp() {
-        meterRegistry = SimpleMeterRegistry()
+        prometheusClient = mock()
         routeRepository = mock()
-        metricsService = MetricsService(meterRegistry, routeRepository)
+        metricsService = MetricsService(prometheusClient, routeRepository)
     }
 
     // ============================================
-    // AC1: getSummary возвращает корректные данные
+    // AC1: getSummary возвращает метрики из Prometheus
     // ============================================
 
     @Nested
     inner class AC1_GetSummary {
 
         @Test
-        fun `возвращает корректную сводку метрик`() {
-            // Given: 100 запросов, 5 ошибок, 10 активных маршрутов
-            val routeId = UUID.randomUUID().toString()
-
-            // Регистрируем метрики запросов
-            repeat(100) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId,
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            // Регистрируем метрики ошибок
-            repeat(5) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_ERRORS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId
-                ).increment()
-            }
-
-            // Регистрируем latency
-            val timer = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, routeId
+        fun `возвращает корректную сводку метрик из Prometheus`() {
+            // Given: Prometheus возвращает валидные данные
+            val prometheusResponses = mapOf(
+                "totalRequests" to createScalarResponse(100.0),
+                "rps" to createScalarResponse(1.5),
+                "avgLatency" to createScalarResponse(0.050),  // 50ms в секундах
+                "p95Latency" to createScalarResponse(0.150),  // 150ms
+                "p99Latency" to createScalarResponse(0.250),  // 250ms
+                "errorRate" to createScalarResponse(0.05),    // 5%
+                "totalErrors" to createScalarResponse(5.0)
             )
-            repeat(10) {
-                timer.record(50, TimeUnit.MILLISECONDS)
-            }
+
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.just(prometheusResponses))
 
             whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
                 .thenReturn(Mono.just(10L))
@@ -95,16 +78,33 @@ class MetricsServiceTest {
                 .expectNextMatches { summary ->
                     summary.period == "5m" &&
                     summary.totalRequests == 100L &&
+                    summary.requestsPerSecond == 1.5 &&
+                    summary.avgLatencyMs == 50L &&
+                    summary.p95LatencyMs == 150L &&
+                    summary.p99LatencyMs == 250L &&
+                    summary.errorRate == 0.05 &&
                     summary.errorCount == 5L &&
-                    summary.activeRoutes == 10 &&
-                    summary.errorRate > 0.04 && summary.errorRate < 0.06
+                    summary.activeRoutes == 10
                 }
                 .verifyComplete()
         }
 
         @Test
-        fun `возвращает нули когда метрики отсутствуют`() {
-            // Given: нет метрик
+        fun `возвращает нули когда Prometheus возвращает пустые данные`() {
+            // Given: Prometheus возвращает пустые результаты
+            val emptyResponses = mapOf(
+                "totalRequests" to createEmptyResponse(),
+                "rps" to createEmptyResponse(),
+                "avgLatency" to createEmptyResponse(),
+                "p95Latency" to createEmptyResponse(),
+                "p99Latency" to createEmptyResponse(),
+                "errorRate" to createEmptyResponse(),
+                "totalErrors" to createEmptyResponse()
+            )
+
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.just(emptyResponses))
+
             whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
                 .thenReturn(Mono.just(0L))
 
@@ -116,6 +116,8 @@ class MetricsServiceTest {
                     summary.totalRequests == 0L &&
                     summary.requestsPerSecond == 0.0 &&
                     summary.avgLatencyMs == 0L &&
+                    summary.p95LatencyMs == 0L &&
+                    summary.p99LatencyMs == 0L &&
                     summary.errorRate == 0.0 &&
                     summary.errorCount == 0L &&
                     summary.activeRoutes == 0
@@ -124,181 +126,259 @@ class MetricsServiceTest {
         }
 
         @Test
-        fun `рассчитывает RPS на основе периода`() {
-            // Given: 300 запросов за 5 минут = 1 RPS
-            val routeId = UUID.randomUUID().toString()
-
-            repeat(300) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId,
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
-                .thenReturn(Mono.just(1L))
-
-            // When
-            StepVerifier.create(metricsService.getSummary(MetricsPeriod.FIVE_MINUTES))
-                // Then: 300 / 300 секунд = 1.0 RPS
-                .expectNextMatches { summary ->
-                    summary.requestsPerSecond == 1.0
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `возвращает percentiles когда timer настроен с publishPercentiles`() {
-            // Given: timer с publishPercentiles
-            val routeId = UUID.randomUUID().toString()
-
-            // Создаём timer с percentiles через builder
-            val timer = Timer.builder(MetricsService.METRIC_REQUEST_DURATION)
-                .tag(MetricsService.TAG_ROUTE_ID, routeId)
-                .publishPercentiles(0.5, 0.95, 0.99)
-                .register(meterRegistry)
-
-            // Записываем latency данные
-            repeat(100) { i ->
-                // Распределение: большинство быстрые, некоторые медленные
-                val latency = if (i < 90) 50L else 200L
-                timer.record(latency, TimeUnit.MILLISECONDS)
-            }
-
-            whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
-                .thenReturn(Mono.just(1L))
-
-            // When
-            StepVerifier.create(metricsService.getSummary(MetricsPeriod.FIVE_MINUTES))
-                // Then: percentiles должны быть ненулевыми
-                .expectNextMatches { summary ->
-                    summary.avgLatencyMs > 0 &&
-                    // p95 и p99 могут быть 0 в SimpleMeterRegistry без полной конфигурации,
-                    // но avgLatency должен работать
-                    summary.avgLatencyMs in 50..100
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `avgLatencyMs рассчитывается как взвешенное среднее`() {
-            // Given: два timer с разными latency
-            val route1 = UUID.randomUUID().toString()
-            val route2 = UUID.randomUUID().toString()
-
-            val timer1 = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, route1
-            )
-            val timer2 = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, route2
+        fun `обрабатывает NaN значения gracefully`() {
+            // Given: Prometheus возвращает NaN (например, при делении на 0)
+            val nanResponses = mapOf(
+                "totalRequests" to createScalarResponse(100.0),
+                "rps" to createScalarResponse(Double.NaN),
+                "avgLatency" to createScalarResponse(Double.NaN),
+                "p95Latency" to createScalarResponse(Double.POSITIVE_INFINITY),
+                "p99Latency" to createScalarResponse(0.0),
+                "errorRate" to createScalarResponse(Double.NaN),
+                "totalErrors" to createScalarResponse(0.0)
             )
 
-            // Route1: 10 запросов по 100ms = 1000ms total
-            repeat(10) { timer1.record(100, TimeUnit.MILLISECONDS) }
-            // Route2: 10 запросов по 200ms = 2000ms total
-            repeat(10) { timer2.record(200, TimeUnit.MILLISECONDS) }
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.just(nanResponses))
 
             whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
-                .thenReturn(Mono.just(2L))
+                .thenReturn(Mono.just(5L))
 
             // When
             StepVerifier.create(metricsService.getSummary(MetricsPeriod.FIVE_MINUTES))
-                // Then: avg = (1000 + 2000) / 20 = 150ms
+                // Then: NaN и Infinity заменяются на 0
                 .expectNextMatches { summary ->
-                    summary.avgLatencyMs == 150L
+                    summary.requestsPerSecond == 0.0 &&
+                    summary.avgLatencyMs == 0L &&
+                    summary.p95LatencyMs == 0L &&
+                    summary.errorRate == 0.0
                 }
                 .verifyComplete()
         }
     }
 
     // ============================================
-    // AC2: различные значения period
+    // AC2: getTopRoutes возвращает top маршруты
     // ============================================
 
     @Nested
-    inner class AC2_РазличныеПериоды {
+    inner class AC2_GetTopRoutes {
 
         @Test
-        fun `5m период использует 300 секунд для расчёта RPS`() {
-            // Given: 600 запросов
-            val routeId = UUID.randomUUID().toString()
-            repeat(600) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId,
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
+        fun `возвращает топ маршруты по количеству запросов`() {
+            // Given: Prometheus возвращает top routes
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
+            val route3 = UUID.randomUUID()
 
-            whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
-                .thenReturn(Mono.just(1L))
+            val response = createTopRoutesResponse(
+                route2.toString() to 200.0,
+                route1.toString() to 100.0,
+                route3.toString() to 50.0
+            )
+
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(response))
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRoute(route1, "/api/route1"),
+                    createTestRoute(route2, "/api/route2"),
+                    createTestRoute(route3, "/api/route3")
+                ))
 
             // When
-            StepVerifier.create(metricsService.getSummary(MetricsPeriod.FIVE_MINUTES))
-                // Then: 600 / 300 = 2.0 RPS
-                .expectNextMatches { summary ->
-                    summary.period == "5m" &&
-                    summary.requestsPerSecond == 2.0
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
+                // Then
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 3 &&
+                    topRoutes[0].routeId == route2.toString() &&
+                    topRoutes[0].value == 200.0 &&
+                    topRoutes[0].metric == "requests" &&
+                    topRoutes[1].routeId == route1.toString() &&
+                    topRoutes[2].routeId == route3.toString()
                 }
                 .verifyComplete()
         }
 
         @Test
-        fun `1h период использует 3600 секунд для расчёта RPS`() {
-            // Given: 3600 запросов
-            val routeId = UUID.randomUUID().toString()
-            repeat(3600) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId,
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
+        fun `возвращает топ маршруты по latency`() {
+            // Given
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
 
-            whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
-                .thenReturn(Mono.just(1L))
+            val response = createTopRoutesResponse(
+                route1.toString() to 0.200,  // 200ms (самый медленный)
+                route2.toString() to 0.050   // 50ms
+            )
+
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(response))
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRoute(route1, "/api/slow"),
+                    createTestRoute(route2, "/api/fast")
+                ))
 
             // When
-            StepVerifier.create(metricsService.getSummary(MetricsPeriod.ONE_HOUR))
-                // Then: 3600 / 3600 = 1.0 RPS
-                .expectNextMatches { summary ->
-                    summary.period == "1h" &&
-                    summary.requestsPerSecond == 1.0
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.LATENCY, 10))
+                // Then
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 2 &&
+                    topRoutes[0].routeId == route1.toString() &&
+                    topRoutes[0].metric == "latency"
                 }
                 .verifyComplete()
         }
 
         @Test
-        fun `24h период использует 86400 секунд для расчёта RPS`() {
-            // Given: 8640 запросов
-            val routeId = UUID.randomUUID().toString()
-            repeat(8640) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId,
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
-                .thenReturn(Mono.just(1L))
+        fun `возвращает пустой список когда нет метрик`() {
+            // Given: Prometheus возвращает пустой результат
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(createEmptyResponse()))
 
             // When
-            StepVerifier.create(metricsService.getSummary(MetricsPeriod.TWENTY_FOUR_HOURS))
-                // Then: 8640 / 86400 = 0.1 RPS
-                .expectNextMatches { summary ->
-                    summary.period == "24h" &&
-                    summary.requestsPerSecond == 0.1
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
+                // Then
+                .expectNextMatches { topRoutes ->
+                    topRoutes.isEmpty()
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `игнорирует unknown маршруты`() {
+            // Given: Prometheus возвращает метрики с route_id = "unknown"
+            val response = PrometheusQueryResponse(
+                status = "success",
+                data = PrometheusData(
+                    resultType = "vector",
+                    result = listOf(
+                        PrometheusMetric(
+                            metric = mapOf("route_id" to "unknown"),
+                            value = listOf(1708444800, "100")
+                        )
+                    )
+                )
+            )
+
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(response))
+
+            // When
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
+                // Then: пустой список (unknown отфильтрован)
+                .expectNextMatches { topRoutes ->
+                    topRoutes.isEmpty()
                 }
                 .verifyComplete()
         }
     }
 
     // ============================================
-    // AC3: getRouteMetrics для существующего маршрута
+    // Story 6.5.1: Role-based filtering for top-routes
+    // ============================================
+
+    @Nested
+    inner class RoleBasedFiltering {
+
+        @Test
+        fun `getTopRoutes с ownerId фильтрует результаты`() {
+            // Given
+            val developer1Id = UUID.randomUUID()
+            val developer2Id = UUID.randomUUID()
+
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
+
+            val response = createTopRoutesResponse(
+                route1.toString() to 100.0,
+                route2.toString() to 50.0
+            )
+
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(response))
+
+            // Route1 создан developer1, Route2 создан developer2
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
+                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
+                ))
+
+            // When: запрос с фильтрацией по developer1
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, developer1Id))
+                // Then: возвращается только route1
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 1 &&
+                    topRoutes[0].routeId == route1.toString() &&
+                    topRoutes[0].value == 100.0
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `getTopRoutes без ownerId возвращает все маршруты`() {
+            // Given
+            val developer1Id = UUID.randomUUID()
+            val developer2Id = UUID.randomUUID()
+
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
+
+            val response = createTopRoutesResponse(
+                route1.toString() to 80.0,
+                route2.toString() to 60.0
+            )
+
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(response))
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
+                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
+                ))
+
+            // When: запрос без фильтрации (ownerId = null)
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, null))
+                // Then: возвращаются все маршруты
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 2
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `getTopRoutes с ownerId возвращает пустой список когда нет маршрутов пользователя`() {
+            // Given
+            val otherUserId = UUID.randomUUID()
+            val currentUserId = UUID.randomUUID()
+            val route1 = UUID.randomUUID()
+
+            val response = createTopRoutesResponse(route1.toString() to 100.0)
+
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.just(response))
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", otherUserId)
+                ))
+
+            // When
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, currentUserId))
+                // Then
+                .expectNextMatches { topRoutes ->
+                    topRoutes.isEmpty()
+                }
+                .verifyComplete()
+        }
+    }
+
+    // ============================================
+    // AC3: getRouteMetrics для конкретного маршрута
     // ============================================
 
     @Nested
@@ -313,35 +393,19 @@ class MetricsServiceTest {
             whenever(routeRepository.findById(routeId))
                 .thenReturn(Mono.just(route))
 
-            // Регистрируем метрики для маршрута
-            repeat(50) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-            repeat(5) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId.toString(),
-                    MetricsService.TAG_STATUS, "4xx"
-                ).increment()
-            }
-            repeat(2) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_ERRORS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, routeId.toString()
-                ).increment()
-            }
-
-            val timer = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, routeId.toString()
+            val prometheusResponses = mapOf(
+                "rps" to createScalarResponse(2.5),
+                "avgLatency" to createScalarResponse(0.035),  // 35ms
+                "p95Latency" to createScalarResponse(0.100),  // 100ms
+                "errorRate" to createScalarResponse(0.02),    // 2%
+                "statusBreakdown" to createStatusBreakdownResponse(
+                    "2xx" to 50.0,
+                    "4xx" to 5.0
+                )
             )
-            repeat(10) {
-                timer.record(35, TimeUnit.MILLISECONDS)
-            }
+
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.just(prometheusResponses))
 
             // When
             StepVerifier.create(metricsService.getRouteMetrics(routeId, MetricsPeriod.FIVE_MINUTES))
@@ -350,6 +414,10 @@ class MetricsServiceTest {
                     metrics.routeId == routeId.toString() &&
                     metrics.path == "/api/orders" &&
                     metrics.period == "5m" &&
+                    metrics.requestsPerSecond == 2.5 &&
+                    metrics.avgLatencyMs == 35L &&
+                    metrics.p95LatencyMs == 100L &&
+                    metrics.errorRate == 0.02 &&
                     metrics.statusBreakdown["2xx"] == 50L &&
                     metrics.statusBreakdown["4xx"] == 5L
                 }
@@ -379,6 +447,17 @@ class MetricsServiceTest {
             whenever(routeRepository.findById(routeId))
                 .thenReturn(Mono.just(route))
 
+            val emptyResponses = mapOf(
+                "rps" to createEmptyResponse(),
+                "avgLatency" to createEmptyResponse(),
+                "p95Latency" to createEmptyResponse(),
+                "errorRate" to createEmptyResponse(),
+                "statusBreakdown" to createEmptyResponse()
+            )
+
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.just(emptyResponses))
+
             // When
             StepVerifier.create(metricsService.getRouteMetrics(routeId, MetricsPeriod.FIVE_MINUTES))
                 // Then
@@ -394,383 +473,86 @@ class MetricsServiceTest {
     }
 
     // ============================================
-    // AC4: getTopRoutes с разными параметрами сортировки
+    // AC4: Graceful Degradation при недоступности Prometheus
     // ============================================
 
     @Nested
-    inner class AC4_GetTopRoutes {
+    inner class AC4_GracefulDegradation {
 
         @Test
-        fun `возвращает топ маршрутов по количеству запросов`() {
-            // Given: 3 маршрута с разным количеством запросов
-            val route1 = UUID.randomUUID()
-            val route2 = UUID.randomUUID()
-            val route3 = UUID.randomUUID()
+        fun `getSummary пробрасывает PrometheusUnavailableException`() {
+            // Given: Prometheus недоступен
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.error(PrometheusUnavailableException("Prometheus is unavailable")))
 
-            // Route1: 100 запросов
-            repeat(100) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route1.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-            // Route2: 200 запросов
-            repeat(200) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route2.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-            // Route3: 50 запросов
-            repeat(50) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route3.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRoute(route1, "/api/route1"),
-                    createTestRoute(route2, "/api/route2"),
-                    createTestRoute(route3, "/api/route3")
-                ))
-
-            // When
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
-                // Then: отсортировано по убыванию — route2 (200), route1 (100), route3 (50)
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 3 &&
-                    topRoutes[0].routeId == route2.toString() &&
-                    topRoutes[0].value == 200.0 &&
-                    topRoutes[1].routeId == route1.toString() &&
-                    topRoutes[2].routeId == route3.toString()
-                }
-                .verifyComplete()
+            // When & Then
+            StepVerifier.create(metricsService.getSummary(MetricsPeriod.FIVE_MINUTES))
+                .expectError(PrometheusUnavailableException::class.java)
+                .verify()
         }
 
         @Test
-        fun `возвращает топ маршрутов по количеству ошибок`() {
+        fun `getTopRoutes пробрасывает PrometheusUnavailableException`() {
+            // Given: Prometheus недоступен
+            whenever(prometheusClient.query(any()))
+                .thenReturn(Mono.error(PrometheusUnavailableException("Connection timeout")))
+
+            // When & Then
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
+                .expectError(PrometheusUnavailableException::class.java)
+                .verify()
+        }
+
+        @Test
+        fun `getRouteMetrics пробрасывает PrometheusUnavailableException`() {
             // Given
-            val route1 = UUID.randomUUID()
-            val route2 = UUID.randomUUID()
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(routeId, "/api/test")
 
-            // Route1: 10 ошибок
-            repeat(10) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_ERRORS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route1.toString()
-                ).increment()
-            }
-            // Route2: 30 ошибок
-            repeat(30) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_ERRORS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route2.toString()
-                ).increment()
-            }
+            whenever(routeRepository.findById(routeId))
+                .thenReturn(Mono.just(route))
 
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRoute(route1, "/api/route1"),
-                    createTestRoute(route2, "/api/route2")
-                ))
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.error(PrometheusUnavailableException("Cannot connect to Prometheus")))
 
-            // When
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.ERRORS, 10))
-                // Then: route2 (30 ошибок) первый
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 2 &&
-                    topRoutes[0].routeId == route2.toString() &&
-                    topRoutes[0].value == 30.0 &&
-                    topRoutes[0].metric == "errors"
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `возвращает топ маршрутов по latency`() {
-            // Given: 3 маршрута с разным latency
-            val route1 = UUID.randomUUID()
-            val route2 = UUID.randomUUID()
-            val route3 = UUID.randomUUID()
-
-            // Route1: среднее 50ms (10 запросов)
-            val timer1 = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, route1.toString()
-            )
-            repeat(10) { timer1.record(50, TimeUnit.MILLISECONDS) }
-
-            // Route2: среднее 200ms (10 запросов) — самый медленный
-            val timer2 = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, route2.toString()
-            )
-            repeat(10) { timer2.record(200, TimeUnit.MILLISECONDS) }
-
-            // Route3: среднее 100ms (10 запросов)
-            val timer3 = meterRegistry.timer(
-                MetricsService.METRIC_REQUEST_DURATION,
-                MetricsService.TAG_ROUTE_ID, route3.toString()
-            )
-            repeat(10) { timer3.record(100, TimeUnit.MILLISECONDS) }
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRoute(route1, "/api/route1"),
-                    createTestRoute(route2, "/api/route2"),
-                    createTestRoute(route3, "/api/route3")
-                ))
-
-            // When
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.LATENCY, 10))
-                // Then: отсортировано по убыванию latency — route2 (200ms), route3 (100ms), route1 (50ms)
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 3 &&
-                    topRoutes[0].routeId == route2.toString() &&
-                    topRoutes[0].value == 200.0 &&
-                    topRoutes[0].metric == "latency" &&
-                    topRoutes[1].routeId == route3.toString() &&
-                    topRoutes[2].routeId == route1.toString()
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `ограничивает результаты параметром limit`() {
-            // Given: 5 маршрутов
-            val routes = (1..5).map { UUID.randomUUID() }
-
-            routes.forEachIndexed { index, routeId ->
-                repeat((index + 1) * 10) {
-                    meterRegistry.counter(
-                        MetricsService.METRIC_REQUESTS_TOTAL,
-                        MetricsService.TAG_ROUTE_ID, routeId.toString(),
-                        MetricsService.TAG_STATUS, "2xx"
-                    ).increment()
-                }
-            }
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.fromIterable(routes.map { createTestRoute(it, "/api/${it}") }))
-
-            // When: limit = 3
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 3))
-                // Then: только 3 маршрута
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 3
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `возвращает пустой список когда нет метрик`() {
-            // When
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
-                // Then
-                .expectNextMatches { topRoutes ->
-                    topRoutes.isEmpty()
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `игнорирует unknown маршруты`() {
-            // Given: метрики с route_id = "unknown"
-            repeat(100) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, "unknown",
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            // When
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
-                // Then: пустой список (unknown отфильтрован)
-                .expectNextMatches { topRoutes ->
-                    topRoutes.isEmpty()
-                }
-                .verifyComplete()
+            // When & Then
+            StepVerifier.create(metricsService.getRouteMetrics(routeId, MetricsPeriod.FIVE_MINUTES))
+                .expectError(PrometheusUnavailableException::class.java)
+                .verify()
         }
     }
 
     // ============================================
-    // Story 6.5.1: Role-based filtering for top-routes
+    // AC5: Различные периоды (API контракт сохранён)
     // ============================================
 
     @Nested
-    inner class Story_6_5_1_RoleBasedFiltering {
+    inner class AC5_DifferentPeriods {
 
         @Test
-        fun `getTopRoutes с ownerId фильтрует результаты`() {
-            // Given: маршруты созданные developer1 и developer2
-            val developer1Id = UUID.randomUUID()
-            val developer2Id = UUID.randomUUID()
+        fun `getSummary поддерживает все периоды`() {
+            val responses = createMinimalPrometheusResponses()
 
-            val route1 = UUID.randomUUID()
-            val route2 = UUID.randomUUID()
+            whenever(prometheusClient.queryMultiple(any()))
+                .thenReturn(Mono.just(responses))
 
-            // Регистрируем метрики для обоих маршрутов
-            repeat(100) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route1.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
+            whenever(routeRepository.countByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Mono.just(1L))
+
+            // Проверяем все периоды
+            listOf(
+                MetricsPeriod.FIVE_MINUTES to "5m",
+                MetricsPeriod.FIFTEEN_MINUTES to "15m",
+                MetricsPeriod.ONE_HOUR to "1h",
+                MetricsPeriod.SIX_HOURS to "6h",
+                MetricsPeriod.TWENTY_FOUR_HOURS to "24h"
+            ).forEach { (period, expectedValue) ->
+                StepVerifier.create(metricsService.getSummary(period))
+                    .expectNextMatches { summary ->
+                        summary.period == expectedValue
+                    }
+                    .verifyComplete()
             }
-            repeat(50) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route2.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            // Route1 создан developer1, Route2 создан developer2
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
-                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
-                ))
-
-            // When: запрос с фильтрацией по developer1
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, developer1Id))
-                // Then: возвращается только route1
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 1 &&
-                    topRoutes[0].routeId == route1.toString() &&
-                    topRoutes[0].value == 100.0
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `getTopRoutes без ownerId возвращает все маршруты`() {
-            // Given: маршруты созданные разными пользователями
-            val developer1Id = UUID.randomUUID()
-            val developer2Id = UUID.randomUUID()
-
-            val route1 = UUID.randomUUID()
-            val route2 = UUID.randomUUID()
-
-            // Регистрируем метрики
-            repeat(80) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route1.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-            repeat(60) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route2.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
-                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
-                ))
-
-            // When: запрос без фильтрации (ownerId = null)
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, null))
-                // Then: возвращаются все маршруты
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 2
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `getTopRoutes с ownerId возвращает пустой список когда нет маршрутов пользователя`() {
-            // Given: маршруты созданные другим пользователем
-            val otherUserId = UUID.randomUUID()
-            val currentUserId = UUID.randomUUID()
-
-            val route1 = UUID.randomUUID()
-
-            repeat(100) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route1.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRouteWithCreator(route1, "/api/route1", otherUserId)
-                ))
-
-            // When: запрос с фильтрацией по currentUser (у которого нет маршрутов)
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, currentUserId))
-                // Then: пустой список
-                .expectNextMatches { topRoutes ->
-                    topRoutes.isEmpty()
-                }
-                .verifyComplete()
-        }
-
-        @Test
-        fun `getTopRoutes с ownerId сохраняет корректную сортировку после фильтрации`() {
-            // Given: несколько маршрутов одного владельца
-            val developerId = UUID.randomUUID()
-
-            val route1 = UUID.randomUUID()
-            val route2 = UUID.randomUUID()
-            val route3 = UUID.randomUUID()
-
-            // Route1: 30 запросов, Route2: 100 запросов, Route3: 50 запросов
-            repeat(30) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route1.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-            repeat(100) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route2.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-            repeat(50) {
-                meterRegistry.counter(
-                    MetricsService.METRIC_REQUESTS_TOTAL,
-                    MetricsService.TAG_ROUTE_ID, route3.toString(),
-                    MetricsService.TAG_STATUS, "2xx"
-                ).increment()
-            }
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRouteWithCreator(route1, "/api/route1", developerId),
-                    createTestRouteWithCreator(route2, "/api/route2", developerId),
-                    createTestRouteWithCreator(route3, "/api/route3", developerId)
-                ))
-
-            // When
-            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, developerId))
-                // Then: отсортировано по убыванию — route2 (100), route3 (50), route1 (30)
-                .expectNextMatches { topRoutes ->
-                    topRoutes.size == 3 &&
-                    topRoutes[0].routeId == route2.toString() &&
-                    topRoutes[0].value == 100.0 &&
-                    topRoutes[1].routeId == route3.toString() &&
-                    topRoutes[1].value == 50.0 &&
-                    topRoutes[2].routeId == route1.toString() &&
-                    topRoutes[2].value == 30.0
-                }
-                .verifyComplete()
         }
     }
 
@@ -778,28 +560,74 @@ class MetricsServiceTest {
     // Вспомогательные методы
     // ============================================
 
-    private fun createTestRouteWithCreator(
-        id: UUID,
-        path: String,
-        createdBy: UUID
-    ): Route {
-        return Route(
-            id = id,
-            path = path,
-            upstreamUrl = "http://test-service:8080",
-            methods = listOf("GET"),
-            description = "Test route",
-            status = RouteStatus.PUBLISHED,
-            createdBy = createdBy,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now()
+    private fun createScalarResponse(value: Double): PrometheusQueryResponse {
+        return PrometheusQueryResponse(
+            status = "success",
+            data = PrometheusData(
+                resultType = "vector",
+                result = listOf(
+                    PrometheusMetric(
+                        metric = emptyMap(),
+                        value = listOf(1708444800, value.toString())
+                    )
+                )
+            )
         )
     }
 
-    private fun createTestRoute(
-        id: UUID,
-        path: String
-    ): Route {
+    private fun createEmptyResponse(): PrometheusQueryResponse {
+        return PrometheusQueryResponse(
+            status = "success",
+            data = PrometheusData(
+                resultType = "vector",
+                result = emptyList()
+            )
+        )
+    }
+
+    private fun createTopRoutesResponse(vararg routes: Pair<String, Double>): PrometheusQueryResponse {
+        return PrometheusQueryResponse(
+            status = "success",
+            data = PrometheusData(
+                resultType = "vector",
+                result = routes.map { (routeId, value) ->
+                    PrometheusMetric(
+                        metric = mapOf("route_id" to routeId),
+                        value = listOf(1708444800, value.toString())
+                    )
+                }
+            )
+        )
+    }
+
+    private fun createStatusBreakdownResponse(vararg statuses: Pair<String, Double>): PrometheusQueryResponse {
+        return PrometheusQueryResponse(
+            status = "success",
+            data = PrometheusData(
+                resultType = "vector",
+                result = statuses.map { (status, value) ->
+                    PrometheusMetric(
+                        metric = mapOf("status" to status),
+                        value = listOf(1708444800, value.toString())
+                    )
+                }
+            )
+        )
+    }
+
+    private fun createMinimalPrometheusResponses(): Map<String, PrometheusQueryResponse> {
+        return mapOf(
+            "totalRequests" to createScalarResponse(100.0),
+            "rps" to createScalarResponse(1.0),
+            "avgLatency" to createScalarResponse(0.050),
+            "p95Latency" to createScalarResponse(0.100),
+            "p99Latency" to createScalarResponse(0.200),
+            "errorRate" to createScalarResponse(0.01),
+            "totalErrors" to createScalarResponse(1.0)
+        )
+    }
+
+    private fun createTestRoute(id: UUID, path: String): Route {
         return Route(
             id = id,
             path = path,
@@ -808,6 +636,20 @@ class MetricsServiceTest {
             description = "Test route",
             status = RouteStatus.PUBLISHED,
             createdBy = UUID.randomUUID(),
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+    }
+
+    private fun createTestRouteWithCreator(id: UUID, path: String, createdBy: UUID): Route {
+        return Route(
+            id = id,
+            path = path,
+            upstreamUrl = "http://test-service:8080",
+            methods = listOf("GET"),
+            description = "Test route",
+            status = RouteStatus.PUBLISHED,
+            createdBy = createdBy,
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )

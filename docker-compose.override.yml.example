@@ -31,6 +31,8 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - ADMIN_PASSWORD=admin123
       - JWT_SECRET=dev-secret-key-minimum-32-characters-long
+      # Prometheus URL для MetricsService (Story 7.0)
+      - PROMETHEUS_URL=http://prometheus:9090
     volumes:
       # Монтируем исходники для hot-reload
       - ./backend/gateway-common/src:/app/backend/gateway-common/src:ro
