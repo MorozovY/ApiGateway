@@ -93,3 +93,15 @@ frontend/admin-ui/.env.e2e
 
 # Docker
 docker/volumes/
+
+# Debug/Test cookies files
+cookies*.txt
+admin_cookies*.txt
+
+# Windows artifacts
+nul
+
+# AI/IDE tools
+.claude/
+.cursor/
+.windsurf/
