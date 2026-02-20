@@ -8,6 +8,7 @@ import { RoutesPage, RouteFormPage, RouteDetailsPage } from '@features/routes'
 import { UsersPage } from '@features/users'
 import { ApprovalsPage } from '@features/approval'
 import { RateLimitsPage } from '@features/rate-limits'
+import { MetricsPage } from '@features/metrics'
 
 function App() {
   return (
@@ -53,6 +54,8 @@ function App() {
           }
         />
         <Route path="/audit" element={<div>Audit Logs</div>} />
+        {/* Метрики (Story 6.5) — доступ для всех аутентифицированных пользователей */}
+        <Route path="/metrics" element={<MetricsPage />} />
       </Route>
 
       {/* Редирект с корня на dashboard */}

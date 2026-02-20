@@ -1,4 +1,4 @@
-// Боковая панель навигации (Story 2.6 — добавлен Users для admin, Story 4.6 — Badge для pending)
+// Боковая панель навигации (Story 2.6 — Users для admin, Story 4.6 — Badge для pending, Story 6.5 — Metrics)
 import { useMemo } from 'react'
 import { Layout, Menu, Badge } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -9,6 +9,7 @@ import {
   AuditOutlined,
   CheckCircleOutlined,
   TeamOutlined,
+  AreaChartOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
@@ -39,6 +40,11 @@ const baseMenuItems: ItemType[] = [
     key: '/approvals',
     icon: <CheckCircleOutlined />,
     label: 'Approvals',
+  },
+  {
+    key: '/metrics',
+    icon: <AreaChartOutlined />,
+    label: 'Metrics',
   },
   {
     key: '/audit',
