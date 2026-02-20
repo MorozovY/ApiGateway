@@ -1,6 +1,7 @@
 // React Query hooks для метрик (Story 6.5)
 import { useQuery } from '@tanstack/react-query'
 import * as metricsApi from '../api/metricsApi'
+import { METRICS_REFRESH_INTERVAL, METRICS_STALE_TIME } from '../config/metricsConfig'
 import type { MetricsPeriod, MetricsSortBy } from '../types/metrics.types'
 
 /**
@@ -23,8 +24,8 @@ export function useMetricsSummary(period: MetricsPeriod = '5m') {
   return useQuery({
     queryKey: QUERY_KEYS.summary(period),
     queryFn: () => metricsApi.getSummary(period),
-    refetchInterval: 10000, // 10 секунд auto-refresh (AC2)
-    staleTime: 5000,
+    refetchInterval: METRICS_REFRESH_INTERVAL, // 10 секунд auto-refresh (AC2)
+    staleTime: METRICS_STALE_TIME,
   })
 }
 
@@ -37,8 +38,8 @@ export function useTopRoutes(sortBy: MetricsSortBy = 'requests', limit: number =
   return useQuery({
     queryKey: QUERY_KEYS.topRoutes(sortBy, limit),
     queryFn: () => metricsApi.getTopRoutes(sortBy, limit),
-    refetchInterval: 10000, // 10 секунд auto-refresh (AC2)
-    staleTime: 5000,
+    refetchInterval: METRICS_REFRESH_INTERVAL, // 10 секунд auto-refresh (AC2)
+    staleTime: METRICS_STALE_TIME,
   })
 }
 
@@ -47,11 +48,16 @@ export function useTopRoutes(sortBy: MetricsSortBy = 'requests', limit: number =
  */
 export function useRouteMetrics(routeId: string | undefined, period: MetricsPeriod = '5m') {
   return useQuery({
-    // SAFETY: routeId гарантированно определён благодаря enabled: !!routeId
-    queryKey: QUERY_KEYS.routeMetrics(routeId!, period),
-    queryFn: () => metricsApi.getRouteMetrics(routeId!, period),
+    // Query выполняется только если routeId определён (enabled: !!routeId)
+    queryKey: QUERY_KEYS.routeMetrics(routeId ?? '', period),
+    queryFn: () => {
+      if (!routeId) {
+        throw new Error('routeId is required')
+      }
+      return metricsApi.getRouteMetrics(routeId, period)
+    },
     enabled: !!routeId,
-    refetchInterval: 10000,
-    staleTime: 5000,
+    refetchInterval: METRICS_REFRESH_INTERVAL,
+    staleTime: METRICS_STALE_TIME,
   })
 }

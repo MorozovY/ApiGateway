@@ -2,15 +2,7 @@
 import { Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { TopRoute } from '../types/metrics.types'
-
-/**
- * Возвращает цвет для Error Rate по порогам.
- */
-function getErrorRateColor(rate: number): string {
-  if (rate < 0.01) return 'green'
-  if (rate < 0.05) return 'orange'
-  return 'red'
-}
+import { getErrorRateTagColor } from '../utils/errorRateUtils'
 
 /**
  * Колонки таблицы топ-маршрутов.
@@ -41,7 +33,7 @@ const columns: ColumnsType<TopRoute> = [
     dataIndex: 'errorRate',
     key: 'errorRate',
     render: (value: number) => (
-      <Tag color={getErrorRateColor(value)}>{(value * 100).toFixed(2)}%</Tag>
+      <Tag color={getErrorRateTagColor(value)}>{(value * 100).toFixed(2)}%</Tag>
     ),
     sorter: (a, b) => a.errorRate - b.errorRate,
   },

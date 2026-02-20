@@ -1,16 +1,14 @@
 // Страница детальных метрик (Story 6.5, AC5)
 import { useState } from 'react'
-import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin } from 'antd'
-import { LinkOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
+import { LinkOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { useAuth } from '@features/auth'
 import { useMetricsSummary, useTopRoutes } from '../hooks/useMetrics'
 import TopRoutesTable from './TopRoutesTable'
+import { GRAFANA_DASHBOARD_URL } from '../config/metricsConfig'
 import type { MetricsPeriod } from '../types/metrics.types'
 
-/**
- * URL Grafana dashboard.
- */
-const GRAFANA_URL = 'http://localhost:3001'
-const GRAFANA_DASHBOARD_URL = `${GRAFANA_URL}/d/gateway-dashboard/api-gateway`
+const { Text } = Typography
 
 /**
  * Опции выбора периода времени (AC5).
@@ -34,6 +32,10 @@ const periodOptions = [
  */
 export function MetricsPage() {
   const [period, setPeriod] = useState<MetricsPeriod>('5m')
+  const { user } = useAuth()
+
+  // Developer видит только свои маршруты (AC6 — фильтрация на backend)
+  const isDeveloper = user?.role === 'developer'
 
   const {
     data: summary,
@@ -180,6 +182,21 @@ export function MetricsPage() {
 
       {/* Top Routes Table */}
       <Card title="Top Routes by Requests">
+        {/* AC6: Индикатор для developer роли — видит только свои маршруты */}
+        {isDeveloper && (
+          <Alert
+            message={
+              <Space>
+                <InfoCircleOutlined />
+                <Text>Showing only routes you created</Text>
+              </Space>
+            }
+            type="info"
+            showIcon={false}
+            style={{ marginBottom: 16 }}
+            data-testid="developer-routes-notice"
+          />
+        )}
         <TopRoutesTable data={topRoutes ?? []} loading={topRoutesLoading} />
       </Card>
     </div>

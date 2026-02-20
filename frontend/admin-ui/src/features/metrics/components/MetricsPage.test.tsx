@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import MetricsPage from './MetricsPage'
+import { AuthContext } from '@features/auth'
+import type { AuthContextType, User } from '@features/auth'
 import * as metricsApi from '../api/metricsApi'
 import type { MetricsSummary, TopRoute } from '../types/metrics.types'
 
@@ -16,6 +18,20 @@ vi.mock('../api/metricsApi', () => ({
 
 const mockGetSummary = metricsApi.getSummary as ReturnType<typeof vi.fn>
 const mockGetTopRoutes = metricsApi.getTopRoutes as ReturnType<typeof vi.fn>
+
+// Мок AuthContext для тестов с разными ролями
+const mockAdminUser: User = { userId: 'admin-1', username: 'admin', role: 'admin' }
+const mockDeveloperUser: User = { userId: 'dev-1', username: 'developer', role: 'developer' }
+
+const createMockAuthContext = (user: User | null = mockAdminUser): AuthContextType => ({
+  user,
+  isAuthenticated: user !== null,
+  isLoading: false,
+  error: null,
+  login: vi.fn(),
+  logout: vi.fn(),
+  clearError: vi.fn(),
+})
 
 // Тестовые данные
 const mockSummary: MetricsSummary = {
@@ -47,8 +63,8 @@ const mockTopRoutes: TopRoute[] = [
   },
 ]
 
-// Wrapper для тестов
-function createWrapper() {
+// Wrapper для тестов с поддержкой AuthContext
+function createWrapper(authContext: AuthContextType = createMockAuthContext()) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -57,7 +73,9 @@ function createWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>{children}</BrowserRouter>
+        <AuthContext.Provider value={authContext}>
+          <BrowserRouter>{children}</BrowserRouter>
+        </AuthContext.Provider>
       </QueryClientProvider>
     )
   }
@@ -174,5 +192,33 @@ describe('MetricsPage', () => {
     expect(screen.getByText('Path')).toBeInTheDocument()
     // RPS есть в нескольких местах - в summary card и в таблице
     expect(screen.getAllByText('RPS').length).toBeGreaterThan(0)
+  })
+
+  // AC6: Тесты для developer роли
+  describe('Role-based access (AC6)', () => {
+    it('не показывает notice для admin роли', async () => {
+      const adminAuth = createMockAuthContext(mockAdminUser)
+      render(<MetricsPage />, { wrapper: createWrapper(adminAuth) })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
+      })
+
+      // Notice для developer не должен отображаться для admin
+      expect(screen.queryByTestId('developer-routes-notice')).not.toBeInTheDocument()
+    })
+
+    it('показывает notice для developer роли', async () => {
+      const developerAuth = createMockAuthContext(mockDeveloperUser)
+      render(<MetricsPage />, { wrapper: createWrapper(developerAuth) })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
+      })
+
+      // Developer видит notice что показаны только его маршруты
+      expect(screen.getByTestId('developer-routes-notice')).toBeInTheDocument()
+      expect(screen.getByText('Showing only routes you created')).toBeInTheDocument()
+    })
   })
 })

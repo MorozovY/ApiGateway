@@ -1,6 +1,6 @@
 // Тесты для MetricsWidget (Story 6.5)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
@@ -11,6 +11,17 @@ import type { MetricsSummary } from '../types/metrics.types'
 // Мокаем API
 vi.mock('../api/metricsApi', () => ({
   getSummary: vi.fn(),
+}))
+
+// Мокаем @ant-design/charts (AC2 sparkline charts)
+vi.mock('@ant-design/charts', () => ({
+  Tiny: {
+    Area: ({ data, 'data-testid': testId }: { data: number[]; 'data-testid'?: string }) => (
+      <div data-testid={testId || 'tiny-area-chart'} data-points={data.length}>
+        Mock TinyArea Chart with {data.length} points
+      </div>
+    ),
+  },
 }))
 
 // Мокаем useNavigate
@@ -209,5 +220,79 @@ describe('MetricsWidget', () => {
 
     expect(customOnClick).toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  // Тесты для sparkline (AC2)
+  describe('Sparkline charts (AC2)', () => {
+    it('отображает sparkline placeholders при первой загрузке', async () => {
+      mockGetSummary.mockResolvedValue(mockSummaryHealthy)
+
+      render(<MetricsWidget />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-widget')).toBeInTheDocument()
+      })
+
+      // При первой загрузке недостаточно точек для графика
+      expect(screen.getByTestId('sparkline-rps')).toBeInTheDocument()
+      expect(screen.getByTestId('sparkline-latency')).toBeInTheDocument()
+      // Должны отображать "Collecting data..." пока точек меньше MIN_SPARKLINE_POINTS
+      expect(screen.getAllByText('Collecting data...').length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('отображает sparkline графики после накопления данных', async () => {
+      // Эмулируем несколько обновлений данных
+      let callCount = 0
+      mockGetSummary.mockImplementation(() => {
+        callCount++
+        return Promise.resolve({
+          ...mockSummaryHealthy,
+          requestsPerSecond: 40 + callCount,
+          avgLatencyMs: 45 + callCount,
+        })
+      })
+
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, refetchInterval: false },
+        },
+      })
+
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <MetricsWidget />
+          </BrowserRouter>
+        </QueryClientProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-widget')).toBeInTheDocument()
+      })
+
+      // Симулируем несколько refetch для накопления истории
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: ['metrics', 'summary'] })
+      })
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: ['metrics', 'summary'] })
+      })
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: ['metrics', 'summary'] })
+      })
+
+      // После нескольких обновлений sparkline должны отображаться
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <MetricsWidget />
+          </BrowserRouter>
+        </QueryClientProvider>
+      )
+
+      // Sparkline элементы присутствуют
+      expect(screen.getByTestId('sparkline-rps')).toBeInTheDocument()
+      expect(screen.getByTestId('sparkline-latency')).toBeInTheDocument()
+    })
   })
 })

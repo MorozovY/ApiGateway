@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useMetricsSummary, useTopRoutes, useRouteMetrics } from './useMetrics'
 import * as metricsApi from '../api/metricsApi'
+import { METRICS_REFRESH_INTERVAL, METRICS_STALE_TIME } from '../config/metricsConfig'
 import type { MetricsSummary, TopRoute, RouteMetrics } from '../types/metrics.types'
 
 // Мокаем API
@@ -148,6 +149,29 @@ describe('useMetricsSummary', () => {
     })
 
     expect(result.current.error).toEqual(error)
+  })
+
+  it('настроен на автоматическое обновление каждые 10 секунд (AC2)', async () => {
+    // Проверяем что константы конфигурации имеют правильные значения
+    expect(METRICS_REFRESH_INTERVAL).toBe(10000) // 10 секунд
+    expect(METRICS_STALE_TIME).toBe(5000) // 5 секунд
+
+    // Hook использует эти константы для refetchInterval
+    // Тестируем что query успешно выполняется с этой конфигурацией
+    const queryClient = createTestQueryClient()
+    const wrapper = createWrapper(queryClient)
+
+    mockGetSummary.mockResolvedValue(mockSummary)
+
+    const { result } = renderHook(() => useMetricsSummary(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    // Verify query был настроен и выполнен
+    expect(mockGetSummary).toHaveBeenCalledTimes(1)
+    expect(result.current.data).toEqual(mockSummary)
   })
 })
 

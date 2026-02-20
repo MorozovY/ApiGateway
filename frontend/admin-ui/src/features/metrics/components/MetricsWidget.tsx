@@ -8,28 +8,10 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState, useMemo } from 'react'
+import { Tiny } from '@ant-design/charts'
 import { useMetricsSummary } from '../hooks/useMetrics'
-
-/**
- * Возвращает цвет для Error Rate по порогам (AC1).
- * - зелёный: < 1%
- * - жёлтый: 1-5%
- * - красный: > 5%
- */
-function getErrorRateColor(rate: number): string {
-  if (rate < 0.01) return '#52c41a' // зелёный
-  if (rate < 0.05) return '#faad14' // жёлтый
-  return '#f5222d' // красный
-}
-
-/**
- * Возвращает текстовое описание статуса error rate.
- */
-function getErrorRateStatus(rate: number): string {
-  if (rate < 0.01) return 'healthy'
-  if (rate < 0.05) return 'warning'
-  return 'critical'
-}
+import { getErrorRateColor, getErrorRateStatus } from '../utils/errorRateUtils'
+import { TREND_HISTORY_SIZE, MIN_SPARKLINE_POINTS } from '../config/metricsConfig'
 
 /**
  * Props для MetricsWidget.
@@ -40,14 +22,51 @@ interface MetricsWidgetProps {
 }
 
 /**
+ * Sparkline компонент для отображения тренда за последние 30 минут (AC2).
+ */
+interface SparklineProps {
+  data: number[]
+  color?: string
+  testId?: string
+}
+
+function Sparkline({ data, color = '#1890ff', testId }: SparklineProps) {
+  // Если данных недостаточно, показываем placeholder
+  if (data.length < MIN_SPARKLINE_POINTS) {
+    return (
+      <div
+        style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        data-testid={testId}
+      >
+        <span style={{ color: '#999', fontSize: 12 }}>Collecting data...</span>
+      </div>
+    )
+  }
+
+  return (
+    <div data-testid={testId}>
+      <Tiny.Area
+        data={data}
+        height={40}
+        autoFit
+        smooth
+        style={{ fill: color, fillOpacity: 0.3, stroke: color }}
+        animate={false}
+      />
+    </div>
+  )
+}
+
+/**
  * Виджет метрик для Dashboard.
  *
  * Отображает 4 карточки (AC1):
- * - Current RPS (большое число)
- * - Avg Latency (с trend индикатором)
+ * - Current RPS (большое число + sparkline)
+ * - Avg Latency (с trend индикатором + sparkline)
  * - Error Rate (с цветовой кодировкой)
  * - Active Routes count
  *
+ * Sparkline charts показывают тренд за последние 30 минут (AC2).
  * Auto-refresh каждые 10 секунд (AC2).
  * Error handling с retry кнопкой (AC4).
  */
@@ -55,25 +74,34 @@ export function MetricsWidget({ onClick }: MetricsWidgetProps) {
   const navigate = useNavigate()
   const { data, isLoading, isError, error, refetch } = useMetricsSummary('5m')
 
-  // История latency для определения тренда (AC2)
+  // История метрик для sparkline графиков (AC2 - 30 минут истории)
+  const [rpsHistory, setRpsHistory] = useState<number[]>([])
   const [latencyHistory, setLatencyHistory] = useState<number[]>([])
 
-  // Обновляем историю latency при получении новых данных
+  // Обновляем историю при получении новых данных
   useEffect(() => {
+    if (data?.requestsPerSecond !== undefined) {
+      setRpsHistory((prev) => {
+        const newHistory = [...prev, data.requestsPerSecond]
+        // Храним последние N значений (30 минут при 10s интервале = 180 точек)
+        return newHistory.slice(-TREND_HISTORY_SIZE)
+      })
+    }
     if (data?.avgLatencyMs !== undefined) {
       setLatencyHistory((prev) => {
         const newHistory = [...prev, data.avgLatencyMs]
-        // Храним последние 5 значений для определения тренда
-        return newHistory.slice(-5)
+        return newHistory.slice(-TREND_HISTORY_SIZE)
       })
     }
-  }, [data?.avgLatencyMs])
+  }, [data?.requestsPerSecond, data?.avgLatencyMs])
 
   // Определяем тренд latency (сравниваем с предыдущим значением)
   const latencyTrend = useMemo(() => {
     if (latencyHistory.length < 2) return null
-    const current = latencyHistory[latencyHistory.length - 1] as number
-    const previous = latencyHistory[latencyHistory.length - 2] as number
+    const current = latencyHistory[latencyHistory.length - 1]
+    const previous = latencyHistory[latencyHistory.length - 2]
+    // Guard clause для TypeScript (хотя length >= 2 гарантирует существование)
+    if (current === undefined || previous === undefined) return null
     if (current > previous) return 'up'
     if (current < previous) return 'down'
     return null
@@ -143,6 +171,7 @@ export function MetricsWidget({ onClick }: MetricsWidgetProps) {
             prefix={<ApiOutlined />}
             valueStyle={{ fontSize: 28 }}
           />
+          <Sparkline data={rpsHistory} color="#1890ff" testId="sparkline-rps" />
         </Card>
       </Col>
 
@@ -167,6 +196,7 @@ export function MetricsWidget({ onClick }: MetricsWidgetProps) {
               ) : null
             }
           />
+          <Sparkline data={latencyHistory} color="#faad14" testId="sparkline-latency" />
         </Card>
       </Col>
 

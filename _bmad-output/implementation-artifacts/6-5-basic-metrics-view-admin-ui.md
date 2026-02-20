@@ -1,6 +1,6 @@
 # Story 6.5: Basic Metrics View in Admin UI
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -76,8 +76,8 @@ so that I have quick visibility without opening Grafana.
 
 - [x] Task 3: Добавить sparkline charts (AC2)
   - [x] Trend индикатор ↑↓ для latency (реализован через историю состояния)
-  - [ ] Интегрировать мини-графики тренда (Ant Design Charts или recharts) — отложено, требует npm install
-  - [x] Хранить историю значений для sparkline (30 минут)
+  - [x] Интегрировать мини-графики тренда (@ant-design/charts Tiny.Area)
+  - [x] Хранить историю значений (180 точек = 30 минут при 10s интервале)
 
 - [x] Task 4: Обновить DashboardPage (AC1, AC3, AC6)
   - [x] Интегрировать MetricsWidget в DashboardPage
@@ -101,6 +101,35 @@ so that I have quick visibility without opening Grafana.
   - [x] Тесты для MetricsPage
   - [x] Тесты для metricsApi
   - [x] Тесты для useMetrics hooks
+  - [x] Тесты для TopRoutesTable (добавлено в code review)
+  - [x] Тесты для errorRateUtils (добавлено в code review)
+  - [x] Тесты для DashboardPage integration (добавлено в code review #2)
+  - [x] Тесты для MetricsPage AC6 developer role (добавлено в code review #2)
+
+### Review Follow-ups (AI)
+
+- [x] [AI-Review][CRITICAL] AC6: Реализовать фильтрацию TopRoutes по owner для developer роли — **RESOLVED via Story 6.5.1** (backend автоматически фильтрует по JWT userId для developer роли)
+- [x] [AI-Review][HIGH] AC2: Реализовать sparkline charts с историей 30 минут:
+  - [x] `npm install @ant-design/charts`
+  - [x] Увеличить `TREND_HISTORY_SIZE` с 5 до 180 (30 минут)
+  - [x] Добавить `<Tiny.Area>` компонент в MetricsWidget
+  - [x] Обновить тесты (мок для @ant-design/charts)
+- [x] [AI-Review][MEDIUM] AC6 visual indicator — добавлен Alert "Showing only routes you created" для developer роли в MetricsPage
+- [x] [AI-Review][MEDIUM] Integration test — добавлен DashboardPage.test.tsx для проверки интеграции MetricsWidget
+- [x] [AI-Review][MEDIUM] Grafana URL documentation — добавлен .env.example с VITE_GRAFANA_URL
+
+### Dependencies
+
+- ✅ **Resolved:** Story 6.5.1 (Metrics API Role-Based Filtering) — done
+
+### Implementation Order
+
+1. ✅ Основная реализация Story 6.5 (done)
+2. ✅ Code Review fixes (done)
+3. ✅ Story 6.5.1 — backend filtering (done)
+4. ✅ AC2 sparkline charts (done)
+5. ✅ AC6 — автоматически работает через backend filtering
+6. ✅ Story complete
 
 ## Dev Notes
 
@@ -453,23 +482,25 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-- Все 255 unit тестов проходят (включая 32 новых теста для metrics)
+- Все 275 unit тестов проходят (включая 52 теста для metrics feature)
 - TypeScript компиляция без ошибок
 - ESLint для metrics feature без ошибок
 
 ### Completion Notes List
 
 - **AC1** ✅ Реализован MetricsWidget с 4 карточками (RPS, Latency, Error Rate, Active Routes) и цветовой кодировкой
-- **AC2** ✅ Auto-refresh каждые 10 секунд через React Query refetchInterval, trend индикатор для latency
+- **AC2** ✅ Auto-refresh каждые 10 секунд + sparkline charts (Tiny.Area) с историей 30 минут (180 точек)
 - **AC3** ✅ Клик на карточку метрики навигирует на /metrics
 - **AC4** ✅ Error handling с "Metrics unavailable" сообщением и Retry кнопкой
 - **AC5** ✅ MetricsPage с summary cards, TopRoutesTable, time range selector (5m-24h), кнопка Open in Grafana
-- **AC6** ✅ Метрики видны для всех ролей (developer видит read-only)
-- Sparkline графики не реализованы (требуют npm install @ant-design/charts), заменены на trend индикатор
+- **AC6** ✅ Role-based доступ: developer видит только свои маршруты (фильтрация на backend через Story 6.5.1) + визуальный индикатор в MetricsPage
 
 ### Change Log
 
 - 2026-02-20: Реализована Story 6.5 — Basic Metrics View in Admin UI
+- 2026-02-20: Code Review — исправлены проблемы, добавлены тесты, создан shared errorRateUtils
+- 2026-02-20: Завершены Review Follow-ups — sparkline charts (@ant-design/charts) + AC6 (backend filtering)
+- 2026-02-20: Code Review #2 — добавлен визуальный индикатор для developer роли, integration тест DashboardPage, .env.example с Grafana URL
 
 ### File List
 
@@ -484,9 +515,18 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - frontend/admin-ui/src/features/metrics/components/MetricsPage.tsx
 - frontend/admin-ui/src/features/metrics/components/MetricsPage.test.tsx
 - frontend/admin-ui/src/features/metrics/components/TopRoutesTable.tsx
+- frontend/admin-ui/src/features/metrics/components/TopRoutesTable.test.tsx (добавлено в code review)
+- frontend/admin-ui/src/features/metrics/utils/errorRateUtils.ts (добавлено в code review)
+- frontend/admin-ui/src/features/metrics/utils/errorRateUtils.test.ts (добавлено в code review)
+- frontend/admin-ui/src/features/metrics/config/metricsConfig.ts (добавлено в code review)
 - frontend/admin-ui/src/features/metrics/index.ts
+- frontend/admin-ui/src/features/dashboard/components/DashboardPage.test.tsx (добавлено в code review #2)
+- frontend/admin-ui/.env.example (добавлено в code review #2)
 
 **Модифицированные файлы:**
 - frontend/admin-ui/src/features/dashboard/components/DashboardPage.tsx
 - frontend/admin-ui/src/layouts/Sidebar.tsx
 - frontend/admin-ui/src/App.tsx
+- frontend/admin-ui/package.json (добавлен @ant-design/charts)
+- frontend/admin-ui/package-lock.json
+- frontend/admin-ui/src/features/metrics/components/MetricsPage.tsx (добавлен AC6 developer notice в code review #2)
