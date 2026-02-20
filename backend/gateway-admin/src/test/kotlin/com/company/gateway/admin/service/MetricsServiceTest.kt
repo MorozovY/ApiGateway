@@ -600,8 +600,201 @@ class MetricsServiceTest {
     }
 
     // ============================================
+    // Story 6.5.1: Role-based filtering for top-routes
+    // ============================================
+
+    @Nested
+    inner class Story_6_5_1_RoleBasedFiltering {
+
+        @Test
+        fun `getTopRoutes с ownerId фильтрует результаты`() {
+            // Given: маршруты созданные developer1 и developer2
+            val developer1Id = UUID.randomUUID()
+            val developer2Id = UUID.randomUUID()
+
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
+
+            // Регистрируем метрики для обоих маршрутов
+            repeat(100) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route1.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+            repeat(50) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route2.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            // Route1 создан developer1, Route2 создан developer2
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
+                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
+                ))
+
+            // When: запрос с фильтрацией по developer1
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, developer1Id))
+                // Then: возвращается только route1
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 1 &&
+                    topRoutes[0].routeId == route1.toString() &&
+                    topRoutes[0].value == 100.0
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `getTopRoutes без ownerId возвращает все маршруты`() {
+            // Given: маршруты созданные разными пользователями
+            val developer1Id = UUID.randomUUID()
+            val developer2Id = UUID.randomUUID()
+
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
+
+            // Регистрируем метрики
+            repeat(80) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route1.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+            repeat(60) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route2.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
+                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
+                ))
+
+            // When: запрос без фильтрации (ownerId = null)
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, null))
+                // Then: возвращаются все маршруты
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 2
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `getTopRoutes с ownerId возвращает пустой список когда нет маршрутов пользователя`() {
+            // Given: маршруты созданные другим пользователем
+            val otherUserId = UUID.randomUUID()
+            val currentUserId = UUID.randomUUID()
+
+            val route1 = UUID.randomUUID()
+
+            repeat(100) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route1.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", otherUserId)
+                ))
+
+            // When: запрос с фильтрацией по currentUser (у которого нет маршрутов)
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, currentUserId))
+                // Then: пустой список
+                .expectNextMatches { topRoutes ->
+                    topRoutes.isEmpty()
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `getTopRoutes с ownerId сохраняет корректную сортировку после фильтрации`() {
+            // Given: несколько маршрутов одного владельца
+            val developerId = UUID.randomUUID()
+
+            val route1 = UUID.randomUUID()
+            val route2 = UUID.randomUUID()
+            val route3 = UUID.randomUUID()
+
+            // Route1: 30 запросов, Route2: 100 запросов, Route3: 50 запросов
+            repeat(30) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route1.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+            repeat(100) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route2.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+            repeat(50) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, route3.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developerId),
+                    createTestRouteWithCreator(route2, "/api/route2", developerId),
+                    createTestRouteWithCreator(route3, "/api/route3", developerId)
+                ))
+
+            // When
+            StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, developerId))
+                // Then: отсортировано по убыванию — route2 (100), route3 (50), route1 (30)
+                .expectNextMatches { topRoutes ->
+                    topRoutes.size == 3 &&
+                    topRoutes[0].routeId == route2.toString() &&
+                    topRoutes[0].value == 100.0 &&
+                    topRoutes[1].routeId == route3.toString() &&
+                    topRoutes[1].value == 50.0 &&
+                    topRoutes[2].routeId == route1.toString() &&
+                    topRoutes[2].value == 30.0
+                }
+                .verifyComplete()
+        }
+    }
+
+    // ============================================
     // Вспомогательные методы
     // ============================================
+
+    private fun createTestRouteWithCreator(
+        id: UUID,
+        path: String,
+        createdBy: UUID
+    ): Route {
+        return Route(
+            id = id,
+            path = path,
+            upstreamUrl = "http://test-service:8080",
+            methods = listOf("GET"),
+            description = "Test route",
+            status = RouteStatus.PUBLISHED,
+            createdBy = createdBy,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+    }
 
     private fun createTestRoute(
         id: UUID,

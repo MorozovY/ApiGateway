@@ -6,7 +6,9 @@ import com.company.gateway.admin.dto.MetricsSummaryDto
 import com.company.gateway.admin.dto.RouteMetricsDto
 import com.company.gateway.admin.dto.TopRouteDto
 import com.company.gateway.admin.exception.ValidationException
+import com.company.gateway.admin.security.SecurityContextUtils
 import com.company.gateway.admin.service.MetricsService
+import com.company.gateway.common.model.Role
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -79,6 +81,9 @@ class MetricsController(
      * GET /api/v1/metrics/top-routes
      * GET /api/v1/metrics/top-routes?by=latency&limit=5
      *
+     * Для роли DEVELOPER — автоматическая фильтрация по createdBy = currentUser.id (AC1 Story 6.5.1).
+     * Для ролей ADMIN и SECURITY — без фильтрации, возвращаются все маршруты (AC2 Story 6.5.1).
+     *
      * @param by критерий сортировки: requests, latency, errors. По умолчанию: requests
      * @param limit максимальное количество маршрутов (1-100). По умолчанию: 10
      * @return список топ-маршрутов
@@ -92,7 +97,22 @@ class MetricsController(
 
         val sortBy = validateSortBy(by)
         val validLimit = validateLimit(limit)
-        return metricsService.getTopRoutes(sortBy, validLimit)
+
+        // Получаем текущего пользователя для определения фильтрации
+        return SecurityContextUtils.currentUser()
+            .switchIfEmpty(Mono.error(
+                IllegalStateException("Пользователь не аутентифицирован — SecurityContext пуст")
+            ))
+            .flatMap { user ->
+                // Для developer фильтруем по владельцу, для admin/security — без фильтра
+                val ownerId = if (user.role == Role.DEVELOPER) {
+                    user.userId
+                } else {
+                    null
+                }
+                logger.debug("Фильтрация top-routes: role={}, ownerId={}", user.role, ownerId)
+                metricsService.getTopRoutes(sortBy, validLimit, ownerId)
+            }
     }
 
     /**

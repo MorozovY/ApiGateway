@@ -158,12 +158,18 @@ class MetricsService(
     /**
      * Получает топ маршрутов по указанному критерию.
      *
+     * ВАЖНО: Фильтрация по ownerId применяется к глобальному топу маршрутов.
+     * Например, если запрошен limit=10 и ownerId указан, метод вернёт только те
+     * маршруты из глобального топ-10, которые принадлежат указанному владельцу.
+     * Это может быть меньше чем limit, если не все маршруты из топа принадлежат владельцу.
+     *
      * @param sortBy критерий сортировки (requests, latency, errors)
-     * @param limit максимальное количество маршрутов
-     * @return Mono со списком топ-маршрутов
+     * @param limit максимальное количество маршрутов в глобальном топе для анализа
+     * @param ownerId если указан — фильтрует только маршруты созданные этим пользователем (AC1 Story 6.5.1)
+     * @return Mono со списком топ-маршрутов (может быть меньше limit при фильтрации по ownerId)
      */
-    fun getTopRoutes(sortBy: MetricsSortBy, limit: Int): Mono<List<TopRouteDto>> {
-        logger.debug("Получение топ-{} маршрутов по: {}", limit, sortBy.value)
+    fun getTopRoutes(sortBy: MetricsSortBy, limit: Int, ownerId: UUID? = null): Mono<List<TopRouteDto>> {
+        logger.debug("Получение топ-{} маршрутов по: {}, ownerId: {}", limit, sortBy.value, ownerId)
 
         // Собираем метрики по каждому уникальному route_id
         val routeMetrics = mutableMapOf<String, RouteMetricData>()
@@ -230,10 +236,21 @@ class MetricsService(
                 }
             }
 
-            routeRepository.findAllById(uuids)
-                .collectMap({ it.id.toString() }, { it.path })
-                .map { pathMap ->
-                    sorted.take(limit).map { (routeId, data) ->
+            // Фильтруем по владельцу если указан (AC1 Story 6.5.1)
+            val routesMono = if (ownerId != null) {
+                routeRepository.findAllById(uuids)
+                    .filter { it.createdBy == ownerId }
+                    .collectMap({ it.id.toString() }, { it.path })
+            } else {
+                routeRepository.findAllById(uuids)
+                    .collectMap({ it.id.toString() }, { it.path })
+            }
+
+            routesMono.map { pathMap ->
+                // Фильтруем sorted чтобы включать только маршруты которые прошли фильтр
+                sorted.filter { (routeId, _) -> pathMap.containsKey(routeId) }
+                    .take(limit)
+                    .map { (routeId, data) ->
                         val value = when (sortBy) {
                             MetricsSortBy.REQUESTS -> data.requests
                             MetricsSortBy.LATENCY -> data.avgLatency
@@ -246,7 +263,7 @@ class MetricsService(
                             metric = sortBy.value
                         )
                     }
-                }
+            }
         }.doOnSuccess { logger.debug("Топ маршруты: {}", it) }
     }
 

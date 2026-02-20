@@ -423,6 +423,170 @@ class MetricsControllerIntegrationTest {
     }
 
     // ============================================
+    // Story 6.5.1: Role-based filtering for top-routes
+    // AC1: developer видит только свои маршруты
+    // AC2: admin/security видят все маршруты
+    // AC3: формат ответа не изменился
+    // ============================================
+
+    @Nested
+    inner class AC1_DeveloperВидитТолькоСвоиМаршруты {
+
+        @Test
+        fun `developer видит только маршруты созданные им`() {
+            // Given: создаём второго developer и его маршрут
+            val developer2 = createTestUser("metrics_dev2", "password", Role.DEVELOPER)
+            val developer2Route = createTestRoute("/api/other-route", developer2.id!!)
+
+            // Регистрируем метрики для обоих маршрутов
+            repeat(20) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, developer2Route.id.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            // When: developer1 запрашивает top-routes
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                // Then: видит только свой маршрут (testRoute)
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(1)
+                .jsonPath("$[0].routeId").isEqualTo(testRoute.id.toString())
+        }
+
+        @Test
+        fun `developer не видит маршруты других пользователей`() {
+            // Given: маршрут без явного владельца (createdBy = null или другой пользователь)
+            val anotherUser = createTestUser("another_dev", "password", Role.DEVELOPER)
+            val otherRoute = createTestRoute("/api/hidden-route", anotherUser.id!!)
+
+            // Регистрируем метрики только для чужого маршрута
+            meterRegistry.clear()
+            repeat(50) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, otherRoute.id.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            // When: текущий developer запрашивает top-routes
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                // Then: пустой список (нет своих маршрутов с метриками)
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(0)
+        }
+    }
+
+    @Nested
+    inner class AC2_AdminSecurityВидятВсеМаршруты {
+
+        @Test
+        fun `admin видит все маршруты без фильтрации`() {
+            // Given: создаём admin и маршрут другого developer
+            val adminUser = createTestUser("metrics_admin_ac2", "password", Role.ADMIN)
+            val adminToken = jwtService.generateToken(adminUser)
+
+            val developer2 = createTestUser("dev_for_admin_test", "password", Role.DEVELOPER)
+            val developer2Route = createTestRoute("/api/admin-sees-this", developer2.id!!)
+
+            // Регистрируем метрики для маршрута developer2
+            repeat(30) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, developer2Route.id.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            // When: admin запрашивает top-routes
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes")
+                .cookie("auth_token", adminToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                // Then: видит оба маршрута (testRoute и developer2Route)
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(2)
+        }
+
+        @Test
+        fun `security видит все маршруты без фильтрации`() {
+            // Given: создаём security и маршрут другого developer
+            val securityUser = createTestUser("metrics_security_ac2", "password", Role.SECURITY)
+            val securityToken = jwtService.generateToken(securityUser)
+
+            val developer2 = createTestUser("dev_for_security_test", "password", Role.DEVELOPER)
+            val developer2Route = createTestRoute("/api/security-sees-this", developer2.id!!)
+
+            // Регистрируем метрики для маршрута developer2
+            repeat(25) {
+                meterRegistry.counter(
+                    MetricsService.METRIC_REQUESTS_TOTAL,
+                    MetricsService.TAG_ROUTE_ID, developer2Route.id.toString(),
+                    MetricsService.TAG_STATUS, "2xx"
+                ).increment()
+            }
+
+            // When: security запрашивает top-routes
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes")
+                .cookie("auth_token", securityToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                // Then: видит оба маршрута
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(2)
+        }
+    }
+
+    @Nested
+    inner class AC3_ФорматОтветаНеИзменился {
+
+        @Test
+        fun `формат ответа top-routes содержит все поля`() {
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes?by=requests&limit=5")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$").isArray
+                .jsonPath("$[0].routeId").exists()
+                .jsonPath("$[0].path").exists()
+                .jsonPath("$[0].value").exists()
+                .jsonPath("$[0].metric").exists()
+        }
+
+        @Test
+        fun `параметры by и limit работают как прежде`() {
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes?by=latency&limit=1")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(1)
+                .jsonPath("$[0].metric").isEqualTo("latency")
+        }
+    }
+
+    // ============================================
     // Дополнительные тесты для разных ролей
     // ============================================
 

@@ -96,7 +96,8 @@ development_status:
   6-2-per-route-metrics: done
   6-3-metrics-summary-api: done
   6-4-prometheus-grafana-setup: done
-  6-5-basic-metrics-view-admin-ui: review
+  6-5-basic-metrics-view-admin-ui: in-progress  # Code review: AC6 blocked by 6-5-1
+  6-5-1-metrics-api-role-filtering: done  # Hotfix: role-based filtering for top-routes
   6-6-e2e-playwright-happy-path: backlog
   epic-6-retrospective: optional
 
