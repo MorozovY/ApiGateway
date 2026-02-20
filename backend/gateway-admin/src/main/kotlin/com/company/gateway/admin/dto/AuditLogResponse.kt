@@ -53,7 +53,7 @@ data class AuditLogResponse(
             }
 
             return AuditLogResponse(
-                id = auditLog.id!!,
+                id = requireNotNull(auditLog.id) { "AuditLog.id не может быть null при преобразовании в DTO" },
                 entityType = auditLog.entityType,
                 entityId = auditLog.entityId,
                 action = auditLog.action,
@@ -61,7 +61,7 @@ data class AuditLogResponse(
                     id = auditLog.userId,
                     username = auditLog.username
                 ),
-                timestamp = auditLog.createdAt!!,
+                timestamp = requireNotNull(auditLog.createdAt) { "AuditLog.createdAt не может быть null при преобразовании в DTO" },
                 changes = changesMap,
                 ipAddress = auditLog.ipAddress,
                 correlationId = auditLog.correlationId

@@ -10,10 +10,10 @@ import java.util.UUID
  * Репозиторий для работы с аудит-логами.
  *
  * Предоставляет доступ к записям аудит-лога.
- * Полная реализация с фильтрацией будет добавлена в Epic 7.
+ * Расширен custom методами с фильтрацией в Story 7.2.
  */
 @Repository
-interface AuditLogRepository : ReactiveCrudRepository<AuditLog, UUID> {
+interface AuditLogRepository : ReactiveCrudRepository<AuditLog, UUID>, AuditLogRepositoryCustom {
 
     /**
      * Получение записей аудит-лога по типу сущности и её ID.

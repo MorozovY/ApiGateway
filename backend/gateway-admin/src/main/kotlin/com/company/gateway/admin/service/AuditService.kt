@@ -1,5 +1,8 @@
 package com.company.gateway.admin.service
 
+import com.company.gateway.admin.dto.AuditFilterRequest
+import com.company.gateway.admin.dto.AuditLogResponse
+import com.company.gateway.admin.dto.PagedResponse
 import com.company.gateway.admin.repository.AuditLogRepository
 import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_CORRELATION_ID_KEY
 import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_IP_ADDRESS_KEY
@@ -309,5 +312,31 @@ class AuditService(
                 }
                 .then()
         }
+    }
+
+    /**
+     * Поиск записей аудит-лога с фильтрацией и пагинацией.
+     *
+     * Story 7.2: Audit Log API with Filtering.
+     *
+     * @param filter параметры фильтрации и пагинации
+     * @return Mono<PagedResponse<AuditLogResponse>> пагинированный ответ
+     */
+    fun findAll(filter: AuditFilterRequest): Mono<PagedResponse<AuditLogResponse>> {
+        val itemsMono = auditLogRepository.findAllWithFilters(filter)
+            .map { auditLog -> AuditLogResponse.from(auditLog, objectMapper) }
+            .collectList()
+
+        val countMono = auditLogRepository.countWithFilters(filter)
+
+        return Mono.zip(itemsMono, countMono)
+            .map { tuple ->
+                PagedResponse(
+                    items = tuple.t1,
+                    total = tuple.t2,
+                    offset = filter.offset,
+                    limit = filter.limit
+                )
+            }
     }
 }

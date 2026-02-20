@@ -105,8 +105,8 @@ development_status:
   epic-7: in-progress
   7-0-metrics-service-prometheus-api: done  # CRITICAL: Fixed empty metrics in Admin UI (Prometheus HTTP API)
   7-1-audit-log-entity-event-recording: done
-  7-2-audit-log-api-filtering: backlog
-  7-3-route-change-history-api: backlog
+  7-2-audit-log-api-filtering: done
+  7-3-route-change-history-api: review
   7-4-routes-upstream-filter: backlog
   7-5-audit-log-ui: backlog
   7-6-route-history-upstream-report-ui: backlog
