@@ -1,6 +1,8 @@
 package com.company.gateway.core.filter
 
+import com.company.gateway.core.util.PathNormalizer
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.cloud.gateway.filter.GlobalFilter
 import org.springframework.cloud.gateway.route.Route
@@ -9,6 +11,7 @@ import org.springframework.core.Ordered
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
@@ -42,6 +45,8 @@ class MetricsFilter(
 
         // Labels
         const val TAG_ROUTE_ID = "route_id"
+        const val TAG_ROUTE_PATH = "route_path"
+        const val TAG_UPSTREAM_HOST = "upstream_host"
         const val TAG_METHOD = "method"
         const val TAG_STATUS = "status"
         const val TAG_ERROR_TYPE = "error_type"
@@ -75,37 +80,92 @@ class MetricsFilter(
 
     /**
      * Записывает метрики после завершения запроса.
+     *
+     * Метрики включают полный набор labels для per-route анализа:
+     * - route_id: UUID маршрута
+     * - route_path: нормализованный путь запроса (для контроля cardinality)
+     * - upstream_host: hostname:port upstream-сервиса
+     * - method: HTTP метод
+     * - status: категория статус-кода (2xx, 4xx, 5xx)
      */
     private fun recordMetrics(exchange: ServerWebExchange, startTime: Long) {
         val response = exchange.response
         val statusCode = response.statusCode?.value() ?: 0
         val durationNanos = System.nanoTime() - startTime
 
-        val routeId = exchange.getAttribute<Route>(GATEWAY_ROUTE_ATTR)?.id ?: "unknown"
+        // Извлекаем информацию о маршруте
+        val route = exchange.getAttribute<Route>(GATEWAY_ROUTE_ATTR)
+        val routeId = route?.id ?: "unknown"
+        val routePath = extractRoutePath(route, exchange)
+        val upstreamHost = extractUpstreamHost(route?.uri)
         val method = exchange.request.method.name()
         val statusCategory = statusCategory(statusCode)
 
-        // Counter: общее количество запросов
-        meterRegistry.counter(
-            METRIC_REQUESTS_TOTAL,
+        // Полный набор tags для всех метрик
+        val baseTags = Tags.of(
             TAG_ROUTE_ID, routeId,
+            TAG_ROUTE_PATH, routePath,
+            TAG_UPSTREAM_HOST, upstreamHost,
             TAG_METHOD, method,
             TAG_STATUS, statusCategory
-        ).increment()
+        )
+
+        // Counter: общее количество запросов
+        meterRegistry.counter(METRIC_REQUESTS_TOTAL, baseTags).increment()
 
         // Timer/Histogram: latency запросов
         // Используем meterRegistry.timer() вместо Timer.builder() для эффективности.
         // Percentiles вычисляются через histogram_quantile() в PromQL, не через publishPercentiles().
-        meterRegistry.timer(METRIC_REQUEST_DURATION, TAG_ROUTE_ID, routeId, TAG_METHOD, method)
+        meterRegistry.timer(METRIC_REQUEST_DURATION, baseTags)
             .record(durationNanos, TimeUnit.NANOSECONDS)
 
         // Counter: ошибки по типам
         if (statusCode >= 400) {
-            meterRegistry.counter(
-                METRIC_ERRORS_TOTAL,
-                TAG_ROUTE_ID, routeId,
-                TAG_ERROR_TYPE, classifyError(statusCode)
-            ).increment()
+            val errorTags = baseTags.and(TAG_ERROR_TYPE, classifyError(statusCode))
+            meterRegistry.counter(METRIC_ERRORS_TOTAL, errorTags).increment()
+        }
+    }
+
+    /**
+     * Извлекает и нормализует путь запроса для метрик.
+     *
+     * @param route маршрут (может быть null для unknown routes)
+     * @param exchange HTTP exchange
+     * @return нормализованный путь или "unknown"
+     */
+    private fun extractRoutePath(route: Route?, exchange: ServerWebExchange): String {
+        if (route == null) {
+            return "unknown"
+        }
+
+        // Используем путь из запроса
+        val requestPath = exchange.request.path.value()
+
+        // Нормализуем путь для контроля cardinality
+        return PathNormalizer.normalize(requestPath)
+    }
+
+    /**
+     * Извлекает upstream host из URI маршрута.
+     *
+     * @param uri URI upstream-сервиса
+     * @return hostname:port или "unknown"
+     */
+    private fun extractUpstreamHost(uri: URI?): String {
+        if (uri == null) {
+            return "unknown"
+        }
+
+        return try {
+            val host = uri.host ?: return "unknown"
+            val port = when {
+                uri.port > 0 -> uri.port
+                uri.scheme == "https" -> 443
+                else -> 80
+            }
+            "$host:$port"
+        } catch (_: Exception) {
+            "unknown"
         }
     }
 

@@ -20,12 +20,18 @@ import reactor.test.StepVerifier
 import java.net.URI
 
 /**
- * Unit тесты для MetricsFilter (Story 6.1)
+ * Unit тесты для MetricsFilter (Story 6.1, 6.2)
  *
- * Тесты:
+ * Story 6.1 тесты:
  * - AC1: Сбор gateway_requests_total, gateway_request_duration_seconds, gateway_errors_total
  * - AC3: Histogram записывается с правильными labels
  * - AC4: Error types классифицируются корректно
+ *
+ * Story 6.2 тесты:
+ * - AC1: route_path, upstream_host labels
+ * - AC3: Path normalization
+ * - AC4: Агрегация по upstream_host
+ * - AC5: Unknown route fallback
  */
 class MetricsFilterTest {
 
@@ -369,6 +375,294 @@ class MetricsFilterTest {
         }
     }
 
+    // ====== Story 6.2 тесты ======
+
+    @Nested
+    inner class RoutePathLabel {
+
+        @Test
+        fun `записывает route_path label из request path`() {
+            val request = MockServerHttpRequest.get("/api/orders/123").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "orders-route",
+                "http://orders-service:8080"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            // Путь должен быть нормализован: /api/orders/123 → /api/orders/{id}
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/orders/{id}")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать route_path=/api/orders/{id}"
+            }
+        }
+
+        @Test
+        fun `нормализует UUID в route_path`() {
+            val request = MockServerHttpRequest
+                .get("/api/users/550e8400-e29b-41d4-a716-446655440000")
+                .build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "users-route",
+                "http://users-service:8080"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/users/{uuid}")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать route_path=/api/users/{uuid}"
+            }
+        }
+
+        @Test
+        fun `сохраняет статические пути без изменений`() {
+            val request = MockServerHttpRequest.get("/api/health").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "health-route",
+                "http://health-service:8080"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/health")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать route_path=/api/health"
+            }
+        }
+    }
+
+    @Nested
+    inner class UpstreamHostLabel {
+
+        @Test
+        fun `записывает upstream_host label с host и портом`() {
+            val request = MockServerHttpRequest.get("/api/test").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "test-route",
+                "http://backend-service:8080"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "backend-service:8080")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать upstream_host=backend-service:8080"
+            }
+        }
+
+        @Test
+        fun `использует порт 80 по умолчанию для HTTP`() {
+            val request = MockServerHttpRequest.get("/api/test").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "test-route",
+                "http://backend-service"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "backend-service:80")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать upstream_host=backend-service:80 (порт по умолчанию)"
+            }
+        }
+
+        @Test
+        fun `использует порт 443 по умолчанию для HTTPS`() {
+            val request = MockServerHttpRequest.get("/api/test").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "test-route",
+                "https://secure-service"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "secure-service:443")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать upstream_host=secure-service:443 (HTTPS порт по умолчанию)"
+            }
+        }
+    }
+
+    @Nested
+    inner class UnknownRouteFallback {
+
+        @Test
+        fun `использует unknown для route_path когда Route не задан`() {
+            val request = MockServerHttpRequest.get("/api/unknown").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.response.statusCode = HttpStatus.NOT_FOUND
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "unknown")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать route_path=unknown при отсутствии Route"
+            }
+        }
+
+        @Test
+        fun `использует unknown для upstream_host когда Route не задан`() {
+            val request = MockServerHttpRequest.get("/api/unknown").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.response.statusCode = HttpStatus.NOT_FOUND
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "unknown")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать upstream_host=unknown при отсутствии Route"
+            }
+        }
+
+        @Test
+        fun `записывает метрику даже для unknown routes`() {
+            val request = MockServerHttpRequest.get("/api/nonexistent").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.response.statusCode = HttpStatus.NOT_FOUND
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_ID, "unknown")
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "unknown")
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "unknown")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен быть записан с fallback labels для unknown route"
+            }
+            assert(counter!!.count() == 1.0) {
+                "Counter должен быть равен 1"
+            }
+        }
+    }
+
+    @Nested
+    inner class AllLabelsInMetrics {
+
+        @Test
+        fun `gateway_requests_total содержит все 5 labels`() {
+            val request = MockServerHttpRequest.get("/api/orders/42").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "orders-route",
+                "http://orders-service:9000"
+            )
+            exchange.response.statusCode = HttpStatus.OK
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_ID, "orders-route")
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/orders/{id}")
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "orders-service:9000")
+                .tag(MetricsFilter.TAG_METHOD, "GET")
+                .tag(MetricsFilter.TAG_STATUS, "2xx")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать все 5 labels: route_id, route_path, upstream_host, method, status"
+            }
+        }
+
+        @Test
+        fun `gateway_request_duration_seconds содержит все 5 labels`() {
+            val request = MockServerHttpRequest.post("/api/items/999").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "items-route",
+                "http://items-api:8080"
+            )
+            exchange.response.statusCode = HttpStatus.CREATED
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val timer = meterRegistry.find(MetricsFilter.METRIC_REQUEST_DURATION)
+                .tag(MetricsFilter.TAG_ROUTE_ID, "items-route")
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/items/{id}")
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "items-api:8080")
+                .tag(MetricsFilter.TAG_METHOD, "POST")
+                .tag(MetricsFilter.TAG_STATUS, "2xx")
+                .timer()
+
+            assert(timer != null) {
+                "Timer должен содержать все 5 labels"
+            }
+        }
+
+        @Test
+        fun `gateway_errors_total содержит route_path и upstream_host labels`() {
+            val request = MockServerHttpRequest.get("/api/fail/123").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
+                "fail-route",
+                "http://failing-service:8080"
+            )
+            exchange.response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR
+
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            val counter = meterRegistry.find(MetricsFilter.METRIC_ERRORS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_ID, "fail-route")
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/fail/{id}")
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "failing-service:8080")
+                .counter()
+
+            assert(counter != null) {
+                "Error counter должен содержать route_path и upstream_host labels"
+            }
+        }
+    }
+
     // Helper методы
 
     private fun createExchangeWithRoute(routeId: String, status: HttpStatus): MockServerWebExchange {
@@ -383,6 +677,14 @@ class MetricsFilterTest {
         return Route.async()
             .id(routeId)
             .uri(URI.create("http://localhost:8080"))
+            .predicate { true }
+            .build()
+    }
+
+    private fun createRouteWithUri(routeId: String, upstreamUri: String): Route {
+        return Route.async()
+            .id(routeId)
+            .uri(URI.create(upstreamUri))
             .predicate { true }
             .build()
     }
