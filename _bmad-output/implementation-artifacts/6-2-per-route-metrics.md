@@ -1,6 +1,6 @@
 # Story 6.2: Per-Route Metrics
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -335,6 +335,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 **Новые файлы:**
 - `backend/gateway-core/src/main/kotlin/com/company/gateway/core/util/PathNormalizer.kt`
 - `backend/gateway-core/src/test/kotlin/com/company/gateway/core/util/PathNormalizerTest.kt`
+- `backend/gateway-core/src/test/kotlin/com/company/gateway/core/integration/MetricsIntegrationTest.kt`
 
 **Изменённые файлы:**
 - `backend/gateway-core/src/main/kotlin/com/company/gateway/core/filter/MetricsFilter.kt`
@@ -344,4 +345,5 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Change Log
 
 - 2026-02-20: Story 6.2 implementation complete — per-route metrics with path normalization
+- 2026-02-20: Code review fixes — добавлены интеграционные тесты MetricsIntegrationTest, исправлено логирование ошибок в MetricsFilter
 

@@ -179,27 +179,8 @@ class PrometheusEndpointTest {
     }
 
     // ====== Story 6.2 тесты: Per-Route Metrics Labels ======
-
-    @Test
-    fun `prometheus output содержит route_path label в gateway метриках`() {
-        // AC1: метрики должны содержать route_path label
-        // Note: В начальном состоянии без трафика метрики могут отсутствовать,
-        // но проверяем, что формат вывода корректный и endpoint работает
-        webTestClient.get()
-            .uri("/actuator/prometheus")
-            .exchange()
-            .expectStatus().isOk
-            .expectBody(String::class.java)
-            .consumeWith { response ->
-                val body = response.responseBody!!
-
-                // Проверяем базовую структуру prometheus output
-                // Labels route_path и upstream_host появятся после первых запросов через gateway
-                assert(body.isNotEmpty()) {
-                    "Prometheus output не должен быть пустым"
-                }
-            }
-    }
+    // Note: Полные integration тесты для route_path и upstream_host labels
+    // находятся в MetricsIntegrationTest.kt (требуют WireMock + Redis)
 
     @Test
     fun `prometheus endpoint возвращает метрики в prometheus text format`() {

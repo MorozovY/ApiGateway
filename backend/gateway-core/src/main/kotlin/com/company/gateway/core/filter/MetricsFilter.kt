@@ -3,6 +3,7 @@ package com.company.gateway.core.filter
 import com.company.gateway.core.util.PathNormalizer
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
+import org.slf4j.LoggerFactory
 import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.cloud.gateway.filter.GlobalFilter
 import org.springframework.cloud.gateway.route.Route
@@ -32,6 +33,8 @@ class MetricsFilter(
 ) : GlobalFilter, Ordered {
 
     companion object {
+        private val logger = LoggerFactory.getLogger(MetricsFilter::class.java)
+
         /**
          * Order фильтра: сразу после CorrelationIdFilter для измерения полного времени.
          */
@@ -164,7 +167,8 @@ class MetricsFilter(
                 else -> 80
             }
             "$host:$port"
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            logger.debug("Не удалось извлечь upstream host из URI: {}", uri, e)
             "unknown"
         }
     }
