@@ -59,6 +59,8 @@ export interface RouteListParams {
   status?: RouteStatus
   search?: string
   createdBy?: string
+  /** Фильтр по upstream host (Story 7.6, AC4) — partial match (ILIKE) */
+  upstream?: string
 }
 
 /**

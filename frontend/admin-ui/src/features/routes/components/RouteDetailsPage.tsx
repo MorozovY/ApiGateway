@@ -1,19 +1,34 @@
-// Страница деталей маршрута (Story 3.6)
-import { useParams, useNavigate } from 'react-router-dom'
-import { Spin, Result, Button } from 'antd'
+// Страница деталей маршрута (Story 3.6, расширена в Story 7.6 для Tabs с историей)
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Spin, Result, Button, Tabs, Card } from 'antd'
+import { FileTextOutlined, HistoryOutlined } from '@ant-design/icons'
 import { useRoute } from '../hooks/useRoutes'
 import { RouteDetailsCard } from './RouteDetailsCard'
+import { RouteHistoryTimeline } from '@features/audit'
 
 /**
  * Страница просмотра деталей маршрута.
  *
- * Отображает полную информацию о маршруте в card layout.
- * Показывает 404 страницу если маршрут не найден.
+ * Отображает полную информацию о маршруте в card layout с tabs:
+ * - Tab 1: "Детали" — существующий RouteDetailsCard
+ * - Tab 2: "История" — RouteHistoryTimeline с историей изменений
+ *
+ * Tabs key синхронизируется с URL hash (#details, #history).
+ * History tab виден ВСЕМ ролям (readonly информация).
  */
 export function RouteDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: route, isLoading, error } = useRoute(id)
+
+  // Синхронизация tab с URL hash (AC1)
+  const activeTab = location.hash === '#history' ? 'history' : 'details'
+
+  // Обработчик смены tab — обновляем URL hash
+  const handleTabChange = (key: string) => {
+    navigate(`${location.pathname}#${key}`, { replace: true })
+  }
 
   // Состояние загрузки
   if (isLoading) {
@@ -40,5 +55,34 @@ export function RouteDetailsPage() {
     )
   }
 
-  return <RouteDetailsCard route={route} />
+  return (
+    <Card>
+      <Tabs
+        activeKey={activeTab}
+        onChange={handleTabChange}
+        items={[
+          {
+            key: 'details',
+            label: (
+              <span>
+                <FileTextOutlined />
+                Детали
+              </span>
+            ),
+            children: <RouteDetailsCard route={route} />,
+          },
+          {
+            key: 'history',
+            label: (
+              <span>
+                <HistoryOutlined />
+                История
+              </span>
+            ),
+            children: <RouteHistoryTimeline routeId={route.id} />,
+          },
+        ]}
+      />
+    </Card>
+  )
 }

@@ -121,12 +121,13 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Извлечение параметров из URL
+  // Извлечение параметров из URL (расширено в Story 7.6 для upstream filter)
   const params: RouteListParams = useMemo(() => ({
     offset: Number(searchParams.get('offset')) || 0,
     limit: Number(searchParams.get('limit')) || DEFAULT_PAGE_SIZE,
     status: (searchParams.get('status') as RouteStatus) || undefined,
     search: searchParams.get('search') || undefined,
+    upstream: searchParams.get('upstream') || undefined,
   }), [searchParams])
 
   // Вычисление текущей страницы
@@ -359,8 +360,8 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
     },
   ], [canModify, onEdit, navigate, handleDelete, deleteMutation.isPending])
 
-  // Проверка наличия активных фильтров
-  const hasActiveFilters = !!(params.search || params.status)
+  // Проверка наличия активных фильтров (расширено в Story 7.6 для upstream)
+  const hasActiveFilters = !!(params.search || params.status || params.upstream)
 
   return (
     <div>
@@ -414,6 +415,16 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
                 onClose={() => updateParams({ status: undefined })}
               >
                 {STATUS_LABELS[params.status]}
+              </Tag>
+            )}
+            {/* Chip для upstream filter (Story 7.6, AC4) */}
+            {params.upstream && (
+              <Tag
+                closable
+                color="purple"
+                onClose={() => updateParams({ upstream: undefined })}
+              >
+                Upstream: {params.upstream}
               </Tag>
             )}
           </Space>

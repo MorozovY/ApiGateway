@@ -9,6 +9,7 @@ import { UsersPage } from '@features/users'
 import { ApprovalsPage } from '@features/approval'
 import { RateLimitsPage } from '@features/rate-limits'
 import { MetricsPage } from '@features/metrics'
+import { AuditPage, IntegrationsPage } from '@features/audit'
 
 function App() {
   return (
@@ -53,7 +54,24 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/audit" element={<div>Audit Logs</div>} />
+        {/* Аудит-логи (Story 7.5) — только для security и admin */}
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute requiredRole={['security', 'admin']}>
+              <AuditPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Integrations Report (Story 7.6, AC6) — только для security и admin */}
+        <Route
+          path="/audit/integrations"
+          element={
+            <ProtectedRoute requiredRole={['security', 'admin']}>
+              <IntegrationsPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Метрики (Story 6.5) — доступ для всех аутентифицированных пользователей */}
         <Route path="/metrics" element={<MetricsPage />} />
       </Route>

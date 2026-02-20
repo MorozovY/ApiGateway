@@ -108,7 +108,7 @@ development_status:
   7-2-audit-log-api-filtering: done
   7-3-route-change-history-api: done
   7-4-routes-upstream-filter: done
-  7-5-audit-log-ui: backlog
-  7-6-route-history-upstream-report-ui: backlog
+  7-5-audit-log-ui: done
+  7-6-route-history-upstream-report-ui: review
   7-7-e2e-playwright-happy-path: backlog
   epic-7-retrospective: optional

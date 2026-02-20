@@ -94,3 +94,23 @@ export async function checkPathExists(path: string): Promise<boolean> {
   })
   return data.exists
 }
+
+// ========================================
+// Route History API (Story 7.6, AC1)
+// ========================================
+
+// Импортируем типы из audit feature
+import type { RouteHistoryResponse } from '@features/audit'
+
+/**
+ * Получение истории изменений маршрута.
+ *
+ * GET /api/v1/routes/{id}/history
+ *
+ * Возвращает хронологический список изменений (newest first).
+ * Доступно для всех аутентифицированных пользователей (readonly).
+ */
+export async function fetchRouteHistory(routeId: string): Promise<RouteHistoryResponse> {
+  const { data } = await axios.get<RouteHistoryResponse>(`${BASE_URL}/${routeId}/history`)
+  return data
+}
