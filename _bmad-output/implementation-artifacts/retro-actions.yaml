@@ -104,11 +104,11 @@ action_items:
     description: "Story 7.0: MetricsService → Prometheus HTTP API — UI метрики должны показывать реальные данные"
     owner: "Charlie"
     priority: critical
-    status: open
+    status: in-progress
     source: epic-6-retro
     deadline: "Sprint 1 Epic 7"
     created: 2026-02-20
-    notes: "CRITICAL: Текущий MetricsService читает локальный MeterRegistry gateway-admin, а не gateway-core метрики. Переработать для query Prometheus HTTP API."
+    notes: "CRITICAL: Story 7.0 создана (7-0-metrics-service-prometheus-api.md), статус ready-for-dev"
 
 # =================================
 # PROCESS AGREEMENTS
