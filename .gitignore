@@ -93,6 +93,7 @@ frontend/admin-ui/.env.e2e
 
 # Docker
 docker/volumes/
+docker-compose.override.yml
 
 # Debug/Test cookies files
 cookies*.txt

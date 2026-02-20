@@ -15,11 +15,17 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // Доступ снаружи контейнера (для Docker)
     proxy: {
       '/api': {
+        // В Docker используем имя сервиса, локально — localhost
         target: process.env.VITE_API_URL || 'http://localhost:8081',
         changeOrigin: true,
       },
+    },
+    watch: {
+      // Для работы HMR в Docker с volume mounts
+      usePolling: true,
     },
   },
 })

@@ -111,19 +111,46 @@ fun `generates UUID when X-Correlation-ID header missing`() {
 
 ## Development Commands
 
-### Запуск инфраструктуры
+### Запуск всего стека (рекомендуемый способ)
 
 ```bash
-# Docker (PostgreSQL, Redis)
+# Первый запуск: собрать образы и запустить всё
+docker-compose up -d --build
+
+# Последующие запуски
 docker-compose up -d
 
-# С Prometheus + Grafana (опционально)
+# С мониторингом (Prometheus + Grafana)
 docker-compose --profile monitoring up -d
 
 # Проверка статуса
 docker-compose ps
-# или с monitoring profile
-docker-compose --profile monitoring ps
+
+# Логи конкретного сервиса
+docker-compose logs -f gateway-admin
+docker-compose logs -f gateway-core
+docker-compose logs -f admin-ui
+```
+
+**Сервисы:**
+- **gateway-admin**: http://localhost:8081 (API + Swagger UI: /swagger-ui.html)
+- **gateway-core**: http://localhost:8080 (Gateway)
+- **admin-ui**: http://localhost:3000 (Frontend)
+- **Prometheus**: http://localhost:9090 (с --profile monitoring)
+- **Grafana**: http://localhost:3001 (с --profile monitoring, login: admin/admin)
+
+**Hot-reload:**
+- Backend: изменения в `backend/*/src` автоматически перезагружают сервис
+- Frontend: Vite HMR обновляет браузер при изменениях в `frontend/admin-ui/src`
+
+### Запуск только инфраструктуры
+
+```bash
+# Только PostgreSQL и Redis (без приложений)
+docker-compose up -d postgres redis
+
+# С Prometheus + Grafana
+docker-compose up -d postgres redis && docker-compose --profile monitoring up -d prometheus grafana
 ```
 
 ### Мониторинг (Prometheus + Grafana)
@@ -149,7 +176,7 @@ docker-compose --profile monitoring down -v
 - Dashboard "API Gateway" автоматически provisioned
 - Для работы метрик gateway-core должен быть запущен
 
-### Запуск backend
+### Запуск backend (без Docker)
 
 ```bash
 # Gateway Admin (port 8081)
@@ -159,7 +186,7 @@ docker-compose --profile monitoring down -v
 ./gradlew :gateway-core:bootRun
 ```
 
-### Запуск frontend
+### Запуск frontend (без Docker)
 
 ```bash
 cd frontend/admin-ui
@@ -197,17 +224,8 @@ npm run test:coverage                  # с coverage
 # Остановить всё
 docker-compose down
 
-# Linux/macOS: остановить Gradle процессы
-pkill -f "bootRun" || true
-
-# Windows (PowerShell): остановить Gradle процессы
-# Get-Process -Name java -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -like '*bootRun*'} | Stop-Process
-
-# Запустить заново
-docker-compose up -d
-./gradlew :gateway-admin:bootRun &
-./gradlew :gateway-core:bootRun &
-cd frontend/admin-ui && npm run dev
+# Пересобрать образы и запустить
+docker-compose up -d --build
 ```
 
 ### Очистка и сброс
@@ -219,12 +237,30 @@ docker-compose down -v
 # Очистка build артефактов
 ./gradlew clean
 
+# Пересборка Docker образов
+docker-compose build --no-cache
+
 # Переустановка npm зависимостей
 cd frontend/admin-ui
 rm -rf node_modules
 npm install
 ```
 
+### Docker конфигурация
+
+**Файлы:**
+- `docker-compose.yml` — инфраструктура (postgres, redis) + monitoring profile
+- `docker-compose.override.yml` — dev apps с hot-reload (автоматически применяется)
+- `docker-compose.override.yml.example` — шаблон для команды
+
+**Для новых разработчиков:**
+```bash
+# Копировать шаблон (если override.yml отсутствует)
+cp docker-compose.override.yml.example docker-compose.override.yml
+```
+
+**Примечание:** `docker-compose.override.yml` в `.gitignore` — каждый разработчик использует свою копию.
+
 ---
 
-*Последнее обновление: 2026-02-20 (Story 6.4)*
+*Последнее обновление: 2026-02-20 (Docker Apps with Hot-Reload)*

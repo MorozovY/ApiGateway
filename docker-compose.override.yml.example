@@ -1,0 +1,118 @@
+# Docker Compose Override - Development Apps with Hot-Reload
+#
+# Этот файл автоматически применяется при `docker-compose up`
+# и добавляет сервисы приложения с поддержкой hot-reload.
+#
+# Использование:
+#   docker-compose up -d                    # infra + apps (этот файл применяется автоматически)
+#   docker-compose up -d postgres redis     # только infra (явно указываем сервисы)
+#   docker-compose --profile monitoring up -d  # infra + apps + monitoring
+#
+# Для production НЕ используйте этот файл (переименуйте или удалите)
+
+services:
+  # Gateway Admin API (port 8081)
+  # Hot-reload: изменения в backend/gateway-admin/src перезагружают сервис
+  gateway-admin:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway-admin.dev
+    container_name: gateway-admin-dev
+    ports:
+      - "8081:8081"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=gateway
+      - POSTGRES_USER=gateway
+      - POSTGRES_PASSWORD=gateway
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_PROFILES_ACTIVE=dev
+      - ADMIN_PASSWORD=admin123
+      - JWT_SECRET=dev-secret-key-minimum-32-characters-long
+    volumes:
+      # Монтируем исходники для hot-reload
+      - ./backend/gateway-common/src:/app/backend/gateway-common/src:ro
+      - ./backend/gateway-admin/src:/app/backend/gateway-admin/src:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gateway-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # Gateway Core (port 8080)
+  # Hot-reload: изменения в backend/gateway-core/src перезагружают сервис
+  gateway-core:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway-core.dev
+    container_name: gateway-core-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=gateway
+      - POSTGRES_USER=gateway
+      - POSTGRES_PASSWORD=gateway
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_PROFILES_ACTIVE=dev
+    volumes:
+      # Монтируем исходники для hot-reload
+      - ./backend/gateway-common/src:/app/backend/gateway-common/src:ro
+      - ./backend/gateway-core/src:/app/backend/gateway-core/src:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gateway-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # Admin UI (port 3000)
+  # Hot-reload: Vite HMR автоматически обновляет браузер при изменениях в src/
+  admin-ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin-ui.dev
+    container_name: admin-ui-dev
+    ports:
+      - "3000:3000"
+    environment:
+      # Для API proxy внутри Docker network
+      - VITE_API_URL=http://gateway-admin:8081
+    volumes:
+      # Монтируем исходники для HMR
+      - ./frontend/admin-ui/src:/app/src:ro
+      - ./frontend/admin-ui/public:/app/public:ro
+      - ./frontend/admin-ui/index.html:/app/index.html:ro
+      - ./frontend/admin-ui/vite.config.ts:/app/vite.config.ts:ro
+      - ./frontend/admin-ui/tsconfig.json:/app/tsconfig.json:ro
+      - ./frontend/admin-ui/tsconfig.app.json:/app/tsconfig.app.json:ro
+      - ./frontend/admin-ui/tsconfig.node.json:/app/tsconfig.node.json:ro
+    depends_on:
+      - gateway-admin
+    networks:
+      - gateway-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

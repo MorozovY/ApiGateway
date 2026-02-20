@@ -1,0 +1,29 @@
+# Development Dockerfile for gateway-core with hot-reload
+# Использует Gradle image с bootRun для автоперезагрузки
+
+FROM gradle:8.5-jdk21
+
+WORKDIR /app
+
+# Копируем файлы сборки для кэширования зависимостей
+COPY backend/build.gradle.kts backend/build.gradle.kts
+COPY backend/settings.gradle.kts backend/settings.gradle.kts
+COPY backend/gradle.properties backend/gradle.properties
+COPY backend/gateway-common/build.gradle.kts backend/gateway-common/build.gradle.kts
+COPY backend/gateway-admin/build.gradle.kts backend/gateway-admin/build.gradle.kts
+COPY backend/gateway-core/build.gradle.kts backend/gateway-core/build.gradle.kts
+
+# Создаём структуру директорий для исходников
+RUN mkdir -p backend/gateway-common/src/main/kotlin \
+    && mkdir -p backend/gateway-core/src/main/kotlin \
+    && mkdir -p backend/gateway-core/src/main/resources \
+    && mkdir -p backend/gateway-admin/src/main/kotlin
+
+# Предварительно скачиваем зависимости (кэшируется в слое)
+RUN cd backend && gradle dependencies --no-daemon -q || true
+
+EXPOSE 8080
+
+# Запускаем bootRun
+# Volume mount для исходников происходит в docker-compose
+CMD ["gradle", "-p", "backend", ":gateway-core:bootRun", "--no-daemon", "-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=true"]

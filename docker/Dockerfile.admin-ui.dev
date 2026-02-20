@@ -1,0 +1,20 @@
+# Development Dockerfile for admin-ui with Vite HMR
+# Использует Vite dev server с hot module replacement
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Копируем package files для кэширования зависимостей
+COPY frontend/admin-ui/package*.json ./
+
+# Устанавливаем зависимости
+RUN npm ci
+
+# Исходники монтируются через volume в docker-compose
+# Это позволяет HMR работать с локальными изменениями
+
+EXPOSE 3000
+
+# Vite dev server с host 0.0.0.0 для доступа из хоста
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
