@@ -95,7 +95,7 @@ development_status:
   6-1-metrics-collection-micrometer: done
   6-2-per-route-metrics: done
   6-3-metrics-summary-api: done
-  6-4-prometheus-grafana-setup: backlog
+  6-4-prometheus-grafana-setup: done
   6-5-basic-metrics-view-admin-ui: backlog
   6-6-e2e-playwright-happy-path: backlog
   epic-6-retrospective: optional

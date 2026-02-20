@@ -117,9 +117,37 @@ fun `generates UUID when X-Correlation-ID header missing`() {
 # Docker (PostgreSQL, Redis)
 docker-compose up -d
 
+# С Prometheus + Grafana (опционально)
+docker-compose --profile monitoring up -d
+
 # Проверка статуса
 docker-compose ps
+# или с monitoring profile
+docker-compose --profile monitoring ps
 ```
+
+### Мониторинг (Prometheus + Grafana)
+
+```bash
+# Запуск мониторинга
+docker-compose --profile monitoring up -d
+
+# UI доступ:
+# - Prometheus: http://localhost:9090 (targets: http://localhost:9090/targets)
+# - Grafana: http://localhost:3001 (login: admin/admin)
+
+# Остановка мониторинга
+docker-compose --profile monitoring down
+
+# Полная очистка с данными
+docker-compose --profile monitoring down -v
+```
+
+**Примечания:**
+- Grafana использует порт 3001 (3000 занят frontend dev server)
+- Prometheus scrape interval: 15 секунд
+- Dashboard "API Gateway" автоматически provisioned
+- Для работы метрик gateway-core должен быть запущен
 
 ### Запуск backend
 
@@ -199,4 +227,4 @@ npm install
 
 ---
 
-*Последнее обновление: 2026-02-19 (Story 5.7)*
+*Последнее обновление: 2026-02-20 (Story 6.4)*

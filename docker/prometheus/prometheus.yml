@@ -1,0 +1,26 @@
+# Prometheus конфигурация для API Gateway
+# Scrape метрик с gateway-core через Micrometer Prometheus endpoint
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Gateway Core метрики
+  # host.docker.internal позволяет контейнеру обращаться к host machine
+  # где запущен gateway-core через ./gradlew bootRun
+  - job_name: 'gateway'
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    relabel_configs:
+      # Переименовываем instance для более читаемых меток
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'gateway-core'

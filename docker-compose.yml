@@ -2,11 +2,16 @@
 # Health checks configured for Kubernetes compatibility (Story 1.7)
 #
 # Usage:
-#   docker-compose up -d
+#   docker-compose up -d                           # Core services only
+#   docker-compose --profile monitoring up -d      # With Prometheus + Grafana
 #
 # Services:
 #   - PostgreSQL 16 (port 5432): Database for routes and configuration
 #   - Redis 7 (port 6379): Cache and pub/sub for route invalidation
+#
+# Monitoring profile (optional):
+#   - Prometheus (port 9090): Metrics scraping from gateway-core
+#   - Grafana (port 3001): Dashboard visualization (3000 занят frontend)
 #
 # Health checks:
 #   - PostgreSQL: pg_isready command (interval: 10s, timeout: 5s, retries: 5)
@@ -47,9 +52,61 @@ services:
     networks:
       - gateway-network
 
+  # Мониторинг (опциональный profile "monitoring")
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: gateway-prometheus
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gateway-network
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: gateway-grafana
+    profiles: ["monitoring"]
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gateway-network
+
 volumes:
   postgres_data:
   redis_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   gateway-network:
