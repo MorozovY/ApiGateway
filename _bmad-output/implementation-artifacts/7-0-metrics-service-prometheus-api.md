@@ -1,6 +1,6 @@
 # Story 7.0: MetricsService — Prometheus HTTP API Integration
 
-Status: in-progress
+Status: completed
 
 ## Story
 
