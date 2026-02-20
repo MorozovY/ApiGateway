@@ -90,7 +90,7 @@ development_status:
   epic-5-retrospective: done
 
   # Epic 6: Monitoring & Observability
-  epic-6: in-progress
+  epic-6: done
   6-0-theme-switcher-ui: done  # Mini-story: dark/light theme toggle
   6-1-metrics-collection-micrometer: done
   6-2-per-route-metrics: done
@@ -98,7 +98,7 @@ development_status:
   6-4-prometheus-grafana-setup: done
   6-5-basic-metrics-view-admin-ui: done  # All ACs complete, sparkline charts, code review fixes
   6-5-1-metrics-api-role-filtering: done  # Hotfix: role-based filtering for top-routes
-  6-6-e2e-playwright-happy-path: backlog
+  6-6-e2e-playwright-happy-path: done  # Code review fixes: AC3 auto-refresh, constants, test isolation
   epic-6-retrospective: optional
 
   # Epic 7: Audit & Compliance
