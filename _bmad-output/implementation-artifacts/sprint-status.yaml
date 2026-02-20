@@ -107,7 +107,7 @@ development_status:
   7-1-audit-log-entity-event-recording: done
   7-2-audit-log-api-filtering: done
   7-3-route-change-history-api: done
-  7-4-routes-upstream-filter: backlog
+  7-4-routes-upstream-filter: done
   7-5-audit-log-ui: backlog
   7-6-route-history-upstream-report-ui: backlog
   7-7-e2e-playwright-happy-path: backlog

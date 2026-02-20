@@ -8,6 +8,7 @@ import com.company.gateway.admin.dto.RouteFilterRequest
 import com.company.gateway.admin.dto.RouteListResponse
 import com.company.gateway.admin.dto.RouteResponse
 import com.company.gateway.admin.dto.UpdateRouteRequest
+import com.company.gateway.admin.dto.UpstreamsListResponse
 import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.common.model.RouteStatus
 import com.company.gateway.admin.security.RequireRole
@@ -93,16 +94,37 @@ class RouteController(
     }
 
     /**
+     * Получение списка уникальных upstream хостов.
+     *
+     * Возвращает все уникальные upstream хосты (hostname:port) с количеством маршрутов.
+     * Схема (http:// или https://) удаляется из URL.
+     * Результат отсортирован по routeCount DESC.
+     *
+     * Доступно всем аутентифицированным пользователям (DEVELOPER и выше).
+     * Story 7.4, AC3.
+     */
+    @GetMapping("/upstreams")
+    @RequireRole(Role.DEVELOPER)
+    fun listUpstreams(): Mono<ResponseEntity<UpstreamsListResponse>> {
+        return routeService.getUpstreams()
+            .map { ResponseEntity.ok(it) }
+    }
+
+    /**
      * Получение списка маршрутов с фильтрацией и пагинацией.
      *
      * Поддерживает фильтрацию по:
      * - status: статус маршрута (draft, pending, published, rejected)
      * - createdBy: "me" для своих маршрутов или UUID пользователя
      * - search: текстовый поиск по path и description (case-insensitive)
+     * - upstream: поиск по части upstream URL (ILIKE, case-insensitive) — Story 7.4, AC1
+     * - upstreamExact: точное совпадение upstream URL (case-sensitive) — Story 7.4, AC2
      *
      * Пагинация:
      * - offset: смещение от начала списка (default 0)
      * - limit: количество элементов на странице (default 20, max 100)
+     *
+     * ВАЖНО: upstream и upstreamExact нельзя использовать одновременно (400 Bad Request).
      *
      * Доступно всем аутентифицированным пользователям (DEVELOPER и выше).
      */
@@ -112,6 +134,8 @@ class RouteController(
         @RequestParam(required = false) status: RouteStatus?,
         @RequestParam(required = false) createdBy: String?,
         @RequestParam(required = false) search: String?,
+        @RequestParam(required = false) upstream: String?,
+        @RequestParam(required = false) upstreamExact: String?,
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "20") limit: Int
     ): Mono<ResponseEntity<RouteListResponse>> {
@@ -126,10 +150,25 @@ class RouteController(
             return Mono.error(ValidationException("Search query must be between 1 and $MAX_SEARCH_LENGTH characters"))
         }
 
+        // Story 7.4: upstream и upstreamExact нельзя использовать одновременно
+        if (upstream != null && upstreamExact != null) {
+            return Mono.error(ValidationException("Cannot specify both 'upstream' and 'upstreamExact' parameters"))
+        }
+
+        // Story 7.4: валидация длины upstream параметров
+        if (upstream != null && upstream.length > MAX_SEARCH_LENGTH) {
+            return Mono.error(ValidationException("Upstream filter must be between 1 and $MAX_SEARCH_LENGTH characters"))
+        }
+        if (upstreamExact != null && upstreamExact.length > 2000) {
+            return Mono.error(ValidationException("Upstream exact filter must be less than 2000 characters"))
+        }
+
         val filter = RouteFilterRequest(
             status = status,
             createdBy = createdBy,
             search = search,
+            upstream = upstream,
+            upstreamExact = upstreamExact,
             offset = offset,
             limit = limit
         )

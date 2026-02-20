@@ -8,6 +8,7 @@ import com.company.gateway.admin.dto.RouteFilterRequest
 import com.company.gateway.admin.dto.RouteListResponse
 import com.company.gateway.admin.dto.RouteResponse
 import com.company.gateway.admin.dto.UpdateRouteRequest
+import com.company.gateway.admin.dto.UpstreamsListResponse
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
@@ -67,8 +68,8 @@ class RouteService(
                     // Валидация rateLimitId если указан (Story 5.5)
                     val rateLimitValidation: Mono<Boolean> = if (request.rateLimitId != null) {
                         rateLimitRepository.existsById(request.rateLimitId)
-                            .flatMap { exists ->
-                                if (!exists) {
+                            .flatMap { rateLimitExists ->
+                                if (!rateLimitExists) {
                                     Mono.error(ValidationException("Rate limit policy not found"))
                                 } else {
                                     Mono.just(true)
@@ -570,6 +571,8 @@ class RouteService(
      * - status: статус маршрута (draft, pending, published, rejected)
      * - createdBy: "me" преобразуется в userId текущего пользователя
      * - search: текстовый поиск по path и description (case-insensitive)
+     * - upstream: поиск по части upstream URL (ILIKE, case-insensitive) — Story 7.4, AC1
+     * - upstreamExact: точное совпадение upstream URL (case-sensitive) — Story 7.4, AC2
      *
      * Фильтры применяются с AND логикой.
      *
@@ -579,8 +582,8 @@ class RouteService(
      */
     fun findAllWithFilters(filter: RouteFilterRequest, currentUserId: UUID?): Mono<RouteListResponse> {
         logger.debug(
-            "Поиск маршрутов: status={}, createdBy={}, search={}, offset={}, limit={}",
-            filter.status, filter.createdBy, filter.search, filter.offset, filter.limit
+            "Поиск маршрутов: status={}, createdBy={}, search={}, upstream={}, upstreamExact={}, offset={}, limit={}",
+            filter.status, filter.createdBy, filter.search, filter.upstream, filter.upstreamExact, filter.offset, filter.limit
         )
 
         // Преобразуем createdBy="me" в UUID текущего пользователя
@@ -603,6 +606,8 @@ class RouteService(
             status = filter.status,
             createdBy = createdByResult.uuid,
             search = filter.search,
+            upstream = filter.upstream,
+            upstreamExact = filter.upstreamExact,
             offset = filter.offset,
             limit = filter.limit
         ).collectList()
@@ -610,7 +615,9 @@ class RouteService(
         val totalMono = routeRepository.countWithFilters(
             status = filter.status,
             createdBy = createdByResult.uuid,
-            search = filter.search
+            search = filter.search,
+            upstream = filter.upstream,
+            upstreamExact = filter.upstreamExact
         )
 
         return Mono.zip(routesMono, totalMono)
@@ -647,6 +654,27 @@ class RouteService(
                         }
                 }
             }
+    }
+
+    /**
+     * Возвращает список уникальных upstream хостов с количеством маршрутов.
+     *
+     * Извлекает hostname:port из upstream_url (удаляет схему http:// или https://).
+     * Результат отсортирован по routeCount DESC.
+     *
+     * Story 7.4, AC3.
+     *
+     * @return Mono<UpstreamsListResponse> список уникальных хостов с количеством маршрутов
+     */
+    fun getUpstreams(): Mono<UpstreamsListResponse> {
+        logger.debug("Получение списка уникальных upstream хостов")
+
+        return routeRepository.findUniqueUpstreams()
+            .collectList()
+            .map { upstreams ->
+                UpstreamsListResponse(upstreams = upstreams)
+            }
+            .doOnSuccess { logger.debug("Найдено {} уникальных upstream хостов", it.upstreams.size) }
     }
 
     /**

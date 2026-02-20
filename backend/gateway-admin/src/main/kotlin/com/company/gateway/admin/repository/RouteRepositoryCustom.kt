@@ -1,6 +1,7 @@
 package com.company.gateway.admin.repository
 
 import com.company.gateway.admin.dto.RouteWithCreator
+import com.company.gateway.admin.dto.UpstreamInfo
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import reactor.core.publisher.Flux
@@ -23,6 +24,8 @@ interface RouteRepositoryCustom {
      * @param status фильтр по статусу (опционально)
      * @param createdBy фильтр по автору — UUID пользователя (опционально)
      * @param search строка поиска по path и description (case-insensitive)
+     * @param upstream поиск по части upstream URL (ILIKE, case-insensitive)
+     * @param upstreamExact точное совпадение upstream URL (case-sensitive)
      * @param offset смещение от начала списка
      * @param limit максимальное количество элементов
      * @return Flux<Route> отфильтрованные маршруты с пагинацией
@@ -31,6 +34,8 @@ interface RouteRepositoryCustom {
         status: RouteStatus?,
         createdBy: UUID?,
         search: String?,
+        upstream: String?,
+        upstreamExact: String?,
         offset: Int,
         limit: Int
     ): Flux<Route>
@@ -43,12 +48,16 @@ interface RouteRepositoryCustom {
      * @param status фильтр по статусу (опционально)
      * @param createdBy фильтр по автору — UUID пользователя (опционально)
      * @param search строка поиска по path и description (case-insensitive)
+     * @param upstream поиск по части upstream URL (ILIKE, case-insensitive)
+     * @param upstreamExact точное совпадение upstream URL (case-sensitive)
      * @return Mono<Long> количество маршрутов
      */
     fun countWithFilters(
         status: RouteStatus?,
         createdBy: UUID?,
-        search: String?
+        search: String?,
+        upstream: String?,
+        upstreamExact: String?
     ): Mono<Long>
 
     /**
@@ -99,4 +108,15 @@ interface RouteRepositoryCustom {
      * @return Mono<Long> количество pending маршрутов
      */
     fun countPending(): Mono<Long>
+
+    /**
+     * Возвращает список уникальных upstream хостов с количеством маршрутов.
+     *
+     * Извлекает hostname:port из upstream_url (удаляет схему http:// или https://).
+     * Результат отсортирован по routeCount DESC.
+     * Story 7.4, AC3.
+     *
+     * @return Flux<UpstreamInfo> список уникальных хостов с количеством маршрутов
+     */
+    fun findUniqueUpstreams(): Flux<UpstreamInfo>
 }

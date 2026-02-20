@@ -1,6 +1,7 @@
 package com.company.gateway.admin.repository
 
 import com.company.gateway.admin.dto.RouteWithCreator
+import com.company.gateway.admin.dto.UpstreamInfo
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import io.r2dbc.spi.Row
@@ -39,10 +40,12 @@ class RouteRepositoryCustomImpl(
         status: RouteStatus?,
         createdBy: UUID?,
         search: String?,
+        upstream: String?,
+        upstreamExact: String?,
         offset: Int,
         limit: Int
     ): Flux<Route> {
-        val (whereClause, params) = buildWhereClause(status, createdBy, search)
+        val (whereClause, params) = buildWhereClause(status, createdBy, search, upstream, upstreamExact)
         val sql = "SELECT * FROM routes$whereClause ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
 
         params["offset"] = offset
@@ -59,9 +62,11 @@ class RouteRepositoryCustomImpl(
     override fun countWithFilters(
         status: RouteStatus?,
         createdBy: UUID?,
-        search: String?
+        search: String?,
+        upstream: String?,
+        upstreamExact: String?
     ): Mono<Long> {
-        val (whereClause, params) = buildWhereClause(status, createdBy, search)
+        val (whereClause, params) = buildWhereClause(status, createdBy, search, upstream, upstreamExact)
         val sql = "SELECT COUNT(*) FROM routes$whereClause"
 
         var spec = databaseClient.sql(sql)
@@ -85,12 +90,16 @@ class RouteRepositoryCustomImpl(
      * @param status фильтр по статусу (опционально)
      * @param createdBy фильтр по автору (опционально)
      * @param search строка поиска (опционально)
+     * @param upstream поиск по части upstream URL (ILIKE, case-insensitive)
+     * @param upstreamExact точное совпадение upstream URL (case-sensitive)
      * @return Pair<String, MutableMap<String, Any>> — WHERE clause и параметры
      */
     private fun buildWhereClause(
         status: RouteStatus?,
         createdBy: UUID?,
-        search: String?
+        search: String?,
+        upstream: String? = null,
+        upstreamExact: String? = null
     ): Pair<String, MutableMap<String, Any>> {
         val sql = StringBuilder(" WHERE 1=1")
         val params = mutableMapOf<String, Any>()
@@ -112,6 +121,19 @@ class RouteRepositoryCustomImpl(
             val escapedSearch = escapeForIlike(it)
             sql.append(" AND (path ILIKE :search ESCAPE '\\' OR description ILIKE :search ESCAPE '\\')")
             params["search"] = "%$escapedSearch%"
+        }
+
+        // Фильтр по части upstream URL (ILIKE, case-insensitive) — Story 7.4, AC1
+        upstream?.let {
+            val escapedUpstream = escapeForIlike(it)
+            sql.append(" AND upstream_url ILIKE :upstream ESCAPE '\\'")
+            params["upstream"] = "%$escapedUpstream%"
+        }
+
+        // Точное совпадение upstream URL (case-sensitive) — Story 7.4, AC2
+        upstreamExact?.let {
+            sql.append(" AND upstream_url = :upstreamExact")
+            params["upstreamExact"] = it
         }
 
         return Pair(sql.toString(), params)
@@ -230,6 +252,29 @@ class RouteRepositoryCustomImpl(
             }
             .one()
             .defaultIfEmpty(0L)
+    }
+
+    override fun findUniqueUpstreams(): Flux<UpstreamInfo> {
+        // Используем PostgreSQL regexp_replace для удаления схемы из URL
+        // Группируем по хосту и сортируем по количеству маршрутов DESC
+        // Story 7.4, AC3
+        val sql = """
+            SELECT
+                regexp_replace(upstream_url, '^https?://', '') AS host,
+                COUNT(*) AS route_count
+            FROM routes
+            GROUP BY regexp_replace(upstream_url, '^https?://', '')
+            ORDER BY route_count DESC
+        """.trimIndent()
+
+        return databaseClient.sql(sql)
+            .map { row, _ ->
+                UpstreamInfo(
+                    host = row.get("host", String::class.java)!!,
+                    routeCount = row.get("route_count", java.lang.Number::class.java)!!.longValue()
+                )
+            }
+            .all()
     }
 
     /**
