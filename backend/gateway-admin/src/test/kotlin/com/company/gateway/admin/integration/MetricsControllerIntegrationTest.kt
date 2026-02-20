@@ -460,13 +460,14 @@ class MetricsControllerIntegrationTest {
 
         @Test
         fun `developer не видит маршруты других пользователей`() {
-            // Given: маршрут без явного владельца (createdBy = null или другой пользователь)
+            // Given: маршрут принадлежит другому пользователю
             val anotherUser = createTestUser("another_dev", "password", Role.DEVELOPER)
             val otherRoute = createTestRoute("/api/hidden-route", anotherUser.id!!)
 
-            // Настраиваем mock Prometheus для возврата только чужого маршрута
+            // Настраиваем mock Prometheus для возврата метрик ОБОИХ маршрутов
             testPrometheusClient.setTopRoutesResponse(
-                otherRoute.id.toString() to 50.0
+                testRoute.id.toString() to 10.0,  // маршрут developerUser
+                otherRoute.id.toString() to 50.0   // маршрут anotherUser
             )
 
             // When: текущий developer запрашивает top-routes
@@ -475,10 +476,11 @@ class MetricsControllerIntegrationTest {
                 .cookie("auth_token", developerToken)
                 .accept(MediaType.APPLICATION_JSON)
                 .exchange()
-                // Then: пустой список (нет своих маршрутов с метриками)
+                // Then: видит ТОЛЬКО свой маршрут (testRoute), НЕ видит чужой (otherRoute)
                 .expectStatus().isOk
                 .expectBody()
-                .jsonPath("$.length()").isEqualTo(0)
+                .jsonPath("$.length()").isEqualTo(1)
+                .jsonPath("$[0].routeId").isEqualTo(testRoute.id.toString())
         }
     }
 
@@ -570,6 +572,68 @@ class MetricsControllerIntegrationTest {
                 .expectBody()
                 .jsonPath("$.length()").isEqualTo(1)
                 .jsonPath("$[0].metric").isEqualTo("latency")
+        }
+    }
+
+    // ============================================
+    // AC4: Graceful Degradation при недоступности Prometheus
+    // ============================================
+
+    @Nested
+    inner class AC4_PrometheusUnavailable {
+
+        @Test
+        fun `GET метрики возвращает 503 когда Prometheus недоступен`() {
+            // Given: Prometheus недоступен
+            testPrometheusClient.setUnavailable()
+
+            // When & Then
+            webTestClient.get()
+                .uri("/api/v1/metrics/summary")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isEqualTo(503)
+                .expectHeader().exists("Retry-After")
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/service-unavailable")
+                .jsonPath("$.status").isEqualTo(503)
+                .jsonPath("$.title").isEqualTo("Service Unavailable")
+                .jsonPath("$.detail").exists()
+        }
+
+        @Test
+        fun `GET top-routes возвращает 503 когда Prometheus недоступен`() {
+            // Given: Prometheus недоступен
+            testPrometheusClient.setUnavailable()
+
+            // When & Then
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isEqualTo(503)
+                .expectHeader().exists("Retry-After")
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/service-unavailable")
+        }
+
+        @Test
+        fun `GET метрики маршрута возвращает 503 когда Prometheus недоступен`() {
+            // Given: Prometheus недоступен
+            testPrometheusClient.setUnavailable()
+
+            // When & Then
+            webTestClient.get()
+                .uri("/api/v1/metrics/routes/${testRoute.id}")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isEqualTo(503)
+                .expectHeader().exists("Retry-After")
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/service-unavailable")
         }
     }
 

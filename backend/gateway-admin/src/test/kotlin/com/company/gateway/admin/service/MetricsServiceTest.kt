@@ -166,11 +166,19 @@ class MetricsServiceTest {
 
         @Test
         fun `возвращает топ маршруты по количеству запросов`() {
-            // Given: Prometheus возвращает top routes
+            // Given: В БД есть published маршруты
             val route1 = UUID.randomUUID()
             val route2 = UUID.randomUUID()
             val route3 = UUID.randomUUID()
 
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.just(
+                    createTestRoute(route1, "/api/route1"),
+                    createTestRoute(route2, "/api/route2"),
+                    createTestRoute(route3, "/api/route3")
+                ))
+
+            // Prometheus возвращает метрики для этих маршрутов
             val response = createTopRoutesResponse(
                 route2.toString() to 200.0,
                 route1.toString() to 100.0,
@@ -180,16 +188,9 @@ class MetricsServiceTest {
             whenever(prometheusClient.query(any()))
                 .thenReturn(Mono.just(response))
 
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRoute(route1, "/api/route1"),
-                    createTestRoute(route2, "/api/route2"),
-                    createTestRoute(route3, "/api/route3")
-                ))
-
             // When
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
-                // Then
+                // Then: отсортировано по value (убывание)
                 .expectNextMatches { topRoutes ->
                     topRoutes.size == 3 &&
                     topRoutes[0].routeId == route2.toString() &&
@@ -207,6 +208,12 @@ class MetricsServiceTest {
             val route1 = UUID.randomUUID()
             val route2 = UUID.randomUUID()
 
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.just(
+                    createTestRoute(route1, "/api/slow"),
+                    createTestRoute(route2, "/api/fast")
+                ))
+
             val response = createTopRoutesResponse(
                 route1.toString() to 0.200,  // 200ms (самый медленный)
                 route2.toString() to 0.050   // 50ms
@@ -214,12 +221,6 @@ class MetricsServiceTest {
 
             whenever(prometheusClient.query(any()))
                 .thenReturn(Mono.just(response))
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRoute(route1, "/api/slow"),
-                    createTestRoute(route2, "/api/fast")
-                ))
 
             // When
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.LATENCY, 10))
@@ -233,10 +234,10 @@ class MetricsServiceTest {
         }
 
         @Test
-        fun `возвращает пустой список когда нет метрик`() {
-            // Given: Prometheus возвращает пустой результат
-            whenever(prometheusClient.query(any()))
-                .thenReturn(Mono.just(createEmptyResponse()))
+        fun `возвращает пустой список когда нет маршрутов в БД`() {
+            // Given: БД пустая
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.empty())
 
             // When
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
@@ -248,29 +249,24 @@ class MetricsServiceTest {
         }
 
         @Test
-        fun `игнорирует unknown маршруты`() {
-            // Given: Prometheus возвращает метрики с route_id = "unknown"
-            val response = PrometheusQueryResponse(
-                status = "success",
-                data = PrometheusData(
-                    resultType = "vector",
-                    result = listOf(
-                        PrometheusMetric(
-                            metric = mapOf("route_id" to "unknown"),
-                            value = listOf(1708444800, "100")
-                        )
-                    )
-                )
-            )
+        fun `возвращает маршруты с value 0 когда нет метрик в Prometheus`() {
+            // Given: В БД есть маршрут, но в Prometheus нет метрик для него
+            val route1 = UUID.randomUUID()
 
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.just(createTestRoute(route1, "/api/new-route")))
+
+            // Prometheus возвращает пустой результат
             whenever(prometheusClient.query(any()))
-                .thenReturn(Mono.just(response))
+                .thenReturn(Mono.just(createEmptyResponse()))
 
             // When
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10))
-                // Then: пустой список (unknown отфильтрован)
+                // Then: маршрут возвращается с value=0
                 .expectNextMatches { topRoutes ->
-                    topRoutes.isEmpty()
+                    topRoutes.size == 1 &&
+                    topRoutes[0].routeId == route1.toString() &&
+                    topRoutes[0].value == 0.0
                 }
                 .verifyComplete()
         }
@@ -285,12 +281,19 @@ class MetricsServiceTest {
 
         @Test
         fun `getTopRoutes с ownerId фильтрует результаты`() {
-            // Given
+            // Given: два маршрута от разных владельцев
             val developer1Id = UUID.randomUUID()
             val developer2Id = UUID.randomUUID()
 
             val route1 = UUID.randomUUID()
             val route2 = UUID.randomUUID()
+
+            // БД возвращает ОБА маршрута (findByStatus не фильтрует по owner)
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
+                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
+                ))
 
             val response = createTopRoutesResponse(
                 route1.toString() to 100.0,
@@ -300,16 +303,9 @@ class MetricsServiceTest {
             whenever(prometheusClient.query(any()))
                 .thenReturn(Mono.just(response))
 
-            // Route1 создан developer1, Route2 создан developer2
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
-                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
-                ))
-
             // When: запрос с фильтрацией по developer1
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, developer1Id))
-                // Then: возвращается только route1
+                // Then: возвращается только route1 (фильтрация по ownerId в getTopRoutes)
                 .expectNextMatches { topRoutes ->
                     topRoutes.size == 1 &&
                     topRoutes[0].routeId == route1.toString() &&
@@ -327,6 +323,12 @@ class MetricsServiceTest {
             val route1 = UUID.randomUUID()
             val route2 = UUID.randomUUID()
 
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.just(
+                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
+                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
+                ))
+
             val response = createTopRoutesResponse(
                 route1.toString() to 80.0,
                 route2.toString() to 60.0
@@ -334,12 +336,6 @@ class MetricsServiceTest {
 
             whenever(prometheusClient.query(any()))
                 .thenReturn(Mono.just(response))
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
-                .thenReturn(Flux.just(
-                    createTestRouteWithCreator(route1, "/api/route1", developer1Id),
-                    createTestRouteWithCreator(route2, "/api/route2", developer2Id)
-                ))
 
             // When: запрос без фильтрации (ownerId = null)
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, null))
@@ -352,24 +348,21 @@ class MetricsServiceTest {
 
         @Test
         fun `getTopRoutes с ownerId возвращает пустой список когда нет маршрутов пользователя`() {
-            // Given
+            // Given: маршрут принадлежит другому пользователю
             val otherUserId = UUID.randomUUID()
             val currentUserId = UUID.randomUUID()
             val route1 = UUID.randomUUID()
 
-            val response = createTopRoutesResponse(route1.toString() to 100.0)
-
-            whenever(prometheusClient.query(any()))
-                .thenReturn(Mono.just(response))
-
-            whenever(routeRepository.findAllById(any<Iterable<UUID>>()))
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
                 .thenReturn(Flux.just(
                     createTestRouteWithCreator(route1, "/api/route1", otherUserId)
                 ))
 
+            // Prometheus не будет вызван — filter по ownerId отсеет все маршруты до query
+
             // When
             StepVerifier.create(metricsService.getTopRoutes(MetricsSortBy.REQUESTS, 10, currentUserId))
-                // Then
+                // Then: пустой список
                 .expectNextMatches { topRoutes ->
                     topRoutes.isEmpty()
                 }
@@ -493,7 +486,12 @@ class MetricsServiceTest {
 
         @Test
         fun `getTopRoutes пробрасывает PrometheusUnavailableException`() {
-            // Given: Prometheus недоступен
+            // Given: есть маршруты в БД
+            val route1 = UUID.randomUUID()
+            whenever(routeRepository.findByStatus(RouteStatus.PUBLISHED))
+                .thenReturn(Flux.just(createTestRoute(route1, "/api/test")))
+
+            // Prometheus недоступен
             whenever(prometheusClient.query(any()))
                 .thenReturn(Mono.error(PrometheusUnavailableException("Connection timeout")))
 

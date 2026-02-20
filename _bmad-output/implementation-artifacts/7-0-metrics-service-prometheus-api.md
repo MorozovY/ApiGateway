@@ -129,6 +129,10 @@ Story 6.3 создала MetricsService с упрощением для MVP — �
   - [x] Проверить что UI показывает числовые значения метрик
   - [x] Auto-refresh работает
 
+### Review Follow-ups (AI)
+- [ ] [AI-Review][MEDIUM] PrometheusClient не выбрасывает исключение при status="error" — при ошибке PromQL синтаксиса пользователь видит нули вместо ошибки [PrometheusClientImpl.kt:62-66]
+- [ ] [AI-Review][LOW] Добавить параметр period в getTopRoutes() — сейчас всегда 5m [MetricsService.kt:131]
+
 ## Dev Notes
 
 ### Архитектурный контекст
@@ -358,16 +362,20 @@ gateway-admin:
 **Новые файлы:**
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/client/PrometheusClient.kt`
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/client/PrometheusClientImpl.kt`
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/client/PromQLBuilder.kt` — builder для PromQL запросов
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/client/dto/PrometheusResponse.kt`
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/exception/PrometheusUnavailableException.kt`
 - `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/client/PrometheusClientTest.kt`
+- `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/config/TestPrometheusConfig.kt` — mock PrometheusClient для integration тестов
 
 **Модифицируемые файлы:**
+- `backend/gateway-admin/build.gradle.kts` — добавлена зависимость okhttp3:mockwebserver
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/service/MetricsService.kt`
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/exception/GlobalExceptionHandler.kt` — добавлен handler для PrometheusUnavailableException
 - `backend/gateway-admin/src/main/resources/application.yml`
 - `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/service/MetricsServiceTest.kt`
 - `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/integration/MetricsControllerIntegrationTest.kt`
-- `docker-compose.yml` (PROMETHEUS_URL для gateway-admin)
+- `docker-compose.override.yml.example` (PROMETHEUS_URL для gateway-admin)
 
 ### Dependencies
 
@@ -403,3 +411,4 @@ feat: implement Story 7.0 — MetricsService Prometheus HTTP API Integration
 |------|--------|
 | 2026-02-20 | Story created from Epic 6 Retro action item E6-08 (CRITICAL) |
 | 2026-02-20 | Implementation completed: Tasks 1-10 done, all unit tests passing |
+| 2026-02-20 | Code review: added integration tests for AC4 (503 graceful degradation), updated File List, removed dead constants, fixed outdated DTO comment |

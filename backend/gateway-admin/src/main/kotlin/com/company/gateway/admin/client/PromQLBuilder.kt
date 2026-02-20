@@ -146,4 +146,44 @@ object PromQLBuilder {
     fun routeStatusBreakdown(routeId: String, period: MetricsPeriod): String {
         return "sum(increase(${METRIC_REQUESTS_TOTAL}{$LABEL_ROUTE_ID=\"$routeId\"}[${period.value}])) by ($LABEL_STATUS)"
     }
+
+    // ============================================
+    // Методы для запроса метрик по списку route_id
+    // Используются для Top Routes (сначала БД, потом Prometheus)
+    // ============================================
+
+    /**
+     * Общее количество запросов для списка маршрутов.
+     *
+     * PromQL: sum(gateway_requests_total{route_id=~"uuid1|uuid2|..."}) by (route_id)
+     *
+     * Использует total (не rate) для показа накопленных метрик,
+     * что актуально когда нет текущей активности.
+     */
+    fun totalRequestsByRouteIds(routeIds: List<String>): String {
+        if (routeIds.isEmpty()) return ""
+        val routeIdRegex = routeIds.joinToString("|")
+        return "sum(${METRIC_REQUESTS_TOTAL}{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID)"
+    }
+
+    /**
+     * Средняя latency для списка маршрутов.
+     *
+     * PromQL: avg(gateway_request_duration_seconds_sum{...}) by (route_id) / avg(gateway_request_duration_seconds_count{...}) by (route_id)
+     */
+    fun avgLatencyByRouteIds(routeIds: List<String>): String {
+        if (routeIds.isEmpty()) return ""
+        val routeIdRegex = routeIds.joinToString("|")
+        return "(sum(${METRIC_REQUEST_DURATION}_sum{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID)) / " +
+            "(sum(${METRIC_REQUEST_DURATION}_count{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID))"
+    }
+
+    /**
+     * Общее количество ошибок для списка маршрутов.
+     */
+    fun totalErrorsByRouteIds(routeIds: List<String>): String {
+        if (routeIds.isEmpty()) return ""
+        val routeIdRegex = routeIds.joinToString("|")
+        return "sum(${METRIC_ERRORS_TOTAL}{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID)"
+    }
 }

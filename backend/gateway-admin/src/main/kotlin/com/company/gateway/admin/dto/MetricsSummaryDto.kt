@@ -3,9 +3,8 @@ package com.company.gateway.admin.dto
 /**
  * DTO для общей сводки метрик gateway.
  *
- * Возвращает агрегированные метрики с момента старта приложения.
- * Параметр period указывает запрошенный период, но метрики являются
- * cumulative (Micrometer ограничение).
+ * Story 7.0: Метрики читаются из Prometheus HTTP API и отражают
+ * реальные time-series данные за указанный period.
  *
  * @see com.company.gateway.admin.service.MetricsService
  */

@@ -1,11 +1,14 @@
 // Таблица топ-маршрутов для MetricsPage (Story 6.5, AC5)
-import { Table, Tag } from 'antd'
+// Story 7.0: Обновлено для нового формата API (value + metric)
+import { Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { TopRoute } from '../types/metrics.types'
-import { getErrorRateTagColor } from '../utils/errorRateUtils'
 
 /**
  * Колонки таблицы топ-маршрутов.
+ *
+ * Story 7.0: API теперь возвращает value (total requests) вместо детальных метрик.
+ * Показываем только path и количество запросов.
  */
 const columns: ColumnsType<TopRoute> = [
   {
@@ -15,27 +18,12 @@ const columns: ColumnsType<TopRoute> = [
     ellipsis: true,
   },
   {
-    title: 'RPS',
-    dataIndex: 'requestsPerSecond',
-    key: 'requestsPerSecond',
-    render: (value: number) => value.toFixed(1),
-    sorter: (a, b) => a.requestsPerSecond - b.requestsPerSecond,
-  },
-  {
-    title: 'Avg Latency',
-    dataIndex: 'avgLatencyMs',
-    key: 'avgLatencyMs',
-    render: (value: number) => `${value} ms`,
-    sorter: (a, b) => a.avgLatencyMs - b.avgLatencyMs,
-  },
-  {
-    title: 'Error Rate',
-    dataIndex: 'errorRate',
-    key: 'errorRate',
-    render: (value: number) => (
-      <Tag color={getErrorRateTagColor(value)}>{(value * 100).toFixed(2)}%</Tag>
-    ),
-    sorter: (a, b) => a.errorRate - b.errorRate,
+    title: 'Total Requests',
+    dataIndex: 'value',
+    key: 'value',
+    render: (value: number) => value?.toFixed(0) ?? '0',
+    sorter: (a, b) => (a.value ?? 0) - (b.value ?? 0),
+    defaultSortOrder: 'descend',
   },
 ]
 

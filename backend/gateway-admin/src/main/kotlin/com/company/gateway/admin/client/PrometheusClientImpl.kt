@@ -52,8 +52,8 @@ class PrometheusClientImpl(
             .uri { builder ->
                 builder
                     .path("/api/v1/query")
-                    .queryParam("query", query)
-                    .build()
+                    .queryParam("query", "{promql}")  // placeholder для template variable
+                    .build(query)  // передаём query как значение для {promql}
             }
             .retrieve()
             .bodyToMono(PrometheusQueryResponse::class.java)

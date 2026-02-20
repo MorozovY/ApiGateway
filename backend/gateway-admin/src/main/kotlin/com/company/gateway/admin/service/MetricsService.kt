@@ -36,12 +36,7 @@ class MetricsService(
     private val logger = LoggerFactory.getLogger(MetricsService::class.java)
 
     companion object {
-        // Названия метрик (для обратной совместимости с тестами)
-        const val METRIC_REQUESTS_TOTAL = "gateway_requests_total"
-        const val METRIC_REQUEST_DURATION = "gateway_request_duration_seconds"
-        const val METRIC_ERRORS_TOTAL = "gateway_errors_total"
-
-        // Теги для фильтрации
+        // Теги для фильтрации (используются при парсинге Prometheus ответов)
         const val TAG_ROUTE_ID = "route_id"
         const val TAG_STATUS = "status"
 
@@ -119,9 +114,13 @@ class MetricsService(
     /**
      * Получает топ маршрутов по указанному критерию из Prometheus.
      *
-     * ВАЖНО: Фильтрация по ownerId применяется к глобальному топу маршрутов.
-     * Например, если запрошен limit=10 и ownerId указан, метод вернёт только те
-     * маршруты из глобального топ-10, которые принадлежат указанному владельцу.
+     * Архитектура (исправлено в review):
+     * 1. Сначала получаем маршруты из БД (чтобы не показывать удалённые)
+     * 2. Формируем PromQL запрос для этих конкретных route_id
+     * 3. Сортируем по метрике и возвращаем top N
+     *
+     * Это гарантирует что мы показываем только существующие маршруты,
+     * даже если в Prometheus есть метрики удалённых маршрутов.
      *
      * @param sortBy критерий сортировки (requests, latency, errors)
      * @param limit максимальное количество маршрутов
@@ -131,20 +130,77 @@ class MetricsService(
     fun getTopRoutes(sortBy: MetricsSortBy, limit: Int, ownerId: UUID? = null): Mono<List<TopRouteDto>> {
         logger.debug("Получение топ-{} маршрутов по: {}, ownerId: {}", limit, sortBy.value, ownerId)
 
-        val period = DEFAULT_TOP_ROUTES_PERIOD
-
-        // Формируем PromQL запрос в зависимости от критерия сортировки
-        val query = when (sortBy) {
-            MetricsSortBy.REQUESTS -> PromQLBuilder.topRoutesByRequests(period, limit)
-            MetricsSortBy.LATENCY -> PromQLBuilder.topRoutesByLatency(period, limit)
-            MetricsSortBy.ERRORS -> PromQLBuilder.topRoutesByErrors(period, limit)
+        // Шаг 1: Получаем маршруты из БД
+        val routesMono = if (ownerId != null) {
+            routeRepository.findByStatus(RouteStatus.PUBLISHED)
+                .filter { it.createdBy == ownerId }
+                .collectList()
+        } else {
+            routeRepository.findByStatus(RouteStatus.PUBLISHED)
+                .collectList()
         }
 
-        return prometheusClient.query(query)
-            .flatMap { response ->
-                processTopRoutesResponse(response, sortBy, limit, ownerId)
+        return routesMono.flatMap { routes ->
+            if (routes.isEmpty()) {
+                return@flatMap Mono.just(emptyList<TopRouteDto>())
             }
-            .doOnSuccess { logger.debug("Топ маршруты: {}", it) }
+
+            // Создаём карту route_id -> path для быстрого lookup
+            val routePathMap = routes.associate { it.id.toString() to it.path }
+            val routeIds = routePathMap.keys.toList()
+
+            // Шаг 2: Формируем PromQL запрос для маршрутов из БД
+            val query = when (sortBy) {
+                MetricsSortBy.REQUESTS -> PromQLBuilder.totalRequestsByRouteIds(routeIds)
+                MetricsSortBy.LATENCY -> PromQLBuilder.avgLatencyByRouteIds(routeIds)
+                MetricsSortBy.ERRORS -> PromQLBuilder.totalErrorsByRouteIds(routeIds)
+            }
+
+            if (query.isEmpty()) {
+                return@flatMap Mono.just(emptyList<TopRouteDto>())
+            }
+
+            // Шаг 3: Query Prometheus
+            prometheusClient.query(query).map { response ->
+                if (!response.isSuccess() || response.data?.result.isNullOrEmpty()) {
+                    // Если нет метрик — возвращаем маршруты с value=0
+                    routes.take(limit).map { route ->
+                        TopRouteDto(
+                            routeId = route.id.toString(),
+                            path = route.path,
+                            value = 0.0,
+                            metric = sortBy.value
+                        )
+                    }
+                } else {
+                    // Парсим результаты из Prometheus
+                    val metricsMap = response.data!!.result.mapNotNull { metric ->
+                        val routeId = metric.getLabel(TAG_ROUTE_ID)
+                        val value = metric.getValue()
+                        if (routeId != null && value != null) {
+                            routeId to value
+                        } else {
+                            null
+                        }
+                    }.toMap()
+
+                    // Шаг 4: Сортируем по value (убывание) и берём top N
+                    routes
+                        .map { route ->
+                            val routeId = route.id.toString()
+                            val value = metricsMap[routeId] ?: 0.0
+                            TopRouteDto(
+                                routeId = routeId,
+                                path = route.path,
+                                value = roundTo2Decimals(sanitizeNaN(value)),
+                                metric = sortBy.value
+                            )
+                        }
+                        .sortedByDescending { it.value }
+                        .take(limit)
+                }
+            }
+        }.doOnSuccess { logger.debug("Топ маршруты: {}", it) }
     }
 
     /**
@@ -228,68 +284,6 @@ class MetricsService(
                 null
             }
         }?.toMap() ?: emptyMap()
-    }
-
-    /**
-     * Обрабатывает ответ Prometheus для top routes.
-     */
-    private fun processTopRoutesResponse(
-        response: PrometheusQueryResponse,
-        sortBy: MetricsSortBy,
-        limit: Int,
-        ownerId: UUID?
-    ): Mono<List<TopRouteDto>> {
-        if (!response.isSuccess() || response.data?.result.isNullOrEmpty()) {
-            return Mono.just(emptyList())
-        }
-
-        // Извлекаем route_id и значения из результата
-        val routeValues = response.data!!.result.mapNotNull { metric ->
-            val routeId = metric.getLabel(TAG_ROUTE_ID)
-            val value = metric.getValue()
-            if (routeId != null && routeId != "unknown" && value != null) {
-                routeId to value
-            } else {
-                null
-            }
-        }
-
-        if (routeValues.isEmpty()) {
-            return Mono.just(emptyList())
-        }
-
-        // Получаем UUID'ы маршрутов
-        val uuids = routeValues.mapNotNull { (routeId, _) ->
-            try {
-                UUID.fromString(routeId)
-            } catch (e: IllegalArgumentException) {
-                null
-            }
-        }
-
-        // Получаем пути маршрутов из базы данных с фильтрацией по владельцу
-        val routesMono = if (ownerId != null) {
-            routeRepository.findAllById(uuids)
-                .filter { it.createdBy == ownerId }
-                .collectMap({ it.id.toString() }, { it.path })
-        } else {
-            routeRepository.findAllById(uuids)
-                .collectMap({ it.id.toString() }, { it.path })
-        }
-
-        return routesMono.map { pathMap ->
-            routeValues
-                .filter { (routeId, _) -> pathMap.containsKey(routeId) }
-                .take(limit)
-                .map { (routeId, value) ->
-                    TopRouteDto(
-                        routeId = routeId,
-                        path = pathMap[routeId] ?: "unknown",
-                        value = roundTo2Decimals(sanitizeNaN(value)),
-                        metric = sortBy.value
-                    )
-                }
-        }
     }
 
     /**

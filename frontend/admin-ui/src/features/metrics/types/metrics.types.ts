@@ -27,15 +27,20 @@ export interface MetricsSummary {
 }
 
 /**
- * Метрики отдельного маршрута.
+ * Метрики отдельного маршрута в топе.
  * Ответ от GET /api/v1/metrics/top-routes
+ *
+ * Story 7.0: API возвращает value (значение метрики) и metric (тип метрики).
+ * Значение зависит от параметра sortBy:
+ * - requests: total requests (не RPS)
+ * - latency: avg latency в секундах
+ * - errors: total errors
  */
 export interface TopRoute {
   routeId: string
   path: string
-  requestsPerSecond: number
-  avgLatencyMs: number
-  errorRate: number
+  value: number
+  metric: MetricsSortBy
 }
 
 /**

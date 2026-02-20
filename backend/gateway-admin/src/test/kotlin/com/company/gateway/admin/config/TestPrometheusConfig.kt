@@ -4,6 +4,7 @@ import com.company.gateway.admin.client.PrometheusClient
 import com.company.gateway.admin.client.dto.PrometheusData
 import com.company.gateway.admin.client.dto.PrometheusMetric
 import com.company.gateway.admin.client.dto.PrometheusQueryResponse
+import com.company.gateway.admin.exception.PrometheusUnavailableException
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
@@ -38,6 +39,11 @@ class TestPrometheusClient : PrometheusClient {
     var defaultScalarValue: Double = 0.0
 
     override fun query(query: String): Mono<PrometheusQueryResponse> {
+        // Эмуляция недоступности Prometheus (AC4)
+        if (unavailable) {
+            return Mono.error(PrometheusUnavailableException("Prometheus is unavailable (test mock)"))
+        }
+
         // Проверяем есть ли настроенный ответ для этого запроса
         val response = mockResponses.entries.find { query.contains(it.key) }?.value
             ?: createDefaultResponse()
@@ -46,6 +52,11 @@ class TestPrometheusClient : PrometheusClient {
     }
 
     override fun queryMultiple(queries: Map<String, String>): Mono<Map<String, PrometheusQueryResponse>> {
+        // Эмуляция недоступности Prometheus (AC4)
+        if (unavailable) {
+            return Mono.error(PrometheusUnavailableException("Prometheus is unavailable (test mock)"))
+        }
+
         val results = queries.mapValues { (_, promql) ->
             mockResponses.entries.find { promql.contains(it.key) }?.value
                 ?: createDefaultResponse()
@@ -93,5 +104,21 @@ class TestPrometheusClient : PrometheusClient {
     fun reset() {
         mockResponses = emptyMap()
         defaultScalarValue = 0.0
+        unavailable = false
     }
+
+    // Флаг для эмуляции недоступности Prometheus
+    private var unavailable = false
+
+    /**
+     * Настраивает mock для эмуляции недоступности Prometheus (AC4).
+     */
+    fun setUnavailable() {
+        unavailable = true
+    }
+
+    /**
+     * Проверяет, настроен ли mock на недоступность.
+     */
+    fun isUnavailable(): Boolean = unavailable
 }
