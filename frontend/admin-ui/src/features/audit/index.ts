@@ -13,7 +13,7 @@ export { IntegrationsPage } from './components/IntegrationsPage'
 // Hooks
 export { useAuditLogs, AUDIT_LOGS_QUERY_KEY } from './hooks/useAuditLogs'
 // Story 7.6 — новые hooks
-export { useRouteHistory, ROUTE_HISTORY_QUERY_KEY } from './hooks/useRouteHistory'
+export { useRouteHistory, ROUTE_HISTORY_QUERY_KEY, routeHistoryKeys } from './hooks/useRouteHistory'
 export { useUpstreams, UPSTREAMS_QUERY_KEY } from './hooks/useUpstreams'
 
 // API
@@ -35,11 +35,15 @@ export type {
   AuditEntityType,
   AuditUserInfo,
   AuditChanges,
-  // Story 7.6 — новые типы
-  RouteHistoryEntry,
-  RouteHistoryResponse,
+  // Story 7.6 — Upstream типы
   UpstreamSummary,
   UpstreamsResponse,
+  // Story 7.6 — Route History типы (re-export из routes feature)
+  RouteHistoryEntry,
+  RouteHistoryResponse,
+  RouteHistoryAction,
+  RouteHistoryUser,
+  RouteHistoryChanges,
 } from './types/audit.types'
 
 // Конфигурация

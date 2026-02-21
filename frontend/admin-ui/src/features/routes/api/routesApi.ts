@@ -6,6 +6,7 @@ import type {
   RouteListParams,
   CreateRouteRequest,
   UpdateRouteRequest,
+  RouteHistoryResponse,
 } from '../types/route.types'
 
 const BASE_URL = '/api/v1/routes'
@@ -98,9 +99,6 @@ export async function checkPathExists(path: string): Promise<boolean> {
 // ========================================
 // Route History API (Story 7.6, AC1)
 // ========================================
-
-// Импортируем типы из audit feature
-import type { RouteHistoryResponse } from '@features/audit'
 
 /**
  * Получение истории изменений маршрута.

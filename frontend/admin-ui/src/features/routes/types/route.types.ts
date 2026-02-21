@@ -98,3 +98,67 @@ export interface UpdateRouteRequest {
   /** ID политики rate limit (Story 5.5) */
   rateLimitId?: string | null
 }
+
+// ========================================
+// Route History Types (Story 7.6, AC1, AC2)
+// ========================================
+
+/**
+ * Действия в истории маршрута.
+ *
+ * Подмножество AuditAction, относящееся к маршрутам.
+ */
+export type RouteHistoryAction =
+  | 'created'
+  | 'updated'
+  | 'deleted'
+  | 'approved'
+  | 'rejected'
+  | 'submitted'
+  | 'published'
+
+/**
+ * Информация о пользователе в истории маршрута.
+ */
+export interface RouteHistoryUser {
+  id: string
+  username: string
+}
+
+/**
+ * Структура изменений в истории маршрута.
+ */
+export interface RouteHistoryChanges {
+  before?: Record<string, unknown> | null
+  after?: Record<string, unknown> | null
+}
+
+/**
+ * Запись истории изменений маршрута.
+ *
+ * Соответствует RouteHistoryEntry DTO на backend (Story 7.3).
+ */
+export interface RouteHistoryEntry {
+  /** Временная метка события (ISO 8601) */
+  timestamp: string
+  /** Тип действия */
+  action: RouteHistoryAction
+  /** Пользователь, выполнивший действие */
+  user: RouteHistoryUser
+  /** Изменения: before/after для updated, после для created, до для deleted */
+  changes: RouteHistoryChanges | null
+}
+
+/**
+ * Ответ с историей изменений маршрута.
+ *
+ * Соответствует RouteHistoryResponse DTO на backend (Story 7.3).
+ */
+export interface RouteHistoryResponse {
+  /** ID маршрута */
+  routeId: string
+  /** Текущий path маршрута */
+  currentPath: string
+  /** Хронологический список событий (newest first) */
+  history: RouteHistoryEntry[]
+}

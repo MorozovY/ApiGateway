@@ -11,6 +11,9 @@ const mockNavigate = vi.fn()
 // Мок useParams — будем устанавливать значение перед каждым тестом
 let mockParamsValue: Record<string, string> = {}
 
+// Мок useLocation — для тестирования hash
+let mockLocationValue: { pathname: string; hash: string } = { pathname: '/routes/route-1', hash: '' }
+
 // Мок react-router-dom
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -18,6 +21,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => mockNavigate,
     useParams: () => mockParamsValue,
+    useLocation: () => mockLocationValue,
   }
 })
 
@@ -81,6 +85,7 @@ describe('RouteDetailsPage', () => {
     // Сбрасываем все моки перед каждым тестом
     vi.clearAllMocks()
     mockParamsValue = { id: 'route-1' }
+    mockLocationValue = { pathname: '/routes/route-1', hash: '' }
     mockRouteData = { ...mockRoute }
     mockIsLoadingRoute = false
     mockRouteError = null
@@ -483,6 +488,94 @@ describe('RouteDetailsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Отклонён')).toBeInTheDocument()
+      })
+    })
+  })
+
+  // ========================================
+  // Story 7.6: Tabs с History
+  // ========================================
+  describe('Tabs с History (Story 7.6, AC1)', () => {
+    it('отображает две вкладки: Детали и История', async () => {
+      renderWithMockAuth(<RouteDetailsPage />, {
+        authValue: { isAuthenticated: true, user: mockUser },
+        initialEntries: ['/routes/route-1'],
+      })
+
+      await waitFor(() => {
+        // Проверяем наличие вкладок
+        expect(screen.getByRole('tab', { name: /детали/i })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: /история/i })).toBeInTheDocument()
+      })
+    })
+
+    it('вкладка Детали активна по умолчанию (hash пустой)', async () => {
+      mockLocationValue = { pathname: '/routes/route-1', hash: '' }
+
+      renderWithMockAuth(<RouteDetailsPage />, {
+        authValue: { isAuthenticated: true, user: mockUser },
+        initialEntries: ['/routes/route-1'],
+      })
+
+      await waitFor(() => {
+        const detailsTab = screen.getByRole('tab', { name: /детали/i })
+        expect(detailsTab).toHaveAttribute('aria-selected', 'true')
+      })
+    })
+
+    it('вкладка История активна при hash #history', async () => {
+      mockLocationValue = { pathname: '/routes/route-1', hash: '#history' }
+
+      renderWithMockAuth(<RouteDetailsPage />, {
+        authValue: { isAuthenticated: true, user: mockUser },
+        initialEntries: ['/routes/route-1'],
+      })
+
+      await waitFor(() => {
+        const historyTab = screen.getByRole('tab', { name: /история/i })
+        expect(historyTab).toHaveAttribute('aria-selected', 'true')
+      })
+    })
+
+    it('переключает на вкладку История при клике', async () => {
+      mockLocationValue = { pathname: '/routes/route-1', hash: '' }
+
+      renderWithMockAuth(<RouteDetailsPage />, {
+        authValue: { isAuthenticated: true, user: mockUser },
+        initialEntries: ['/routes/route-1'],
+      })
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /история/i })).toBeInTheDocument()
+      })
+
+      // Кликаем на вкладку История
+      fireEvent.click(screen.getByRole('tab', { name: /история/i }))
+
+      // Проверяем навигацию с hash
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/routes/route-1#history', { replace: true })
+      })
+    })
+
+    it('переключает на вкладку Детали при клике', async () => {
+      mockLocationValue = { pathname: '/routes/route-1', hash: '#history' }
+
+      renderWithMockAuth(<RouteDetailsPage />, {
+        authValue: { isAuthenticated: true, user: mockUser },
+        initialEntries: ['/routes/route-1'],
+      })
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /детали/i })).toBeInTheDocument()
+      })
+
+      // Кликаем на вкладку Детали
+      fireEvent.click(screen.getByRole('tab', { name: /детали/i }))
+
+      // Проверяем навигацию с hash
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/routes/route-1#details', { replace: true })
       })
     })
   })

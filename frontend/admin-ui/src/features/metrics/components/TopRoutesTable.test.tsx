@@ -1,4 +1,4 @@
-// Тесты для TopRoutesTable (Story 6.5)
+// Тесты для TopRoutesTable (Story 6.5, обновлено для Story 7.0)
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import TopRoutesTable from './TopRoutesTable'
@@ -26,28 +26,25 @@ beforeAll(() => {
   })
 })
 
-// Тестовые данные
+// Тестовые данные (Story 7.0: новый формат API — value + metric)
 const mockTopRoutes: TopRoute[] = [
   {
     routeId: 'route-1',
     path: '/api/orders',
-    requestsPerSecond: 15.2,
-    avgLatencyMs: 35,
-    errorRate: 0.005, // < 1% — зелёный
+    value: 1520,
+    metric: 'requests',
   },
   {
     routeId: 'route-2',
     path: '/api/users',
-    requestsPerSecond: 10.5,
-    avgLatencyMs: 28,
-    errorRate: 0.03, // 1-5% — жёлтый
+    value: 1050,
+    metric: 'requests',
   },
   {
     routeId: 'route-3',
     path: '/api/payments',
-    requestsPerSecond: 5.8,
-    avgLatencyMs: 120,
-    errorRate: 0.08, // > 5% — красный
+    value: 580,
+    metric: 'requests',
   },
 ]
 
@@ -63,43 +60,32 @@ describe('TopRoutesTable', () => {
     expect(screen.getByText('/api/payments')).toBeInTheDocument()
   })
 
-  it('отображает заголовки колонок', () => {
+  it('отображает заголовки колонок (Story 7.0: Path и Total Requests)', () => {
     render(<TopRoutesTable data={mockTopRoutes} />)
 
     expect(screen.getByText('Path')).toBeInTheDocument()
-    expect(screen.getByText('RPS')).toBeInTheDocument()
-    expect(screen.getByText('Avg Latency')).toBeInTheDocument()
-    expect(screen.getByText('Error Rate')).toBeInTheDocument()
+    expect(screen.getByText('Total Requests')).toBeInTheDocument()
   })
 
-  it('форматирует RPS с одним знаком после запятой', () => {
+  it('отображает значения value как целые числа', () => {
     render(<TopRoutesTable data={mockTopRoutes} />)
 
-    expect(screen.getByText('15.2')).toBeInTheDocument()
-    expect(screen.getByText('10.5')).toBeInTheDocument()
-    expect(screen.getByText('5.8')).toBeInTheDocument()
-  })
-
-  it('отображает latency с единицей измерения', () => {
-    render(<TopRoutesTable data={mockTopRoutes} />)
-
-    expect(screen.getByText('35 ms')).toBeInTheDocument()
-    expect(screen.getByText('28 ms')).toBeInTheDocument()
-    expect(screen.getByText('120 ms')).toBeInTheDocument()
-  })
-
-  it('отображает error rate в процентах', () => {
-    render(<TopRoutesTable data={mockTopRoutes} />)
-
-    // Проверяем что значения отображаются в процентах
-    expect(screen.getByText('0.50%')).toBeInTheDocument() // 0.005 * 100
-    expect(screen.getByText('3.00%')).toBeInTheDocument() // 0.03 * 100
-    expect(screen.getByText('8.00%')).toBeInTheDocument() // 0.08 * 100
+    expect(screen.getByText('1520')).toBeInTheDocument()
+    expect(screen.getByText('1050')).toBeInTheDocument()
+    expect(screen.getByText('580')).toBeInTheDocument()
   })
 
   it('отображает пустую таблицу когда нет данных', () => {
     render(<TopRoutesTable data={[]} />)
 
     expect(screen.getByTestId('top-routes-table')).toBeInTheDocument()
+  })
+
+  it('поддерживает loading state', () => {
+    render(<TopRoutesTable data={[]} loading={true} />)
+
+    expect(screen.getByTestId('top-routes-table')).toBeInTheDocument()
+    // Ant Design Table добавляет spin при loading
+    expect(document.querySelector('.ant-spin')).toBeInTheDocument()
   })
 })

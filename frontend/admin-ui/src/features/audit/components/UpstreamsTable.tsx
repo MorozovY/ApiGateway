@@ -6,28 +6,7 @@ import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useUpstreams } from '../hooks/useUpstreams'
 import type { UpstreamSummary } from '../types/audit.types'
-
-/**
- * Склонение слова "маршрут" в зависимости от числа.
- */
-function pluralizeRoutes(count: number): string {
-  const lastTwo = count % 100
-  const lastOne = count % 10
-
-  if (lastTwo >= 11 && lastTwo <= 19) {
-    return `${count} маршрутов`
-  }
-
-  if (lastOne === 1) {
-    return `${count} маршрут`
-  }
-
-  if (lastOne >= 2 && lastOne <= 4) {
-    return `${count} маршрута`
-  }
-
-  return `${count} маршрутов`
-}
+import { pluralizeRoutes } from '@shared/utils/pluralize'
 
 interface UpstreamsTableProps {
   /** Callback при клике на upstream для навигации (опционально) */

@@ -90,37 +90,16 @@ export interface AuditLogsResponse {
 
 // ========================================
 // Типы для Route History (Story 7.6, AC1, AC2)
+// Re-export из routes feature для обратной совместимости
 // ========================================
 
-/**
- * Запись истории изменений маршрута.
- *
- * Соответствует RouteHistoryEntry DTO на backend (Story 7.3).
- */
-export interface RouteHistoryEntry {
-  /** Временная метка события (ISO 8601) */
-  timestamp: string
-  /** Тип действия */
-  action: AuditAction
-  /** Пользователь, выполнивший действие */
-  user: AuditUserInfo
-  /** Изменения: before/after для updated, после для created, до для deleted */
-  changes: AuditChanges | null
-}
-
-/**
- * Ответ с историей изменений маршрута.
- *
- * Соответствует RouteHistoryResponse DTO на backend (Story 7.3).
- */
-export interface RouteHistoryResponse {
-  /** ID маршрута */
-  routeId: string
-  /** Текущий path маршрута */
-  currentPath: string
-  /** Хронологический список событий (newest first) */
-  history: RouteHistoryEntry[]
-}
+export type {
+  RouteHistoryEntry,
+  RouteHistoryResponse,
+  RouteHistoryAction,
+  RouteHistoryUser,
+  RouteHistoryChanges,
+} from '@features/routes/types/route.types'
 
 // ========================================
 // Типы для Upstream Report (Story 7.6, AC3)

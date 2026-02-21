@@ -16,6 +16,7 @@ import 'dayjs/locale/ru'
 import { useRoutes, useDeleteRoute } from '../hooks/useRoutes'
 import type { Route, RouteStatus, RouteListParams } from '../types/route.types'
 import { useAuth } from '@features/auth'
+import { pluralizeRoutes } from '@shared/utils/pluralize'
 
 // Настройка dayjs для относительного времени
 dayjs.extend(relativeTime)
@@ -25,30 +26,6 @@ dayjs.locale('ru')
  * Размер страницы по умолчанию.
  */
 const DEFAULT_PAGE_SIZE = 20
-
-/**
- * Склонение слова "маршрут" в зависимости от числа.
- *
- * 1 маршрут, 2-4 маршрута, 5-20 маршрутов, 21 маршрут, и т.д.
- */
-function pluralizeRoutes(count: number): string {
-  const lastTwo = count % 100
-  const lastOne = count % 10
-
-  if (lastTwo >= 11 && lastTwo <= 19) {
-    return `${count} маршрутов`
-  }
-
-  if (lastOne === 1) {
-    return `${count} маршрут`
-  }
-
-  if (lastOne >= 2 && lastOne <= 4) {
-    return `${count} маршрута`
-  }
-
-  return `${count} маршрутов`
-}
 
 /**
  * Подсветка поискового термина в тексте.

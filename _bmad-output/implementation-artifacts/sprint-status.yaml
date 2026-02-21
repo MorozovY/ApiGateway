@@ -109,8 +109,8 @@ development_status:
   7-3-route-change-history-api: done
   7-4-routes-upstream-filter: done
   7-5-audit-log-ui: done
-  7-6-route-history-upstream-report-ui: review
-  7-7-e2e-playwright-happy-path: ready-for-dev  # Unblocked: 7-7-1, 7-7-2, 7-7-3 all done
+  7-6-route-history-upstream-report-ui: done
+  7-7-e2e-playwright-happy-path: done  # Code review complete: 6 issues fixed, all tests pass
   # Blockers for 7.7 (UI bugs found during E2E testing)
   7-7-1-fix-routes-actions-not-found: done  # Not reproducible — код работает корректно
   7-7-2-fix-integration-tab-400-error: done  # Integration tab — баг не воспроизводится, E2E passed

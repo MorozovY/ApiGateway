@@ -1,6 +1,6 @@
 # Story 7.6: Route History & Upstream Report UI
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -611,8 +611,47 @@ N/A
 - frontend/admin-ui/src/App.tsx (IntegrationsPage route)
 - frontend/admin-ui/src/features/audit/components/AuditPage.tsx (исправлены conditional hooks)
 
+## Code Review Findings
+
+### Review Date: 2026-02-20
+
+**Reviewer:** Claude Opus 4.5 (Adversarial Code Review)
+
+**Issues Found:** 2 HIGH, 5 MEDIUM, 4 LOW
+
+### Issues Fixed:
+
+| # | Severity | Issue | Fix |
+|---|----------|-------|-----|
+| 1 | HIGH | RouteDetailsPage.test.tsx не содержал тесты для Tabs (Story 7.6) | Добавлены 5 тестов для tabs: отображение вкладок, активный tab по умолчанию, tab по hash, переключение tabs |
+| 2 | HIGH | ROUTE_HISTORY_QUERY_KEY не соответствовал фактическому query key | Добавлен routeHistoryKeys factory pattern с byRoute() функцией |
+| 3 | MEDIUM | Дублирование pluralizeRoutes в RoutesTable и UpstreamsTable | Вынесено в @shared/utils/pluralize.ts |
+| 4 | MEDIUM | exportUpstreamReport делал N последовательных запросов | Реализованы параллельные запросы с MAX_CONCURRENT_REQUESTS = 5 |
+| 5 | MEDIUM | Hardcoded limit 1000 без warning | Добавлен warning при truncation с названиями upstreams |
+| 6 | MEDIUM | Circular dependency: routes → audit для типов | RouteHistory типы перемещены в routes/types, audit re-exports для обратной совместимости |
+| 7 | MEDIUM | 4 failing tests в TopRoutesTable (регрессия из Story 7.0) | Обновлены тесты для нового API формата (value + metric) |
+
+### Additional Files Modified During Review:
+
+- frontend/admin-ui/src/shared/utils/pluralize.ts (NEW)
+- frontend/admin-ui/src/features/routes/components/RouteDetailsPage.test.tsx (тесты для tabs)
+- frontend/admin-ui/src/features/metrics/components/TopRoutesTable.test.tsx (исправлены тесты)
+- frontend/admin-ui/src/features/audit/hooks/useRouteHistory.ts (routeHistoryKeys factory)
+- frontend/admin-ui/src/features/audit/utils/exportUpstreamReport.ts (parallel fetch + warning)
+- frontend/admin-ui/src/features/routes/types/route.types.ts (RouteHistory types)
+- frontend/admin-ui/src/features/audit/types/audit.types.ts (re-export RouteHistory types)
+
+### Test Results After Review:
+
+```
+Test Files:  34 passed (34)
+Tests:       352 passed | 2 skipped (354)
+Duration:    11.41s
+```
+
 ## Change Log
 
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-02-20 | Story 7.6 implementation complete: Route History Timeline, Integrations Report, Collapsible Sidebar | Claude Opus 4.5 |
+| 2026-02-20 | Code Review: Fixed 7 issues (2 HIGH, 5 MEDIUM), added missing tests, refactored shared utilities | Claude Opus 4.5 |

@@ -32,16 +32,43 @@ export async function fetchAuditLogs(filter: AuditFilter = {}): Promise<AuditLog
   return data
 }
 
+/** Backend максимальный limit для одного запроса */
+const BACKEND_MAX_LIMIT = 100
+
 /**
  * Получение всех аудит-логов для экспорта в CSV (AC4).
  *
  * Загружает до MAX_CSV_EXPORT_ROWS записей с текущими фильтрами.
- * Используется для полного экспорта, а не только текущей страницы.
+ * Использует пагинированную загрузку (backend limit = 100).
  */
 export async function fetchAllAuditLogsForExport(filter: AuditFilter = {}): Promise<AuditLogsResponse> {
-  return fetchAuditLogs({
-    ...filter,
+  const allItems: AuditLogsResponse['items'] = []
+  let offset = 0
+  let total = 0
+
+  // Пагинированная загрузка до MAX_CSV_EXPORT_ROWS записей
+  while (allItems.length < MAX_CSV_EXPORT_ROWS) {
+    const response = await fetchAuditLogs({
+      ...filter,
+      offset,
+      limit: BACKEND_MAX_LIMIT,
+    })
+
+    total = response.total
+    allItems.push(...response.items)
+
+    // Если загрузили все записи или достигли лимита — выходим
+    if (allItems.length >= total || response.items.length < BACKEND_MAX_LIMIT) {
+      break
+    }
+
+    offset += BACKEND_MAX_LIMIT
+  }
+
+  return {
+    items: allItems.slice(0, MAX_CSV_EXPORT_ROWS),
+    total,
     offset: 0,
-    limit: MAX_CSV_EXPORT_ROWS,
-  })
+    limit: allItems.length,
+  }
 }

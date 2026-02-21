@@ -3,7 +3,20 @@ import { message } from 'antd'
 import dayjs from 'dayjs'
 import { fetchRoutes } from '@features/routes/api/routesApi'
 import type { UpstreamSummary } from '../types/audit.types'
+import type { Route } from '@features/routes/types/route.types'
 import { STATUS_LABELS } from '@shared/constants'
+
+/**
+ * Максимальное количество маршрутов на один upstream в отчёте.
+ * При превышении показывается warning.
+ */
+const EXPORT_LIMIT_PER_UPSTREAM = 1000
+
+/**
+ * Максимальное количество параллельных запросов к API.
+ * Ограничиваем чтобы не перегружать сервер.
+ */
+const MAX_CONCURRENT_REQUESTS = 5
 
 /**
  * Экранирует значение для CSV.
@@ -12,6 +25,60 @@ import { STATUS_LABELS } from '@shared/constants'
 function escapeCsvValue(value: string | null | undefined): string {
   const str = value ?? ''
   return `"${str.replace(/"/g, '""')}"`
+}
+
+/**
+ * Результат загрузки маршрутов для upstream.
+ */
+interface UpstreamFetchResult {
+  host: string
+  routes: Route[]
+  error?: boolean
+  truncated?: boolean
+  total?: number
+}
+
+/**
+ * Загружает маршруты для одного upstream.
+ */
+async function fetchRoutesForUpstream(upstream: UpstreamSummary): Promise<UpstreamFetchResult> {
+  try {
+    const response = await fetchRoutes({
+      upstream: upstream.host,
+      limit: EXPORT_LIMIT_PER_UPSTREAM,
+    })
+
+    return {
+      host: upstream.host,
+      routes: response.items,
+      truncated: response.total > EXPORT_LIMIT_PER_UPSTREAM,
+      total: response.total,
+    }
+  } catch {
+    return {
+      host: upstream.host,
+      routes: [],
+      error: true,
+    }
+  }
+}
+
+/**
+ * Выполняет запросы параллельно с ограничением concurrency.
+ */
+async function fetchAllUpstreamsParallel(
+  upstreams: UpstreamSummary[]
+): Promise<UpstreamFetchResult[]> {
+  const results: UpstreamFetchResult[] = []
+
+  // Разбиваем на батчи для ограничения параллельных запросов
+  for (let i = 0; i < upstreams.length; i += MAX_CONCURRENT_REQUESTS) {
+    const batch = upstreams.slice(i, i + MAX_CONCURRENT_REQUESTS)
+    const batchResults = await Promise.all(batch.map(fetchRoutesForUpstream))
+    results.push(...batchResults)
+  }
+
+  return results
 }
 
 /**
@@ -41,48 +108,52 @@ export async function exportUpstreamReport(upstreams: UpstreamSummary[]): Promis
       'Last Modified',
     ]
 
+    // Загружаем все маршруты параллельно (с ограничением concurrency)
+    const fetchResults = await fetchAllUpstreamsParallel(upstreams)
+
+    // Проверяем на truncated результаты
+    const truncatedUpstreams = fetchResults.filter((r) => r.truncated)
+    if (truncatedUpstreams.length > 0) {
+      const names = truncatedUpstreams.map((r) => `${r.host} (${r.total} маршрутов)`).join(', ')
+      message.warning(
+        `Некоторые upstream имеют более ${EXPORT_LIMIT_PER_UPSTREAM} маршрутов и были обрезаны: ${names}`,
+        5
+      )
+    }
+
     // Собираем все строки данных
     const rows: string[][] = []
 
-    // Для каждого upstream загружаем маршруты
-    for (const upstream of upstreams) {
-      try {
-        // Загружаем маршруты с фильтром по upstream
-        const response = await fetchRoutes({
-          upstream: upstream.host,
-          limit: 1000, // Максимум для отчёта
-        })
-
-        if (response.items.length === 0) {
-          // Если нет маршрутов, добавляем строку с upstream без маршрутов
-          rows.push([
-            escapeCsvValue(upstream.host),
-            escapeCsvValue('—'),
-            escapeCsvValue('—'),
-            escapeCsvValue('—'),
-            escapeCsvValue('—'),
-          ])
-        } else {
-          // Добавляем строку для каждого маршрута
-          for (const route of response.items) {
-            rows.push([
-              escapeCsvValue(upstream.host),
-              escapeCsvValue(route.path),
-              escapeCsvValue(route.creatorUsername || route.createdBy),
-              escapeCsvValue(STATUS_LABELS[route.status] || route.status),
-              escapeCsvValue(dayjs(route.updatedAt).format('YYYY-MM-DD HH:mm')),
-            ])
-          }
-        }
-      } catch {
-        // Если не удалось загрузить маршруты для upstream, добавляем с ошибкой
+    for (const result of fetchResults) {
+      if (result.error) {
+        // Ошибка загрузки
         rows.push([
-          escapeCsvValue(upstream.host),
+          escapeCsvValue(result.host),
           escapeCsvValue('Ошибка загрузки'),
           escapeCsvValue('—'),
           escapeCsvValue('—'),
           escapeCsvValue('—'),
         ])
+      } else if (result.routes.length === 0) {
+        // Нет маршрутов
+        rows.push([
+          escapeCsvValue(result.host),
+          escapeCsvValue('—'),
+          escapeCsvValue('—'),
+          escapeCsvValue('—'),
+          escapeCsvValue('—'),
+        ])
+      } else {
+        // Добавляем строку для каждого маршрута
+        for (const route of result.routes) {
+          rows.push([
+            escapeCsvValue(result.host),
+            escapeCsvValue(route.path),
+            escapeCsvValue(route.creatorUsername || route.createdBy),
+            escapeCsvValue(STATUS_LABELS[route.status] || route.status),
+            escapeCsvValue(dayjs(route.updatedAt).format('YYYY-MM-DD HH:mm')),
+          ])
+        }
       }
     }
 

@@ -3,9 +3,21 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchRouteHistory } from '@features/routes/api/routesApi'
 
 /**
- * Ключ для React Query кэша истории маршрута.
+ * Query key factory для истории маршрута.
+ *
+ * Использование:
+ * - routeHistoryKeys.all — для инвалидации всех историй
+ * - routeHistoryKeys.byRoute(routeId) — для конкретного маршрута
  */
-export const ROUTE_HISTORY_QUERY_KEY = 'route-history'
+export const routeHistoryKeys = {
+  all: ['routes', 'history'] as const,
+  byRoute: (routeId: string) => ['routes', routeId, 'history'] as const,
+}
+
+/**
+ * @deprecated Используйте routeHistoryKeys вместо этой константы
+ */
+export const ROUTE_HISTORY_QUERY_KEY = 'routes'
 
 /**
  * Hook для получения истории изменений маршрута.
@@ -17,7 +29,7 @@ export const ROUTE_HISTORY_QUERY_KEY = 'route-history'
  */
 export function useRouteHistory(routeId: string | undefined) {
   return useQuery({
-    queryKey: ['routes', routeId, 'history'],
+    queryKey: routeHistoryKeys.byRoute(routeId!),
     queryFn: () => fetchRouteHistory(routeId!),
     enabled: !!routeId,
   })
