@@ -128,5 +128,5 @@ development_status:
   8-7-approvals-search-upstream: done  # Search filters by path OR upstream_url
   8-8-unified-table-filters: done  # Code review: 6 issues fixed (AuditFilterBar layout, marginBottom, tests)
   8-9-test-page-load-generator: done  # Code review: memory leak fix, CORS config, missing tests added
-  8-10-e2e-playwright-tests: backlog
+  8-10-e2e-playwright-tests: done
   epic-8-retrospective: optional

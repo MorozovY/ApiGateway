@@ -362,6 +362,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
             onSearch={handleSearchSubmit}
             style={{ width: 280 }}
             prefix={<SearchOutlined />}
+            data-testid="routes-search-input"
           />
           <Select
             value={params.status || ''}
