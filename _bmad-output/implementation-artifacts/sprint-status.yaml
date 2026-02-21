@@ -110,5 +110,9 @@ development_status:
   7-4-routes-upstream-filter: done
   7-5-audit-log-ui: done
   7-6-route-history-upstream-report-ui: review
-  7-7-e2e-playwright-happy-path: backlog
+  7-7-e2e-playwright-happy-path: blocked  # Blocked by 7-7-1, 7-7-2, 7-7-3
+  # Blockers for 7.7 (UI bugs found during E2E testing)
+  7-7-1-fix-routes-actions-not-found: ready-for-dev  # Routes Actions → "Маршрут не найден" (не воспроизводится стабильно)
+  7-7-2-fix-integration-tab-400-error: ready-for-dev  # Integration tab → 400 error
+  7-7-3-fix-audit-logs-search: done  # Fixed: multi-select action filter, edge case tests added
   epic-7-retrospective: optional

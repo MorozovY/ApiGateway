@@ -75,9 +75,21 @@ class AuditLogRepositoryCustomImpl(
             params["userId"] = it
         }
 
-        filter.action?.let {
-            clauses.append(" AND action = :action")
-            params["action"] = it
+        // Multi-select action: поддержка списка через запятую (Story 7.7.3)
+        // Frontend отправляет "created,updated" — парсим на массив для ANY clause
+        filter.action?.let { actionStr ->
+            val actions = actionStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (actions.isNotEmpty()) {
+                if (actions.size == 1) {
+                    // Одно значение — простое сравнение
+                    clauses.append(" AND action = :action")
+                    params["action"] = actions.first()
+                } else {
+                    // Несколько значений — используем ANY с PostgreSQL массивом
+                    clauses.append(" AND action = ANY(:actions)")
+                    params["actions"] = actions.toTypedArray()
+                }
+            }
         }
 
         filter.entityType?.let {

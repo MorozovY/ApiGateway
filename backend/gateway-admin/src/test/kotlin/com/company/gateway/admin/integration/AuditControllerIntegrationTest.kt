@@ -412,6 +412,91 @@ class AuditControllerIntegrationTest {
                 .jsonPath("$.items.length()").isEqualTo(0)
                 .jsonPath("$.total").isEqualTo(0)
         }
+
+        @Test
+        fun `GET audit с multi-select action фильтром возвращает записи с любым из указанных action`() {
+            // Story 7.7.3: multi-select action — поддержка нескольких значений через запятую
+            // Given — записи с разными action
+            createTestAuditLog("route", UUID.randomUUID().toString(), "created", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "approved", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "rejected", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "deleted", securityUser.id!!, "security")
+
+            // When & Then — фильтруем по нескольким action через запятую
+            webTestClient.get()
+                .uri("/api/v1/audit?action=created,approved")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+                .jsonPath("$.total").isEqualTo(2)
+                // Проверяем что возвращены именно запрошенные action (Story 7.7.3 fix)
+                .jsonPath("$.items[?(@.action == 'created')]").exists()
+                .jsonPath("$.items[?(@.action == 'approved')]").exists()
+                .jsonPath("$.items[?(@.action == 'rejected')]").doesNotExist()
+                .jsonPath("$.items[?(@.action == 'deleted')]").doesNotExist()
+        }
+
+        @Test
+        fun `GET audit с multi-select action и другими фильтрами работает корректно`() {
+            // Story 7.7.3: multi-select action в комбинации с другими фильтрами
+            // Given
+            createTestAuditLog("route", UUID.randomUUID().toString(), "created", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "approved", securityUser.id!!, "security")
+            createTestAuditLog("user", UUID.randomUUID().toString(), "created", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "deleted", securityUser.id!!, "security")
+
+            // When & Then — entityType=route AND action IN (created, approved)
+            webTestClient.get()
+                .uri("/api/v1/audit?entityType=route&action=created,approved")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+                .jsonPath("$.total").isEqualTo(2)
+        }
+
+        @Test
+        fun `GET audit с пустыми значениями в action строке игнорирует их`() {
+            // Story 7.7.3: edge cases — пустые значения между запятыми
+            // Given
+            createTestAuditLog("route", UUID.randomUUID().toString(), "created", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "approved", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "rejected", securityUser.id!!, "security")
+
+            // When & Then — action=created,,approved (пустое значение в середине)
+            webTestClient.get()
+                .uri("/api/v1/audit?action=created,,approved")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+                .jsonPath("$.total").isEqualTo(2)
+                .jsonPath("$.items[?(@.action == 'created')]").exists()
+                .jsonPath("$.items[?(@.action == 'approved')]").exists()
+        }
+
+        @Test
+        fun `GET audit с trailing comma в action возвращает корректные результаты`() {
+            // Story 7.7.3: edge case — trailing comma
+            // Given
+            createTestAuditLog("route", UUID.randomUUID().toString(), "created", securityUser.id!!, "security")
+            createTestAuditLog("route", UUID.randomUUID().toString(), "approved", securityUser.id!!, "security")
+
+            // When & Then — action=created, (trailing comma)
+            webTestClient.get()
+                .uri("/api/v1/audit?action=created,")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+                .jsonPath("$.total").isEqualTo(1)
+                .jsonPath("$.items[0].action").isEqualTo("created")
+        }
     }
 
     // ============================================
