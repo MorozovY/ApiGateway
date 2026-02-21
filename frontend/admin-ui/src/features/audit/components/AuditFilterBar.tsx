@@ -1,5 +1,5 @@
-// Панель фильтров для аудит-логов (Story 7.5, AC2)
-import { useCallback, useState, useEffect, useRef } from 'react'
+// Панель фильтров для аудит-логов (Story 7.5, AC2; Story 8.8)
+import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { Space, DatePicker, Select, Button } from 'antd'
 import { CloseCircleOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
@@ -11,6 +11,7 @@ import {
   ENTITY_TYPE_OPTIONS,
   FILTER_DEBOUNCE_MS,
 } from '../config/auditConfig'
+import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 
 const { RangePicker } = DatePicker
 
@@ -173,56 +174,129 @@ export function AuditFilterBar({
       : null
 
   return (
-    <Space wrap style={{ marginBottom: 16, width: '100%' }}>
-      <RangePicker
-        presets={DATE_PRESETS}
-        format="YYYY-MM-DD"
-        value={dateRangeValue}
-        onChange={handleDateRangeChange}
-        placeholder={['Дата от', 'Дата до']}
-        allowClear
-      />
+    <div>
+      {/* Панель фильтров */}
+      <Space wrap style={{ marginBottom: 8 }}>
+        <RangePicker
+          presets={DATE_PRESETS}
+          format="YYYY-MM-DD"
+          value={dateRangeValue}
+          onChange={handleDateRangeChange}
+          placeholder={['Дата от', 'Дата до']}
+          allowClear
+        />
 
-      <Select
-        placeholder="Пользователь"
-        allowClear
-        showSearch
-        optionFilterProp="label"
-        value={localUserId}
-        onChange={handleUserChange}
-        options={userOptions}
-        style={{ width: 180 }}
-      />
+        <Select
+          placeholder="Пользователь"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          value={localUserId}
+          onChange={handleUserChange}
+          options={userOptions}
+          style={{ width: 180 }}
+        />
 
-      <Select
-        placeholder="Тип сущности"
-        allowClear
-        value={localEntityType}
-        onChange={handleEntityTypeChange}
-        options={ENTITY_TYPE_OPTIONS}
-        style={{ width: 150 }}
-      />
+        <Select
+          placeholder="Тип сущности"
+          allowClear
+          value={localEntityType}
+          onChange={handleEntityTypeChange}
+          options={ENTITY_TYPE_OPTIONS}
+          style={{ width: 150 }}
+        />
 
-      <Select
-        mode="multiple"
-        placeholder="Действие"
-        allowClear
-        value={localAction}
-        onChange={handleActionChange}
-        options={AUDIT_ACTION_OPTIONS}
-        style={{ minWidth: 200 }}
-        maxTagCount="responsive"
-      />
+        <Select
+          mode="multiple"
+          placeholder="Действие"
+          allowClear
+          value={localAction}
+          onChange={handleActionChange}
+          options={AUDIT_ACTION_OPTIONS}
+          style={{ minWidth: 200 }}
+          maxTagCount="responsive"
+        />
 
-      {hasActiveFilters && (
-        <Button
-          type="text"
-          icon={<CloseCircleOutlined />}
-          onClick={onClearFilters}
-        >
-          Сбросить фильтры
-        </Button>
-      )}
-    </Space>
+        {hasActiveFilters && (
+          <Button
+            type="text"
+            icon={<CloseCircleOutlined />}
+            onClick={onClearFilters}
+          >
+            Сбросить фильтры
+          </Button>
+        )}
+      </Space>
+
+      {/* FilterChips для активных фильтров (Story 8.8) */}
+      <FilterChips
+        chips={buildFilterChips()}
+      />
+    </div>
   )
+
+  /**
+   * Построить массив chips для активных фильтров.
+   */
+  function buildFilterChips(): FilterChip[] {
+    const chips: FilterChip[] = []
+
+    // Chip для date range
+    if (filter.dateFrom && filter.dateTo) {
+      chips.push({
+        key: 'date',
+        label: `Дата: ${filter.dateFrom} — ${filter.dateTo}`,
+        color: 'geekblue',
+        onClose: () => onFilterChange({ dateFrom: undefined, dateTo: undefined, offset: 0 }),
+      })
+    }
+
+    // Chip для пользователя
+    if (filter.userId) {
+      const userName = userOptions.find(u => u.value === filter.userId)?.label || filter.userId
+      chips.push({
+        key: 'user',
+        label: `Пользователь: ${userName}`,
+        color: 'cyan',
+        onClose: () => {
+          setLocalUserId(undefined)
+          onFilterChange({ userId: undefined, offset: 0 })
+        },
+      })
+    }
+
+    // Chip для типа сущности
+    if (filter.entityType) {
+      const entityLabel = ENTITY_TYPE_OPTIONS.find(e => e.value === filter.entityType)?.label || filter.entityType
+      chips.push({
+        key: 'entity',
+        label: `Тип: ${entityLabel}`,
+        color: 'orange',
+        onClose: () => {
+          setLocalEntityType(undefined)
+          onFilterChange({ entityType: undefined, offset: 0 })
+        },
+      })
+    }
+
+    // Chips для действий (может быть несколько)
+    if (filter.action && filter.action.length > 0) {
+      filter.action.forEach((action) => {
+        const actionLabel = AUDIT_ACTION_OPTIONS.find(a => a.value === action)?.label || action
+        chips.push({
+          key: `action-${action}`,
+          label: actionLabel,
+          color: 'magenta',
+          onClose: () => {
+            const newActions = filter.action?.filter(a => a !== action)
+            const actionValue = newActions && newActions.length > 0 ? newActions : undefined
+            setLocalAction(actionValue)
+            onFilterChange({ action: actionValue, offset: 0 })
+          },
+        })
+      })
+    }
+
+    return chips
+  }
 }

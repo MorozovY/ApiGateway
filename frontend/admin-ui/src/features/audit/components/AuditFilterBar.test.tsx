@@ -142,4 +142,74 @@ describe('AuditFilterBar', () => {
     const selectionItems = document.querySelectorAll('.ant-select-selection-item')
     expect(selectionItems.length).toBeGreaterThanOrEqual(1) // Минимум 1 тег или "+ N ..."
   })
+
+  // Story 8.8: FilterChips для активных фильтров
+  describe('FilterChips для активных фильтров (Story 8.8)', () => {
+    it('показывает filter chip для date range', async () => {
+      renderFilterBar({
+        ...defaultFilter,
+        dateFrom: '2026-02-01',
+        dateTo: '2026-02-21',
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Дата: 2026-02-01 — 2026-02-21')).toBeInTheDocument()
+      })
+    })
+
+    it('показывает filter chip для пользователя', async () => {
+      renderFilterBar({
+        ...defaultFilter,
+        userId: 'user-1',
+      })
+
+      // Ждём загрузку пользователей и отображение chip
+      await waitFor(() => {
+        expect(screen.getByText('Пользователь: admin')).toBeInTheDocument()
+      })
+    })
+
+    it('показывает filter chip для типа сущности', () => {
+      renderFilterBar({
+        ...defaultFilter,
+        entityType: 'route',
+      })
+
+      expect(screen.getByText('Тип: Маршрут')).toBeInTheDocument()
+    })
+
+    it('показывает filter chips для действий (multiple)', () => {
+      renderFilterBar({
+        ...defaultFilter,
+        action: ['created', 'updated'],
+      })
+
+      // Каждое действие отображается как отдельный chip
+      expect(screen.getByText('Создано')).toBeInTheDocument()
+      expect(screen.getByText('Обновлено')).toBeInTheDocument()
+    })
+
+    it('удаляет filter chip для entityType при клике на крестик', async () => {
+      renderFilterBar({
+        ...defaultFilter,
+        entityType: 'route',
+      })
+
+      expect(screen.getByText('Тип: Маршрут')).toBeInTheDocument()
+
+      // Кликаем на крестик chip
+      const filterChipsContainer = screen.getByTestId('filter-chips')
+      const closeButton = filterChipsContainer.querySelector('.anticon-close')
+      expect(closeButton).not.toBeNull()
+      fireEvent.click(closeButton!)
+
+      // onFilterChange должен быть вызван с entityType: undefined
+      await waitFor(() => {
+        expect(mockOnFilterChange).toHaveBeenCalledWith({
+          entityType: undefined,
+          offset: 0,
+        })
+      })
+    })
+  })
 })

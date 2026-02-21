@@ -406,4 +406,81 @@ describe('Страница согласования маршрутов (Approval
       })
     })
   })
+
+  // Story 8.8: FilterChips для активных фильтров
+  describe('FilterChips для активных фильтров (Story 8.8)', () => {
+    it('показывает filter chip для активного поиска', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+      })
+
+      // Вводим текст в поле поиска
+      const searchInput = screen.getByTestId('search-input')
+      fireEvent.change(searchInput, { target: { value: 'orders' } })
+
+      // Проверяем что filter chip появился
+      await waitFor(() => {
+        expect(screen.getByText('Поиск: orders')).toBeInTheDocument()
+      })
+    })
+
+    it('удаляет filter chip и очищает поиск при клике на крестик', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+      })
+
+      // Вводим текст в поле поиска
+      const searchInput = screen.getByTestId('search-input')
+      fireEvent.change(searchInput, { target: { value: 'orders' } })
+
+      // Ждём появления chip
+      await waitFor(() => {
+        expect(screen.getByText('Поиск: orders')).toBeInTheDocument()
+      })
+
+      // Кликаем на крестик chip
+      const filterChipsContainer = screen.getByTestId('filter-chips')
+      const closeButton = filterChipsContainer.querySelector('.anticon-close')
+      expect(closeButton).not.toBeNull()
+      fireEvent.click(closeButton!)
+
+      // Chip должен исчезнуть
+      await waitFor(() => {
+        expect(screen.queryByText('Поиск: orders')).not.toBeInTheDocument()
+      })
+
+      // Поле поиска должно очиститься
+      expect(searchInput).toHaveValue('')
+    })
+
+    it('показывает кнопку "Сбросить фильтры" при активном поиске', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+      })
+
+      // Изначально кнопка не видна
+      expect(screen.queryByText('Сбросить фильтры')).not.toBeInTheDocument()
+
+      // Вводим текст в поле поиска
+      const searchInput = screen.getByTestId('search-input')
+      fireEvent.change(searchInput, { target: { value: 'test' } })
+
+      // Кнопка появляется
+      await waitFor(() => {
+        expect(screen.getByText('Сбросить фильтры')).toBeInTheDocument()
+      })
+    })
+  })
 })

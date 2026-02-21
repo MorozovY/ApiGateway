@@ -1,4 +1,4 @@
-// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2)
+// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8)
 import { useState, useMemo } from 'react'
 import {
   Table,
@@ -14,7 +14,8 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -250,15 +251,39 @@ export function ApprovalsPage() {
         Согласование маршрутов
       </Typography.Title>
 
-      {/* Поле поиска (Story 5.7, AC2; Story 8.7, AC2) */}
-      <Input
-        placeholder="Поиск по path, upstream..."
-        prefix={<SearchOutlined />}
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
-        allowClear
-        style={{ marginBottom: 16, maxWidth: 300 }}
-        data-testid="search-input"
+      {/* Панель фильтров (Story 8.8) */}
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input.Search
+          placeholder="Поиск по path, upstream..."
+          prefix={<SearchOutlined />}
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          allowClear
+          style={{ width: 280 }}
+          data-testid="search-input"
+        />
+        {searchText && (
+          <Button
+            type="text"
+            icon={<CloseCircleOutlined />}
+            onClick={() => setSearchText('')}
+          >
+            Сбросить фильтры
+          </Button>
+        )}
+      </Space>
+
+      {/* FilterChips для активных фильтров (Story 8.8) */}
+      <FilterChips
+        chips={[
+          ...(searchText
+            ? [{
+                key: 'search',
+                label: `Поиск: ${searchText}`,
+                onClose: () => setSearchText(''),
+              } as FilterChip]
+            : []),
+        ]}
       />
 
       {/* Таблица pending маршрутов (AC1) */}

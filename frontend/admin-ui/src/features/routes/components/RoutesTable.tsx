@@ -1,7 +1,8 @@
-// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5)
+// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5; Story 8.8)
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { Table, Tag, Button, Space, Popconfirm, Input, Select, Tooltip, Alert } from 'antd'
+import { Table, Button, Space, Popconfirm, Input, Select, Tooltip, Alert } from 'antd'
+import { Tag } from 'antd'
 import {
   EditOutlined,
   DeleteOutlined,
@@ -17,6 +18,7 @@ import { useRoutes, useDeleteRoute } from '../hooks/useRoutes'
 import type { Route, RouteStatus, RouteListParams } from '../types/route.types'
 import { useAuth } from '@features/auth'
 import { pluralizeRoutes } from '@shared/utils/pluralize'
+import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 
 // Настройка dayjs для относительного времени
 dayjs.extend(relativeTime)
@@ -358,7 +360,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
             value={searchInput}
             onChange={(e) => handleSearchInputChange(e.target.value)}
             onSearch={handleSearchSubmit}
-            style={{ width: 250 }}
+            style={{ width: 280 }}
             prefix={<SearchOutlined />}
           />
           <Select
@@ -378,42 +380,39 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
           )}
         </Space>
 
-        {/* Chips для активных фильтров */}
-        {hasActiveFilters && (
-          <Space>
-            {params.search && (
-              <Tag
-                closable
-                onClose={() => {
+      </Space>
+
+      {/* FilterChips для активных фильтров (Story 8.8) */}
+      <FilterChips
+        chips={[
+          ...(params.search
+            ? [{
+                key: 'search',
+                label: `Поиск: ${params.search}`,
+                onClose: () => {
                   setSearchInput('')
                   updateParams({ search: undefined })
-                }}
-              >
-                Поиск: {params.search}
-              </Tag>
-            )}
-            {params.status && (
-              <Tag
-                closable
-                color={STATUS_COLORS[params.status]}
-                onClose={() => updateParams({ status: undefined })}
-              >
-                {STATUS_LABELS[params.status]}
-              </Tag>
-            )}
-            {/* Chip для upstream filter (Story 7.6, AC4) */}
-            {params.upstream && (
-              <Tag
-                closable
-                color="purple"
-                onClose={() => updateParams({ upstream: undefined })}
-              >
-                Upstream: {params.upstream}
-              </Tag>
-            )}
-          </Space>
-        )}
-      </Space>
+                },
+              } as FilterChip]
+            : []),
+          ...(params.status
+            ? [{
+                key: 'status',
+                label: STATUS_LABELS[params.status],
+                color: STATUS_COLORS[params.status],
+                onClose: () => updateParams({ status: undefined }),
+              } as FilterChip]
+            : []),
+          ...(params.upstream
+            ? [{
+                key: 'upstream',
+                label: `Upstream: ${params.upstream}`,
+                color: 'purple',
+                onClose: () => updateParams({ upstream: undefined }),
+              } as FilterChip]
+            : []),
+        ]}
+      />
 
       {/* Сообщение об ошибке */}
       {error && (

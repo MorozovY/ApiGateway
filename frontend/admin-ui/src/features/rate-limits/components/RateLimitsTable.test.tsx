@@ -255,3 +255,100 @@ describe('RateLimitsTable', () => {
     })
   })
 })
+
+// Story 8.8: FilterChips для активных фильтров
+describe('RateLimitsTable FilterChips (Story 8.8)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetRateLimits.mockResolvedValue(mockRateLimitListResponse)
+  })
+
+  it('показывает filter chip для активного поиска', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RateLimitsTable />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Basic Limit')).toBeInTheDocument()
+    })
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('search-input')
+    await user.type(searchInput, 'Basic')
+
+    // Проверяем что filter chip появился
+    await waitFor(() => {
+      expect(screen.getByText('Поиск: Basic')).toBeInTheDocument()
+    })
+  })
+
+  it('удаляет filter chip и очищает поиск при клике на крестик', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RateLimitsTable />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Basic Limit')).toBeInTheDocument()
+    })
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('search-input')
+    await user.type(searchInput, 'Basic')
+
+    // Ждём появления chip
+    await waitFor(() => {
+      expect(screen.getByText('Поиск: Basic')).toBeInTheDocument()
+    })
+
+    // Кликаем на крестик chip
+    const filterChipsContainer = screen.getByTestId('filter-chips')
+    const closeButton = filterChipsContainer.querySelector('.anticon-close')
+    expect(closeButton).not.toBeNull()
+    await user.click(closeButton!)
+
+    // Chip должен исчезнуть
+    await waitFor(() => {
+      expect(screen.queryByText('Поиск: Basic')).not.toBeInTheDocument()
+    })
+
+    // Поле поиска должно очиститься
+    expect(searchInput).toHaveValue('')
+  })
+
+  it('показывает кнопку "Сбросить фильтры" при активном поиске', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RateLimitsTable />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Basic Limit')).toBeInTheDocument()
+    })
+
+    // Изначально кнопка не видна
+    expect(screen.queryByText('Сбросить фильтры')).not.toBeInTheDocument()
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('search-input')
+    await user.type(searchInput, 'test')
+
+    // Кнопка появляется
+    await waitFor(() => {
+      expect(screen.getByText('Сбросить фильтры')).toBeInTheDocument()
+    })
+  })
+})

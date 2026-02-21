@@ -297,4 +297,72 @@ describe('UsersPage', () => {
     const lastCall = mockFetchUsers.mock.calls[mockFetchUsers.mock.calls.length - 1][0]
     expect(lastCall.search).toBeUndefined()
   })
+
+  // ============================================
+  // Story 8.8: FilterChips для активных фильтров
+  // ============================================
+
+  it('показывает filter chip для активного поиска', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<UsersPage />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Ждём начальную загрузку
+    await waitFor(() => {
+      expect(screen.getByTestId('users-search-input')).toBeInTheDocument()
+    })
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('users-search-input')
+    await user.type(searchInput, 'john')
+
+    // Ждём появления filter chip с debounce
+    await waitFor(() => {
+      expect(screen.getByText('Поиск: john')).toBeInTheDocument()
+    })
+  })
+
+  it('удаляет filter chip и очищает поиск при клике на крестик', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<UsersPage />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Ждём начальную загрузку
+    await waitFor(() => {
+      expect(screen.getByTestId('users-search-input')).toBeInTheDocument()
+    })
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('users-search-input')
+    await user.type(searchInput, 'john')
+
+    // Ждём появления filter chip
+    await waitFor(() => {
+      expect(screen.getByText('Поиск: john')).toBeInTheDocument()
+    })
+
+    // Кликаем на крестик chip (внутри filter-chips контейнера)
+    const filterChipsContainer = screen.getByTestId('filter-chips')
+    const closeButton = filterChipsContainer.querySelector('.anticon-close')
+    expect(closeButton).not.toBeNull()
+    await user.click(closeButton!)
+
+    // Chip должен исчезнуть
+    await waitFor(() => {
+      expect(screen.queryByText('Поиск: john')).not.toBeInTheDocument()
+    })
+
+    // Поле поиска должно очиститься
+    expect(searchInput).toHaveValue('')
+  })
 })

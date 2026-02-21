@@ -1,10 +1,11 @@
-// Таблица пользователей с пагинацией и поиском (Story 2.6, AC4; Story 8.3)
+// Таблица пользователей с пагинацией и поиском (Story 2.6, AC4; Story 8.3; Story 8.8)
 import { useState, useRef, useEffect } from 'react'
 import { Table, Tag, Button, Space, Popconfirm, Input } from 'antd'
 import { EditOutlined, StopOutlined, SearchOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useUsers, useDeactivateUser } from '../hooks/useUsers'
 import type { User, UserRole } from '../types/user.types'
+import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 
 interface UsersTableProps {
   onEdit: (user: User) => void
@@ -223,6 +224,19 @@ function UsersTable({ onEdit }: UsersTableProps) {
           </Button>
         )}
       </Space>
+
+      {/* FilterChips для активных фильтров (Story 8.8) */}
+      <FilterChips
+        chips={[
+          ...(searchValue
+            ? [{
+                key: 'search',
+                label: `Поиск: ${searchValue}`,
+                onClose: handleClearFilters,
+              } as FilterChip]
+            : []),
+        ]}
+      />
 
       <Table
         dataSource={data?.items}
