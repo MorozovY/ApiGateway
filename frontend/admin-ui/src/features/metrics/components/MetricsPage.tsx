@@ -1,10 +1,11 @@
-// Страница детальных метрик (Story 6.5, AC5)
+// Страница детальных метрик (Story 6.5, AC5, Story 8.1)
 import { useState } from 'react'
 import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
 import { LinkOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { useMetricsSummary, useTopRoutes } from '../hooks/useMetrics'
 import TopRoutesTable from './TopRoutesTable'
+import HealthCheckSection from './HealthCheckSection'
 import { GRAFANA_DASHBOARD_URL } from '../config/metricsConfig'
 import type { MetricsPeriod } from '../types/metrics.types'
 
@@ -93,6 +94,9 @@ export function MetricsPage() {
 
   return (
     <div data-testid="metrics-page">
+      {/* Story 8.1: Health Check секция перед Summary Cards */}
+      <HealthCheckSection />
+
       {/* Header с Time Range Selector и Grafana кнопкой */}
       <Card style={{ marginBottom: 16 }}>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>

@@ -37,3 +37,9 @@ export const TREND_HISTORY_SIZE = 180
  * При меньшем количестве отображаем placeholder.
  */
 export const MIN_SPARKLINE_POINTS = 3
+
+/**
+ * Интервал автообновления health check (в миллисекундах).
+ * AC3 Story 8.1: обновление каждые 30 секунд.
+ */
+export const HEALTH_REFRESH_INTERVAL = 30000 // 30 секунд

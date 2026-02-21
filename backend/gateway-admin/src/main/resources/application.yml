@@ -81,3 +81,16 @@ prometheus:
   retry:
     max-attempts: 3
     delay: 1s
+
+# Health check конфигурация (Story 8.1)
+# Используется для проверки здоровья компонентов системы
+gateway:
+  core:
+    url: ${GATEWAY_CORE_URL:http://localhost:8080}
+
+grafana:
+  url: ${GRAFANA_URL:http://localhost:3001}
+
+health:
+  check:
+    timeout: 5s

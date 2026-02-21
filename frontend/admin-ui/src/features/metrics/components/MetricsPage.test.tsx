@@ -1,4 +1,4 @@
-// Тесты для MetricsPage (Story 6.5)
+// Тесты для MetricsPage (Story 6.5, 8.1)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -8,7 +8,8 @@ import MetricsPage from './MetricsPage'
 import { AuthContext } from '@features/auth'
 import type { AuthContextType, User } from '@features/auth'
 import * as metricsApi from '../api/metricsApi'
-import type { MetricsSummary, TopRoute } from '../types/metrics.types'
+import * as healthApi from '../api/healthApi'
+import type { MetricsSummary, TopRoute, HealthResponse } from '../types/metrics.types'
 
 // Мокаем API
 vi.mock('../api/metricsApi', () => ({
@@ -16,8 +17,24 @@ vi.mock('../api/metricsApi', () => ({
   getTopRoutes: vi.fn(),
 }))
 
+vi.mock('../api/healthApi', () => ({
+  getServicesHealth: vi.fn(),
+}))
+
+// Мокаем ThemeProvider для HealthCheckSection
+vi.mock('@/shared/providers/ThemeProvider', () => ({
+  useThemeContext: () => ({
+    theme: 'light',
+    isDark: false,
+    isLight: true,
+    toggle: vi.fn(),
+    setTheme: vi.fn(),
+  }),
+}))
+
 const mockGetSummary = metricsApi.getSummary as ReturnType<typeof vi.fn>
 const mockGetTopRoutes = metricsApi.getTopRoutes as ReturnType<typeof vi.fn>
+const mockGetServicesHealth = healthApi.getServicesHealth as ReturnType<typeof vi.fn>
 
 // Мок AuthContext для тестов с разными ролями
 const mockAdminUser: User = { userId: 'admin-1', username: 'admin', role: 'admin' }
@@ -50,18 +67,29 @@ const mockTopRoutes: TopRoute[] = [
   {
     routeId: 'route-1',
     path: '/api/orders',
-    requestsPerSecond: 15.2,
-    avgLatencyMs: 35,
-    errorRate: 0.01,
+    value: 15.2,
+    metric: 'requests',
   },
   {
     routeId: 'route-2',
     path: '/api/users',
-    requestsPerSecond: 10.5,
-    avgLatencyMs: 28,
-    errorRate: 0.005,
+    value: 10.5,
+    metric: 'requests',
   },
 ]
+
+// Mock health response для Story 8.1 (6 сервисов: 4 из AC + prometheus + grafana)
+const mockHealthResponse: HealthResponse = {
+  services: [
+    { name: 'gateway-core', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+    { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+    { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+    { name: 'redis', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+    { name: 'prometheus', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+    { name: 'grafana', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+  ],
+  timestamp: '2026-02-21T10:30:00Z',
+}
 
 // Wrapper для тестов с поддержкой AuthContext
 function createWrapper(authContext: AuthContextType = createMockAuthContext()) {
@@ -86,6 +114,7 @@ describe('MetricsPage', () => {
     vi.clearAllMocks()
     mockGetSummary.mockResolvedValue(mockSummary)
     mockGetTopRoutes.mockResolvedValue(mockTopRoutes)
+    mockGetServicesHealth.mockResolvedValue(mockHealthResponse)
   })
 
   it('отображает loading состояние', async () => {

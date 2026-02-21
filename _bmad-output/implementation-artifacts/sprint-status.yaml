@@ -116,3 +116,17 @@ development_status:
   7-7-2-fix-integration-tab-400-error: done  # Integration tab — баг не воспроизводится, E2E passed
   7-7-3-fix-audit-logs-search: done  # Fixed: multi-select action filter, edge case tests added
   epic-7-retrospective: done  # 2026-02-21: Team retro + Tech Sprint (all action items closed)
+
+  # Epic 8: UX Improvements & Testing Tools
+  epic-8: in-progress
+  8-1-health-check-metrics-page: done  # Code review: 6 issues fixed, tests pass
+  8-2-remove-dashboard-metrics-widget: ready-for-dev
+  8-3-users-search-username-email: backlog
+  8-4-routes-author-rate-limit-display: backlog
+  8-5-routes-search-path-upstream: backlog
+  8-6-audit-logs-user-combobox-fix: backlog
+  8-7-approvals-search-upstream: backlog
+  8-8-unified-table-filters: backlog
+  8-9-test-page-load-generator: backlog
+  8-10-e2e-playwright-tests: backlog
+  epic-8-retrospective: optional

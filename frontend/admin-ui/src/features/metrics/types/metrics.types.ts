@@ -1,9 +1,34 @@
-// Типы для Metrics API (Story 6.5)
+// Типы для Metrics API (Story 6.5, 8.1)
 
 /**
  * Допустимые значения периода для метрик.
  */
 export type MetricsPeriod = '5m' | '15m' | '1h' | '6h' | '24h'
+
+/**
+ * Статус сервиса: UP или DOWN.
+ */
+export type ServiceStatus = 'UP' | 'DOWN'
+
+/**
+ * Статус здоровья отдельного сервиса.
+ * Story 8.1: Health Check на странице Metrics
+ */
+export interface ServiceHealth {
+  name: string
+  status: ServiceStatus
+  lastCheck: string // ISO timestamp
+  details?: string | null
+}
+
+/**
+ * Ответ API со статусами всех сервисов.
+ * Ответ от GET /api/v1/health/services
+ */
+export interface HealthResponse {
+  services: ServiceHealth[]
+  timestamp: string // ISO timestamp
+}
 
 /**
  * Допустимые значения сортировки для топ-маршрутов.
