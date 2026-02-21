@@ -8,7 +8,7 @@ import com.company.gateway.common.model.RouteStatus
  * Используется для GET /api/v1/routes с query parameters:
  * - status: фильтр по статусу маршрута (draft, pending, published, rejected)
  * - createdBy: фильтр по автору ("me" или UUID пользователя)
- * - search: текстовый поиск по path и description (case-insensitive)
+ * - search: текстовый поиск по path и upstream URL (case-insensitive)
  * - upstream: поиск по части upstream URL (ILIKE, case-insensitive)
  * - upstreamExact: точное совпадение upstream URL (case-sensitive)
  * - offset: смещение от начала списка (default 0)

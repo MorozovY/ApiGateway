@@ -201,7 +201,7 @@ describe('RoutesPage', () => {
       },
     })
 
-    expect(screen.getByPlaceholderText('Поиск по path...')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Поиск по path, upstream...')).toBeInTheDocument()
   })
 
   it('отображает фильтр по статусу', async () => {
@@ -281,7 +281,7 @@ describe('RoutesPage поиск и фильтрация', () => {
     })
 
     // Вводим поисковый запрос
-    const searchInput = screen.getByPlaceholderText('Поиск по path...')
+    const searchInput = screen.getByPlaceholderText('Поиск по path, upstream...')
     await user.clear(searchInput)
     await user.type(searchInput, 'orders')
 
@@ -312,7 +312,7 @@ describe('RoutesPage поиск и фильтрация', () => {
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    const searchInput = screen.getByPlaceholderText('Поиск по path...')
+    const searchInput = screen.getByPlaceholderText('Поиск по path, upstream...')
     await user.type(searchInput, 'test')
 
     await waitFor(

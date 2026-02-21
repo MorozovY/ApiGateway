@@ -768,6 +768,67 @@ class RouteControllerIntegrationTest {
         }
     }
 
+    @Nested
+    inner class Story8_5_SearchByPathAndUpstream {
+
+        @Test
+        fun `поиск по path возвращает совпадающие маршруты`() {
+            // Создаём маршруты с разными path
+            createTestRouteWithUpstream("/api/orders", "http://order-service:8080", developerUser.id!!)
+            createTestRouteWithUpstream("/api/users", "http://user-service:8080", developerUser.id!!)
+            createTestRouteWithUpstream("/api/products", "http://product-service:8080", developerUser.id!!)
+
+            webTestClient.get()
+                .uri("/api/v1/routes?search=orders")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+                .jsonPath("$.items[0].path").isEqualTo("/api/orders")
+        }
+
+        @Test
+        fun `поиск по upstream URL возвращает совпадающие маршруты`() {
+            // Создаём маршруты с разными upstream
+            createTestRouteWithUpstream("/api/v1/alpha", "http://payment-gateway:8080", developerUser.id!!)
+            createTestRouteWithUpstream("/api/v1/beta", "http://shipping-service:8080", developerUser.id!!)
+            createTestRouteWithUpstream("/api/v1/gamma", "http://payment-processor:8080", developerUser.id!!)
+
+            // Ищем по "payment" — должно найти 2 маршрута
+            webTestClient.get()
+                .uri("/api/v1/routes?search=payment")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+        }
+
+        @Test
+        fun `поиск регистронезависимый для path и upstream`() {
+            createTestRouteWithUpstream("/api/UPPERCASE", "http://MIXED-Case-Service:8080", developerUser.id!!)
+
+            // Поиск в нижнем регистре по path
+            webTestClient.get()
+                .uri("/api/v1/routes?search=uppercase")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+
+            // Поиск в нижнем регистре по upstream
+            webTestClient.get()
+                .uri("/api/v1/routes?search=mixed-case")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+        }
+    }
+
     // ============================================
     // Вспомогательные методы
     // ============================================
@@ -801,6 +862,33 @@ class RouteControllerIntegrationTest {
         val route = Route(
             path = path,
             upstreamUrl = "http://test-service:8080",
+            methods = listOf("GET", "POST"),
+            description = "Test route",
+            status = status,
+            createdBy = createdBy,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        var savedRoute: Route? = null
+        StepVerifier.create(routeRepository.save(route))
+            .consumeNextWith { savedRoute = it }
+            .verifyComplete()
+        return savedRoute!!
+    }
+
+    /**
+     * Создаёт тестовый маршрут с указанным upstream URL.
+     * Используется для тестов поиска по upstream (Story 8.5).
+     */
+    private fun createTestRouteWithUpstream(
+        path: String,
+        upstreamUrl: String,
+        createdBy: UUID,
+        status: RouteStatus = RouteStatus.DRAFT
+    ): Route {
+        val route = Route(
+            path = path,
+            upstreamUrl = upstreamUrl,
             methods = listOf("GET", "POST"),
             description = "Test route",
             status = status,

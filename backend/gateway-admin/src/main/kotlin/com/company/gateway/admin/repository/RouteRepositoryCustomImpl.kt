@@ -116,10 +116,10 @@ class RouteRepositoryCustomImpl(
             params["createdBy"] = it
         }
 
-        // Добавляем текстовый поиск (case-insensitive) с явным ESCAPE clause
+        // Добавляем текстовый поиск по path и upstream_url (case-insensitive) — Story 8.5
         search?.let {
             val escapedSearch = escapeForIlike(it)
-            sql.append(" AND (path ILIKE :search ESCAPE '\\' OR description ILIKE :search ESCAPE '\\')")
+            sql.append(" AND (path ILIKE :search ESCAPE '\\' OR upstream_url ILIKE :search ESCAPE '\\')")
             params["search"] = "%$escapedSearch%"
         }
 

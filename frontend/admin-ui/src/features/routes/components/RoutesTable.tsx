@@ -351,7 +351,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
         <Space wrap>
           <Input.Search
-            placeholder="Поиск по path..."
+            placeholder="Поиск по path, upstream..."
             allowClear
             value={searchInput}
             onChange={(e) => handleSearchInputChange(e.target.value)}
