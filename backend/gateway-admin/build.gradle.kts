@@ -44,8 +44,8 @@ dependencies {
     // Prometheus Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 
-    // OpenAPI
-    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0")
+    // OpenAPI (2.7.0 для совместимости с Spring Boot 3.4.x)
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.7.0")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
