@@ -35,12 +35,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const initSession = async () => {
       try {
-        const userData = await checkSessionApi()
-        if (userData) {
-          setUser(userData)
+        const result = await checkSessionApi()
+        if (result.user) {
+          setUser(result.user)
+        } else if (result.networkError) {
+          // AC4: показываем сообщение об ошибке сети
+          setError('Ошибка сети. Проверьте подключение к интернету')
         }
-      } catch {
-        // Игнорируем ошибки — пользователь просто не залогинен
+        // Если user === null и networkError === false — просто не залогинен
       } finally {
         setIsInitializing(false)
       }

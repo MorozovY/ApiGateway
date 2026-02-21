@@ -64,12 +64,13 @@ class CookieService(
     /**
      * Извлекает JWT токен из cookies запроса.
      *
-     * @param cookies список cookies из запроса
+     * Предполагается, что cookies уже отфильтрованы по имени AUTH_COOKIE_NAME
+     * через exchange.request.cookies[AUTH_COOKIE_NAME].
+     *
+     * @param cookies список cookies из запроса (уже отфильтрованных по имени)
      * @return JWT токен или null если cookie отсутствует
      */
     fun extractToken(cookies: List<org.springframework.http.HttpCookie>?): String? {
-        return cookies
-            ?.firstOrNull { it.name == AUTH_COOKIE_NAME }
-            ?.value
+        return cookies?.firstOrNull()?.value
     }
 }

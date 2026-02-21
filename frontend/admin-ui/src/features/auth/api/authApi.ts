@@ -23,16 +23,29 @@ export async function logoutApi(): Promise<void> {
 }
 
 /**
+ * Результат проверки сессии.
+ * Позволяет различать "не залогинен" и "ошибка сети" (AC4).
+ */
+export interface SessionCheckResult {
+  user: User | null
+  networkError: boolean
+}
+
+/**
  * Проверяет текущую сессию пользователя.
  * Используется при инициализации приложения для восстановления сессии.
  *
- * @returns User если сессия валидна, null если нет
+ * @returns SessionCheckResult с user и флагом networkError
  */
-export async function checkSessionApi(): Promise<User | null> {
+export async function checkSessionApi(): Promise<SessionCheckResult> {
   try {
     const response = await axios.get<User>('/api/v1/auth/me')
-    return response.data
-  } catch {
-    return null
+    return { user: response.data, networkError: false }
+  } catch (error) {
+    // Проверяем, это ошибка сети или просто 401 (не залогинен)
+    const isNetworkError =
+      error instanceof Error &&
+      (error.message.includes('Ошибка сети') || error.message.includes('Сервер недоступен'))
+    return { user: null, networkError: isNetworkError }
   }
 }

@@ -85,8 +85,8 @@ function renderWithProviders(initialEntries: (string | InitialEntry)[] = ['/']) 
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // По умолчанию checkSessionApi возвращает null (не залогинен)
-    vi.mocked(authApi.checkSessionApi).mockResolvedValue(null)
+    // По умолчанию checkSessionApi возвращает { user: null, networkError: false } (не залогинен)
+    vi.mocked(authApi.checkSessionApi).mockResolvedValue({ user: null, networkError: false })
   })
 
   it('инициализируется с пустым состоянием', async () => {
@@ -338,7 +338,7 @@ describe('AuthContext', () => {
   // ============================================
 
   it('Story 9.1 AC1 - вызывает checkSessionApi при mount', async () => {
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(null)
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: null, networkError: false })
 
     renderWithProviders()
 
@@ -349,7 +349,7 @@ describe('AuthContext', () => {
 
   it('Story 9.1 AC1 - восстанавливает сессию если checkSessionApi возвращает user', async () => {
     const mockUser = { userId: '1', username: 'sessionuser', role: 'admin' as const }
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(mockUser)
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: mockUser, networkError: false })
 
     renderWithProviders()
 
@@ -361,8 +361,8 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('role')).toHaveTextContent('admin')
   })
 
-  it('Story 9.1 AC1 - не устанавливает user если checkSessionApi возвращает null', async () => {
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(null)
+  it('Story 9.1 AC1 - не устанавливает user если checkSessionApi возвращает user: null', async () => {
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: null, networkError: false })
 
     renderWithProviders()
 
@@ -382,7 +382,7 @@ describe('AuthContext', () => {
 
   it('Story 9.1 AC2 - authEvents.onUnauthorized вызывает logout и показывает сообщение', async () => {
     const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(mockUser)
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: mockUser, networkError: false })
 
     renderWithProviders(['/dashboard'])
 
@@ -405,12 +405,12 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('error')).toHaveTextContent('Сессия истекла, войдите снова')
   })
 
-  it('Story 9.1 AC4 - не устанавливает user если checkSessionApi выбрасывает ошибку', async () => {
-    vi.mocked(authApi.checkSessionApi).mockRejectedValueOnce(new Error('Network error'))
+  it('Story 9.1 AC4 - не устанавливает user если checkSessionApi возвращает networkError', async () => {
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: null, networkError: true })
 
     renderWithProviders()
 
-    // Ждём пока checkSessionApi завершится с ошибкой
+    // Ждём пока checkSessionApi завершится
     await waitFor(() => {
       expect(authApi.checkSessionApi).toHaveBeenCalled()
     })
@@ -423,5 +423,60 @@ describe('AuthContext', () => {
     // Пользователь не должен быть залогинен
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
     expect(screen.getByTestId('username')).toHaveTextContent('null')
+    // AC4: показывается сообщение об ошибке сети
+    expect(screen.getByTestId('error')).toHaveTextContent('Ошибка сети')
+  })
+
+  it('Story 9.1 AC3 - показывает loading spinner во время инициализации', async () => {
+    // Создаём промис, который мы контролируем
+    let resolveCheckSession: (value: authApi.SessionCheckResult) => void
+    const checkSessionPromise = new Promise<authApi.SessionCheckResult>((resolve) => {
+      resolveCheckSession = resolve
+    })
+    vi.mocked(authApi.checkSessionApi).mockReturnValueOnce(checkSessionPromise)
+
+    const { container } = renderWithProviders()
+
+    // Пока checkSessionApi не завершился, должен показываться Spin компонент
+    // Ant Design Spin имеет класс ant-spin
+    expect(container.querySelector('.ant-spin')).toBeInTheDocument()
+
+    // TestConsumer не должен быть в DOM (показывается только после инициализации)
+    expect(screen.queryByTestId('is-authenticated')).not.toBeInTheDocument()
+
+    // Завершаем checkSessionApi
+    await act(async () => {
+      resolveCheckSession!({ user: null, networkError: false })
+    })
+
+    // После инициализации Spin исчезает и появляется контент
+    await waitFor(() => {
+      expect(screen.getByTestId('is-authenticated')).toBeInTheDocument()
+    })
+    expect(container.querySelector('.ant-spin')).not.toBeInTheDocument()
+  })
+
+  it('Story 9.1 PA-06 - очищает authEvents.onUnauthorized при unmount', async () => {
+    vi.mocked(authApi.checkSessionApi).mockResolvedValue({ user: null, networkError: false })
+
+    const { unmount } = renderWithProviders()
+
+    // Ждём инициализации
+    await waitFor(() => {
+      expect(screen.getByTestId('is-authenticated')).toBeInTheDocument()
+    })
+
+    // Сохраняем ссылку на текущий callback
+    const callbackBeforeUnmount = authEvents.onUnauthorized
+
+    // Проверяем что callback установлен (не пустая функция)
+    expect(callbackBeforeUnmount).toBeDefined()
+
+    // Unmount компонента
+    unmount()
+
+    // После unmount callback должен быть заменён на пустую функцию
+    // Это предотвращает memory leaks и вызовы на unmounted компонентах
+    expect(authEvents.onUnauthorized).not.toBe(callbackBeforeUnmount)
   })
 })

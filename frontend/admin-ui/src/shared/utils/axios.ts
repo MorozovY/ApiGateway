@@ -34,7 +34,8 @@ instance.interceptors.response.use(
       // login — чтобы показать ошибку "Неверные учётные данные"
       // me — чтобы не зацикливаться при проверке сессии
       const url = error.config?.url || ''
-      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/me')
+      // Используем endsWith для точного совпадения (избегаем false positive для /auth/login-history и т.п.)
+      const isAuthEndpoint = url.endsWith('/auth/login') || url.endsWith('/auth/me')
 
       if (!isAuthEndpoint) {
         // Вызываем logout callback (AC2)

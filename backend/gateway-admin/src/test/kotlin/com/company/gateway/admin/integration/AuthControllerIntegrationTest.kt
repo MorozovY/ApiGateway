@@ -326,7 +326,7 @@ class AuthControllerIntegrationTest {
     // ============================================
 
     @Test
-    fun `AC1 - GET me с валидным токеном возвращает 200 и данные пользователя`() {
+    fun `Story 9-1 AC1 - GET me с валидным токеном возвращает 200 и данные пользователя`() {
         createTestUser("maria", "password123", Role.DEVELOPER)
 
         // Сначала логинимся, чтобы получить cookie
@@ -353,7 +353,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    fun `AC1 - GET me без cookie возвращает 401`() {
+    fun `Story 9-1 AC1 - GET me без cookie возвращает 401`() {
         webTestClient.get()
             .uri("/api/v1/auth/me")
             .exchange()
@@ -361,7 +361,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    fun `AC1 - GET me с невалидным токеном возвращает 401`() {
+    fun `Story 9-1 AC1 - GET me с невалидным токеном возвращает 401`() {
         webTestClient.get()
             .uri("/api/v1/auth/me")
             .header("Cookie", "auth_token=invalid.jwt.token")
@@ -370,7 +370,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    fun `AC1 - GET me возвращает корректную роль admin`() {
+    fun `Story 9-1 AC1 - GET me возвращает корректную роль admin`() {
         createTestUser("adminuser", "adminpass", Role.ADMIN)
 
         val loginResponse = webTestClient.post()
@@ -393,7 +393,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    fun `AC1 - GET me возвращает корректную роль security`() {
+    fun `Story 9-1 AC1 - GET me возвращает корректную роль security`() {
         createTestUser("secuser", "secpass", Role.SECURITY)
 
         val loginResponse = webTestClient.post()

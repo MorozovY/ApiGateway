@@ -133,7 +133,7 @@ development_status:
 
   # Epic 9: Stabilization & Polish
   epic-9: in-progress  # 2026-02-21: First story created
-  9-1-auth-session-expires-investigation: review
+  9-1-auth-session-expires-investigation: done  # Code review: 7 issues fixed
   9-2-load-generator-fixes: ready-for-dev
   # Stories planned from Epic 8 Retrospective:
   # 9-3: FR-NEW-01 — Role-based sidebar visibility

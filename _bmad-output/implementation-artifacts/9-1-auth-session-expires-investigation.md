@@ -1,6 +1,6 @@
 # Story 9.1: Auth Session Expires Investigation
 
-Status: review
+Status: done
 
 ## Story
 
@@ -120,7 +120,7 @@ so that I don't get unexpectedly logged out.
 - [x] Существующая JWT логика работает корректно
 - [x] Cookie устанавливается при login (HTTP-only)
 - [x] JwtService может извлечь claims из токена
-- [ ] Endpoint `/api/v1/auth/me` создан → **Требуется**
+- [x] Endpoint `/api/v1/auth/me` создан
 
 ## Dev Notes
 
@@ -334,7 +334,40 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - frontend/admin-ui/src/features/auth/context/AuthContext.test.tsx
 - frontend/admin-ui/src/shared/utils/axios.ts
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-02-21
+**Outcome:** Changes Applied
+
+### Issues Found & Fixed
+
+| # | Severity | Issue | Fix Applied |
+|---|----------|-------|-------------|
+| 1 | HIGH | AC4 не реализован — нет сообщения об ошибке сети | Добавлен `SessionCheckResult` с `networkError` флагом; AuthContext показывает сообщение |
+| 2 | MEDIUM | Нет теста для AC3 (loading spinner) | Добавлен тест `Story 9.1 AC3 - показывает loading spinner во время инициализации` |
+| 3 | MEDIUM | Backend тесты без Story prefix | Переименованы в `Story 9-1 AC1 - ...` |
+| 4 | MEDIUM | axios.ts использует includes() | Заменено на endsWith() для точного совпадения URL |
+| 5 | LOW | API Dependencies Checklist устарел | Обновлён чекбокс для /me endpoint |
+| 6 | LOW | CookieService.extractToken избыточный код | Упрощено до `firstOrNull()?.value` |
+| 7 | LOW | PA-06: cleanup не тестируется | Добавлен тест `Story 9.1 PA-06 - очищает authEvents.onUnauthorized при unmount` |
+
+### Files Modified During Review
+
+- `frontend/admin-ui/src/features/auth/api/authApi.ts` — добавлен `SessionCheckResult` interface
+- `frontend/admin-ui/src/features/auth/context/AuthContext.tsx` — обработка `networkError` для AC4
+- `frontend/admin-ui/src/features/auth/context/AuthContext.test.tsx` — 3 новых теста (AC3, AC4, PA-06)
+- `frontend/admin-ui/src/shared/utils/axios.ts` — endsWith() вместо includes()
+- `backend/gateway-admin/.../AuthControllerIntegrationTest.kt` — переименование тестов
+- `backend/gateway-admin/.../CookieService.kt` — упрощение extractToken()
+
+### Test Results
+
+- ✅ Frontend: 17 тестов AuthContext passed
+- ✅ Backend: AuthController integration tests passed
+
 ## Change Log
 
 - 2026-02-21: Story 9.1 created from Epic 8 Retrospective BUG-01
 - 2026-02-21: Story 9.1 implementation completed — session restore and 401 handling
+- 2026-02-21: Code Review — 7 issues found and fixed (1 HIGH, 3 MEDIUM, 3 LOW)
