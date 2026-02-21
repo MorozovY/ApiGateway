@@ -322,6 +322,100 @@ class AuthControllerIntegrationTest {
     }
 
     // ============================================
+    // Story 9.1 AC1: GET /api/v1/auth/me — восстановление сессии
+    // ============================================
+
+    @Test
+    fun `AC1 - GET me с валидным токеном возвращает 200 и данные пользователя`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        // Сначала логинимся, чтобы получить cookie
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        // Используем cookie для запроса /me
+        webTestClient.get()
+            .uri("/api/v1/auth/me")
+            .header("Cookie", authCookie.split(";")[0]) // Берём только "auth_token=..."
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.username").isEqualTo("maria")
+            .jsonPath("$.role").isEqualTo("developer")
+            .jsonPath("$.userId").isNotEmpty
+    }
+
+    @Test
+    fun `AC1 - GET me без cookie возвращает 401`() {
+        webTestClient.get()
+            .uri("/api/v1/auth/me")
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `AC1 - GET me с невалидным токеном возвращает 401`() {
+        webTestClient.get()
+            .uri("/api/v1/auth/me")
+            .header("Cookie", "auth_token=invalid.jwt.token")
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `AC1 - GET me возвращает корректную роль admin`() {
+        createTestUser("adminuser", "adminpass", Role.ADMIN)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("adminuser", "adminpass"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.get()
+            .uri("/api/v1/auth/me")
+            .header("Cookie", authCookie.split(";")[0])
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.role").isEqualTo("admin")
+    }
+
+    @Test
+    fun `AC1 - GET me возвращает корректную роль security`() {
+        createTestUser("secuser", "secpass", Role.SECURITY)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("secuser", "secpass"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.get()
+            .uri("/api/v1/auth/me")
+            .header("Cookie", authCookie.split(";")[0])
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.role").isEqualTo("security")
+    }
+
+    // ============================================
     // Валидация входных данных
     // ============================================
 

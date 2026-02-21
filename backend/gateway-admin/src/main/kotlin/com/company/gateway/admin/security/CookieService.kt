@@ -60,4 +60,16 @@ class CookieService(
             .maxAge(0)
             .build()
     }
+
+    /**
+     * Извлекает JWT токен из cookies запроса.
+     *
+     * @param cookies список cookies из запроса
+     * @return JWT токен или null если cookie отсутствует
+     */
+    fun extractToken(cookies: List<org.springframework.http.HttpCookie>?): String? {
+        return cookies
+            ?.firstOrNull { it.name == AUTH_COOKIE_NAME }
+            ?.value
+    }
 }

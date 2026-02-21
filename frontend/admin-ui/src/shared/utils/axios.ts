@@ -8,6 +8,14 @@ const instance = axios.create({
   },
 })
 
+/**
+ * Callback для обработки 401 ошибок (сессия истекла).
+ * Устанавливается из AuthProvider для вызова logout.
+ */
+export const authEvents = {
+  onUnauthorized: () => {},
+}
+
 // Response interceptor для обработки ошибок
 instance.interceptors.response.use(
   (response) => response,
@@ -22,6 +30,17 @@ instance.interceptors.response.use(
     }
 
     if (error.response.status === 401) {
+      // Исключаем login и me endpoints из автоматического logout
+      // login — чтобы показать ошибку "Неверные учётные данные"
+      // me — чтобы не зацикливаться при проверке сессии
+      const url = error.config?.url || ''
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/me')
+
+      if (!isAuthEndpoint) {
+        // Вызываем logout callback (AC2)
+        authEvents.onUnauthorized()
+      }
+
       // Извлекаем detail из RFC 7807 ответа
       const detail = error.response.data?.detail || 'Неверные учётные данные'
       return Promise.reject(new Error(detail))

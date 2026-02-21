@@ -21,3 +21,18 @@ export async function loginApi(username: string, password: string): Promise<User
 export async function logoutApi(): Promise<void> {
   await axios.post('/api/v1/auth/logout')
 }
+
+/**
+ * Проверяет текущую сессию пользователя.
+ * Используется при инициализации приложения для восстановления сессии.
+ *
+ * @returns User если сессия валидна, null если нет
+ */
+export async function checkSessionApi(): Promise<User | null> {
+  try {
+    const response = await axios.get<User>('/api/v1/auth/me')
+    return response.data
+  } catch {
+    return null
+  }
+}

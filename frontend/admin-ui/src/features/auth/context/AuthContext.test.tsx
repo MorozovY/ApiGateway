@@ -9,11 +9,24 @@ import { ConfigProvider } from 'antd'
 import { AuthProvider } from './AuthContext'
 import { useAuth } from '../hooks/useAuth'
 import * as authApi from '../api/authApi'
+import { authEvents } from '@shared/utils/axios'
 
 // Мок API модуля
 vi.mock('../api/authApi', () => ({
   loginApi: vi.fn(),
   logoutApi: vi.fn(),
+  checkSessionApi: vi.fn(),
+}))
+
+// Мок axios authEvents
+vi.mock('@shared/utils/axios', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+  },
+  authEvents: {
+    onUnauthorized: vi.fn(),
+  },
 }))
 
 // Компонент для тестирования AuthContext
@@ -72,10 +85,17 @@ function renderWithProviders(initialEntries: (string | InitialEntry)[] = ['/']) 
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // По умолчанию checkSessionApi возвращает null (не залогинен)
+    vi.mocked(authApi.checkSessionApi).mockResolvedValue(null)
   })
 
-  it('инициализируется с пустым состоянием', () => {
+  it('инициализируется с пустым состоянием', async () => {
     renderWithProviders()
+
+    // Ждём пока инициализация завершится (checkSessionApi резолвится)
+    await waitFor(() => {
+      expect(screen.getByTestId('is-authenticated')).toBeInTheDocument()
+    })
 
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
     expect(screen.getByTestId('is-loading')).toHaveTextContent('false')
@@ -88,6 +108,11 @@ describe('AuthContext', () => {
     vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
 
     renderWithProviders()
+
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
 
     const user = userEvent.setup()
     await user.click(screen.getByTestId('login-btn'))
@@ -108,6 +133,11 @@ describe('AuthContext', () => {
     vi.mocked(authApi.loginApi).mockReturnValueOnce(loginPromise as any)
 
     renderWithProviders()
+
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
 
     // Начинаем логин (используем act для синхронизации)
     await act(async () => {
@@ -132,6 +162,11 @@ describe('AuthContext', () => {
 
     renderWithProviders()
 
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
+
     const user = userEvent.setup()
     await user.click(screen.getByTestId('login-btn'))
 
@@ -145,6 +180,11 @@ describe('AuthContext', () => {
     vi.mocked(authApi.loginApi).mockRejectedValueOnce(new Error('Invalid credentials'))
 
     renderWithProviders()
+
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
 
     const user = userEvent.setup()
 
@@ -167,6 +207,11 @@ describe('AuthContext', () => {
     vi.mocked(authApi.logoutApi).mockResolvedValueOnce(undefined)
 
     renderWithProviders()
+
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
 
     const user = userEvent.setup()
 
@@ -192,6 +237,11 @@ describe('AuthContext', () => {
 
     renderWithProviders(['/login'])
 
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
+
     const user = userEvent.setup()
     await user.click(screen.getByTestId('login-btn'))
 
@@ -206,6 +256,11 @@ describe('AuthContext', () => {
 
     // Симулируем ситуацию: пользователь был перенаправлен на /login с /routes
     renderWithProviders([{ pathname: '/login', state: { returnUrl: '/routes' } }])
+
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
 
     const user = userEvent.setup()
     await user.click(screen.getByTestId('login-btn'))
@@ -222,6 +277,11 @@ describe('AuthContext', () => {
     vi.mocked(authApi.logoutApi).mockResolvedValueOnce(undefined)
 
     renderWithProviders(['/dashboard'])
+
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
 
     const user = userEvent.setup()
 
@@ -248,6 +308,11 @@ describe('AuthContext', () => {
 
     renderWithProviders(['/dashboard'])
 
+    // Ждём пока инициализация завершится
+    await waitFor(() => {
+      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+    })
+
     const user = userEvent.setup()
 
     // Логинимся
@@ -266,5 +331,97 @@ describe('AuthContext', () => {
     })
     expect(screen.getByTestId('username')).toHaveTextContent('null')
     expect(screen.getByTestId('location')).toHaveTextContent('/login')
+  })
+
+  // ============================================
+  // Story 9.1: Восстановление сессии и 401 handling
+  // ============================================
+
+  it('Story 9.1 AC1 - вызывает checkSessionApi при mount', async () => {
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(null)
+
+    renderWithProviders()
+
+    await waitFor(() => {
+      expect(authApi.checkSessionApi).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('Story 9.1 AC1 - восстанавливает сессию если checkSessionApi возвращает user', async () => {
+    const mockUser = { userId: '1', username: 'sessionuser', role: 'admin' as const }
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(mockUser)
+
+    renderWithProviders()
+
+    // Ждём пока checkSessionApi завершится и user установится
+    await waitFor(() => {
+      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
+    })
+    expect(screen.getByTestId('username')).toHaveTextContent('sessionuser')
+    expect(screen.getByTestId('role')).toHaveTextContent('admin')
+  })
+
+  it('Story 9.1 AC1 - не устанавливает user если checkSessionApi возвращает null', async () => {
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(null)
+
+    renderWithProviders()
+
+    // Ждём пока checkSessionApi завершится
+    await waitFor(() => {
+      expect(authApi.checkSessionApi).toHaveBeenCalled()
+    })
+
+    // Даём время на обновление state
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
+    expect(screen.getByTestId('username')).toHaveTextContent('null')
+  })
+
+  it('Story 9.1 AC2 - authEvents.onUnauthorized вызывает logout и показывает сообщение', async () => {
+    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
+    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce(mockUser)
+
+    renderWithProviders(['/dashboard'])
+
+    // Ждём восстановления сессии
+    await waitFor(() => {
+      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
+    })
+
+    // Вызываем onUnauthorized (симулируем 401 от API)
+    await act(async () => {
+      authEvents.onUnauthorized()
+    })
+
+    // Проверяем что пользователь вышел
+    await waitFor(() => {
+      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
+    })
+    expect(screen.getByTestId('location')).toHaveTextContent('/login')
+    // Проверяем сообщение об истёкшей сессии
+    expect(screen.getByTestId('error')).toHaveTextContent('Сессия истекла, войдите снова')
+  })
+
+  it('Story 9.1 AC4 - не устанавливает user если checkSessionApi выбрасывает ошибку', async () => {
+    vi.mocked(authApi.checkSessionApi).mockRejectedValueOnce(new Error('Network error'))
+
+    renderWithProviders()
+
+    // Ждём пока checkSessionApi завершится с ошибкой
+    await waitFor(() => {
+      expect(authApi.checkSessionApi).toHaveBeenCalled()
+    })
+
+    // Даём время на обновление state
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+
+    // Пользователь не должен быть залогинен
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
+    expect(screen.getByTestId('username')).toHaveTextContent('null')
   })
 })

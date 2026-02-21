@@ -1,7 +1,9 @@
 // Контекст аутентификации
-import { createContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { loginApi, logoutApi } from '../api/authApi'
+import { Spin } from 'antd'
+import { loginApi, logoutApi, checkSessionApi } from '../api/authApi'
+import { authEvents } from '@shared/utils/axios'
 import type { User, AuthContextType } from '../types/auth.types'
 
 // Начальное состояние контекста
@@ -24,9 +26,27 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Проверка сессии при инициализации
+  useEffect(() => {
+    const initSession = async () => {
+      try {
+        const userData = await checkSessionApi()
+        if (userData) {
+          setUser(userData)
+        }
+      } catch {
+        // Игнорируем ошибки — пользователь просто не залогинен
+      } finally {
+        setIsInitializing(false)
+      }
+    }
+    initSession()
+  }, [])
 
   // Выполнить вход
   const login = useCallback(
@@ -62,6 +82,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [navigate])
 
+  // Выполнить выход при истечении сессии (AC2)
+  // Показывает сообщение "Сессия истекла" на странице login
+  const handleSessionExpired = useCallback(() => {
+    setUser(null)
+    setError('Сессия истекла, войдите снова')
+    navigate('/login', { replace: true })
+  }, [navigate])
+
+  // Регистрируем callback для 401 ошибок из axios interceptor
+  // Используем useRef чтобы избежать бесконечного цикла в useEffect
+  const handleSessionExpiredRef = useRef(handleSessionExpired)
+  handleSessionExpiredRef.current = handleSessionExpired
+
+  useEffect(() => {
+    authEvents.onUnauthorized = () => handleSessionExpiredRef.current()
+    return () => {
+      authEvents.onUnauthorized = () => {}
+    }
+  }, [])
+
   // Очистить ошибку
   const clearError = useCallback(() => {
     setError(null)
@@ -75,6 +115,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     clearError,
+  }
+
+  // Показываем loading пока проверяем сессию (AC3)
+  if (isInitializing) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Spin size="large" />
+      </div>
+    )
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

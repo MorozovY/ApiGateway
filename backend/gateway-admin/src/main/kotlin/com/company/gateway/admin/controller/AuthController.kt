@@ -7,10 +7,12 @@ import com.company.gateway.admin.security.JwtService
 import com.company.gateway.admin.service.AuthService
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 
 /**
@@ -71,6 +73,38 @@ class AuthController(
             ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
                 .build()
+        )
+    }
+
+    /**
+     * Получение информации о текущем пользователе.
+     *
+     * Используется для восстановления сессии при перезагрузке страницы.
+     * Читает JWT из cookie и возвращает данные пользователя.
+     *
+     * @param exchange ServerWebExchange для доступа к cookies
+     * @return LoginResponse с userId, username и role, или 401 если токен невалиден
+     */
+    @GetMapping("/me")
+    fun getCurrentUser(exchange: ServerWebExchange): Mono<ResponseEntity<LoginResponse>> {
+        // Извлекаем токен из cookie
+        val cookies = exchange.request.cookies[CookieService.AUTH_COOKIE_NAME]
+        val token = cookieService.extractToken(cookies)
+            ?: return Mono.just(ResponseEntity.status(401).build())
+
+        // Валидируем токен
+        val claims = jwtService.validateToken(token)
+            ?: return Mono.just(ResponseEntity.status(401).build())
+
+        // Возвращаем данные пользователя из claims
+        return Mono.just(
+            ResponseEntity.ok(
+                LoginResponse(
+                    userId = claims.subject,
+                    username = claims.get("username", String::class.java),
+                    role = claims.get("role", String::class.java)
+                )
+            )
         )
     }
 }
