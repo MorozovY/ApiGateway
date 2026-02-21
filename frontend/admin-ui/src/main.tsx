@@ -32,7 +32,7 @@ function ThemedApp() {
         },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename="/ApiGateway">
         <AuthProvider>
           <App />
         </AuthProvider>
