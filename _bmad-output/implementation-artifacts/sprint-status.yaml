@@ -124,7 +124,7 @@ development_status:
   8-3-users-search-username-email: done
   8-4-routes-author-rate-limit-display: done  # Code review: 5 issues found, all fixed
   8-5-routes-search-path-upstream: done  # Search filters by path OR upstream_url
-  8-6-audit-logs-user-combobox-fix: backlog
+  8-6-audit-logs-user-combobox-fix: done  # New endpoint /api/v1/users/options for dropdown
   8-7-approvals-search-upstream: backlog
   8-8-unified-table-filters: backlog
   8-9-test-page-load-generator: backlog

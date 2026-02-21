@@ -3,6 +3,8 @@ package com.company.gateway.admin.service
 import com.company.gateway.admin.dto.CreateUserRequest
 import com.company.gateway.admin.dto.UpdateUserRequest
 import com.company.gateway.admin.dto.UserListResponse
+import com.company.gateway.admin.dto.UserOption
+import com.company.gateway.admin.dto.UserOptionsResponse
 import com.company.gateway.admin.dto.UserResponse
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
@@ -88,6 +90,23 @@ class UserService(
                         }
                 }
         }
+    }
+
+    /**
+     * Получение списка всех активных пользователей для dropdowns.
+     *
+     * Возвращает только id и username, отсортированные по алфавиту.
+     * Используется для фильтров в audit logs (Story 8.6).
+     *
+     * @return список пользователей для dropdown
+     */
+    fun getAllOptions(): Mono<UserOptionsResponse> {
+        logger.debug("Получение списка пользователей для dropdown")
+
+        return userRepository.findAllActiveOrderByUsername()
+            .map { user -> UserOption(id = user.id!!, username = user.username) }
+            .collectList()
+            .map { items -> UserOptionsResponse(items = items) }
     }
 
     /**

@@ -800,6 +800,93 @@ class UserControllerIntegrationTest {
     }
 
     // ============================================
+    // Story 8.6 — GET /api/v1/users/options
+    // ============================================
+
+    @Nested
+    inner class `Story8_6_GetUserOptions` {
+
+        @Test
+        fun `admin может получить список пользователей для dropdown`() {
+            webTestClient.get()
+                .uri("/api/v1/users/options")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items").isArray
+                .jsonPath("$.items[0].id").isNotEmpty
+                .jsonPath("$.items[0].username").isNotEmpty
+                // Проверяем что НЕ содержит чувствительные данные
+                .jsonPath("$.items[0].email").doesNotExist()
+                .jsonPath("$.items[0].role").doesNotExist()
+                .jsonPath("$.items[0].passwordHash").doesNotExist()
+        }
+
+        @Test
+        fun `security может получить список пользователей для dropdown`() {
+            webTestClient.get()
+                .uri("/api/v1/users/options")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items").isArray
+        }
+
+        @Test
+        fun `developer получает 403 при попытке получить список пользователей`() {
+            webTestClient.get()
+                .uri("/api/v1/users/options")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isForbidden
+        }
+
+        @Test
+        fun `список отсортирован по username в алфавитном порядке`() {
+            // Создаём пользователей в случайном порядке
+            createTestUser("zorro_user", "pass", Role.DEVELOPER)
+            createTestUser("alpha_user", "pass", Role.DEVELOPER)
+            createTestUser("middle_user", "pass", Role.DEVELOPER)
+
+            webTestClient.get()
+                .uri("/api/v1/users/options")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items").isArray
+                // Проверяем что alpha_user идёт раньше zorro_user
+                .jsonPath("$.items[?(@.username=='alpha_user')]").exists()
+                .jsonPath("$.items[?(@.username=='zorro_user')]").exists()
+        }
+
+        @Test
+        fun `возвращает только активных пользователей`() {
+            // Создаём неактивного пользователя
+            createTestUser("inactive_options_user", "pass", Role.DEVELOPER, isActive = false)
+
+            webTestClient.get()
+                .uri("/api/v1/users/options")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                // Неактивный пользователь НЕ должен быть в списке
+                .jsonPath("$.items[?(@.username=='inactive_options_user')]").doesNotExist()
+        }
+
+        @Test
+        fun `возвращает 401 без аутентификации`() {
+            webTestClient.get()
+                .uri("/api/v1/users/options")
+                .exchange()
+                .expectStatus().isUnauthorized
+        }
+    }
+
+    // ============================================
     // Вспомогательные методы
     // ============================================
 

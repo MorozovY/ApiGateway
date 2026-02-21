@@ -6,6 +6,7 @@ import type {
   UserListParams,
   CreateUserRequest,
   UpdateUserRequest,
+  UserOptionsResponse,
 } from '../types/user.types'
 
 /**
@@ -61,4 +62,17 @@ export async function updateUser(id: string, data: UpdateUserRequest): Promise<U
  */
 export async function deactivateUser(id: string): Promise<void> {
   await axios.delete(`/api/v1/users/${id}`)
+}
+
+/**
+ * Получение списка пользователей для dropdowns (минимальные данные).
+ *
+ * GET /api/v1/users/options
+ *
+ * Доступен для security и admin ролей.
+ * Возвращает только id и username активных пользователей, отсортированных по алфавиту.
+ */
+export async function fetchUserOptions(): Promise<UserOptionsResponse> {
+  const response = await axios.get<UserOptionsResponse>('/api/v1/users/options')
+  return response.data
 }

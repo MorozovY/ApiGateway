@@ -4,7 +4,7 @@ import { Space, DatePicker, Select, Button } from 'antd'
 import { CloseCircleOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { useQuery } from '@tanstack/react-query'
-import { fetchUsers } from '@features/users/api/usersApi'
+import { fetchUserOptions } from '@features/users/api/usersApi'
 import type { AuditFilter, AuditAction, AuditEntityType } from '../types/audit.types'
 import {
   AUDIT_ACTION_OPTIONS,
@@ -52,15 +52,16 @@ export function AuditFilterBar({
   const [localEntityType, setLocalEntityType] = useState<AuditEntityType | undefined>(filter.entityType)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Загрузка списка пользователей для dropdown
-  const { data: usersData } = useQuery({
-    queryKey: ['users-for-filter'],
-    queryFn: () => fetchUsers({ offset: 0, limit: 1000 }),
+  // Загрузка списка пользователей для dropdown (Story 8.6)
+  // Используем /api/v1/users/options — доступен для security и admin ролей
+  const { data: userOptionsData } = useQuery({
+    queryKey: ['users-options'],
+    queryFn: fetchUserOptions,
     staleTime: 5 * 60 * 1000, // 5 минут
   })
 
-  // Опции для select пользователей
-  const userOptions = usersData?.items.map((user) => ({
+  // Опции для select пользователей (отсортированы по алфавиту на backend)
+  const userOptions = userOptionsData?.items.map((user) => ({
     value: user.id,
     label: user.username,
   })) || []

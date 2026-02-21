@@ -66,3 +66,21 @@ export interface UserListParams {
   limit?: number
   search?: string
 }
+
+/**
+ * Минимальные данные пользователя для dropdowns и фильтров.
+ *
+ * Используется для GET /api/v1/users/options.
+ * Не содержит чувствительную информацию (email, role, isActive).
+ */
+export interface UserOption {
+  id: string
+  username: string
+}
+
+/**
+ * Ответ со списком пользователей для dropdowns.
+ */
+export interface UserOptionsResponse {
+  items: UserOption[]
+}

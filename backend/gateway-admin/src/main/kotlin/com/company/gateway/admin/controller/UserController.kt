@@ -3,6 +3,7 @@ package com.company.gateway.admin.controller
 import com.company.gateway.admin.dto.CreateUserRequest
 import com.company.gateway.admin.dto.UpdateUserRequest
 import com.company.gateway.admin.dto.UserListResponse
+import com.company.gateway.admin.dto.UserOptionsResponse
 import com.company.gateway.admin.dto.UserResponse
 import com.company.gateway.admin.security.RequireRole
 import com.company.gateway.admin.security.SecurityContextUtils
@@ -35,6 +36,20 @@ import java.util.UUID
 class UserController(
     private val userService: UserService
 ) {
+
+    /**
+     * Получение списка пользователей для dropdowns и фильтров.
+     *
+     * GET /api/v1/users/options
+     *
+     * Доступен для security и admin ролей (для фильтров в audit logs).
+     * Возвращает только id и username активных пользователей.
+     */
+    @GetMapping("/options")
+    @RequireRole(Role.SECURITY) // Переопределяет класс-level ADMIN — доступен для SECURITY и ADMIN
+    fun getUserOptions(): Mono<UserOptionsResponse> {
+        return userService.getAllOptions()
+    }
 
     /**
      * Получение списка пользователей с пагинацией и поиском.

@@ -71,4 +71,13 @@ interface UserRepository : ReactiveCrudRepository<User, UUID> {
         """
     )
     fun countBySearch(searchPattern: String): Mono<Long>
+
+    /**
+     * Получение всех активных пользователей для dropdowns.
+     *
+     * Возвращает всех активных пользователей отсортированных по username.
+     * Используется для фильтров в audit logs (Story 8.6).
+     */
+    @Query("SELECT * FROM users WHERE is_active = true ORDER BY username ASC")
+    fun findAllActiveOrderByUsername(): Flux<User>
 }

@@ -6,16 +6,13 @@ import { AuditFilterBar } from './AuditFilterBar'
 import { FILTER_DEBOUNCE_MS } from '../config/auditConfig'
 import type { AuditFilter } from '../types/audit.types'
 
-// Мок для users API
+// Мок для users API (Story 8.6 — используем fetchUserOptions)
 vi.mock('@features/users/api/usersApi', () => ({
-  fetchUsers: vi.fn().mockResolvedValue({
+  fetchUserOptions: vi.fn().mockResolvedValue({
     items: [
       { id: 'user-1', username: 'admin' },
       { id: 'user-2', username: 'developer' },
     ],
-    total: 2,
-    offset: 0,
-    limit: 1000,
   }),
 }))
 
