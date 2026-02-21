@@ -620,6 +620,79 @@ External Request → gateway-core → Redis (rate limit) → Upstream Service
 - Grafana: dashboards via Prometheus datasource
 - Upstream services: dynamic routing через gateway-core
 
+### Gateway Filter Ordering
+
+Фильтры gateway-core выполняются в определённом порядке. Order values управляют последовательностью:
+
+| Filter | Order | Purpose |
+|--------|-------|---------|
+| `CorrelationIdFilter` | `HIGHEST_PRECEDENCE` | Генерация/проброс X-Correlation-ID |
+| `MetricsFilter` | `HIGHEST_PRECEDENCE + 10` | Сбор метрик (время, статус) |
+| `RateLimitFilter` | `HIGHEST_PRECEDENCE + 100` | Проверка rate limit |
+| `LoggingFilter` | `HIGHEST_PRECEDENCE + 200` | Логирование запросов |
+| `RewritePathGatewayFilterFactory` | `10001` | Переписывание path |
+
+**Важно:**
+- `MetricsFilter` должен быть раньше других чтобы измерять полное время запроса
+- `CorrelationIdFilter` должен быть первым для трассировки всех последующих логов
+
+### Gateway Metrics Collection
+
+**Что создаёт метрики:**
+- Только запросы к **published routes** (статус = published)
+- Запросы проходящие через `MetricsFilter` в gateway-core
+
+**Что НЕ создаёт метрики:**
+- `/actuator/*` endpoints — не проходят через MetricsFilter
+- Запросы к gateway-admin API
+- Health checks
+
+**Метрики собираемые MetricsFilter:**
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `gateway_request_total` | Counter | route_id, route_path, method, status | Общее кол-во запросов |
+| `gateway_request_duration_seconds` | Timer | route_id, route_path, method | Latency (p50, p95, p99) |
+| `gateway_request_errors_total` | Counter | route_id, route_path, error_type | Ошибки |
+
+**Prometheus Query Examples:**
+```promql
+# RPS по маршруту
+rate(gateway_request_total{route_path="/api/orders"}[5m])
+
+# P95 latency
+histogram_quantile(0.95, rate(gateway_request_duration_seconds_bucket[5m]))
+
+# Error rate
+rate(gateway_request_errors_total[5m]) / rate(gateway_request_total[5m])
+```
+
+### Redis Pub/Sub Channels
+
+| Channel | Publisher | Subscriber | Purpose |
+|---------|-----------|------------|---------|
+| `rateLimit:cache:invalidate` | gateway-admin | gateway-core | Инвалидация кэша rate limit при изменении политик |
+| `route:cache:invalidate` | gateway-admin | gateway-core | Инвалидация кэша маршрутов при CRUD операциях |
+
+**Формат сообщений:**
+```json
+{
+  "type": "invalidate",
+  "entityId": "uuid",
+  "timestamp": "2026-02-21T10:30:00Z"
+}
+```
+
+**Подписка в gateway-core:**
+```kotlin
+// RouteRefreshService.kt
+redisTemplate.listenTo(ChannelTopic("route:cache:invalidate"))
+    .doOnNext { message ->
+        routeCacheManager.evictByRouteId(message.entityId)
+    }
+    .subscribe()
+```
+
 ## Architecture Validation Results
 
 ### Coherence Validation ✅

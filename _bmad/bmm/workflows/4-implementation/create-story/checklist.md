@@ -145,6 +145,14 @@ You will systematically re-do the entire story creation process, but with a crit
 - **Security vulnerabilities:** Missing security requirements that could expose the system
 - **Performance disasters:** Missing requirements that could cause system failures
 
+#### **3.2.1 API Dependencies Check (CRITICAL for UI Stories)**
+
+- **Missing backend endpoints:** UI story references API that doesn't exist
+- **Incomplete API parameters:** Backend doesn't support all filters required by UI (e.g., multi-select)
+- **Response format mismatch:** API response doesn't contain all fields needed for UI display
+- **Role-based access gaps:** Backend access control doesn't match UI requirements
+- **Pagination support:** Large lists require pagination that backend may not support
+
 #### **3.3 File Structure DISASTERS**
 
 - **Wrong file locations:** Missing organization requirements that could break build processes

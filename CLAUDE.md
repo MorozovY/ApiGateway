@@ -263,4 +263,34 @@ cp docker-compose.override.yml.example docker-compose.override.yml
 
 ---
 
-*Последнее обновление: 2026-02-20 (Docker Apps with Hot-Reload)*
+## Process Agreements (Командные соглашения)
+
+### PA-01: Code Review completeness
+
+**LOW issues исправляем сразу** — code review не approved пока все severity levels не resolved. Не откладываем LOW priority issues "на потом".
+
+### PA-02: API Dependencies Checklist
+
+При создании **UI story** проверять что backend API поддерживает все Acceptance Criteria:
+- Все endpoints существуют
+- Query параметры поддерживают все фильтры (включая multi-select)
+- Response format содержит все нужные поля
+- Role-based access настроен
+
+### PA-03: Hotfix Reproduction Required
+
+**Баг должен быть воспроизведён** перед созданием hotfix story:
+- Задокументировать шаги воспроизведения
+- Приложить screenshot или error log
+- Не создавать story без подтверждённого воспроизведения
+
+### PA-04: Action Items Review
+
+SM проверяет `_bmad-output/implementation-artifacts/retro-actions.yaml` на каждом **Sprint Planning**:
+- Выбрать 1-2 item для текущего спринта
+- Включить в sprint backlog
+- Обновить статусы после завершения
+
+---
+
+*Последнее обновление: 2026-02-21 (Process Agreements, Tech Sprint)*

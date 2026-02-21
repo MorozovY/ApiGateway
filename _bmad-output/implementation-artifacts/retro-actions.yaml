@@ -1,7 +1,7 @@
 # Retrospective Action Items Tracker
 # =================================
 # Этот файл отслеживает action items из ретроспектив между эпиками.
-# SM агент проверяет этот файл при Sprint Planning.
+# SM агент проверяет этот файл при Sprint Planning (PA-04).
 # Статусы: open, in-progress, done, cancelled
 #
 # Формат:
@@ -17,98 +17,15 @@
 #     notes: дополнительные заметки
 
 generated: 2026-02-20
-last_updated: 2026-02-20
+last_updated: 2026-02-21
 
 # =================================
-# OPEN ACTION ITEMS
+# TECH SPRINT COMPLETED
 # =================================
+# Все action items закрыты в Tech Sprint 2026-02-21
 
-action_items:
-  # --- Epic 6 Retro: Process Improvements ---
-
-  - id: E6-01
-    description: "Добавить API Dependencies checklist в UI story template — проверять что backend поддерживает все AC"
-    owner: "SM (Bob)"
-    priority: high
-    status: open
-    source: epic-6-retro
-    deadline: "До Epic 7 start"
-    created: 2026-02-20
-    notes: "При создании UI story проверять наличие нужных фильтров, параметров, role-based access в API"
-
-  - id: E6-02
-    description: "Документировать что создаёт gateway метрики (только published routes, не actuator endpoints)"
-    owner: "Dev (Charlie)"
-    priority: medium
-    status: open
-    source: epic-6-retro
-    deadline: "Sprint 1 Epic 7"
-    created: 2026-02-20
-    notes: "/actuator/* endpoints не проходят через MetricsFilter"
-
-  # --- Epic 6 Retro: Technical Debt ---
-
-  - id: E6-03
-    description: "Filter ordering documentation в architecture.md"
-    owner: "Dev (Charlie)"
-    priority: medium
-    status: open
-    source: epic-5-retro
-    deadline: "Sprint 1 Epic 7"
-    created: 2026-02-19
-    notes: "Перенесён из Epic 5 retro. Документировать HIGHEST_PRECEDENCE+10 для MetricsFilter, order=10001 для RewritePath"
-
-  - id: E6-04
-    description: "correlationId logging через MDC"
-    owner: "Dev"
-    priority: low
-    status: open
-    source: epic-5-retro
-    deadline: "Backlog Epic 7"
-    created: 2026-02-19
-    notes: "Перенесён из Epic 5 retro"
-
-  - id: E6-05
-    description: "Документировать Redis pub/sub channels в architecture.md"
-    owner: "Dev (Charlie)"
-    priority: low
-    status: open
-    source: epic-5-retro
-    deadline: "Sprint 1 Epic 7"
-    created: 2026-02-19
-    notes: "Перенесён из Epic 5 retro. rateLimit:cache:invalidate channel"
-
-  # --- Epic 6 Retro: Critical Path for Epic 7 ---
-
-  - id: E6-06
-    description: "Аудит skipped тестов — собрать все .skip(), @Disabled, @Ignore по проекту"
-    owner: "Elena"
-    priority: high
-    status: open
-    source: epic-6-retro
-    deadline: "До Epic 7 start"
-    created: 2026-02-20
-    notes: "Классифицировать: намеренно skipped (документировать) vs забытые (исправить)"
-
-  - id: E6-07
-    description: "Создать Story для устранения skipped тестов"
-    owner: "SM (Bob)"
-    priority: high
-    status: open
-    source: epic-6-retro
-    deadline: "Backlog Epic 7"
-    created: 2026-02-20
-    notes: "Зависит от результатов аудита E6-06"
-
-  - id: E6-08
-    description: "Story 7.0: MetricsService → Prometheus HTTP API — UI метрики должны показывать реальные данные"
-    owner: "Charlie"
-    priority: critical
-    status: in-progress
-    source: epic-6-retro
-    deadline: "Sprint 1 Epic 7"
-    created: 2026-02-20
-    notes: "CRITICAL: Story 7.0 создана (7-0-metrics-service-prometheus-api.md), статус ready-for-dev"
+action_items: []
+# Все items перемещены в completed_items
 
 # =================================
 # PROCESS AGREEMENTS
@@ -127,11 +44,127 @@ process_agreements:
     created: 2026-02-20
     status: active
 
+  - id: PA-03
+    description: "Hotfix reproduction required — баг должен быть воспроизведён перед созданием hotfix story"
+    source: epic-7-retro
+    created: 2026-02-21
+    status: active
+
+  - id: PA-04
+    description: "Action Items review — SM проверяет retro-actions.yaml на каждом Sprint Planning"
+    source: epic-7-retro
+    created: 2026-02-21
+    status: active
+
 # =================================
 # COMPLETED ACTION ITEMS
 # =================================
 
 completed_items:
+  # --- Tech Sprint 2026-02-21 ---
+
+  - id: E7-01
+    description: "Формализовать API Dependencies checklist в story template — обязательная секция для UI stories"
+    owner: "SM (Bob)"
+    priority: high
+    status: done
+    source: epic-7-retro
+    created: 2026-02-21
+    completed: 2026-02-21
+    notes: "Добавлено в _bmad/bmm/workflows/4-implementation/create-story/template.md и checklist.md"
+
+  - id: E7-02
+    description: "Review Action Items в Sprint Planning — SM проверяет retro-actions.yaml в начале каждого спринта"
+    owner: "SM (Bob)"
+    priority: high
+    status: done
+    source: epic-7-retro
+    created: 2026-02-21
+    completed: 2026-02-21
+    notes: "Документировано в CLAUDE.md как PA-04"
+
+  - id: E7-03
+    description: "Hotfix stories требуют reproduction steps — не создавать без подтверждённого воспроизведения"
+    owner: "QA (Dana)"
+    priority: high
+    status: done
+    source: epic-7-retro
+    created: 2026-02-21
+    completed: 2026-02-21
+    notes: "Документировано в CLAUDE.md как PA-03"
+
+  - id: E6-02
+    description: "Документировать что создаёт gateway метрики (только published routes, не actuator endpoints)"
+    owner: "Dev (Charlie)"
+    priority: medium
+    status: done
+    source: epic-6-retro
+    created: 2026-02-20
+    completed: 2026-02-21
+    notes: "Добавлено в architecture.md: Gateway Metrics Collection секция"
+
+  - id: E6-03
+    description: "Filter ordering documentation в architecture.md"
+    owner: "Dev (Charlie)"
+    priority: medium
+    status: done
+    source: epic-5-retro
+    created: 2026-02-19
+    completed: 2026-02-21
+    notes: "Добавлено в architecture.md: Gateway Filter Ordering секция"
+
+  - id: E6-05
+    description: "Документировать Redis pub/sub channels в architecture.md"
+    owner: "Dev (Charlie)"
+    priority: low
+    status: done
+    source: epic-5-retro
+    created: 2026-02-19
+    completed: 2026-02-21
+    notes: "Добавлено в architecture.md: Redis Pub/Sub Channels секция"
+
+  - id: E6-06
+    description: "Аудит skipped тестов — собрать все .skip(), @Disabled, @Ignore по проекту"
+    owner: "Elena"
+    priority: high
+    status: done
+    source: epic-6-retro
+    created: 2026-02-20
+    completed: 2026-02-21
+    notes: "Отчёт: skipped-tests-audit-2026-02-21.md. 3 теста найдено (1 намеренный, 2 LOW priority)"
+
+  - id: E6-07
+    description: "Создать Story/план для устранения skipped тестов"
+    owner: "SM (Bob)"
+    priority: high
+    status: done
+    source: epic-6-retro
+    created: 2026-02-20
+    completed: 2026-02-21
+    notes: "Включено в аудит-отчёт. Рекомендация: не создавать отдельную story, добавить в backlog"
+
+  - id: E6-04
+    description: "correlationId logging через MDC"
+    owner: "Dev"
+    priority: low
+    status: done
+    source: epic-5-retro
+    created: 2026-02-19
+    completed: 2026-02-21
+    notes: "Уже реализовано в gateway-core (MdcContextConfig + logback-spring.xml). Gateway-admin использует Reactor Context."
+
+  - id: E6-08
+    description: "Story 7.0: MetricsService → Prometheus HTTP API — UI метрики должны показывать реальные данные"
+    owner: "Charlie"
+    priority: critical
+    status: done
+    source: epic-6-retro
+    created: 2026-02-20
+    completed: 2026-02-21
+    notes: "CRITICAL blocker resolved. PrometheusClient реализован с retry и fallback."
+
+  # --- Epic 6 Retro ---
+
   - id: E6-00
     description: "Создать retro-actions.yaml для трекинга action items"
     owner: "SM (Bob)"
@@ -141,3 +174,13 @@ completed_items:
     created: 2026-02-20
     completed: 2026-02-20
     notes: "Этот файл"
+
+  - id: E6-01
+    description: "Добавить API Dependencies checklist в UI story template"
+    owner: "SM (Bob)"
+    priority: high
+    status: cancelled
+    source: epic-6-retro
+    created: 2026-02-20
+    completed: 2026-02-21
+    notes: "Заменён на E7-01 с более конкретным описанием"

@@ -21,6 +21,28 @@ so that {{benefit}}.
 - [ ] Task 2 (AC: #)
   - [ ] Subtask 2.1
 
+## API Dependencies Checklist
+
+<!-- ОБЯЗАТЕЛЬНО для UI stories. Удалить секцию для backend-only stories. -->
+
+**Backend API endpoints, используемые в этой story:**
+
+| Endpoint | Method | Параметры | Статус |
+|----------|--------|-----------|--------|
+| `/api/v1/example` | GET | `filter`, `sort` | ✅ Существует / ❌ Требуется |
+
+**Проверки перед началом разработки:**
+
+- [ ] Все необходимые endpoints существуют в backend
+- [ ] Query параметры поддерживают все фильтры из AC (включая multi-select если нужен)
+- [ ] Response format содержит все поля, необходимые для UI
+- [ ] Role-based access настроен корректно (какие роли имеют доступ)
+- [ ] Pagination поддерживается (если требуется для списков)
+
+**Если endpoint отсутствует или неполный:**
+- Создать backend story перед UI story
+- Или добавить backend tasks в эту story
+
 ## Dev Notes
 
 - Relevant architecture patterns and constraints

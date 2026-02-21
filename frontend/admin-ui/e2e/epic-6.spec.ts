@@ -314,33 +314,41 @@ test.describe('Epic 6: Monitoring & Observability', () => {
   /**
    * AC4: Grafana dashboard работает.
    * ПРИМЕЧАНИЕ: Требует запуск с --profile monitoring.
-   * По умолчанию тест пропущен (skip) т.к. не все CI имеют monitoring profile.
+   * Тест автоматически пропускается если Grafana недоступна или не отвечает.
    *
-   * Для запуска:
+   * Для запуска с Grafana:
    * 1. docker-compose --profile monitoring up -d
    * 2. npx playwright test e2e/epic-6.spec.ts --grep "Grafana" --project=chromium
    */
-  test.skip('Grafana dashboard работает', async ({ page }) => {
+  test('Grafana dashboard работает', async ({ page }) => {
     const grafanaBaseUrl = `http://localhost:${GRAFANA_PORT}`
 
-    // Проверяем доступность Grafana
-    const healthResponse = await page.request.get(`${grafanaBaseUrl}/api/health`, {
-      failOnStatusCode: false,
-    })
+    // Проверяем полную доступность Grafana (health + login)
+    let grafanaAvailable = false
+    try {
+      const healthResponse = await page.request.get(`${grafanaBaseUrl}/api/health`, {
+        failOnStatusCode: false,
+        timeout: 5000,
+      })
 
-    // Если Grafana недоступен — тест недоступен (ожидаемо при skip)
-    if (!healthResponse.ok()) {
-      test.skip(true, 'Grafana is not available. Run docker-compose --profile monitoring up -d')
+      if (healthResponse.ok()) {
+        // Проверяем что login тоже работает
+        const loginResponse = await page.request.post(`${grafanaBaseUrl}/api/auth/login`, {
+          data: {
+            user: GRAFANA_USER,
+            password: GRAFANA_PASSWORD,
+          },
+          failOnStatusCode: false,
+          timeout: 5000,
+        })
+        grafanaAvailable = loginResponse.ok()
+      }
+    } catch {
+      grafanaAvailable = false
     }
 
-    // M3 fix: Используем константы для credentials
-    const loginResponse = await page.request.post(`${grafanaBaseUrl}/api/auth/login`, {
-      data: {
-        user: GRAFANA_USER,
-        password: GRAFANA_PASSWORD,
-      },
-    })
-    expect(loginResponse.ok()).toBeTruthy()
+    // Conditional skip: тест пропускается если Grafana не полностью доступна
+    test.skip(!grafanaAvailable, 'Grafana is not available. Run: docker-compose --profile monitoring up -d')
 
     // L3 fix: Проверяем Content-Type для API ответов
     const datasourcesResponse = await page.request.get(`${grafanaBaseUrl}/api/datasources`)

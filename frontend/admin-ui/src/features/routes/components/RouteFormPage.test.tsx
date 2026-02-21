@@ -1,6 +1,6 @@
 // Тесты для страницы формы создания/редактирования маршрута (Story 3.5)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
+import { screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithMockAuth } from '../../../test/test-utils'
 import { RouteFormPage } from './RouteFormPage'
@@ -28,6 +28,15 @@ vi.mock('../api/routesApi', () => ({
   createRoute: vi.fn(),
   updateRoute: vi.fn(),
   checkPathExists: (...args: unknown[]) => mockCheckPathExists(...args),
+}))
+
+// Мок для Rate Limits (используется в RouteForm)
+vi.mock('@features/rate-limits', () => ({
+  useRateLimits: () => ({
+    data: { items: [], total: 0 },
+    isLoading: false,
+    error: null,
+  }),
 }))
 
 // Мок для React Query hooks — будем устанавливать значение перед каждым тестом
@@ -278,16 +287,12 @@ describe('RouteFormPage', () => {
       expect(mockCreateMutateAsync).not.toHaveBeenCalled()
     })
 
-    // TODO: Тест требует дополнительной настройки для корректной работы
-    // с Ant Design Form в режиме редактирования. Form.setFieldsValue в useEffect
-    // не полностью синхронизируется с состоянием формы в тестовом окружении.
-    // Функциональность проверена вручную и работает в браузере.
-    it.skip('редиректит после успешного обновления в режиме редактирования', async () => {
+    it('редиректит после успешного обновления в режиме редактирования', async () => {
       mockParamsValue = { id: 'existing-route-id' }
       mockRouteData = {
         id: 'existing-route-id',
         path: '/api/users',
-        upstreamUrl: 'http://user-service:8080',
+        upstreamUrl: 'http://localhost:8081',
         methods: ['GET'],
         description: 'User service',
         status: 'draft',
@@ -299,30 +304,46 @@ describe('RouteFormPage', () => {
       mockUpdateMutateAsync = vi.fn().mockResolvedValue({
         id: 'existing-route-id',
         path: '/api/users',
-        upstreamUrl: 'http://user-service:8080',
+        upstreamUrl: 'http://localhost:8081',
         methods: ['GET'],
         status: 'draft',
       })
 
-      renderWithMockAuth(<RouteFormPage />, {
-        authValue: { isAuthenticated: true },
-        initialEntries: ['/routes/existing-route-id/edit'],
+      await act(async () => {
+        renderWithMockAuth(<RouteFormPage />, {
+          authValue: { isAuthenticated: true },
+          initialEntries: ['/routes/existing-route-id/edit'],
+        })
       })
 
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('api/users')).toBeInTheDocument()
+      // Ждём загрузки данных в форму и полной синхронизации Ant Design Form
+      await waitFor(
+        () => {
+          expect(screen.getByDisplayValue('api/users')).toBeInTheDocument()
+          expect(screen.getByDisplayValue('http://localhost:8081')).toBeInTheDocument()
+        },
+        { timeout: 2000 }
+      )
+
+      // Дополнительная пауза для синхронизации Ant Design Form state
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
       })
 
       const submitButton = screen.getByRole('button', { name: /Save as Draft/i })
-      await userEvent.click(submitButton)
-
-      await waitFor(() => {
-        expect(mockUpdateMutateAsync).toHaveBeenCalled()
+      await act(async () => {
+        await userEvent.click(submitButton)
       })
 
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/routes/existing-route-id')
-      })
+      // Ждём вызова mutation и редиректа
+      await waitFor(
+        () => {
+          expect(mockUpdateMutateAsync).toHaveBeenCalled()
+        },
+        { timeout: 3000 }
+      )
+
+      expect(mockNavigate).toHaveBeenCalledWith('/routes/existing-route-id')
     })
   })
 
@@ -390,16 +411,12 @@ describe('RouteFormPage', () => {
       })
     })
 
-    // TODO: Тест успешного submit через keyboard shortcut требует
-    // дополнительной настройки для Ant Design Form. Keyboard shortcut
-    // вызывает form.submit(), но в тестовом окружении это не приводит
-    // к вызову onFinish. Функциональность проверена в браузере.
-    it.skip('успешно отправляет форму по Ctrl+Enter в режиме редактирования', async () => {
+    it('успешно отправляет форму по Ctrl+Enter в режиме редактирования', async () => {
       mockParamsValue = { id: 'keyboard-route-id' }
       mockRouteData = {
         id: 'keyboard-route-id',
         path: '/api/keyboard',
-        upstreamUrl: 'http://keyboard:8080',
+        upstreamUrl: 'http://localhost:8080',
         methods: ['GET'],
         description: '',
         status: 'draft',
@@ -411,29 +428,46 @@ describe('RouteFormPage', () => {
       mockUpdateMutateAsync = vi.fn().mockResolvedValue({
         id: 'keyboard-route-id',
         path: '/api/keyboard',
-        upstreamUrl: 'http://keyboard:8080',
+        upstreamUrl: 'http://localhost:8080',
         methods: ['GET'],
         status: 'draft',
       })
 
-      renderWithMockAuth(<RouteFormPage />, {
-        authValue: { isAuthenticated: true },
-        initialEntries: ['/routes/keyboard-route-id/edit'],
+      await act(async () => {
+        renderWithMockAuth(<RouteFormPage />, {
+          authValue: { isAuthenticated: true },
+          initialEntries: ['/routes/keyboard-route-id/edit'],
+        })
       })
 
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('api/keyboard')).toBeInTheDocument()
+      // Ждём загрузки данных в форму и полной синхронизации Ant Design Form
+      await waitFor(
+        () => {
+          expect(screen.getByDisplayValue('api/keyboard')).toBeInTheDocument()
+          expect(screen.getByDisplayValue('http://localhost:8080')).toBeInTheDocument()
+        },
+        { timeout: 2000 }
+      )
+
+      // Дополнительная пауза для синхронизации Ant Design Form state
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
       })
 
-      fireEvent.keyDown(document, { key: 'Enter', ctrlKey: true })
-
-      await waitFor(() => {
-        expect(mockUpdateMutateAsync).toHaveBeenCalled()
+      // Нажимаем Ctrl+Enter
+      await act(async () => {
+        fireEvent.keyDown(document, { key: 'Enter', ctrlKey: true })
       })
 
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/routes/keyboard-route-id')
-      })
+      // Ждём вызова mutation и редиректа
+      await waitFor(
+        () => {
+          expect(mockUpdateMutateAsync).toHaveBeenCalled()
+        },
+        { timeout: 3000 }
+      )
+
+      expect(mockNavigate).toHaveBeenCalledWith('/routes/keyboard-route-id')
     })
 
     it('обрабатывает нажатие Cmd+Enter на Mac', async () => {
