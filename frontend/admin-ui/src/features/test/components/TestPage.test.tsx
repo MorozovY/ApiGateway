@@ -6,7 +6,7 @@ import { BrowserRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { TestPage } from './TestPage'
 import * as routesApi from '@features/routes/api/routesApi'
-import type { PageResponse, RouteResponse } from '@features/routes/types/route.types'
+import type { RouteListResponse } from '@features/routes/types/route.types'
 
 // Мокаем API
 vi.mock('@features/routes/api/routesApi', () => ({
@@ -16,23 +16,25 @@ vi.mock('@features/routes/api/routesApi', () => ({
 const mockFetchRoutes = routesApi.fetchRoutes as ReturnType<typeof vi.fn>
 
 // Тестовые данные
-const mockRoutes: PageResponse<RouteResponse> = {
-  content: [
+const mockRoutes: RouteListResponse = {
+  items: [
     {
       id: 'route-1',
       name: 'Orders API',
       path: '/api/orders',
       upstreamUrl: 'http://orders-service:8080',
+      methods: ['GET'],
+      description: null,
       status: 'published',
       createdAt: '2026-02-20T10:00:00Z',
       updatedAt: '2026-02-20T10:00:00Z',
       createdBy: 'admin',
+      rateLimitId: null,
     },
   ],
-  totalElements: 1,
-  totalPages: 1,
-  number: 0,
-  size: 20,
+  total: 1,
+  offset: 0,
+  limit: 20,
 }
 
 // Wrapper для тестов

@@ -32,8 +32,8 @@ export function LoadGeneratorForm({ isRunning, onStart, onStop }: LoadGeneratorF
 
   // Преобразуем в опции для Select
   const routeOptions: RouteOption[] = useMemo(() => {
-    if (!routesData?.content) return []
-    return routesData.content.map((route) => ({
+    if (!routesData?.items) return []
+    return routesData.items.map((route) => ({
       id: route.id,
       path: route.path,
       name: route.name,
