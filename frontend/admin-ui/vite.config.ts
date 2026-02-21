@@ -16,6 +16,8 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true, // Доступ снаружи контейнера (для Docker)
+    // Разрешаем доступ с внешнего домена и внутренней сети
+    allowedHosts: ['gateway.ymorozov.ru', 'localhost', '192.168.0.168'],
     proxy: {
       '/api': {
         // В Docker используем имя сервиса, локально — localhost
