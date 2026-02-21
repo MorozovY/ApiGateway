@@ -99,14 +99,14 @@ GET /api/v1/users/options → UserOptionsResponse
 
 | Endpoint | Method | Параметры | Статус |
 |----------|--------|-----------|--------|
-| `/api/v1/users/options` | GET | — | ❌ Требуется создать |
+| `/api/v1/users/options` | GET | — | ✅ Создан |
 | `/api/v1/audit` | GET | `userId`, `action`, `entityType`, `dateFrom`, `dateTo` | ✅ Существует |
 
 **Проверки перед началом разработки:**
 
 - [x] Endpoint `/api/v1/audit` существует и работает
 - [x] Фильтрация по userId в audit работает
-- [ ] Endpoint `/api/v1/users/options` → **ТРЕБУЕТСЯ СОЗДАТЬ**
+- [x] Endpoint `/api/v1/users/options` создан
 
 ## Dev Notes
 
@@ -140,8 +140,8 @@ data class UserOptionsResponse(
 2. **Repository method (UserRepository.kt):**
 ```kotlin
 // Добавить в UserRepository интерфейс
-@Query("SELECT id, username FROM users WHERE is_active = true ORDER BY username ASC")
-fun findAllActiveOptions(): Flux<UserOption>
+@Query("SELECT * FROM users WHERE is_active = true ORDER BY username ASC")
+fun findAllActiveOrderByUsername(): Flux<User>
 ```
 
 3. **Service method (UserService.kt):**
@@ -151,9 +151,10 @@ fun findAllActiveOptions(): Flux<UserOption>
  * Возвращает только id и username, отсортированные по алфавиту.
  */
 fun getAllOptions(): Mono<UserOptionsResponse> {
-    return userRepository.findAllActiveOptions()
+    return userRepository.findAllActiveOrderByUsername()
+        .map { user -> UserOption(id = user.id!!, username = user.username) }
         .collectList()
-        .map { UserOptionsResponse(it) }
+        .map { items -> UserOptionsResponse(items = items) }
 }
 ```
 
@@ -306,12 +307,16 @@ N/A
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/repository/UserRepository.kt`
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/service/UserService.kt`
 - `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/controller/UserController.kt`
-- `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/integration/UserControllerIntegrationTest.kt`
+- `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/integration/UserControllerIntegrationTest.kt` (code review: improved sorting test)
 - `frontend/admin-ui/src/features/users/api/usersApi.ts`
 - `frontend/admin-ui/src/features/users/types/user.types.ts`
-- `frontend/admin-ui/src/features/audit/components/AuditFilterBar.tsx`
+- `frontend/admin-ui/src/features/audit/components/AuditFilterBar.tsx` (code review: added error handling)
 - `frontend/admin-ui/src/features/audit/components/AuditFilterBar.test.tsx`
 
 ## Change Log
 
 - 2026-02-21: Story 8.6 implemented — new endpoint `/api/v1/users/options` for user dropdown in audit logs filters
+- 2026-02-21: Code review fixes — 3 MEDIUM issues fixed:
+  - M1: Updated API Dependencies Checklist status
+  - M2: Fixed Dev Notes to match actual Repository implementation
+  - M3: Improved sorting test to verify actual order (not just existence)

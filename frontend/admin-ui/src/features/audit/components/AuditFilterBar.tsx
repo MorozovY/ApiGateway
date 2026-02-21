@@ -54,17 +54,20 @@ export function AuditFilterBar({
 
   // Загрузка списка пользователей для dropdown (Story 8.6)
   // Используем /api/v1/users/options — доступен для security и admin ролей
-  const { data: userOptionsData } = useQuery({
+  const { data: userOptionsData, isError: isUserOptionsError } = useQuery({
     queryKey: ['users-options'],
     queryFn: fetchUserOptions,
     staleTime: 5 * 60 * 1000, // 5 минут
   })
 
   // Опции для select пользователей (отсортированы по алфавиту на backend)
-  const userOptions = userOptionsData?.items.map((user) => ({
-    value: user.id,
-    label: user.username,
-  })) || []
+  // При ошибке загрузки показываем пустой список (dropdown будет работать, но без опций)
+  const userOptions = isUserOptionsError
+    ? []
+    : userOptionsData?.items.map((user) => ({
+        value: user.id,
+        label: user.username,
+      })) || []
 
   // Синхронизация локального состояния с props
   useEffect(() => {

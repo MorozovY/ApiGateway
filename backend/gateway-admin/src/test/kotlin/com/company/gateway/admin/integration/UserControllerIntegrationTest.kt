@@ -857,9 +857,23 @@ class UserControllerIntegrationTest {
                 .expectStatus().isOk
                 .expectBody()
                 .jsonPath("$.items").isArray
-                // Проверяем что alpha_user идёт раньше zorro_user
+                // Проверяем реальный порядок: alpha < middle < zorro
+                // Находим индексы каждого пользователя и проверяем что alpha < middle < zorro
                 .jsonPath("$.items[?(@.username=='alpha_user')]").exists()
+                .jsonPath("$.items[?(@.username=='middle_user')]").exists()
                 .jsonPath("$.items[?(@.username=='zorro_user')]").exists()
+                // Дополнительная проверка: получаем все usernames и проверяем сортировку
+                .jsonPath("$.items[*].username").value<List<String>> { usernames ->
+                    val alphaIdx = usernames.indexOf("alpha_user")
+                    val middleIdx = usernames.indexOf("middle_user")
+                    val zorroIdx = usernames.indexOf("zorro_user")
+                    // Проверяем что все найдены и в правильном порядке
+                    assert(alphaIdx >= 0) { "alpha_user не найден" }
+                    assert(middleIdx >= 0) { "middle_user не найден" }
+                    assert(zorroIdx >= 0) { "zorro_user не найден" }
+                    assert(alphaIdx < middleIdx) { "alpha_user должен быть перед middle_user" }
+                    assert(middleIdx < zorroIdx) { "middle_user должен быть перед zorro_user" }
+                }
         }
 
         @Test
