@@ -52,14 +52,15 @@ export function ApprovalsPage() {
   // Загрузка данных и мутации
   const { data: pendingRoutes, isLoading } = usePendingRoutes()
 
-  // Клиентская фильтрация по path (Story 5.7, AC2)
+  // Клиентская фильтрация по path и upstream URL (Story 5.7, AC2; Story 8.7, AC1)
   const filteredRoutes = useMemo(() => {
     if (!pendingRoutes || !searchText.trim()) {
       return pendingRoutes
     }
     const lowerSearch = searchText.toLowerCase()
     return pendingRoutes.filter((route) =>
-      route.path.toLowerCase().includes(lowerSearch)
+      route.path.toLowerCase().includes(lowerSearch) ||
+      route.upstreamUrl.toLowerCase().includes(lowerSearch)
     )
   }, [pendingRoutes, searchText])
   const approveMutation = useApproveRoute()
@@ -217,9 +218,9 @@ export function ApprovalsPage() {
         Согласование маршрутов
       </Typography.Title>
 
-      {/* Поле поиска (Story 5.7, AC2) */}
+      {/* Поле поиска (Story 5.7, AC2; Story 8.7, AC2) */}
       <Input
-        placeholder="Поиск по пути..."
+        placeholder="Поиск по path, upstream..."
         prefix={<SearchOutlined />}
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}

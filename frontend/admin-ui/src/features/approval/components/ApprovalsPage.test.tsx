@@ -325,4 +325,76 @@ describe('Страница согласования маршрутов (Approval
       expect(screen.getByPlaceholderText(/опишите причину отклонения/i)).toBeInTheDocument()
     })
   })
+
+  // Story 8.7: Расширить поиск Approvals на Upstream URL
+  describe('Поиск по path и upstream URL (Story 8.7)', () => {
+    it('поиск фильтрует по path', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+        expect(screen.getByText('/api/payments')).toBeInTheDocument()
+      })
+
+      // Вводим текст в поле поиска — соответствует path первого маршрута
+      const searchInput = screen.getByTestId('search-input')
+      fireEvent.change(searchInput, { target: { value: 'orders' } })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+        expect(screen.queryByText('/api/payments')).not.toBeInTheDocument()
+      })
+    })
+
+    it('поиск фильтрует по upstream URL (AC1)', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+        expect(screen.getByText('/api/payments')).toBeInTheDocument()
+      })
+
+      // Вводим текст в поле поиска — соответствует upstream URL второго маршрута
+      const searchInput = screen.getByTestId('search-input')
+      fireEvent.change(searchInput, { target: { value: 'payment-service' } })
+
+      await waitFor(() => {
+        expect(screen.queryByText('/api/orders')).not.toBeInTheDocument()
+        expect(screen.getByText('/api/payments')).toBeInTheDocument()
+      })
+    })
+
+    it('поиск case-insensitive (AC1)', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+      })
+
+      // Вводим текст в верхнем регистре
+      const searchInput = screen.getByTestId('search-input')
+      fireEvent.change(searchInput, { target: { value: 'ORDER-SERVICE' } })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+        expect(screen.queryByText('/api/payments')).not.toBeInTheDocument()
+      })
+    })
+
+    it('placeholder показывает "Поиск по path, upstream..." (AC2)', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Поиск по path, upstream...')).toBeInTheDocument()
+      })
+    })
+  })
 })
