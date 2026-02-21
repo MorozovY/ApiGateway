@@ -2043,3 +2043,246 @@ So that critical user flows are verified in a real browser environment.
 **Scenario 5 — Developer не имеет доступа к audit:**
 - Developer логинится
 - Попытка доступа к /audit → 403 или редирект
+
+---
+
+## Epic 8: UX Improvements & Testing Tools
+
+Улучшения пользовательского опыта на основе обратной связи и добавление инструментов для тестирования нагрузки.
+
+### Story 8.1: Health Check на странице Metrics
+
+As a **DevOps Engineer**,
+I want to see health status of all system services on the Metrics page,
+So that I can quickly assess system health in one place.
+
+**Acceptance Criteria:**
+
+**Given** user navigates to `/metrics`
+**When** the page loads
+**Then** a Health Check section displays status for:
+- gateway-core (UP/DOWN)
+- gateway-admin (UP/DOWN)
+- PostgreSQL (UP/DOWN)
+- Redis (UP/DOWN)
+**And** each service shows colored indicator (green=UP, red=DOWN)
+**And** last check timestamp is displayed
+
+**Given** a service is unavailable
+**When** health check runs
+**Then** that service shows red DOWN status
+**And** error details are shown on hover/expand
+
+---
+
+### Story 8.2: Убрать плашки мониторинга с Dashboard
+
+As a **User**,
+I want a cleaner Dashboard without monitoring widgets,
+So that the dashboard focuses on role-specific actions.
+
+**Acceptance Criteria:**
+
+**Given** user navigates to `/dashboard`
+**When** the page loads
+**Then** MetricsWidget is NOT displayed
+**And** dashboard shows only role-specific content (quick actions, recent items)
+
+**Given** user wants to see metrics
+**When** they need monitoring data
+**Then** they navigate to dedicated `/metrics` page via sidebar
+
+---
+
+### Story 8.3: Поиск пользователей по username и email
+
+As an **Admin**,
+I want a single search field on Users page that filters by username and email,
+So that I can quickly find users.
+
+**Acceptance Criteria:**
+
+**Given** admin navigates to `/users`
+**When** the page loads
+**Then** a search input field is displayed above the table
+
+**Given** admin types "john" in search field
+**When** input is debounced (300ms)
+**Then** table shows users where username OR email contains "john"
+**And** search is case-insensitive
+
+**Given** admin clears search field
+**When** field is empty
+**Then** all users are displayed
+
+---
+
+### Story 8.4: Показать Author и Rate Limit число в Routes
+
+As a **User**,
+I want to see Author column and Rate Limit details in Routes table,
+So that I can see who created routes and their limits at a glance.
+
+**Acceptance Criteria:**
+
+**Given** user navigates to `/routes`
+**When** the table loads
+**Then** "Author" column displays the username of route creator
+
+**Given** route has Rate Limit assigned
+**When** displayed in table
+**Then** Rate Limit column shows: "{name} ({requestsPerSecond}/s)"
+**Example:** "Standard (100/s)"
+
+**Given** route has no Rate Limit
+**When** displayed in table
+**Then** Rate Limit column shows "-" or "None"
+
+---
+
+### Story 8.5: Поиск Routes по Path и Upstream URL
+
+As a **User**,
+I want search on Routes page to filter by both Path and Upstream URL,
+So that I can find routes by any criteria.
+
+**Acceptance Criteria:**
+
+**Given** user is on `/routes` page
+**When** user types "order" in search field
+**Then** routes are filtered where Path OR Upstream URL contains "order"
+**And** search is case-insensitive
+
+**Given** backend API `/api/v1/routes`
+**When** `search` parameter is provided
+**Then** API filters by path OR upstream_url (ILIKE)
+
+---
+
+### Story 8.6: Исправить комбобокс пользователей в Audit Logs
+
+As a **Security Specialist**,
+I want the user filter dropdown in Audit Logs to show all users,
+So that I can filter audit events by user.
+
+**Acceptance Criteria:**
+
+**Given** user navigates to `/audit`
+**When** the page loads
+**Then** user filter dropdown is populated with all system users
+
+**Given** user clicks on user dropdown
+**When** dropdown opens
+**Then** list shows all users (username)
+**And** users are sorted alphabetically
+
+**Given** a user is selected from dropdown
+**When** filter is applied
+**Then** audit log shows only events by that user
+
+---
+
+### Story 8.7: Расширить поиск Approvals на Upstream URL
+
+As a **Security Specialist**,
+I want search on Approvals page to include Upstream URL,
+So that I can find pending routes by upstream service.
+
+**Acceptance Criteria:**
+
+**Given** user is on `/approvals` page
+**When** user types "payment" in search field
+**Then** pending routes are filtered where Path OR Upstream URL contains "payment"
+
+---
+
+### Story 8.8: Унифицированные фильтры для всех таблиц
+
+As a **User**,
+I want consistent filter UI across all tables,
+So that the application has a unified user experience.
+
+**Acceptance Criteria:**
+
+**Given** any table page (Routes, Users, Rate Limits, Approvals, Audit)
+**When** the page loads
+**Then** filter UI follows consistent pattern:
+- Search input at top-left
+- Filter dropdowns in a row
+- Active filters shown as removable chips
+- Clear all filters button
+
+**Given** Users table as reference
+**When** comparing other tables
+**Then** visual style and interaction patterns match
+
+---
+
+### Story 8.9: Страница Test с генератором нагрузки
+
+As a **DevOps Engineer**,
+I want a Test page with load generator,
+So that I can simulate traffic and verify monitoring works.
+
+**Acceptance Criteria:**
+
+**Given** user navigates to `/test`
+**When** the page loads
+**Then** sidebar shows "Test" menu item (icon: experiment/flask)
+**And** page displays load generator controls
+
+**Given** load generator controls are displayed
+**When** user sees the form
+**Then** controls include:
+- Target route selector (dropdown of published routes)
+- Requests per second (number input, 1-100)
+- Duration (seconds, or "until stopped")
+- Start/Stop button
+
+**Given** user clicks "Start"
+**When** load generation begins
+**Then** requests are sent to selected route through Gateway
+**And** progress indicator shows: requests sent, success/error count
+**And** Stop button becomes active
+
+**Given** load is running
+**When** user navigates to `/metrics`
+**Then** metrics show the generated traffic (RPS increase)
+
+**Given** user clicks "Stop"
+**When** load generation stops
+**Then** summary shows: total requests, duration, success rate
+
+---
+
+### Story 8.10: E2E Playwright Tests для Epic 8
+
+As a **QA Engineer**,
+I want E2E tests covering UX improvements,
+So that changes are verified in real browser environment.
+
+**Acceptance Criteria:**
+
+**Given** Playwright test suite is configured
+**When** E2E tests for Epic 8 are executed
+**Then** the following scenarios pass:
+
+**Scenario 1 — Metrics Health Check:**
+- User navigates to /metrics
+- Health status section is visible
+- All services show status indicators
+
+**Scenario 2 — Users search:**
+- Admin navigates to /users
+- Types username in search
+- Table filters correctly
+
+**Scenario 3 — Routes search by Upstream:**
+- User searches by upstream URL
+- Matching routes are displayed
+
+**Scenario 4 — Load Generator:**
+- DevOps navigates to /test
+- Starts load generation
+- Metrics page shows traffic increase
+- Stops load generation

@@ -120,7 +120,7 @@ development_status:
   # Epic 8: UX Improvements & Testing Tools
   epic-8: in-progress
   8-1-health-check-metrics-page: done  # Code review: 6 issues fixed, tests pass
-  8-2-remove-dashboard-metrics-widget: ready-for-dev
+  8-2-remove-dashboard-metrics-widget: done
   8-3-users-search-username-email: backlog
   8-4-routes-author-rate-limit-display: backlog
   8-5-routes-search-path-upstream: backlog

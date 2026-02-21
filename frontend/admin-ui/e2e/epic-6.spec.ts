@@ -14,7 +14,7 @@ const GATEWAY_SYNC_DELAY = 3000
 /** Ожидание Prometheus scrape interval */
 const METRICS_SCRAPE_DELAY = 5000
 
-/** Ожидание MetricsWidget auto-refresh (10s interval + buffer) */
+/** Ожидание MetricsPage auto-refresh (10s interval + buffer) */
 const METRICS_REFRESH_DELAY = 12_000
 
 /** Timeout для появления UI элементов */
@@ -219,18 +219,18 @@ test.describe('Epic 6: Monitoring & Observability', () => {
 
   /**
    * AC3: Admin видит метрики в UI.
-   * Логинимся как admin, переходим на dashboard, проверяем MetricsWidget.
+   * Логинимся как admin, переходим на /metrics, проверяем MetricsWidget.
    *
+   * Story 8.2: MetricsWidget убран с Dashboard, метрики доступны на /metrics.
    * H1 fix: Проверяем что данные реально обновляются (auto-refresh).
    * H2 fix: Генерируем трафик через published маршрут (не /actuator/health).
    * M1 fix: Проверяем реальные числовые значения метрик.
    */
   test('Admin видит метрики в UI', { timeout: TEST_TIMEOUT_LONG }, async ({ page }) => {
-    // Логинимся как admin — после login мы уже на /dashboard
+    // Логинимся как admin
     await login(page, 'test-admin', 'Test1234!', '/dashboard')
 
     // H2 fix: Создаём published маршрут для генерации реальных метрик
-    // Используем page.request — он наследует cookies из browser context
     const routePath = `ui-metrics-${TIMESTAMP}`
     await createPublishedRoute(page, routePath, resources)
 
@@ -243,41 +243,44 @@ test.describe('Epic 6: Monitoring & Observability', () => {
       await page.request.get(gatewayUrl, { failOnStatusCode: false })
     }
 
-    // Мы всё ещё на /dashboard после login — проверяем URL
-    await expect(page).toHaveURL(/\/dashboard/)
+    // Story 8.2: Переходим на /metrics через sidebar (MetricsWidget убран с Dashboard)
+    // Ant Design Menu использует li[role=menuitem], не <nav><a>
+    await page.locator('[role="menu"]').getByRole('menuitem', { name: /metrics/i }).click()
+    await expect(page).toHaveURL(/\/metrics/)
 
-    // Ждём загрузки MetricsWidget (либо loading, либо данные)
-    const loadingOrWidget = page.locator('[data-testid="metrics-loading"], [data-testid="metrics-widget"]')
-    await expect(loadingOrWidget).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+    // Ждём загрузки MetricsPage (либо loading, либо данные)
+    const loadingOrPage = page.locator('[data-testid="metrics-page-loading"], [data-testid="metrics-page"]')
+    await expect(loadingOrPage).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
 
-    // Ждём окончания загрузки — появления основного виджета
-    const metricsWidget = page.locator('[data-testid="metrics-widget"]')
-    await expect(metricsWidget).toBeVisible({ timeout: WIDGET_LOAD_TIMEOUT })
+    // Ждём окончания загрузки — появления основного контейнера
+    const metricsPage = page.locator('[data-testid="metrics-page"]')
+    await expect(metricsPage).toBeVisible({ timeout: WIDGET_LOAD_TIMEOUT })
 
-    // Проверяем отображение всех 4 карточек
-    await expect(page.locator('[data-testid="metrics-card-rps"]')).toBeVisible()
-    await expect(page.locator('[data-testid="metrics-card-latency"]')).toBeVisible()
-    await expect(page.locator('[data-testid="metrics-card-error-rate"]')).toBeVisible()
-    await expect(page.locator('[data-testid="metrics-card-active-routes"]')).toBeVisible()
+    // Проверяем отображение всех summary карточек (MetricsPage использует другие testid)
+    await expect(page.locator('[data-testid="summary-card-rps"]')).toBeVisible()
+    await expect(page.locator('[data-testid="summary-card-avg-latency"]')).toBeVisible()
+    await expect(page.locator('[data-testid="summary-card-error-rate"]')).toBeVisible()
+    await expect(page.locator('[data-testid="summary-card-active-routes"]')).toBeVisible()
 
     // M1 fix: Проверяем что карточки содержат реальные числовые значения
-    const rpsValue = page.locator('[data-testid="metrics-card-rps"] .ant-statistic-content-value')
+    const rpsValue = page.locator('[data-testid="summary-card-rps"] .ant-statistic-content-value')
     await expect(rpsValue).toBeVisible()
     const rpsText = await rpsValue.textContent()
     // Проверяем что значение — число (может быть 0 или больше)
     expect(rpsText).toMatch(/^\d+(\.\d+)?$/)
 
-    const latencyValue = page.locator('[data-testid="metrics-card-latency"] .ant-statistic-content-value')
+    const latencyValue = page.locator('[data-testid="summary-card-avg-latency"] .ant-statistic-content-value')
     await expect(latencyValue).toBeVisible()
     const latencyText = await latencyValue.textContent()
     expect(latencyText).toMatch(/^\d+(\.\d+)?$/)
 
-    const errorRateValue = page.locator('[data-testid="metrics-card-error-rate"] .ant-statistic-content-value')
+    const errorRateValue = page.locator('[data-testid="summary-card-error-rate"] .ant-statistic-content-value')
     await expect(errorRateValue).toBeVisible()
     const errorRateText = await errorRateValue.textContent()
+    // Error rate показывается как percentage (e.g., "0.00")
     expect(errorRateText).toMatch(/^\d+(\.\d+)?$/)
 
-    const activeRoutesValue = page.locator('[data-testid="metrics-card-active-routes"] .ant-statistic-content-value')
+    const activeRoutesValue = page.locator('[data-testid="summary-card-active-routes"] .ant-statistic-content-value')
     await expect(activeRoutesValue).toBeVisible()
     const activeRoutesText = await activeRoutesValue.textContent()
     expect(activeRoutesText).toMatch(/^\d+$/)
@@ -286,28 +289,24 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     const initialRps = await rpsValue.textContent()
 
     // H2 fix: Генерируем МНОГО трафика через published маршрут
-    // Это должно изменить RPS метрику
     for (let i = 0; i < 20; i++) {
       await page.request.get(gatewayUrl, { failOnStatusCode: false })
     }
 
-    // Ждём auto-refresh (MetricsWidget обновляется каждые 10 секунд)
+    // Ждём auto-refresh (MetricsPage обновляется каждые 10 секунд)
     await page.waitForTimeout(METRICS_REFRESH_DELAY)
 
-    // H1 fix: Проверяем что виджет всё ещё отображается (не упал в error state)
-    await expect(metricsWidget).toBeVisible()
+    // H1 fix: Проверяем что страница всё ещё отображается (не упала в error state)
+    await expect(metricsPage).toBeVisible()
 
     // H1 fix: Проверяем что данные обновились — RPS должен измениться
-    // Используем toPass для retry logic (метрики могут обновляться асинхронно)
     await expect(async () => {
       const newRpsText = await rpsValue.textContent()
-      // Проверяем что значение числовое
       expect(newRpsText).toMatch(/^\d+(\.\d+)?$/)
-      // Либо значение изменилось, либо виджет работает (нет error state)
-      // Примечание: RPS может остаться тем же если период агрегации большой
+      // Либо значение изменилось, либо страница работает (нет error state)
       const rpsChanged = newRpsText !== initialRps
-      const widgetVisible = await metricsWidget.isVisible()
-      expect(rpsChanged || widgetVisible).toBeTruthy()
+      const pageVisible = await metricsPage.isVisible()
+      expect(rpsChanged || pageVisible).toBeTruthy()
     }).toPass({ timeout: UI_ELEMENT_TIMEOUT })
   })
 
