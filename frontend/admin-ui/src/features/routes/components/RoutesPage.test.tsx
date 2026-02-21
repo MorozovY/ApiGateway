@@ -573,12 +573,12 @@ describe('RoutesPage пагинация', () => {
   })
 })
 
-describe('колонка Rate Limit (Story 5.5)', () => {
+describe('колонка Rate Limit (Story 5.5, обновлено Story 8.4)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('отображает название политики когда назначена', async () => {
+  it('отображает название и requests/sec когда политика назначена (Story 8.4)', async () => {
     // Мокаем ответ с rate limit
     const routeWithRateLimit = {
       ...mockRoutesResponse.items[0],
@@ -607,8 +607,8 @@ describe('колонка Rate Limit (Story 5.5)', () => {
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    // Проверяем что название политики отображается в таблице
-    expect(screen.getByText('standard')).toBeInTheDocument()
+    // Story 8.4: проверяем формат "{name} ({requestsPerSecond}/s)"
+    expect(screen.getByText('standard (100/s)')).toBeInTheDocument()
   })
 
   it('отображает "—" когда политика не назначена', async () => {

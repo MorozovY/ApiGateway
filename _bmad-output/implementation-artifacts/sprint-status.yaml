@@ -122,7 +122,7 @@ development_status:
   8-1-health-check-metrics-page: done  # Code review: 6 issues fixed, tests pass
   8-2-remove-dashboard-metrics-widget: done
   8-3-users-search-username-email: done
-  8-4-routes-author-rate-limit-display: backlog
+  8-4-routes-author-rate-limit-display: done  # Code review: 5 issues found, all fixed
   8-5-routes-search-path-upstream: backlog
   8-6-audit-logs-user-combobox-fix: backlog
   8-7-approvals-search-upstream: backlog

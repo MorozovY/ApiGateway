@@ -14,6 +14,7 @@ import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.admin.repository.RateLimitRepository
 import com.company.gateway.admin.repository.RouteRepository
+import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.common.model.Role
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
@@ -39,6 +40,7 @@ import java.util.UUID
 class RouteService(
     private val routeRepository: RouteRepository,
     private val rateLimitRepository: RateLimitRepository,
+    private val userRepository: UserRepository,
     private val auditService: AuditService
 ) {
     private val logger = LoggerFactory.getLogger(RouteService::class.java)
@@ -113,9 +115,10 @@ class RouteService(
             }
             .flatMap { savedRoute ->
                 // Загружаем информацию о rate limit для response (Story 5.5)
+                // Передаём username создателя напрямую (это текущий пользователь) — Story 8.4
                 loadRateLimitInfo(savedRoute.rateLimitId)
-                    .map { rateLimitInfo -> RouteResponse.from(savedRoute, rateLimitInfo) }
-                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(savedRoute, null)) })
+                    .map { rateLimitInfo -> RouteResponse.from(savedRoute, rateLimitInfo, username) }
+                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(savedRoute, null, username)) })
             }
             .doOnSuccess { logger.info("Маршрут создан: path={}, userId={}", request.path, userId) }
     }
@@ -247,10 +250,18 @@ class RouteService(
                 }
             }
             .flatMap { saved ->
-                // Загружаем информацию о rate limit для response
+                // Загружаем информацию о rate limit и username создателя для response — Story 8.4
                 loadRateLimitInfo(saved.rateLimitId)
-                    .map { rateLimitInfo -> RouteResponse.from(saved, rateLimitInfo) }
-                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(saved, null)) })
+                    .flatMap { rateLimit ->
+                        loadCreatorUsername(saved.createdBy)
+                            .map { creatorUsername -> RouteResponse.from(saved, rateLimit, creatorUsername) }
+                            .defaultIfEmpty(RouteResponse.from(saved, rateLimit, null))
+                    }
+                    .switchIfEmpty(Mono.defer {
+                        loadCreatorUsername(saved.createdBy)
+                            .map { creatorUsername -> RouteResponse.from(saved, null, creatorUsername) }
+                            .defaultIfEmpty(RouteResponse.from(saved, null, null))
+                    })
             }
             .doOnSuccess { logger.info("Маршрут обновлён: id={}, userId={}", id, userId) }
     }
@@ -267,6 +278,24 @@ class RouteService(
         return if (rateLimitId != null) {
             rateLimitRepository.findById(rateLimitId)
                 .map { RateLimitInfo.from(it) }
+        } else {
+            Mono.empty()
+        }
+    }
+
+    /**
+     * Загружает username создателя маршрута по ID.
+     *
+     * Возвращает Mono с username если пользователь найден, или пустой Mono если не найден/не указан.
+     * Story 8.4.
+     *
+     * @param createdBy ID создателя (может быть null)
+     * @return Mono<String> username создателя (может быть пустым)
+     */
+    private fun loadCreatorUsername(createdBy: UUID?): Mono<String> {
+        return if (createdBy != null) {
+            userRepository.findById(createdBy)
+                .map { it.username }
         } else {
             Mono.empty()
         }
@@ -338,9 +367,18 @@ class RouteService(
         return routeRepository.findById(id)
             .switchIfEmpty(Mono.error(NotFoundException("Route not found")))
             .flatMap { route ->
+                // Загружаем информацию о rate limit и username создателя — Story 8.4
                 loadRateLimitInfo(route.rateLimitId)
-                    .map { rateLimitInfo -> RouteResponse.from(route, rateLimitInfo) }
-                    .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(route, null)) })
+                    .flatMap { rateLimit ->
+                        loadCreatorUsername(route.createdBy)
+                            .map { creatorUsername -> RouteResponse.from(route, rateLimit, creatorUsername) }
+                            .defaultIfEmpty(RouteResponse.from(route, rateLimit, null))
+                    }
+                    .switchIfEmpty(Mono.defer {
+                        loadCreatorUsername(route.createdBy)
+                            .map { creatorUsername -> RouteResponse.from(route, null, creatorUsername) }
+                            .defaultIfEmpty(RouteResponse.from(route, null, null))
+                    })
             }
     }
 
@@ -625,34 +663,47 @@ class RouteService(
                 val routes = tuple.t1
                 val total = tuple.t2
 
+                // Собираем уникальные user IDs (исключая null) — Story 8.4
+                val userIds = routes.mapNotNull { it.createdBy }.distinct()
+
                 // Собираем уникальные rateLimitId (исключая null)
                 val rateLimitIds = routes.mapNotNull { it.rateLimitId }.distinct()
 
-                if (rateLimitIds.isEmpty()) {
-                    // Нет rate limits — возвращаем маршруты без загрузки политик
-                    Mono.just(
+                // Batch-загрузка пользователей (Story 8.4)
+                val usersMono = if (userIds.isEmpty()) {
+                    Mono.just(emptyMap<UUID, String>())
+                } else {
+                    userRepository.findAllById(userIds)
+                        .collectMap({ it.id!! }, { it.username })
+                }
+
+                // Batch-загрузка rate limits
+                val rateLimitsMono = if (rateLimitIds.isEmpty()) {
+                    Mono.just(emptyMap<UUID, RateLimitInfo>())
+                } else {
+                    rateLimitRepository.findAllById(rateLimitIds)
+                        .collectMap({ it.id!! }, { RateLimitInfo.from(it) })
+                }
+
+                // Объединяем lookup maps и строим response
+                Mono.zip(usersMono, rateLimitsMono)
+                    .map { lookups ->
+                        val usersMap = lookups.t1
+                        val rateLimitsMap = lookups.t2
+
                         RouteListResponse(
-                            items = routes.map { RouteResponse.from(it, null) },
+                            items = routes.map { route ->
+                                RouteResponse.from(
+                                    route,
+                                    rateLimitsMap[route.rateLimitId],
+                                    usersMap[route.createdBy]
+                                )
+                            },
                             total = total,
                             offset = filter.offset,
                             limit = filter.limit
                         )
-                    )
-                } else {
-                    // Batch-загрузка всех политик за один запрос (решение N+1)
-                    rateLimitRepository.findAllById(rateLimitIds)
-                        .collectMap({ it.id!! }, { RateLimitInfo.from(it) })
-                        .map { rateLimitsMap ->
-                            RouteListResponse(
-                                items = routes.map { route ->
-                                    RouteResponse.from(route, rateLimitsMap[route.rateLimitId])
-                                },
-                                total = total,
-                                offset = filter.offset,
-                                limit = filter.limit
-                            )
-                        }
-                }
+                    }
             }
     }
 

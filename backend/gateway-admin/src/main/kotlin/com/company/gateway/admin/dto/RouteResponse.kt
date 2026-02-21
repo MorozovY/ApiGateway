@@ -16,6 +16,7 @@ import java.util.UUID
  * @property description описание маршрута
  * @property status статус маршрута (draft, pending, published, rejected)
  * @property createdBy ID пользователя, создавшего маршрут
+ * @property creatorUsername username создателя маршрута (Story 8.4)
  * @property createdAt дата создания маршрута
  * @property updatedAt дата последнего обновления
  * @property submittedAt время отправки на согласование
@@ -35,6 +36,7 @@ data class RouteResponse(
     val description: String?,
     val status: String,
     val createdBy: UUID?,
+    val creatorUsername: String? = null,
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val submittedAt: Instant? = null,
@@ -52,8 +54,9 @@ data class RouteResponse(
          *
          * @param route маршрут
          * @param rateLimit информация о политике rate limit (опционально)
+         * @param creatorUsername username создателя маршрута (опционально, Story 8.4)
          */
-        fun from(route: Route, rateLimit: RateLimitInfo? = null): RouteResponse {
+        fun from(route: Route, rateLimit: RateLimitInfo? = null, creatorUsername: String? = null): RouteResponse {
             return RouteResponse(
                 id = route.id!!,
                 path = route.path,
@@ -62,6 +65,7 @@ data class RouteResponse(
                 description = route.description,
                 status = route.status.name.lowercase(),
                 createdBy = route.createdBy,
+                creatorUsername = creatorUsername,
                 createdAt = route.createdAt,
                 updatedAt = route.updatedAt,
                 submittedAt = route.submittedAt,

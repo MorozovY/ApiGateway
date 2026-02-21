@@ -263,9 +263,14 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       title: 'Rate Limit',
       dataIndex: ['rateLimit', 'name'],
       key: 'rateLimit',
-      render: (_: unknown, record: Route) =>
-        record.rateLimit?.name || '—',
-      width: 150,
+      // Story 8.4: отображаем "{name} ({requestsPerSecond}/s)"
+      render: (_: unknown, record: Route) => {
+        if (!record.rateLimit) {
+          return '—'
+        }
+        return `${record.rateLimit.name} (${record.rateLimit.requestsPerSecond}/s)`
+      },
+      width: 180,
     },
     {
       title: 'Status',

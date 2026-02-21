@@ -7,6 +7,7 @@ import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.admin.publisher.RouteEventPublisher
 import com.company.gateway.admin.repository.RouteRepository
+import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_CORRELATION_ID_KEY
 import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_IP_ADDRESS_KEY
 import com.company.gateway.common.model.Route
@@ -31,6 +32,7 @@ import java.util.UUID
 @Service
 class ApprovalService(
     private val routeRepository: RouteRepository,
+    private val userRepository: UserRepository,
     private val auditService: AuditService,
     private val routeEventPublisher: RouteEventPublisher
 ) {
@@ -132,7 +134,7 @@ class ApprovalService(
                         }
                     }
             }
-            .map { RouteResponse.from(it) }
+            .map { RouteResponse.from(it, null, username) }  // Story 8.4: текущий пользователь — создатель
             .doOnSuccess {
                 logger.info(
                     "Маршрут отправлен на согласование: routeId={}, userId={}",
@@ -285,7 +287,16 @@ class ApprovalService(
                     Mono.just(savedRoute)
                 }
             }
-            .map { RouteResponse.from(it) }
+            .flatMap { savedRoute ->
+                // Загружаем username создателя маршрута — Story 8.4
+                if (savedRoute.createdBy != null) {
+                    userRepository.findById(savedRoute.createdBy!!)
+                        .map { user -> RouteResponse.from(savedRoute, null, user.username) }
+                        .defaultIfEmpty(RouteResponse.from(savedRoute, null, null))
+                } else {
+                    Mono.just(RouteResponse.from(savedRoute, null, null))
+                }
+            }
             .doOnSuccess {
                 logger.info(
                     "Маршрут одобрен: routeId={}, approvedBy={}",
@@ -376,7 +387,16 @@ class ApprovalService(
                     Mono.just(savedRoute)
                 }
             }
-            .map { RouteResponse.from(it) }
+            .flatMap { savedRoute ->
+                // Загружаем username создателя маршрута — Story 8.4
+                if (savedRoute.createdBy != null) {
+                    userRepository.findById(savedRoute.createdBy!!)
+                        .map { user -> RouteResponse.from(savedRoute, null, user.username) }
+                        .defaultIfEmpty(RouteResponse.from(savedRoute, null, null))
+                } else {
+                    Mono.just(RouteResponse.from(savedRoute, null, null))
+                }
+            }
             .doOnSuccess {
                 logger.info(
                     "Маршрут отклонён: routeId={}, rejectedBy={}, reason={}",

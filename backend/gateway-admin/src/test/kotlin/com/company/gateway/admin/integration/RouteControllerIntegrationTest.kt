@@ -708,6 +708,67 @@ class RouteControllerIntegrationTest {
     }
 
     // ============================================
+    // Story 8.4: GET /api/v1/routes возвращает creatorUsername
+    // ============================================
+
+    @Nested
+    inner class Story8_4_CreatorUsernameInList {
+
+        @Test
+        fun `список маршрутов возвращает creatorUsername`() {
+            // Создаём маршрут от developerUser
+            createTestRoute("/api/orders", developerUser.id!!)
+
+            webTestClient.get()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items[0].creatorUsername").isEqualTo("developer")
+                .jsonPath("$.items[0].createdBy").isEqualTo(developerUser.id.toString())
+        }
+
+        @Test
+        fun `список маршрутов возвращает creatorUsername для разных создателей`() {
+            // Создаём маршруты от разных пользователей
+            createTestRoute("/api/orders", developerUser.id!!)
+            createTestRoute("/api/products", otherDeveloperUser.id!!)
+
+            webTestClient.get()
+                .uri("/api/v1/routes?limit=10")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+                // Проверяем что оба маршрута имеют creatorUsername
+                .jsonPath("$.items[?(@.path == '/api/orders')].creatorUsername").isEqualTo("developer")
+                .jsonPath("$.items[?(@.path == '/api/products')].creatorUsername").isEqualTo("otherdev")
+        }
+
+        @Test
+        fun `список маршрутов возвращает null для creatorUsername если пользователь удалён`() {
+            // Создаём маршрут
+            val route = createTestRoute("/api/orphan", developerUser.id!!)
+
+            // Обновляем createdBy на несуществующий UUID напрямую в БД
+            val fakeUserId = UUID.randomUUID()
+            StepVerifier.create(
+                routeRepository.save(route.copy(createdBy = fakeUserId))
+            ).expectNextCount(1).verifyComplete()
+
+            webTestClient.get()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items[0].creatorUsername").doesNotExist()
+        }
+    }
+
+    // ============================================
     // Вспомогательные методы
     // ============================================
 

@@ -6,6 +6,7 @@ import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
 import com.company.gateway.admin.publisher.RouteEventPublisher
 import com.company.gateway.admin.repository.RouteRepository
+import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_CORRELATION_ID_KEY
 import com.company.gateway.admin.security.AuditContextFilter.Companion.AUDIT_IP_ADDRESS_KEY
 import com.company.gateway.common.model.Route
@@ -46,6 +47,7 @@ import java.util.UUID
 class ApprovalServiceTest {
 
     private lateinit var routeRepository: RouteRepository
+    private lateinit var userRepository: UserRepository
     private lateinit var auditService: AuditService
     private lateinit var routeEventPublisher: RouteEventPublisher
     private lateinit var approvalService: ApprovalService
@@ -58,9 +60,14 @@ class ApprovalServiceTest {
     @BeforeEach
     fun setUp() {
         routeRepository = mock()
+        userRepository = mock()
         auditService = mock()
         routeEventPublisher = mock()
-        approvalService = ApprovalService(routeRepository, auditService, routeEventPublisher)
+        approvalService = ApprovalService(routeRepository, userRepository, auditService, routeEventPublisher)
+
+        // Default mock для загрузки username создателя (Story 8.4)
+        // Возвращаем пустой Mono — creatorUsername будет null
+        whenever(userRepository.findById(any<UUID>())).thenReturn(Mono.empty())
     }
 
     // ============================================

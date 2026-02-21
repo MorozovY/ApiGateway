@@ -3,6 +3,7 @@ package com.company.gateway.admin.service
 import com.company.gateway.admin.dto.RouteWithCreator
 import com.company.gateway.admin.repository.RateLimitRepository
 import com.company.gateway.admin.repository.RouteRepository
+import com.company.gateway.admin.repository.UserRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -30,6 +31,7 @@ class RouteServiceTest {
 
     private lateinit var routeRepository: RouteRepository
     private lateinit var rateLimitRepository: RateLimitRepository
+    private lateinit var userRepository: UserRepository
     private lateinit var auditService: AuditService
     private lateinit var routeService: RouteService
 
@@ -37,8 +39,9 @@ class RouteServiceTest {
     fun setUp() {
         routeRepository = mock()
         rateLimitRepository = mock()
+        userRepository = mock()
         auditService = mock()
-        routeService = RouteService(routeRepository, rateLimitRepository, auditService)
+        routeService = RouteService(routeRepository, rateLimitRepository, userRepository, auditService)
     }
 
     // ============================================
