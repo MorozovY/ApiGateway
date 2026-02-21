@@ -1,0 +1,37 @@
+# Prometheus конфигурация для API Gateway Production
+# Scrape метрик с gateway-core через Micrometer Prometheus endpoint
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'production'
+    cluster: 'ymorozov-ru'
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Gateway Core метрики (основной API Gateway)
+  - job_name: 'gateway-core'
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['gateway-core:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'gateway-core'
+
+  # Gateway Admin метрики (Admin API)
+  - job_name: 'gateway-admin'
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['gateway-admin:8081']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'gateway-admin'

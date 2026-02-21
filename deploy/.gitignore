@@ -1,0 +1,17 @@
+# Environment variables (содержат секретные пароли!)
+.env
+
+# SSL сертификаты
+nginx/ssl/
+
+# Backups
+backups/
+*.sql
+*.dump
+
+# Logs
+logs/
+*.log
+
+# Docker volumes data (если примонтированы локально)
+data/
