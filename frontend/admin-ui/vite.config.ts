@@ -4,8 +4,6 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // Base path для деплоя на подпуть /ApiGateway/
-  base: '/ApiGateway/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -18,11 +16,6 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true, // Доступ снаружи контейнера (для Docker)
-    // Разрешаем доступ с внешнего домена (защита от DNS rebinding)
-    allowedHosts: ['ymorozov.ru', 'localhost'],
-    // HMR отключён для совместимости с доступом через ymorozov.ru
-    // Hot reload не работает, но страница загружается
-    hmr: false,
     proxy: {
       '/api': {
         // В Docker используем имя сервиса, локально — localhost

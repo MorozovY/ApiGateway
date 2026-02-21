@@ -1,23 +1,11 @@
 // Настройка axios instance для API запросов
 import axios from 'axios'
 
-// Base path из Vite конфига (например '/ApiGateway')
-const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-
 const instance = axios.create({
   withCredentials: true, // Для отправки cookies (auth_token)
   headers: {
     'Content-Type': 'application/json',
   },
-})
-
-// Request interceptor: добавляем base path к URL
-instance.interceptors.request.use((config) => {
-  // Если URL начинается с /api, добавляем base path
-  if (config.url?.startsWith('/api')) {
-    config.url = `${basePath}${config.url}`
-  }
-  return config
 })
 
 // Response interceptor для обработки ошибок
