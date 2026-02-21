@@ -204,4 +204,94 @@ describe('UsersPage', () => {
     )
     expect(disabledEditButtons).toHaveLength(1) // только security1 (inactive)
   })
+
+  // ============================================
+  // Story 8.3: Поиск по username и email
+  // ============================================
+
+  it('рендерит поле поиска', async () => {
+    renderWithMockAuth(<UsersPage />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    const searchInput = screen.getByTestId('users-search-input')
+    expect(searchInput).toBeInTheDocument()
+    expect(searchInput).toHaveAttribute('placeholder', 'Поиск по username или email')
+  })
+
+  it('при вводе текста в поле поиска вызывает API с search параметром', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<UsersPage />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Ждём начальную загрузку
+    await waitFor(() => {
+      expect(mockFetchUsers).toHaveBeenCalled()
+    })
+
+    // Очищаем моки для проверки нового вызова
+    mockFetchUsers.mockClear()
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('users-search-input')
+    await user.type(searchInput, 'john')
+
+    // Ждём пока useDeferredValue обновится и вызовет новый запрос
+    await waitFor(() => {
+      expect(mockFetchUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'john' })
+      )
+    })
+  })
+
+  it('очистка поля поиска сбрасывает фильтрацию', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<UsersPage />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Ждём начальную загрузку
+    await waitFor(() => {
+      expect(mockFetchUsers).toHaveBeenCalled()
+    })
+
+    // Вводим текст в поле поиска
+    const searchInput = screen.getByTestId('users-search-input')
+    await user.type(searchInput, 'test')
+
+    // Ждём пока запрос с поиском выполнится
+    await waitFor(() => {
+      expect(mockFetchUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'test' })
+      )
+    })
+
+    // Очищаем моки
+    mockFetchUsers.mockClear()
+
+    // Очищаем поле поиска
+    await user.clear(searchInput)
+
+    // Ждём новый запрос — пустая строка передаётся в hook, но usersApi
+    // конвертирует её в undefined (search: search || undefined)
+    await waitFor(() => {
+      expect(mockFetchUsers).toHaveBeenCalled()
+    })
+
+    // Проверяем что search либо пустая строка, либо undefined
+    const lastCall = mockFetchUsers.mock.calls[mockFetchUsers.mock.calls.length - 1][0]
+    expect(lastCall.search === '' || lastCall.search === undefined).toBe(true)
+  })
 })

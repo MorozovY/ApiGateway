@@ -58,8 +58,11 @@ export interface UserListResponse {
 
 /**
  * Параметры для получения списка пользователей.
+ *
+ * search — поиск по username или email (case-insensitive)
  */
 export interface UserListParams {
   offset?: number
   limit?: number
+  search?: string
 }

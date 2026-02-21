@@ -1,7 +1,7 @@
-// Страница управления пользователями (Story 2.6, AC4)
-import { useState } from 'react'
-import { Button, Typography } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+// Страница управления пользователями (Story 2.6, AC4; Story 8.3 — поиск)
+import { useState, useDeferredValue } from 'react'
+import { Button, Input, Space, Typography } from 'antd'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import UsersTable from './UsersTable'
 import UserFormModal from './UserFormModal'
 import type { User } from '../types/user.types'
@@ -18,6 +18,12 @@ function UsersPage() {
   // Состояние модального окна
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+
+  // Состояние поиска (Story 8.3)
+  // useDeferredValue откладывает обновление до browser idle — не строгий debounce,
+  // но эффективно предотвращает лишние запросы при быстром вводе
+  const [searchValue, setSearchValue] = useState('')
+  const deferredSearch = useDeferredValue(searchValue)
 
   // Открытие модального окна для создания
   const handleAdd = () => {
@@ -43,12 +49,24 @@ function UsersPage() {
         <Title level={3} style={{ margin: 0 }}>
           Users
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          Add User
-        </Button>
+        <Space>
+          {/* Поле поиска по username или email (Story 8.3) */}
+          <Input
+            placeholder="Поиск по username или email"
+            prefix={<SearchOutlined />}
+            allowClear
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            style={{ width: 250 }}
+            data-testid="users-search-input"
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            Add User
+          </Button>
+        </Space>
       </div>
 
-      <UsersTable onEdit={handleEdit} />
+      <UsersTable onEdit={handleEdit} search={deferredSearch} />
 
       <UserFormModal
         open={isModalOpen}

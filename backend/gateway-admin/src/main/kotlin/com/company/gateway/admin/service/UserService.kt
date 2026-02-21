@@ -32,14 +32,15 @@ class UserService(
     private val logger = LoggerFactory.getLogger(UserService::class.java)
 
     /**
-     * Получение списка пользователей с пагинацией.
+     * Получение списка пользователей с пагинацией и опциональным поиском.
      *
      * @param offset смещение от начала списка
      * @param limit максимальное количество элементов
+     * @param search поиск по username или email (case-insensitive, опционально)
      * @return пагинированный список пользователей
      */
-    fun findAll(offset: Int, limit: Int): Mono<UserListResponse> {
-        logger.debug("Получение списка пользователей: offset={}, limit={}", offset, limit)
+    fun findAll(offset: Int, limit: Int, search: String? = null): Mono<UserListResponse> {
+        logger.debug("Получение списка пользователей: offset={}, limit={}, search={}", offset, limit, search)
 
         // Валидация параметров пагинации
         if (limit < 1 || limit > 100) {
@@ -49,21 +50,44 @@ class UserService(
             return Mono.error(ValidationException("Некорректный offset", "offset должен быть >= 0"))
         }
 
-        // Используем пагинацию на уровне БД — избегаем full table scan
-        return userRepository.count()
-            .flatMap { total ->
-                userRepository.findAllPaginated(limit, offset)
-                    .map { it.toResponse() }
-                    .collectList()
-                    .map { items ->
-                        UserListResponse(
-                            items = items,
-                            total = total,
-                            offset = offset,
-                            limit = limit
-                        )
-                    }
-            }
+        // Если search задан — используем поиск по username/email
+        // Иначе — обычная пагинация
+        val trimmedSearch = search?.trim()?.takeIf { it.isNotEmpty() }
+
+        return if (trimmedSearch != null) {
+            // Поиск по username или email (ILIKE)
+            val searchPattern = "%$trimmedSearch%"
+            userRepository.countBySearch(searchPattern)
+                .flatMap { total ->
+                    userRepository.searchUsers(searchPattern, limit, offset)
+                        .map { it.toResponse() }
+                        .collectList()
+                        .map { items ->
+                            UserListResponse(
+                                items = items,
+                                total = total,
+                                offset = offset,
+                                limit = limit
+                            )
+                        }
+                }
+        } else {
+            // Обычная пагинация без фильтрации
+            userRepository.count()
+                .flatMap { total ->
+                    userRepository.findAllPaginated(limit, offset)
+                        .map { it.toResponse() }
+                        .collectList()
+                        .map { items ->
+                            UserListResponse(
+                                items = items,
+                                total = total,
+                                offset = offset,
+                                limit = limit
+                            )
+                        }
+                }
+        }
     }
 
     /**

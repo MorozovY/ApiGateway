@@ -37,20 +37,22 @@ class UserController(
 ) {
 
     /**
-     * Получение списка пользователей с пагинацией.
+     * Получение списка пользователей с пагинацией и поиском.
      *
-     * GET /api/v1/users?offset=0&limit=20
+     * GET /api/v1/users?offset=0&limit=20&search=john
      *
      * @param offset смещение от начала списка (по умолчанию 0)
      * @param limit максимальное количество элементов (по умолчанию 20)
+     * @param search поиск по username или email (case-insensitive, опционально)
      * @return пагинированный список пользователей
      */
     @GetMapping
     fun listUsers(
         @RequestParam(defaultValue = "0") offset: Int,
-        @RequestParam(defaultValue = "20") limit: Int
+        @RequestParam(defaultValue = "20") limit: Int,
+        @RequestParam(required = false) search: String?
     ): Mono<UserListResponse> {
-        return userService.findAll(offset, limit)
+        return userService.findAll(offset, limit, search)
     }
 
     /**

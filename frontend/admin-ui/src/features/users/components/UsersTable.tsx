@@ -1,5 +1,5 @@
-// Таблица пользователей с пагинацией (Story 2.6, AC4)
-import { useState } from 'react'
+// Таблица пользователей с пагинацией и поиском (Story 2.6, AC4; Story 8.3)
+import { useState, useEffect } from 'react'
 import { Table, Tag, Button, Space, Popconfirm } from 'antd'
 import { EditOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
@@ -8,6 +8,7 @@ import type { User, UserRole } from '../types/user.types'
 
 interface UsersTableProps {
   onEdit: (user: User) => void
+  search?: string
 }
 
 /**
@@ -34,24 +35,33 @@ const roleLabels: Record<UserRole, string> = {
 const DEFAULT_PAGE_SIZE = 10
 
 /**
- * Таблица пользователей с пагинацией и действиями.
+ * Таблица пользователей с пагинацией, поиском и действиями.
  *
  * Колонки: Username, Email, Role, Status, Actions
+ *
+ * @param onEdit — callback при клике на Edit
+ * @param search — строка поиска по username/email (передаётся в API)
  */
-function UsersTable({ onEdit }: UsersTableProps) {
+function UsersTable({ onEdit, search }: UsersTableProps) {
   // Состояние пагинации
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: DEFAULT_PAGE_SIZE,
   })
 
+  // Сбрасываем на первую страницу при изменении поиска (MEDIUM-1 fix)
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, current: 1 }))
+  }, [search])
+
   // Вычисляем offset для API
   const offset = (pagination.current - 1) * pagination.pageSize
 
-  // Загрузка данных
+  // Загрузка данных с поиском
   const { data, isLoading } = useUsers({
     offset,
     limit: pagination.pageSize,
+    search,
   })
 
   // Мутация для деактивации

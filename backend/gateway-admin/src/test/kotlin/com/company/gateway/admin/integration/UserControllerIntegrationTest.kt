@@ -207,6 +207,100 @@ class UserControllerIntegrationTest {
                 .expectBody()
                 .jsonPath("$.items[?(@.role == 'developer' || @.role == 'security' || @.role == 'admin')]").exists()
         }
+
+        // ============================================
+        // Story 8.3: Поиск по username и email
+        // ============================================
+
+        @Test
+        fun `поиск по username возвращает совпадающих пользователей`() {
+            // Создаём пользователя с уникальным username
+            createTestUser("searchtest_john", "password", Role.DEVELOPER)
+
+            webTestClient.get()
+                .uri("/api/v1/users?search=searchtest_john")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+                .jsonPath("$.items[0].username").isEqualTo("searchtest_john")
+        }
+
+        @Test
+        fun `поиск по email возвращает совпадающих пользователей`() {
+            // Создаём пользователя с уникальным email
+            createTestUser("emailsearchuser", "password", Role.DEVELOPER)
+
+            webTestClient.get()
+                .uri("/api/v1/users?search=emailsearchuser@example")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+                .jsonPath("$.items[0].email").isEqualTo("emailsearchuser@example.com")
+        }
+
+        @Test
+        fun `поиск case-insensitive`() {
+            // Создаём пользователя с lowercase username
+            createTestUser("casesensitiveuser", "password", Role.DEVELOPER)
+
+            // Ищем с uppercase
+            webTestClient.get()
+                .uri("/api/v1/users?search=CASESENSITIVEUSER")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(1)
+                .jsonPath("$.items[0].username").isEqualTo("casesensitiveuser")
+        }
+
+        @Test
+        fun `поиск без результатов возвращает пустой список`() {
+            webTestClient.get()
+                .uri("/api/v1/users?search=nonexistentuserxyz123")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(0)
+                .jsonPath("$.total").isEqualTo(0)
+        }
+
+        @Test
+        fun `поиск работает с пагинацией`() {
+            // Создаём несколько пользователей с общим префиксом
+            createTestUser("paginationsearch1", "password", Role.DEVELOPER)
+            createTestUser("paginationsearch2", "password", Role.DEVELOPER)
+            createTestUser("paginationsearch3", "password", Role.DEVELOPER)
+
+            webTestClient.get()
+                .uri("/api/v1/users?search=paginationsearch&limit=2")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+                .jsonPath("$.total").isEqualTo(3)
+                .jsonPath("$.limit").isEqualTo(2)
+        }
+
+        @Test
+        fun `пустой search возвращает всех пользователей`() {
+            webTestClient.get()
+                .uri("/api/v1/users?search=")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items").isArray
+                .jsonPath("$.total").value<Int> { total ->
+                    assert(total >= 3) { "Должны быть возвращены все пользователи" }
+                }
+        }
     }
 
     // ============================================

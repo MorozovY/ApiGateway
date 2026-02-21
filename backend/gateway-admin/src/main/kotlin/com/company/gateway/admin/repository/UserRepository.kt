@@ -36,4 +36,39 @@ interface UserRepository : ReactiveCrudRepository<User, UUID> {
      */
     @Query("SELECT COUNT(*) FROM users WHERE role = :role AND is_active = true")
     fun countActiveByRole(role: String): Mono<Long>
+
+    /**
+     * Поиск пользователей по username или email с пагинацией.
+     *
+     * Поиск case-insensitive (ILIKE). Используется в UserService.findAll()
+     * когда параметр search задан.
+     *
+     * @param searchPattern паттерн поиска в формате %search%
+     * @param limit максимальное количество результатов
+     * @param offset смещение от начала
+     */
+    @Query(
+        """
+        SELECT * FROM users
+        WHERE username ILIKE :searchPattern OR email ILIKE :searchPattern
+        ORDER BY created_at ASC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+    fun searchUsers(searchPattern: String, limit: Int, offset: Int): Flux<User>
+
+    /**
+     * Подсчёт пользователей по поиску username или email.
+     *
+     * Используется для пагинации при поиске.
+     *
+     * @param searchPattern паттерн поиска в формате %search%
+     */
+    @Query(
+        """
+        SELECT COUNT(*) FROM users
+        WHERE username ILIKE :searchPattern OR email ILIKE :searchPattern
+        """
+    )
+    fun countBySearch(searchPattern: String): Mono<Long>
 }

@@ -1,4 +1,4 @@
-// API для управления пользователями (Story 2.6)
+// API для управления пользователями (Story 2.6; Story 8.3 — поиск)
 import axios from '@shared/utils/axios'
 import type {
   User,
@@ -9,14 +9,17 @@ import type {
 } from '../types/user.types'
 
 /**
- * Получение списка пользователей с пагинацией.
+ * Получение списка пользователей с пагинацией и поиском.
  *
- * GET /api/v1/users?offset=0&limit=20
+ * GET /api/v1/users?offset=0&limit=20&search=john
+ *
+ * search — поиск по username или email (case-insensitive)
  */
 export async function fetchUsers(params: UserListParams = {}): Promise<UserListResponse> {
-  const { offset = 0, limit = 20 } = params
+  const { offset = 0, limit = 20, search } = params
   const response = await axios.get<UserListResponse>('/api/v1/users', {
-    params: { offset, limit },
+    // Не отправляем пустую строку search — undefined исключается из params
+    params: { offset, limit, search: search || undefined },
   })
   return response.data
 }
