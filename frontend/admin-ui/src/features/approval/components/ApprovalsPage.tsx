@@ -30,6 +30,36 @@ dayjs.locale('ru')
 const { Text } = Typography
 
 /**
+ * Подсветка поискового термина в тексте.
+ * Возвращает React элемент с подсвеченным текстом.
+ */
+function highlightSearchTerm(text: string, searchTerm: string): React.ReactNode {
+  if (!searchTerm || !text) {
+    return text
+  }
+
+  const lowerText = text.toLowerCase()
+  const lowerSearch = searchTerm.toLowerCase()
+  const index = lowerText.indexOf(lowerSearch)
+
+  if (index === -1) {
+    return text
+  }
+
+  const before = text.slice(0, index)
+  const match = text.slice(index, index + searchTerm.length)
+  const after = text.slice(index + searchTerm.length)
+
+  return (
+    <>
+      {before}
+      <mark style={{ backgroundColor: '#ffc069', padding: 0 }}>{match}</mark>
+      {after}
+    </>
+  )
+}
+
+/**
  * Страница со списком pending маршрутов и inline-действиями Approve/Reject.
  *
  * Доступ только для ролей security и admin — контролируется ProtectedRoute в App.tsx (AC9).
@@ -139,10 +169,10 @@ export function ApprovalsPage() {
       title: 'Path',
       dataIndex: 'path',
       key: 'path',
-      // Кликабельный path — открывает Drawer (AC6)
+      // Кликабельный path — открывает Drawer (AC6), подсветка поиска (Story 8.7)
       render: (path: string, record: PendingRoute) => (
         <Button type="link" style={{ padding: 0 }} onClick={() => handleOpenDrawer(record)}>
-          {path}
+          {highlightSearchTerm(path, searchText)}
         </Button>
       ),
     },
@@ -151,6 +181,8 @@ export function ApprovalsPage() {
       dataIndex: 'upstreamUrl',
       key: 'upstreamUrl',
       ellipsis: true,
+      // Подсветка поиска (Story 8.7)
+      render: (upstreamUrl: string) => highlightSearchTerm(upstreamUrl, searchText),
     },
     {
       title: 'Methods',

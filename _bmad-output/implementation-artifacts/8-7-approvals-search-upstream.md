@@ -253,14 +253,15 @@ N/A
 
 - ✅ Frontend: Расширена фильтрация в useMemo — теперь ищет по `path OR upstreamUrl` (AC1)
 - ✅ Frontend: Обновлён placeholder на "Поиск по path, upstream..." (AC2)
+- ✅ Frontend: Добавлена подсветка поискового термина в колонках Path и Upstream URL (аналогично RoutesTable)
 - ✅ Добавлено 4 новых теста в describe block "Поиск по path и upstream URL (Story 8.7)"
 - ✅ Все 14 тестов ApprovalsPage проходят
 
 ### File List
 
 **Modified:**
-- `frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx` (filter logic + placeholder)
-- `frontend/admin-ui/src/features/approval/components/ApprovalsPage.test.tsx` (4 новых теста)
+- `frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx` (filter logic + placeholder + highlighting)
+- `frontend/admin-ui/src/features/approval/components/ApprovalsPage.test.tsx` (4 новых теста с проверкой подсветки)
 
 ## Change Log
 

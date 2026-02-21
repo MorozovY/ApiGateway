@@ -328,7 +328,7 @@ describe('Страница согласования маршрутов (Approval
 
   // Story 8.7: Расширить поиск Approvals на Upstream URL
   describe('Поиск по path и upstream URL (Story 8.7)', () => {
-    it('поиск фильтрует по path', async () => {
+    it('поиск фильтрует по path и подсвечивает совпадение', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
@@ -343,12 +343,15 @@ describe('Страница согласования маршрутов (Approval
       fireEvent.change(searchInput, { target: { value: 'orders' } })
 
       await waitFor(() => {
-        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+        // Проверяем что "orders" подсвечен в <mark>
+        const highlightedText = screen.getByText('orders', { selector: 'mark' })
+        expect(highlightedText).toBeInTheDocument()
+        // Второй маршрут отфильтрован
         expect(screen.queryByText('/api/payments')).not.toBeInTheDocument()
       })
     })
 
-    it('поиск фильтрует по upstream URL (AC1)', async () => {
+    it('поиск фильтрует по upstream URL и подсвечивает совпадение (AC1)', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
@@ -363,8 +366,11 @@ describe('Страница согласования маршрутов (Approval
       fireEvent.change(searchInput, { target: { value: 'payment-service' } })
 
       await waitFor(() => {
+        // Первый маршрут отфильтрован
         expect(screen.queryByText('/api/orders')).not.toBeInTheDocument()
-        expect(screen.getByText('/api/payments')).toBeInTheDocument()
+        // "payment-service" подсвечен в <mark>
+        const highlightedText = screen.getByText('payment-service', { selector: 'mark' })
+        expect(highlightedText).toBeInTheDocument()
       })
     })
 
@@ -382,7 +388,10 @@ describe('Страница согласования маршрутов (Approval
       fireEvent.change(searchInput, { target: { value: 'ORDER-SERVICE' } })
 
       await waitFor(() => {
-        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+        // "order-service" подсвечен (поиск case-insensitive, но отображается оригинальный регистр)
+        const highlightedText = screen.getByText('order-service', { selector: 'mark' })
+        expect(highlightedText).toBeInTheDocument()
+        // Второй маршрут отфильтрован
         expect(screen.queryByText('/api/payments')).not.toBeInTheDocument()
       })
     })
