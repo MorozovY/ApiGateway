@@ -10,6 +10,7 @@ import { ApprovalsPage } from '@features/approval'
 import { RateLimitsPage } from '@features/rate-limits'
 import { MetricsPage } from '@features/metrics'
 import { AuditPage, IntegrationsPage } from '@features/audit'
+import { TestPage } from '@features/test'
 
 function App() {
   return (
@@ -74,6 +75,8 @@ function App() {
         />
         {/* Метрики (Story 6.5) — доступ для всех аутентифицированных пользователей */}
         <Route path="/metrics" element={<MetricsPage />} />
+        {/* Test Load Generator (Story 8.9) — доступ для всех аутентифицированных пользователей */}
+        <Route path="/test" element={<TestPage />} />
       </Route>
 
       {/* Редирект с корня на dashboard */}

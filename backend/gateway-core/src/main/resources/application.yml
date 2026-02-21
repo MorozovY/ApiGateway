@@ -32,6 +32,23 @@ spring:
     gateway:
       metrics:
         enabled: true
+      # CORS configuration для load generator (Story 8.9)
+      # Позволяет admin-ui (localhost:3000) отправлять запросы на gateway
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
       # Upstream timeout configuration (Story 1.4)
       httpclient:
         connect-timeout: 5000   # 5 seconds to establish TCP connection (in milliseconds)

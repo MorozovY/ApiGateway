@@ -13,6 +13,7 @@ import {
   ClusterOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
@@ -64,6 +65,12 @@ const baseMenuItems: ItemType[] = [
     key: '/audit/integrations',
     icon: <ClusterOutlined />,
     label: 'Integrations',
+  },
+  // Test пункт меню (Story 8.9, AC1) — генератор нагрузки
+  {
+    key: '/test',
+    icon: <ExperimentOutlined />,
+    label: 'Test',
   },
 ]
 
