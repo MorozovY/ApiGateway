@@ -1,15 +1,19 @@
 // Таблица пользователей с пагинацией и поиском (Story 2.6, AC4; Story 8.3)
-import { useState, useEffect } from 'react'
-import { Table, Tag, Button, Space, Popconfirm } from 'antd'
-import { EditOutlined, StopOutlined } from '@ant-design/icons'
+import { useState, useRef, useEffect } from 'react'
+import { Table, Tag, Button, Space, Popconfirm, Input } from 'antd'
+import { EditOutlined, StopOutlined, SearchOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useUsers, useDeactivateUser } from '../hooks/useUsers'
 import type { User, UserRole } from '../types/user.types'
 
 interface UsersTableProps {
   onEdit: (user: User) => void
-  search?: string
 }
+
+/**
+ * Задержка debounce для поиска (мс).
+ */
+const SEARCH_DEBOUNCE_MS = 300
 
 /**
  * Цвета для badges ролей.
@@ -38,21 +42,54 @@ const DEFAULT_PAGE_SIZE = 10
  * Таблица пользователей с пагинацией, поиском и действиями.
  *
  * Колонки: Username, Email, Role, Status, Actions
+ * Панель фильтров над таблицей содержит поле поиска.
  *
  * @param onEdit — callback при клике на Edit
- * @param search — строка поиска по username/email (передаётся в API)
  */
-function UsersTable({ onEdit, search }: UsersTableProps) {
+function UsersTable({ onEdit }: UsersTableProps) {
   // Состояние пагинации
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: DEFAULT_PAGE_SIZE,
   })
 
-  // Сбрасываем на первую страницу при изменении поиска (MEDIUM-1 fix)
+  // Состояние поиска (Story 8.3)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchValue, setSearchValue] = useState('')
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Обработчик ввода в поле поиска с debounce
+  const handleSearchInputChange = (value: string) => {
+    setSearchInput(value)
+
+    // Очищаем предыдущий таймер
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    // Устанавливаем новый таймер
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchValue(value)
+      // Сбрасываем на первую страницу при изменении поиска
+      setPagination((prev) => ({ ...prev, current: 1 }))
+    }, SEARCH_DEBOUNCE_MS)
+  }
+
+  // Очистка таймера при размонтировании
   useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Сброс фильтров
+  const handleClearFilters = () => {
+    setSearchInput('')
+    setSearchValue('')
     setPagination((prev) => ({ ...prev, current: 1 }))
-  }, [search])
+  }
 
   // Вычисляем offset для API
   const offset = (pagination.current - 1) * pagination.pageSize
@@ -61,7 +98,7 @@ function UsersTable({ onEdit, search }: UsersTableProps) {
   const { data, isLoading } = useUsers({
     offset,
     limit: pagination.pageSize,
-    search,
+    search: searchValue || undefined,
   })
 
   // Мутация для деактивации
@@ -160,21 +197,48 @@ function UsersTable({ onEdit, search }: UsersTableProps) {
     },
   ]
 
+  // Проверка наличия активных фильтров
+  const hasActiveFilters = !!searchValue
+
   return (
-    <Table
-      dataSource={data?.items}
-      columns={columns}
-      rowKey="id"
-      loading={isLoading}
-      pagination={{
-        current: pagination.current,
-        pageSize: pagination.pageSize,
-        total: data?.total,
-        showSizeChanger: true,
-        showTotal: (total) => `Всего ${total} пользователей`,
-      }}
-      onChange={handleTableChange}
-    />
+    <div>
+      {/* Панель фильтров (Story 8.3) */}
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input.Search
+          placeholder="Поиск по username или email..."
+          allowClear
+          value={searchInput}
+          onChange={(e) => handleSearchInputChange(e.target.value)}
+          style={{ width: 280 }}
+          prefix={<SearchOutlined />}
+          data-testid="users-search-input"
+        />
+        {hasActiveFilters && (
+          <Button
+            type="text"
+            icon={<CloseCircleOutlined />}
+            onClick={handleClearFilters}
+          >
+            Сбросить фильтры
+          </Button>
+        )}
+      </Space>
+
+      <Table
+        dataSource={data?.items}
+        columns={columns}
+        rowKey="id"
+        loading={isLoading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: data?.total,
+          showSizeChanger: true,
+          showTotal: (total) => `Всего ${total} пользователей`,
+        }}
+        onChange={handleTableChange}
+      />
+    </div>
   )
 }
 

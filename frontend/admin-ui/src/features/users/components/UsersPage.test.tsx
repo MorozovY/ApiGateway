@@ -217,9 +217,13 @@ describe('UsersPage', () => {
       },
     })
 
+    // Ждём загрузку страницы
+    await waitFor(() => {
+      expect(screen.getByTestId('users-search-input')).toBeInTheDocument()
+    })
+
     const searchInput = screen.getByTestId('users-search-input')
-    expect(searchInput).toBeInTheDocument()
-    expect(searchInput).toHaveAttribute('placeholder', 'Поиск по username или email')
+    expect(searchInput).toHaveAttribute('placeholder', 'Поиск по username или email...')
   })
 
   it('при вводе текста в поле поиска вызывает API с search параметром', async () => {
@@ -244,7 +248,7 @@ describe('UsersPage', () => {
     const searchInput = screen.getByTestId('users-search-input')
     await user.type(searchInput, 'john')
 
-    // Ждём пока useDeferredValue обновится и вызовет новый запрос
+    // Ждём пока debounce (300ms) отработает и вызовет новый запрос
     await waitFor(() => {
       expect(mockFetchUsers).toHaveBeenCalledWith(
         expect.objectContaining({ search: 'john' })
@@ -284,14 +288,13 @@ describe('UsersPage', () => {
     // Очищаем поле поиска
     await user.clear(searchInput)
 
-    // Ждём новый запрос — пустая строка передаётся в hook, но usersApi
-    // конвертирует её в undefined (search: search || undefined)
+    // Ждём новый запрос после debounce — search будет undefined
     await waitFor(() => {
       expect(mockFetchUsers).toHaveBeenCalled()
     })
 
-    // Проверяем что search либо пустая строка, либо undefined
+    // Проверяем что search undefined (пустая строка фильтруется в компоненте)
     const lastCall = mockFetchUsers.mock.calls[mockFetchUsers.mock.calls.length - 1][0]
-    expect(lastCall.search === '' || lastCall.search === undefined).toBe(true)
+    expect(lastCall.search).toBeUndefined()
   })
 })
