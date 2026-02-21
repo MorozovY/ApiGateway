@@ -244,6 +244,8 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       dataIndex: 'upstreamUrl',
       key: 'upstreamUrl',
       ellipsis: true,
+      // Story 8.5: подсветка поискового термина в upstream URL
+      render: (upstreamUrl: string) => highlightSearchTerm(upstreamUrl, params.search),
     },
     {
       title: 'Methods',
