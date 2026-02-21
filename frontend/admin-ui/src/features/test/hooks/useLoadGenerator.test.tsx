@@ -1,4 +1,4 @@
-// Тесты для useLoadGenerator hook (Story 8.9, AC3, AC4)
+// Тесты для useLoadGenerator hook (Story 8.9, AC3, AC4; обновлено Story 9.2)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useLoadGenerator } from './useLoadGenerator'
@@ -10,7 +10,8 @@ global.fetch = mockFetch
 describe('useLoadGenerator', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFetch.mockResolvedValue({ ok: true })
+    // Стандартный успешный HTTP ответ
+    mockFetch.mockResolvedValue({ ok: true, status: 200, statusText: 'OK' })
   })
 
   afterEach(() => {
@@ -33,7 +34,7 @@ describe('useLoadGenerator', () => {
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test', // L3: исправлено — теперь консистентно с другими тестами
         requestsPerSecond: 10,
         durationSeconds: null,
       })
@@ -54,7 +55,7 @@ describe('useLoadGenerator', () => {
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 100, // Высокий RPS для быстрого теста
         durationSeconds: null,
       })
@@ -69,9 +70,9 @@ describe('useLoadGenerator', () => {
     )
 
     expect(result.current.state.successCount).toBeGreaterThan(0)
-    expect(mockFetch).toHaveBeenCalledWith('http://localhost:8080/api/test', {
+    // Story 9.2: Используем относительный путь /api${routePath} через nginx
+    expect(mockFetch).toHaveBeenCalledWith('/api/test-route', {
       method: 'GET',
-      mode: 'cors',
     })
 
     // Очистка
@@ -80,7 +81,7 @@ describe('useLoadGenerator', () => {
     })
   })
 
-  it('увеличивает счётчик ошибок при неудачных запросах', async () => {
+  it('увеличивает счётчик ошибок при network errors', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'))
 
     const { result } = renderHook(() => useLoadGenerator())
@@ -88,7 +89,7 @@ describe('useLoadGenerator', () => {
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 100,
         durationSeconds: null,
       })
@@ -110,13 +111,76 @@ describe('useLoadGenerator', () => {
     })
   })
 
+  // Story 9.2, AC5: HTTP error handling (4xx/5xx)
+  it('увеличивает счётчик ошибок при HTTP 4xx ответах', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
+
+    const { result } = renderHook(() => useLoadGenerator())
+
+    act(() => {
+      result.current.start({
+        routeId: 'route-1',
+        routePath: '/not-found',
+        requestsPerSecond: 100,
+        durationSeconds: null,
+      })
+    })
+
+    await waitFor(
+      () => {
+        expect(result.current.state.sentCount).toBeGreaterThan(0)
+      },
+      { timeout: 500 }
+    )
+
+    expect(result.current.state.errorCount).toBeGreaterThan(0)
+    expect(result.current.state.successCount).toBe(0)
+    expect(result.current.state.lastError).toBe('HTTP 404: Not Found')
+
+    // Очистка
+    act(() => {
+      result.current.stop()
+    })
+  })
+
+  it('увеличивает счётчик ошибок при HTTP 5xx ответах', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 503, statusText: 'Service Unavailable' })
+
+    const { result } = renderHook(() => useLoadGenerator())
+
+    act(() => {
+      result.current.start({
+        routeId: 'route-1',
+        routePath: '/upstream-down',
+        requestsPerSecond: 100,
+        durationSeconds: null,
+      })
+    })
+
+    await waitFor(
+      () => {
+        expect(result.current.state.sentCount).toBeGreaterThan(0)
+      },
+      { timeout: 500 }
+    )
+
+    expect(result.current.state.errorCount).toBeGreaterThan(0)
+    expect(result.current.state.successCount).toBe(0)
+    expect(result.current.state.lastError).toBe('HTTP 503: Service Unavailable')
+
+    // Очистка
+    act(() => {
+      result.current.stop()
+    })
+  })
+
   it('переходит в состояние stopped после stop', async () => {
     const { result } = renderHook(() => useLoadGenerator())
 
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 100,
         durationSeconds: null,
       })
@@ -145,7 +209,7 @@ describe('useLoadGenerator', () => {
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 10,
         durationSeconds: 1, // 1 секунда
       })
@@ -167,7 +231,7 @@ describe('useLoadGenerator', () => {
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 100,
         durationSeconds: null,
       })
@@ -196,14 +260,14 @@ describe('useLoadGenerator', () => {
   })
 
   it('summary содержит корректные данные после остановки', async () => {
-    mockFetch.mockResolvedValue({ ok: true })
+    mockFetch.mockResolvedValue({ ok: true, status: 200, statusText: 'OK' })
 
     const { result } = renderHook(() => useLoadGenerator())
 
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 100,
         durationSeconds: null,
       })
@@ -236,7 +300,7 @@ describe('useLoadGenerator', () => {
     act(() => {
       result.current.start({
         routeId: 'route-1',
-        routePath: '/api/test',
+        routePath: '/test-route',
         requestsPerSecond: 100,
         durationSeconds: null,
       })
@@ -249,7 +313,7 @@ describe('useLoadGenerator', () => {
       { timeout: 500 }
     )
 
-    const sentCountBeforeUnmount = result.current.state.sentCount
+    const fetchCountBeforeUnmount = mockFetch.mock.calls.length
 
     // Unmount должен остановить interval
     unmount()
@@ -257,8 +321,92 @@ describe('useLoadGenerator', () => {
     // Небольшая задержка чтобы убедиться что новые запросы не отправляются
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // После unmount новых вызовов fetch быть не должно (кроме уже отправленных)
-    // Проверяем что interval был очищен — нет ошибок и тест проходит
-    expect(true).toBe(true)
+    // L1: проверяем что после unmount не было новых fetch вызовов
+    // Допускаем +1 из-за возможного in-flight запроса в момент unmount
+    const fetchCountAfterUnmount = mockFetch.mock.calls.length
+    expect(fetchCountAfterUnmount - fetchCountBeforeUnmount).toBeLessThanOrEqual(1)
+  })
+
+  // M4: тест на повторный вызов start() — должен очистить предыдущий interval
+  it('очищает предыдущий interval при повторном start()', async () => {
+    const { result } = renderHook(() => useLoadGenerator())
+
+    // Первый запуск
+    act(() => {
+      result.current.start({
+        routeId: 'route-1',
+        routePath: '/first-route',
+        requestsPerSecond: 100,
+        durationSeconds: null,
+      })
+    })
+
+    await waitFor(
+      () => {
+        expect(result.current.state.sentCount).toBeGreaterThan(0)
+      },
+      { timeout: 500 }
+    )
+
+    // Сбрасываем мок перед вторым запуском
+    mockFetch.mockClear()
+
+    // Второй запуск — должен переключиться на новый маршрут
+    act(() => {
+      result.current.start({
+        routeId: 'route-2',
+        routePath: '/second-route',
+        requestsPerSecond: 100,
+        durationSeconds: null,
+      })
+    })
+
+    await waitFor(
+      () => {
+        expect(result.current.state.sentCount).toBeGreaterThan(0)
+      },
+      { timeout: 500 }
+    )
+
+    // Проверяем что все новые запросы идут на второй маршрут
+    const recentCalls = mockFetch.mock.calls.slice(-3) // последние 3 вызова
+    recentCalls.forEach((call) => {
+      expect(call[0]).toBe('/api/second-route')
+    })
+
+    // Очистка
+    act(() => {
+      result.current.stop()
+    })
+  })
+
+  // M1/M5: проверяем что concurrent requests предотвращаются
+  it('пропускает запрос если предыдущий ещё выполняется (no concurrent requests)', async () => {
+    // Мокаем медленный запрос (200ms)
+    mockFetch.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ ok: true, status: 200, statusText: 'OK' }), 200))
+    )
+
+    const { result } = renderHook(() => useLoadGenerator())
+
+    act(() => {
+      result.current.start({
+        routeId: 'route-1',
+        routePath: '/slow-route',
+        requestsPerSecond: 100, // 10ms interval, но запрос занимает 200ms
+        durationSeconds: null,
+      })
+    })
+
+    // Ждём 300ms — за это время должен был бы пройти 30 интервалов
+    // Но из-за защиты от concurrent requests, должен быть только 1-2 запроса
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    act(() => {
+      result.current.stop()
+    })
+
+    // Проверяем что было меньше 5 запросов (не 30, как было бы без защиты)
+    expect(mockFetch.mock.calls.length).toBeLessThan(5)
   })
 })
