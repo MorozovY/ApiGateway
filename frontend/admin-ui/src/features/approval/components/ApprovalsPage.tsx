@@ -1,4 +1,4 @@
-// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8)
+// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2)
 import { useState, useMemo } from 'react'
 import {
   Table,
@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -80,8 +80,8 @@ export function ApprovalsPage() {
   const [drawerVisible, setDrawerVisible] = useState(false)
   const [drawerRoute, setDrawerRoute] = useState<PendingRoute | null>(null)
 
-  // Загрузка данных и мутации
-  const { data: pendingRoutes, isLoading } = usePendingRoutes()
+  // Загрузка данных и мутации (Story 10.2 — refetch для manual refresh, isFetching для loading state)
+  const { data: pendingRoutes, isLoading, isFetching, refetch } = usePendingRoutes()
 
   // Клиентская фильтрация по path и upstream URL (Story 5.7, AC2; Story 8.7, AC1)
   const filteredRoutes = useMemo(() => {
@@ -251,7 +251,7 @@ export function ApprovalsPage() {
         Согласование маршрутов
       </Typography.Title>
 
-      {/* Панель фильтров (Story 8.8) */}
+      {/* Панель фильтров (Story 8.8) и кнопка Refresh (Story 10.2, AC3) */}
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
           placeholder="Поиск по path, upstream..."
@@ -262,6 +262,16 @@ export function ApprovalsPage() {
           style={{ width: 280 }}
           data-testid="search-input"
         />
+        {/* Кнопка ручного обновления (AC3) */}
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => refetch()}
+          loading={isFetching}
+          disabled={isFetching}
+          data-testid="refresh-button"
+        >
+          Обновить
+        </Button>
         {searchText && (
           <Button
             type="text"

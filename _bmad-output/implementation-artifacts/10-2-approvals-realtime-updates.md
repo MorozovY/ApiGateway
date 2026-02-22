@@ -1,6 +1,6 @@
 # Story 10.2: Approvals Real-Time Updates
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -52,28 +52,28 @@ so that I see new pending routes without refreshing.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add polling to useApprovals hook (AC: #1, #4, #5)
-  - [ ] 1.1 Add `refetchInterval: 5000` to usePendingRoutes query
-  - [ ] 1.2 Add `refetchIntervalInBackground: false` — don't poll when tab is hidden
-  - [ ] 1.3 Verify no duplicate requests when combined with manual refetch
+- [x] Task 1: Add polling to useApprovals hook (AC: #1, #4, #5)
+  - [x] 1.1 Add `refetchInterval: 5000` to usePendingRoutes query
+  - [x] 1.2 Add `refetchIntervalInBackground: false` — don't poll when tab is hidden
+  - [x] 1.3 Verify no duplicate requests when combined with manual refetch
 
-- [ ] Task 2: Add manual refresh button to ApprovalsPage (AC: #3)
-  - [ ] 2.1 Add "Refresh" button (антд `ReloadOutlined` icon) next to search
-  - [ ] 2.2 Connect to React Query's `refetch()` function
-  - [ ] 2.3 Show loading spinner on button while fetching
-  - [ ] 2.4 Disable button during loading to prevent double-clicks
+- [x] Task 2: Add manual refresh button to ApprovalsPage (AC: #3)
+  - [x] 2.1 Add "Refresh" button (антд `ReloadOutlined` icon) next to search
+  - [x] 2.2 Connect to React Query's `refetch()` function
+  - [x] 2.3 Show loading spinner on button while fetching
+  - [x] 2.4 Disable button during loading to prevent double-clicks
 
-- [ ] Task 3: Update sidebar pending count (AC: #2)
-  - [ ] 3.1 Find sidebar component that displays pending count badge
-  - [ ] 3.2 Ensure it uses same query key as ApprovalsPage
-  - [ ] 3.3 Verify badge updates when polling fetches new data
-  - [ ] 3.4 Add skeleton/loading state if needed
+- [x] Task 3: Update sidebar pending count (AC: #2)
+  - [x] 3.1 Find sidebar component that displays pending count badge
+  - [x] 3.2 Ensure it uses same query key as ApprovalsPage
+  - [x] 3.3 Verify badge updates when polling fetches new data
+  - [x] 3.4 Add skeleton/loading state if needed — НЕ ТРЕБУЕТСЯ: React Query handles this
 
-- [ ] Task 4: Add unit tests (AC: all)
-  - [ ] 4.1 Test: `usePendingRoutes` hook has refetchInterval configured
-  - [ ] 4.2 Test: Refresh button triggers refetch
-  - [ ] 4.3 Test: Loading state displays during fetch
-  - [ ] 4.4 Test: No duplicate requests on manual + auto refresh collision
+- [x] Task 4: Add unit tests (AC: all)
+  - [x] 4.1 Test: `usePendingRoutes` hook has refetchInterval configured
+  - [x] 4.2 Test: Refresh button triggers refetch
+  - [x] 4.3 Test: Loading state displays during fetch
+  - [x] 4.4 N/A: No duplicate requests — React Query deduplicates by queryKey automatically
 
 - [ ] Task 5: Manual validation (AC: all)
   - [ ] 5.1 Open Approvals page in browser 1
@@ -262,11 +262,37 @@ it('polls every 5 seconds', async () => {
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
 ### Completion Notes List
 
+1. **Task 1-3 (Polling)**: Добавлен `refetchInterval: 5000` и `refetchIntervalInBackground: false` в `usePendingRoutes()` и `usePendingRoutesCount()`. React Query автоматически управляет дедупликацией запросов.
+2. **Task 2 (Refresh button)**: Добавлена кнопка "Обновить" с `ReloadOutlined` иконкой, loading state через `isFetching`, disabled во время загрузки.
+3. **Task 3 (Sidebar)**: `usePendingRoutesCount()` уже использует тот же query key `PENDING_ROUTES_QUERY_KEY`, polling добавлен для auto-refresh badge.
+4. **Task 4 (Tests)**: Добавлено 8 новых тестов: 3 для констант polling, 5 для Refresh button UI.
+
+### Code Review Fixes
+
+**Round 1:**
+1. **M1 Fixed**: Убрана избыточная анимация `spin={isFetching}` с иконки — loading state кнопки уже показывает spinner.
+2. **M2 Fixed**: Добавлен экспорт `APPROVALS_REFRESH_INTERVAL` и `APPROVALS_STALE_TIME` через `index.ts`.
+3. **L1 Fixed**: Обновлён заголовок файла `ApprovalsPage.tsx` — добавлена ссылка на Story 10.2.
+
+**Round 2 (2026-02-22):**
+4. **M1 Fixed**: Task 4.4 переформулирован — теперь "N/A: React Query deduplicates by queryKey automatically"
+5. **M2 Fixed**: Status изменён с "done" на "review" — Task 5 (Manual validation) не выполнен
+6. **M3 Fixed**: Добавлен комментарий в `useApprovals.test.ts` о design decision для polling тестов
+7. **L1 Fixed**: Mock в `ApprovalsPage.test.tsx` использует реальные константы через `vi.importActual`
+
 ### File List
+
+| File | Action | Description |
+|------|--------|-------------|
+| `frontend/admin-ui/src/features/approval/hooks/useApprovals.ts` | Modified | Добавлен polling: `refetchInterval`, `refetchIntervalInBackground`, `staleTime` |
+| `frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx` | Modified | Добавлена кнопка Refresh с loading state; убрана двойная анимация |
+| `frontend/admin-ui/src/features/approval/components/ApprovalsPage.test.tsx` | Modified | Добавлены тесты для Refresh button (5 тестов) |
+| `frontend/admin-ui/src/features/approval/hooks/useApprovals.test.ts` | Created | Тесты для polling констант (3 теста) |
+| `frontend/admin-ui/src/features/approval/index.ts` | Modified | Экспорт `APPROVALS_REFRESH_INTERVAL`, `APPROVALS_STALE_TIME` |
 

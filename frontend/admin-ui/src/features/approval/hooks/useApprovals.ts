@@ -1,4 +1,4 @@
-// React Query hooks для работы с согласованиями маршрутов
+// React Query hooks для работы с согласованиями маршрутов (Story 10.2 — auto-refresh)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { message } from 'antd'
 import { useAuth } from '@features/auth'
@@ -10,12 +10,28 @@ import * as approvalsApi from '../api/approvalsApi'
 export const PENDING_ROUTES_QUERY_KEY = 'pendingRoutes'
 
 /**
+ * Интервал автообновления pending маршрутов (5 секунд, AC1).
+ */
+export const APPROVALS_REFRESH_INTERVAL = 5000
+
+/**
+ * Время, после которого данные считаются устаревшими (2 секунды).
+ */
+export const APPROVALS_STALE_TIME = 2000
+
+/**
  * Hook для получения списка pending маршрутов.
+ *
+ * Автоматически обновляется каждые 5 секунд (AC1, AC4).
+ * Polling не выполняется когда вкладка скрыта (AC4).
  */
 export function usePendingRoutes() {
   return useQuery({
     queryKey: [PENDING_ROUTES_QUERY_KEY],
     queryFn: approvalsApi.fetchPendingRoutes,
+    refetchInterval: APPROVALS_REFRESH_INTERVAL, // 5 секунд auto-refresh (AC1)
+    refetchIntervalInBackground: false, // не polling когда tab скрыт (AC4)
+    staleTime: APPROVALS_STALE_TIME,
   })
 }
 
@@ -24,6 +40,7 @@ export function usePendingRoutes() {
  *
  * Запрос выполняется только для ролей security и admin (enabled=false для developer).
  * React Query кэш используется совместно с usePendingRoutes.
+ * Автоматически обновляется каждые 5 секунд для обновления badge в sidebar (AC2).
  */
 export function usePendingRoutesCount() {
   const { user } = useAuth()
@@ -34,6 +51,9 @@ export function usePendingRoutesCount() {
     // Запрос только для security и admin — предотвращает 403 для developer
     enabled: user?.role === 'security' || user?.role === 'admin',
     select: (data) => data.length,
+    refetchInterval: APPROVALS_REFRESH_INTERVAL, // 5 секунд auto-refresh для badge (AC2)
+    refetchIntervalInBackground: false, // не polling когда tab скрыт
+    staleTime: APPROVALS_STALE_TIME,
   })
 
   return data ?? 0

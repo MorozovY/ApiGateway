@@ -49,23 +49,32 @@ let mockRejectMutateAsync = vi.fn()
 let mockRejectIsPending = false
 let mockPendingRoutesData: PendingRoute[] | undefined = mockPendingRoutes
 let mockIsLoading = false
+let mockIsFetching = false
+let mockRefetch = vi.fn()
 
-vi.mock('../hooks/useApprovals', () => ({
-  usePendingRoutes: () => ({
-    data: mockPendingRoutesData,
-    isLoading: mockIsLoading,
-  }),
-  useApproveRoute: () => ({
-    mutate: mockApproveMutateAsync,
-    mutateAsync: mockApproveMutateAsync,
-    isPending: mockApproveIsPending,
-  }),
-  useRejectRoute: () => ({
-    mutate: mockRejectMutateAsync,
-    mutateAsync: mockRejectMutateAsync,
-    isPending: mockRejectIsPending,
-  }),
-}))
+vi.mock('../hooks/useApprovals', async () => {
+  // Импортируем реальные константы из модуля (Story 10.2 code review fix)
+  const actual = await vi.importActual<typeof import('../hooks/useApprovals')>('../hooks/useApprovals')
+  return {
+    ...actual,
+    usePendingRoutes: () => ({
+      data: mockPendingRoutesData,
+      isLoading: mockIsLoading,
+      isFetching: mockIsFetching,
+      refetch: mockRefetch,
+    }),
+    useApproveRoute: () => ({
+      mutate: mockApproveMutateAsync,
+      mutateAsync: mockApproveMutateAsync,
+      isPending: mockApproveIsPending,
+    }),
+    useRejectRoute: () => ({
+      mutate: mockRejectMutateAsync,
+      mutateAsync: mockRejectMutateAsync,
+      isPending: mockRejectIsPending,
+    }),
+  }
+})
 
 // Мок пользователя security
 const securityUser = {
@@ -83,6 +92,8 @@ describe('Страница согласования маршрутов (Approval
     mockRejectIsPending = false
     mockPendingRoutesData = mockPendingRoutes
     mockIsLoading = false
+    mockIsFetching = false
+    mockRefetch = vi.fn()
   })
 
   afterEach(() => {
@@ -480,6 +491,81 @@ describe('Страница согласования маршрутов (Approval
       // Кнопка появляется
       await waitFor(() => {
         expect(screen.getByText('Сбросить фильтры')).toBeInTheDocument()
+      })
+    })
+  })
+
+  // Story 10.2: Real-time updates с auto-refresh и кнопкой Refresh
+  describe('Real-time updates (Story 10.2)', () => {
+    it('кнопка "Обновить" отображается рядом с поиском (AC3)', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('refresh-button')).toBeInTheDocument()
+        expect(screen.getByText('Обновить')).toBeInTheDocument()
+      })
+    })
+
+    it('клик на кнопку "Обновить" вызывает refetch (AC3)', async () => {
+      mockRefetch = vi.fn().mockResolvedValue({ data: mockPendingRoutes })
+
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('/api/orders')).toBeInTheDocument()
+      })
+
+      // Кликаем кнопку Обновить
+      const refreshButton = screen.getByTestId('refresh-button')
+      fireEvent.click(refreshButton)
+
+      expect(mockRefetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('кнопка "Обновить" показывает loading state во время fetch (AC3)', async () => {
+      mockIsFetching = true
+
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        const refreshButton = screen.getByTestId('refresh-button')
+        // Кнопка disabled во время loading
+        expect(refreshButton).toBeDisabled()
+        // Проверяем наличие spinning icon (anticon-loading или anticon-spin)
+        const spinningIcon = refreshButton.querySelector('.anticon-loading, .ant-btn-loading-icon')
+        expect(spinningIcon).not.toBeNull()
+      })
+    })
+
+    it('кнопка "Обновить" disabled во время загрузки — предотвращает двойной клик (AC3)', async () => {
+      mockIsFetching = true
+
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        const refreshButton = screen.getByTestId('refresh-button')
+        expect(refreshButton).toBeDisabled()
+      })
+    })
+
+    it('кнопка "Обновить" enabled когда нет загрузки', async () => {
+      mockIsFetching = false
+
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        const refreshButton = screen.getByTestId('refresh-button')
+        expect(refreshButton).not.toBeDisabled()
       })
     })
   })
