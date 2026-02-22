@@ -14,7 +14,7 @@ const DEMO_CREDENTIALS = [
     username: 'developer',
     password: 'developer123',
     role: 'Developer',
-    features: 'Dashboard, Routes, Metrics',
+    features: 'Dashboard, Routes, Metrics, Test',
   },
   {
     username: 'security',
@@ -125,6 +125,7 @@ export function DemoCredentials({ onSelect }: DemoCredentialsProps) {
         pagination={false}
         size="small"
         rowKey="username"
+        scroll={{ x: 'max-content' }}
         data-testid="demo-credentials-table"
       />
 

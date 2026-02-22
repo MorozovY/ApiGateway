@@ -150,6 +150,34 @@ describe('DemoCredentials', () => {
         expect(mockMessageError).toHaveBeenCalledWith('Ошибка при сбросе паролей')
       })
     })
+
+    it('показывает loading состояние кнопки во время сброса', async () => {
+      const user = userEvent.setup()
+      // Создаём промис который не резолвится сразу
+      let resolvePromise: (value: unknown) => void
+      const pendingPromise = new Promise((resolve) => {
+        resolvePromise = resolve
+      })
+      mockAxiosPost.mockReturnValueOnce(pendingPromise as Promise<unknown>)
+
+      renderWithMockAuth(<DemoCredentials />)
+
+      const button = screen.getByTestId('reset-passwords-button')
+      await user.click(button)
+
+      // Проверяем, что кнопка в loading состоянии (Ant Design добавляет класс)
+      await waitFor(() => {
+        expect(button.closest('button')).toHaveClass('ant-btn-loading')
+      })
+
+      // Завершаем промис
+      resolvePromise!({ data: { message: 'OK' } })
+
+      // После завершения loading должен исчезнуть
+      await waitFor(() => {
+        expect(button.closest('button')).not.toHaveClass('ant-btn-loading')
+      })
+    })
   })
 
   // AC5: Подсказка о сбросе паролей

@@ -1,6 +1,6 @@
 # Story 9.5: Demo Credentials on Login Page
 
-Status: dev-complete
+Status: done
 
 ## Story
 
@@ -18,7 +18,7 @@ so that I can quickly test the system without registration.
 
 | Логин | Пароль | Роль | Возможности |
 |:------|:-------|:-----|:------------|
-| `developer` | `developer123` | **Developer** | Dashboard, Routes, Metrics |
+| `developer` | `developer123` | **Developer** | Dashboard, Routes, Metrics, Test |
 | `security` | `security123` | **Security** | Dashboard, Routes, Approvals, Audit, Integrations, Metrics |
 | `admin` | `admin123` | **Admin** | Все: Dashboard, Users, Routes, Rate Limits, Approvals, Audit, Integrations, Metrics, Test |
 
@@ -99,7 +99,7 @@ const DEMO_CREDENTIALS = [
     username: 'developer',
     password: 'developer123',
     role: 'Developer',
-    features: 'Dashboard, Routes, Metrics'
+    features: 'Dashboard, Routes, Metrics, Test'
   },
   {
     username: 'security',
@@ -242,3 +242,27 @@ Claude Opus 4.5
 - `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/integration/AuthControllerIntegrationTest.kt` — added 3 tests for Story 9.5
 - `frontend/admin-ui/src/features/auth/components/LoginForm.tsx` — added DemoCredentials integration
 - `frontend/admin-ui/src/features/auth/index.ts` — exported DemoCredentials
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-02-22
+**Outcome:** ✅ Approved (после исправлений)
+
+### Findings & Fixes
+
+| # | Severity | Issue | Status |
+|---|----------|-------|--------|
+| H1 | HIGH | Developer features не включали Test (несоответствие со Story 9.3) | ✅ Fixed |
+| H2 | HIGH | Противоречие AC между stories 9.3 и 9.5 | ✅ Fixed (обновлён AC1) |
+| M1 | MEDIUM | Таблица не адаптивна на узких экранах | ✅ Fixed (добавлен scroll) |
+| M2 | MEDIUM | Отсутствовал тест loading состояния кнопки | ✅ Fixed (добавлен тест) |
+| M3 | MEDIUM | Документационное несоответствие create/update | ⚪ Deferred (не критично) |
+| L1 | LOW | Нет теста содержимого колонки Возможности | ⚪ Deferred |
+| L2 | LOW | Неточность в File List документации | ⚪ Deferred |
+
+### Files Modified in Review
+
+- `frontend/admin-ui/src/features/auth/components/DemoCredentials.tsx` — добавлен Test к Developer features, добавлен scroll для адаптивности
+- `frontend/admin-ui/src/features/auth/components/DemoCredentials.test.tsx` — добавлен тест loading состояния
+- `_bmad-output/implementation-artifacts/9-5-demo-credentials-login-page.md` — обновлён AC1, статус → done
