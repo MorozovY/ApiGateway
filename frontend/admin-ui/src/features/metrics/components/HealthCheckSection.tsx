@@ -206,15 +206,10 @@ export function HealthCheckSection() {
       style={{ marginBottom: 16 }}
       data-testid="health-section"
     >
-      {/* AC4: Responsive layout — 6 колонок на desktop, 3 на tablet, 2 на mobile */}
-      <Row gutter={[12, 12]}>
+      {/* AC4: Responsive layout — все сервисы в строку на desktop, wrap на mobile */}
+      <Row gutter={[8, 8]}>
         {sortedServices?.map((service) => (
-          <Col
-            key={service.name}
-            xs={12}
-            sm={8}
-            lg={4}
-          >
+          <Col key={service.name} flex="1" style={{ minWidth: 130 }}>
             <ServiceCard service={service} isDark={isDark} />
           </Col>
         ))}
