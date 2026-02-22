@@ -590,11 +590,31 @@ api-gateway/
 
 **Data Flow:**
 ```
-User → admin-ui → gateway-admin → PostgreSQL
-                                → Redis (cache invalidation)
-                                        ↓
-External Request → gateway-core → Redis (rate limit) → Upstream Service
-                              → Caffeine (route config)
+# Admin Flow (через Nginx)
+User → Nginx → admin-ui (/) → gateway-admin (/api/v1/) → PostgreSQL
+                                                       → Redis (cache invalidation)
+                                                               ↓
+# Gateway Flow (через Nginx)
+External Request → Nginx → gateway-core (/api/) → Redis (rate limit) → Upstream Service
+                                                → Caffeine (route config)
+```
+
+**Production Data Flow (с Nginx):**
+```
+Internet → DNS (gateway.ymorozov.ru) → Nginx:80/443
+                                           │
+           ┌───────────────────────────────┼───────────────────────────────┐
+           │                               │                               │
+           ▼                               ▼                               ▼
+    admin-ui:3000               gateway-admin:8081              gateway-core:8080
+    (React SPA)                  (Admin API)                    (Gateway Runtime)
+           │                               │                               │
+           └───────────────────────────────┴───────────────────────────────┘
+                                           │
+                                    ┌──────┴──────┐
+                                    ▼             ▼
+                               PostgreSQL      Redis
+                                 :5432         :6379
 ```
 
 ### Requirements to Structure Mapping
@@ -692,6 +712,223 @@ redisTemplate.listenTo(ChannelTopic("route:cache:invalidate"))
     }
     .subscribe()
 ```
+
+## Production Deployment
+
+### External Access
+
+**Домен:** `gateway.ymorozov.ru`
+
+**Архитектура:**
+- Nginx служит reverse proxy с маршрутизацией запросов
+- Admin UI и Admin API доступны через root path (`/`)
+- Gateway Core API доступен через префикс `/api/`
+- Admin API v1 доступен через `/api/v1/`
+
+**URL маршрутизация:**
+
+| Path | Backend Service | Описание |
+|------|-----------------|----------|
+| `/` | admin-ui:3000 | React SPA (Admin UI) |
+| `/api/v1/*` | gateway-admin:8081 | Admin API (CRUD, аутентификация) |
+| `/api/*` | gateway-core:8080 | Gateway Core (публичные маршруты) |
+
+### Nginx Reverse Proxy
+
+Nginx выполняет роль reverse proxy перед backend сервисами, обеспечивая:
+- Единую точку входа для всех запросов
+- Маршрутизацию по path prefix
+- Проброс заголовков (X-Real-IP, X-Forwarded-For, X-Forwarded-Proto)
+- WebSocket upgrade для hot-reload в development
+
+**Конфигурация upstream:**
+
+```nginx
+# docker/nginx/nginx.conf
+
+upstream admin_ui {
+    server admin-ui:3000;
+}
+
+upstream gateway_admin {
+    server gateway-admin:8081;
+}
+
+upstream gateway_core {
+    server gateway-core:8080;
+}
+```
+
+**Конфигурация server block:**
+
+```nginx
+server {
+    listen 80;
+    server_name gateway.ymorozov.ru localhost 127.0.0.1 192.168.0.168;
+
+    client_max_body_size 10M;
+
+    # Logging
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Admin API v1 (более специфичный путь — обрабатывается первым)
+    location /api/v1/ {
+        proxy_pass http://gateway_admin/api/v1/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Gateway Core API
+    location /api/ {
+        proxy_pass http://gateway_core/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Admin UI (React SPA)
+    location / {
+        proxy_pass http://admin_ui;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 30s;
+    }
+
+    # Health check
+    location /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+```
+
+**Проброс заголовков:**
+
+| Заголовок | Значение | Назначение |
+|-----------|----------|------------|
+| `Host` | `$host` | Оригинальный Host для backend |
+| `X-Real-IP` | `$remote_addr` | IP клиента |
+| `X-Forwarded-For` | `$proxy_add_x_forwarded_for` | Цепочка proxy |
+| `X-Forwarded-Proto` | `$scheme` | Оригинальный протокол (http/https) |
+
+### SSL/TLS Configuration
+
+**Текущее состояние:**
+- TLS termination происходит на внешнем уровне (VPN tunnel или reverse proxy провайдера)
+- Nginx в Docker слушает только HTTP (порт 80)
+- Внутренний трафик между контейнерами идёт по HTTP
+
+**Production setup (при необходимости):**
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name gateway.ymorozov.ru;
+
+    # SSL/TLS сертификаты (Let's Encrypt)
+    ssl_certificate /etc/letsencrypt/live/gateway.ymorozov.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gateway.ymorozov.ru/privkey.pem;
+
+    # TLS настройки
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
+    ssl_prefer_server_ciphers off;
+
+    # HSTS (опционально)
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    # ... location блоки как выше ...
+}
+
+# HTTP → HTTPS redirect
+server {
+    listen 80;
+    server_name gateway.ymorozov.ru;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+**Сертификаты:**
+- Provider: Let's Encrypt (certbot)
+- Auto-renewal: через cron или systemd timer
+- TLS Version: 1.2+ (TLS 1.3 рекомендуется)
+- Termination: на уровне Nginx
+
+### Deployment Topology
+
+```
+                    ┌─────────────────────────────────────┐
+                    │            Internet                  │
+                    └─────────────────────────────────────┘
+                                     │
+                                     ▼
+                    ┌─────────────────────────────────────┐
+                    │   gateway.ymorozov.ru (DNS)         │
+                    └─────────────────────────────────────┘
+                                     │
+                                     ▼
+                    ┌─────────────────────────────────────┐
+                    │   Nginx (Reverse Proxy)             │
+                    │   Port: 80 (443 с TLS)              │
+                    │   - URL routing                     │
+                    │   - Header forwarding               │
+                    └─────────────────────────────────────┘
+                      │              │              │
+        ┌─────────────┘              │              └─────────────┐
+        ▼                            ▼                            ▼
+┌──────────────────┐    ┌──────────────────┐        ┌──────────────────┐
+│   admin-ui       │    │  gateway-admin   │        │   gateway-core   │
+│   :3000          │    │  :8081           │        │   :8080          │
+│   React SPA      │    │  Admin API +     │        │   Gateway        │
+│   (Vite)         │    │  Authentication  │        │   Runtime        │
+└──────────────────┘    └──────────────────┘        └──────────────────┘
+                                │                            │
+                                └─────────────┬──────────────┘
+                                              ▼
+                                ┌──────────────────────────────┐
+                                │         PostgreSQL           │
+                                │         :5432                │
+                                └──────────────────────────────┘
+                                              │
+                                ┌──────────────────────────────┐
+                                │           Redis              │
+                                │           :6379              │
+                                │   (Cache + Pub/Sub)          │
+                                └──────────────────────────────┘
+```
+
+**Docker Compose Production Stack:**
+
+| Service | Container | Port (internal) | Port (external) |
+|---------|-----------|-----------------|-----------------|
+| nginx | nginx | 80 | 80, 443 |
+| admin-ui | admin-ui | 3000 | — |
+| gateway-admin | gateway-admin | 8081 | — |
+| gateway-core | gateway-core | 8080 | — |
+| postgres | postgres | 5432 | 5432 (dev only) |
+| redis | redis | 6379 | 6379 (dev only) |
+| prometheus | prometheus | 9090 | 9090 (profile: monitoring) |
+| grafana | grafana | 3000 | 3001 (profile: monitoring) |
+
+**Примечание:** В production внешние порты PostgreSQL и Redis закрыты — доступ только внутри Docker network. Prometheus и Grafana запускаются с `--profile monitoring`.
 
 ## Architecture Validation Results
 

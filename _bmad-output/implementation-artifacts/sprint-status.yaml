@@ -138,5 +138,4 @@ development_status:
   9-3-role-based-sidebar-visibility: done  # FR-NEW-01: Role-based menu filtering (code review: 4 issues fixed)
   9-4-self-service-password-change: done  # FR-NEW-02: Self-service password change (code review: 6 issues fixed)
   9-5-demo-credentials-login-page: done  # Demo credentials table on login page (code review: 4 issues fixed)
-  # Stories planned from Epic 8 Retrospective:
-  # 9-6: DOC-01 — Architecture update (nginx, gateway.ymorozov.ru)
+  9-6-architecture-documentation-update: done  # DOC-01: Architecture update (nginx, gateway.ymorozov.ru) — code review passed
