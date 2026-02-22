@@ -135,6 +135,7 @@ services:
       - "80:80"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docs:/app/docs:ro
     depends_on:
       - admin-ui
       - gateway-admin

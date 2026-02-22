@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Gateway — Краткое руководство</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #1f2937;
+            --heading-color: #111827;
+            --link-color: #2563eb;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --table-header-bg: #f9fafb;
+            --status-draft: #fbbf24;
+            --status-pending: #3b82f6;
+            --status-published: #10b981;
+            --status-rejected: #ef4444;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #1f2937;
+                --text-color: #e5e7eb;
+                --heading-color: #f9fafb;
+                --link-color: #60a5fa;
+                --border-color: #374151;
+                --code-bg: #374151;
+                --table-header-bg: #374151;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            color: var(--heading-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+        }
+
+        h2 {
+            color: var(--heading-color);
+            margin-top: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3rem;
+        }
+
+        h3 {
+            color: var(--heading-color);
+            margin-top: 1.5rem;
+        }
+
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--table-header-bg);
+            font-weight: 600;
+        }
+
+        code {
+            background-color: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9em;
+        }
+
+        .workflow-diagram {
+            background-color: var(--code-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .workflow-diagram pre {
+            margin: 0;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .status-draft { background-color: #fef3c7; color: #92400e; }
+        .status-pending { background-color: #dbeafe; color: #1e40af; }
+        .status-published { background-color: #d1fae5; color: #065f46; }
+        .status-rejected { background-color: #fee2e2; color: #991b1b; }
+
+        @media (prefers-color-scheme: dark) {
+            .status-draft { background-color: #78350f; color: #fef3c7; }
+            .status-pending { background-color: #1e3a8a; color: #dbeafe; }
+            .status-published { background-color: #064e3b; color: #d1fae5; }
+            .status-rejected { background-color: #7f1d1d; color: #fee2e2; }
+        }
+
+        .step-list {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .step-list li {
+            counter-increment: step;
+            padding-left: 2.5rem;
+            position: relative;
+            margin-bottom: 0.75rem;
+        }
+
+        .step-list li::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            width: 1.75rem;
+            height: 1.75rem;
+            background-color: var(--link-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .faq-item {
+            margin-bottom: 1.5rem;
+        }
+
+        .faq-item h4 {
+            color: var(--heading-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .faq-item p {
+            margin: 0;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--code-bg);
+            border-radius: 6px;
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">&larr; Вернуться в API Gateway</a>
+
+    <h1>API Gateway — Краткое руководство</h1>
+    <p>Добро пожаловать в API Gateway! Это руководство поможет вам быстро начать работу с системой.</p>
+
+    <h2>Введение</h2>
+    <p><strong>API Gateway</strong> — это централизованная точка входа для всех API-запросов. Система обеспечивает:</p>
+    <ul>
+        <li><strong>Маршрутизацию</strong> — направление запросов к нужным сервисам</li>
+        <li><strong>Rate Limiting</strong> — защиту сервисов от перегрузки</li>
+        <li><strong>Контроль доступа</strong> — approval workflow для всех изменений</li>
+        <li><strong>Мониторинг</strong> — метрики и аудит всех операций</li>
+    </ul>
+
+    <h2>Роли пользователей</h2>
+    <p>В системе существуют три роли с разными полномочиями:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Роль</th>
+                <th>Описание</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Developer</strong></td>
+                <td>Создаёт и управляет своими маршрутами, отправляет на согласование</td>
+            </tr>
+            <tr>
+                <td><strong>Security</strong></td>
+                <td>Согласует маршруты (approve/reject), может откатывать опубликованные</td>
+            </tr>
+            <tr>
+                <td><strong>Admin</strong></td>
+                <td>Полный доступ: управление пользователями, rate limits, все операции</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Создание маршрута (для Developer)</h2>
+
+    <h3>Шаг 1: Перейти в Routes</h3>
+    <ol class="step-list">
+        <li>Откройте боковое меню</li>
+        <li>Нажмите <strong>Routes</strong></li>
+    </ol>
+
+    <h3>Шаг 2: Создать новый маршрут</h3>
+    <ol class="step-list">
+        <li>Нажмите кнопку <strong>Create Route</strong></li>
+        <li>Заполните обязательные поля:</li>
+    </ol>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Поле</th>
+                <th>Описание</th>
+                <th>Пример</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Path</strong></td>
+                <td>URL путь для маршрутизации</td>
+                <td><code>/api/users</code></td>
+            </tr>
+            <tr>
+                <td><strong>Upstream URL</strong></td>
+                <td>URL целевого сервиса</td>
+                <td><code>http://users-service:8080</code></td>
+            </tr>
+            <tr>
+                <td><strong>Methods</strong></td>
+                <td>Разрешённые HTTP методы</td>
+                <td>GET, POST</td>
+            </tr>
+            <tr>
+                <td><strong>Description</strong></td>
+                <td>Описание маршрута (опционально)</td>
+                <td>Сервис пользователей</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>После сохранения маршрут появится со статусом <span class="status status-draft">DRAFT</span>.</p>
+
+    <h3>Шаг 3: Отправить на согласование</h3>
+    <ol class="step-list">
+        <li>Найдите созданный маршрут в списке</li>
+        <li>Нажмите на него для открытия деталей</li>
+        <li>Нажмите <strong>Submit for Approval</strong></li>
+    </ol>
+    <p>Статус изменится на <span class="status status-pending">PENDING</span> — теперь маршрут ожидает проверки Security.</p>
+
+    <h2>Workflow согласования</h2>
+    <p>Диаграмма показывает жизненный цикл маршрута:</p>
+
+    <div class="workflow-diagram">
+        <pre>
+    ┌─────────┐
+    │  START  │
+    └────┬────┘
+         │ Create
+         ▼
+    ┌─────────┐      Submit       ┌─────────┐
+    │  DRAFT  │─────────────────▶│ PENDING │
+    └────┬────┘                   └────┬────┘
+         │                             │
+         │ Delete                      ├─────────────────┐
+         │ (Owner/Admin)               │                 │
+         ▼                             │ Approve         │ Reject
+    ┌─────────┐                        │ (Security/      │ (Security/
+    │   END   │                        │  Admin)         │  Admin)
+    └─────────┘                        ▼                 ▼
+                                 ┌───────────┐    ┌──────────┐
+                                 │ PUBLISHED │    │ REJECTED │
+                                 └─────┬─────┘    └────┬─────┘
+                                       │               │
+                                       │ Rollback      │ Resubmit
+                                       │ (Security/    │ (Owner)
+                                       │  Admin)       │
+                                       │               │
+                                       └───────┬───────┘
+                                               │
+                                               ▼
+                                          ┌─────────┐
+                                          │  DRAFT  │
+                                          └─────────┘
+        </pre>
+    </div>
+
+    <h3>Описание статусов</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Статус</th>
+                <th>Значение</th>
+                <th>Что делать</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="status status-draft">DRAFT</span></td>
+                <td>Черновик, можно редактировать</td>
+                <td>Отправить на согласование</td>
+            </tr>
+            <tr>
+                <td><span class="status status-pending">PENDING</span></td>
+                <td>Ожидает проверки Security</td>
+                <td>Дождаться решения</td>
+            </tr>
+            <tr>
+                <td><span class="status status-published">PUBLISHED</span></td>
+                <td>Одобрен и активен в Gateway</td>
+                <td>Маршрут работает</td>
+            </tr>
+            <tr>
+                <td><span class="status status-rejected">REJECTED</span></td>
+                <td>Отклонён, требует доработки</td>
+                <td>Исправить и переотправить</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Таблица permissions</h2>
+    <p>Что может делать каждая роль:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Операция</th>
+                <th>Developer</th>
+                <th>Security</th>
+                <th>Admin</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Создать маршрут</td>
+                <td>Свои</td>
+                <td>—</td>
+                <td>—</td>
+            </tr>
+            <tr>
+                <td>Редактировать DRAFT</td>
+                <td>Свои</td>
+                <td>Любые</td>
+                <td>Любые</td>
+            </tr>
+            <tr>
+                <td>Удалить DRAFT</td>
+                <td>Свои</td>
+                <td>Любые</td>
+                <td>Любые</td>
+            </tr>
+            <tr>
+                <td>Отправить на согласование</td>
+                <td>Свои</td>
+                <td>—</td>
+                <td>—</td>
+            </tr>
+            <tr>
+                <td>Approve/Reject маршрут</td>
+                <td>—</td>
+                <td>Да</td>
+                <td>Да</td>
+            </tr>
+            <tr>
+                <td>Rollback (откат)</td>
+                <td>—</td>
+                <td>Да</td>
+                <td>Да</td>
+            </tr>
+            <tr>
+                <td>Управление пользователями</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Да</td>
+            </tr>
+            <tr>
+                <td>Управление Rate Limits</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Да</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>FAQ (Часто задаваемые вопросы)</h2>
+
+    <div class="faq-item">
+        <h4>Как откатить опубликованный маршрут?</h4>
+        <p>Только <strong>Security</strong> или <strong>Admin</strong> могут откатить опубликованный маршрут:</p>
+        <ol>
+            <li>Откройте детали маршрута со статусом PUBLISHED</li>
+            <li>Нажмите <strong>Rollback</strong></li>
+            <li>Маршрут вернётся в статус DRAFT</li>
+        </ol>
+    </div>
+
+    <div class="faq-item">
+        <h4>Как удалить маршрут?</h4>
+        <p>Удалить можно только маршрут в статусе <span class="status status-draft">DRAFT</span>:</p>
+        <ul>
+            <li><strong>Developer</strong> — только свои маршруты</li>
+            <li><strong>Security/Admin</strong> — любые черновики</li>
+        </ul>
+    </div>
+
+    <div class="faq-item">
+        <h4>Почему я не могу редактировать маршрут?</h4>
+        <p>Редактирование доступно только для маршрутов в статусе <span class="status status-draft">DRAFT</span>:</p>
+        <ul>
+            <li>Если статус PENDING — дождитесь решения Security</li>
+            <li>Если статус PUBLISHED — попросите Security сделать Rollback</li>
+            <li>Если статус REJECTED — маршрут автоматически переходит в DRAFT после resubmit</li>
+        </ul>
+    </div>
+
+    <div class="faq-item">
+        <h4>Как посмотреть историю изменений маршрута?</h4>
+        <ol>
+            <li>Перейдите в <strong>Routes</strong></li>
+            <li>Откройте детали маршрута</li>
+            <li>Перейдите на вкладку <strong>History</strong></li>
+        </ol>
+    </div>
+
+    <div class="faq-item">
+        <h4>Как найти свои маршруты?</h4>
+        <p>В разделе <strong>Routes</strong> используйте фильтр <strong>Author</strong> и выберите своё имя.</p>
+    </div>
+
+    <div class="faq-item">
+        <h4>Где посмотреть метрики маршрута?</h4>
+        <ol>
+            <li>Перейдите в раздел <strong>Metrics</strong></li>
+            <li>Выберите временной период</li>
+            <li>Посмотрите Top Routes по количеству запросов</li>
+        </ol>
+    </div>
+
+    <div class="faq-item">
+        <h4>Как связаться с командой поддержки?</h4>
+        <p>При возникновении вопросов обратитесь к администратору системы или в Slack-канал #api-gateway-support.</p>
+    </div>
+
+    <footer>
+        <p>Последнее обновление: 2026-02-22</p>
+    </footer>
+</body>
+</html>

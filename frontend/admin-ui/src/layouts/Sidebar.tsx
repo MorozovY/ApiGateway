@@ -14,6 +14,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ExperimentOutlined,
+  BookOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
@@ -204,16 +205,36 @@ function Sidebar() {
         onClick={({ key }) => navigate(key)}
       />
 
-      {/* Кнопка collapse/expand (AC8) */}
+      {/* Footer: Quick Start Guide + collapse button (Story 10.7, AC4) */}
       <div
         style={{
           position: 'absolute',
           bottom: 16,
           left: 0,
           right: 0,
-          textAlign: 'center',
+          padding: '0 12px',
+          display: 'flex',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          alignItems: 'center',
+          gap: 8,
         }}
       >
+        {/* Ссылка на Quick Start Guide */}
+        <Tooltip title="Руководство" placement="right">
+          <Button
+            type="text"
+            icon={<BookOutlined />}
+            href="/docs/quick-start-guide.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="quick-start-guide-link"
+            style={{ width: collapsed ? 48 : 'auto' }}
+          >
+            {!collapsed && 'Руководство'}
+          </Button>
+        </Tooltip>
+
+        {/* Кнопка collapse/expand (AC8) */}
         <Tooltip title={collapsed ? 'Развернуть' : 'Свернуть'} placement="right">
           <Button
             type="text"

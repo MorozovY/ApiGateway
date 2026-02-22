@@ -122,6 +122,45 @@ describe('Sidebar', () => {
   })
 
   // Story 9.3 — Role-based menu visibility
+  // Story 10.7 — Quick Start Guide link
+  describe('Quick Start Guide link (Story 10.7)', () => {
+    it('отображает ссылку на Quick Start Guide', () => {
+      renderWithMockAuth(<Sidebar />, { authValue: adminAuth })
+
+      const guideLink = screen.getByTestId('quick-start-guide-link')
+      expect(guideLink).toBeInTheDocument()
+    })
+
+    it('ссылка открывается в новой вкладке', () => {
+      renderWithMockAuth(<Sidebar />, { authValue: adminAuth })
+
+      const guideLink = screen.getByTestId('quick-start-guide-link')
+      expect(guideLink).toHaveAttribute('target', '_blank')
+      expect(guideLink).toHaveAttribute('rel', 'noopener noreferrer')
+    })
+
+    it('ссылка ведёт на /docs/quick-start-guide.html', () => {
+      renderWithMockAuth(<Sidebar />, { authValue: adminAuth })
+
+      const guideLink = screen.getByTestId('quick-start-guide-link')
+      expect(guideLink).toHaveAttribute('href', '/docs/quick-start-guide.html')
+    })
+
+    it('показывает текст "Руководство" когда sidebar развёрнут', () => {
+      localStorageMock.getItem.mockReturnValue(null)
+      renderWithMockAuth(<Sidebar />, { authValue: adminAuth })
+
+      expect(screen.getByText('Руководство')).toBeInTheDocument()
+    })
+
+    it('скрывает текст когда sidebar свёрнут', () => {
+      localStorageMock.getItem.mockReturnValue('true')
+      renderWithMockAuth(<Sidebar />, { authValue: adminAuth })
+
+      expect(screen.queryByText('Руководство')).not.toBeInTheDocument()
+    })
+  })
+
   describe('Role-based menu visibility (Story 9.3)', () => {
     describe('AC1 — Developer видит только доступные пункты', () => {
       it('показывает Dashboard, Routes, Metrics для developer', () => {
