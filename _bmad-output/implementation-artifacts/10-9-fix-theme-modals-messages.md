@@ -1,6 +1,6 @@
 # Story 10.9: Fix Theme Support for Modals and Messages
 
-Status: dev-complete
+Status: done
 
 ## Story
 
@@ -346,26 +346,26 @@ N/A
 
 ### File List
 
-**Измененные файлы (17):**
+**Измененные файлы (20):**
 1. `frontend/admin-ui/src/main.tsx` — App wrapper
 2. `frontend/admin-ui/src/features/routes/components/RouteDetailsCard.tsx` — modal.confirm
 3. `frontend/admin-ui/src/features/auth/components/ChangePasswordModal.tsx` — App.useApp
 4. `frontend/admin-ui/src/features/auth/components/DemoCredentials.tsx` — App.useApp
 5. `frontend/admin-ui/src/features/rate-limits/components/RateLimitsPage.tsx` — App.useApp
-6. `frontend/admin-ui/src/features/audit/components/IntegrationsPage.tsx` — App.useApp
+6. `frontend/admin-ui/src/features/audit/components/IntegrationsPage.tsx` — App.useApp, Navigate component
 7. `frontend/admin-ui/src/features/audit/components/AuditPage.tsx` — App.useApp
 8. `frontend/admin-ui/src/features/audit/utils/exportUpstreamReport.ts` — messageApi param
-9. `frontend/admin-ui/src/features/audit/utils/exportCsv.ts` — messageApi param
+9. `frontend/admin-ui/src/features/audit/utils/exportCsv.ts` — messageApi param (required)
 10. `frontend/admin-ui/src/features/routes/hooks/useRoutes.ts` — App.useApp
 11. `frontend/admin-ui/src/features/approval/hooks/useApprovals.ts` — App.useApp
 12. `frontend/admin-ui/src/features/users/hooks/useUsers.ts` — App.useApp
 13. `frontend/admin-ui/src/features/rate-limits/hooks/useRateLimits.ts` — App.useApp
-14. `frontend/admin-ui/src/test/setup.ts` — глобальный мок App.useApp
+14. `frontend/admin-ui/src/test/setup.ts` — глобальный мок App.useApp с комментариями
 15. `frontend/admin-ui/src/features/auth/components/ChangePasswordModal.test.tsx` — мок update
 16. `frontend/admin-ui/src/features/auth/components/DemoCredentials.test.tsx` — мок update
 17. `frontend/admin-ui/src/features/approval/components/ApprovalsPage.test.tsx` — мок update
 18. `frontend/admin-ui/src/features/audit/components/AuditPage.test.tsx` — мок update
-19. `frontend/admin-ui/src/features/audit/components/IntegrationsPage.test.tsx` — assertion update
+19. `frontend/admin-ui/src/features/audit/components/IntegrationsPage.test.tsx` — Navigate component mock
 20. `frontend/admin-ui/src/features/routes/components/RouteDetailsCard.test.tsx` — modal tests update
 
 ## Change Log
@@ -373,3 +373,4 @@ N/A
 - **2026-02-22:** Story created from SM chat session (bug report by Yury)
 - **2026-02-22:** Full analysis completed, all usages found, status → ready-for-dev
 - **2026-02-22:** Implementation complete — all 544 unit tests pass, status → dev-complete
+- **2026-02-22:** Code review fixes — exportCsv messageApi required, IntegrationsPage race condition fix, setup.ts comments

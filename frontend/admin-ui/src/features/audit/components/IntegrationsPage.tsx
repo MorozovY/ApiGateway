@@ -1,6 +1,6 @@
 // Страница Integrations Report (Story 7.6, AC3, AC4, AC5, AC6, AC9)
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Card, Button, Space, Typography, App } from 'antd'
 import { DownloadOutlined, ClusterOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
@@ -21,22 +21,25 @@ const { Title } = Typography
  * - Empty state для пустого списка (AC9)
  */
 export function IntegrationsPage() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { message } = App.useApp()
   const { data } = useUpstreams()
+  const accessDeniedShown = useRef(false)
 
-  // Проверка роли: redirect для developer (AC6)
+  // Проверка доступа (AC6) — показываем сообщение только один раз
+  const isAccessDenied = user?.role === 'developer'
+
+  // Показываем сообщение об отказе доступа перед редиректом
   useEffect(() => {
-    if (user && user.role === 'developer') {
+    if (isAccessDenied && !accessDeniedShown.current) {
+      accessDeniedShown.current = true
       message.error('Недостаточно прав для просмотра отчёта по интеграциям')
-      navigate('/', { replace: true })
     }
-  }, [user, navigate, message])
+  }, [isAccessDenied, message])
 
-  // Не рендерим если роль developer (пока идёт redirect)
-  if (user?.role === 'developer') {
-    return null
+  // Developer role редиректится на главную (AC6)
+  if (isAccessDenied) {
+    return <Navigate to="/" replace />
   }
 
   // Обработчик экспорта отчёта (AC5)

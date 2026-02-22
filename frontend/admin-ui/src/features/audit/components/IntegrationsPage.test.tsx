@@ -6,13 +6,17 @@ import { renderWithMockAuth } from '../../../test/test-utils'
 import { IntegrationsPage } from './IntegrationsPage'
 import type { UpstreamsResponse } from '../types/audit.types'
 
-// Мок для navigate
-const mockNavigate = vi.fn()
+// Story 10.9: Navigate компонент используется для редиректа вместо useNavigate hook.
+// Мокаем Navigate чтобы отследить редирект.
+const mockNavigateComponent = vi.fn(() => null)
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
+    Navigate: (props: { to: string; replace?: boolean }) => {
+      mockNavigateComponent(props.to, { replace: props.replace })
+      return null
+    },
   }
 })
 
@@ -62,8 +66,9 @@ describe('IntegrationsPage', () => {
     it('редиректит developer на главную с сообщением', async () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: developerAuth })
 
+      // Story 10.9: Navigate компонент используется для редиректа
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
+        expect(mockNavigateComponent).toHaveBeenCalledWith('/', { replace: true })
       })
     })
 
@@ -74,7 +79,7 @@ describe('IntegrationsPage', () => {
         expect(screen.getByText('Integrations Report')).toBeInTheDocument()
       })
 
-      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(mockNavigateComponent).not.toHaveBeenCalled()
     })
 
     it('показывает страницу для admin роли', async () => {
@@ -84,7 +89,7 @@ describe('IntegrationsPage', () => {
         expect(screen.getByText('Integrations Report')).toBeInTheDocument()
       })
 
-      expect(mockNavigate).not.toHaveBeenCalled()
+      expect(mockNavigateComponent).not.toHaveBeenCalled()
     })
   })
 

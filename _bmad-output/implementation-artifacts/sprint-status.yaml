@@ -151,5 +151,5 @@ development_status:
   10-6-swagger-link-login-page: done  # FR-03: Add Swagger links on login page (code review: 2 issues fixed)
   10-7-quick-start-guide: done  # DOC: Quick Start Guide for new users — code review fixes applied
   10-8-fix-audit-changes-viewer: done  # BUG: Audit log changes показывают "null" — code review fixes applied
-  10-9-fix-theme-modals-messages: dev-complete  # BUG: Modals/messages не поддерживают тёмную тему
+  10-9-fix-theme-modals-messages: done  # BUG: Modals/messages не поддерживают тёмную тему — code review fixes applied
   10-10-fix-top-routes-time-range: ready-for-dev  # BUG: Top Routes не реагирует на time range

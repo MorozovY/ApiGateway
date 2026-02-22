@@ -31,10 +31,10 @@ export function downloadAuditCsv(
   data: AuditLogEntry[],
   dateFrom?: string,
   dateTo?: string,
-  messageApi?: MessageInstance
+  messageApi: MessageInstance
 ): void {
   // Проверка на превышение лимита (AC4)
-  if (data.length >= MAX_CSV_EXPORT_ROWS && messageApi) {
+  if (data.length >= MAX_CSV_EXPORT_ROWS) {
     messageApi.warning(`Экспорт ограничен ${MAX_CSV_EXPORT_ROWS} записями`)
   }
 
