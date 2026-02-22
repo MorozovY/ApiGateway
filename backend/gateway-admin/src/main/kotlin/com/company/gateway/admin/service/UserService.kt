@@ -431,6 +431,69 @@ class UserService(
     }
 
     /**
+     * Сброс паролей демо-пользователей на дефолтные (Story 9.5).
+     *
+     * Сбрасывает пароли для существующих пользователей или создаёт новых:
+     * - developer → developer123 (Role.DEVELOPER)
+     * - security → security123 (Role.SECURITY)
+     * - admin → admin123 (Role.ADMIN)
+     *
+     * @return список имён пользователей, у которых сброшены/созданы пароли
+     */
+    fun resetDemoPasswords(): Mono<List<String>> {
+        // Данные демо-пользователей: username -> (password, role, email)
+        data class DemoUser(val password: String, val role: Role, val email: String)
+        val demoUsers = mapOf(
+            "developer" to DemoUser("developer123", Role.DEVELOPER, "developer@example.com"),
+            "security" to DemoUser("security123", Role.SECURITY, "security@example.com"),
+            "admin" to DemoUser("admin123", Role.ADMIN, "admin@example.com")
+        )
+
+        logger.info("Сброс/создание демо-пользователей: {}", demoUsers.keys)
+
+        return reactor.core.publisher.Flux.fromIterable(demoUsers.entries)
+            .flatMap { (username, demoData) ->
+                userRepository.findByUsername(username)
+                    .flatMap { existingUser ->
+                        // Пользователь существует — обновляем пароль
+                        val newHash = passwordService.hash(demoData.password)
+                        val updatedUser = existingUser.copy(
+                            passwordHash = newHash,
+                            isActive = true,
+                            updatedAt = Instant.now()
+                        )
+                        userRepository.save(updatedUser)
+                            .doOnSuccess {
+                                logger.info("Пароль сброшен для пользователя: {}", username)
+                            }
+                            .thenReturn(username)
+                    }
+                    .switchIfEmpty(
+                        // Пользователь не существует — создаём нового
+                        Mono.defer {
+                            val newHash = passwordService.hash(demoData.password)
+                            val newUser = User(
+                                username = username,
+                                email = demoData.email,
+                                passwordHash = newHash,
+                                role = demoData.role,
+                                isActive = true
+                            )
+                            userRepository.save(newUser)
+                                .doOnSuccess {
+                                    logger.info("Создан демо-пользователь: {}", username)
+                                }
+                                .thenReturn(username)
+                        }
+                    )
+            }
+            .collectList()
+            .doOnSuccess { users ->
+                logger.info("Сброс/создание демо-пользователей завершено: {} пользователей", users.size)
+            }
+    }
+
+    /**
      * Преобразование User в UserResponse.
      */
     private fun User.toResponse(): UserResponse {

@@ -692,6 +692,100 @@ class AuthControllerIntegrationTest {
     }
 
     // ============================================
+    // Story 9.5: Сброс паролей демо-пользователей
+    // ============================================
+
+    @Test
+    fun `Story 9-5 - сброс паролей демо-пользователей успешно`() {
+        // Создаём демо-пользователей с изменёнными паролями (удаляем если существуют)
+        createOrUpdateTestUser("developer", "changedPassword1", Role.DEVELOPER)
+        createOrUpdateTestUser("security", "changedPassword2", Role.SECURITY)
+        createOrUpdateTestUser("admin", "changedPassword3", Role.ADMIN)
+
+        // Вызываем endpoint сброса паролей (без авторизации)
+        webTestClient.post()
+            .uri("/api/v1/auth/reset-demo-passwords")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.message").isEqualTo("Demo passwords reset successfully")
+            .jsonPath("$.users").isArray
+            .jsonPath("$.users.length()").isEqualTo(3)
+
+        // Проверяем, что теперь можно войти с дефолтными паролями
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("developer", "developer123"))
+            .exchange()
+            .expectStatus().isOk
+
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("security", "security123"))
+            .exchange()
+            .expectStatus().isOk
+
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("admin", "admin123"))
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `Story 9-5 - сброс паролей доступен без авторизации`() {
+        // Создаём хотя бы одного демо-пользователя (удаляем если существует)
+        createOrUpdateTestUser("developer", "somePassword", Role.DEVELOPER)
+
+        // Вызываем без cookie/токена — должно работать
+        webTestClient.post()
+            .uri("/api/v1/auth/reset-demo-passwords")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `Story 9-5 - создаёт отсутствующих демо-пользователей при сбросе`() {
+        // Удаляем всех демо-пользователей
+        deleteDemoUsers()
+
+        // Вызываем сброс — должен создать всех троих
+        webTestClient.post()
+            .uri("/api/v1/auth/reset-demo-passwords")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.message").isEqualTo("Demo passwords reset successfully")
+            .jsonPath("$.users").isArray
+            .jsonPath("$.users.length()").isEqualTo(3)
+
+        // Проверяем, что созданные пользователи могут войти
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("developer", "developer123"))
+            .exchange()
+            .expectStatus().isOk
+
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("security", "security123"))
+            .exchange()
+            .expectStatus().isOk
+
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("admin", "admin123"))
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    // ============================================
     // Валидация входных данных
     // ============================================
 
@@ -767,5 +861,51 @@ class AuthControllerIntegrationTest {
         StepVerifier.create(userRepository.save(user))
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    /**
+     * Создаёт или обновляет пользователя (для тестов сброса паролей).
+     */
+    private fun createOrUpdateTestUser(
+        username: String,
+        password: String,
+        role: Role
+    ) {
+        val hashedPassword = passwordService.hash(password)
+
+        StepVerifier.create(
+            userRepository.findByUsername(username)
+                .flatMap { existingUser ->
+                    // Обновляем пароль существующего пользователя
+                    userRepository.save(existingUser.copy(passwordHash = hashedPassword))
+                }
+                .switchIfEmpty(
+                    // Создаём нового пользователя
+                    userRepository.save(User(
+                        username = username,
+                        email = "$username@example.com",
+                        passwordHash = hashedPassword,
+                        role = role,
+                        isActive = true
+                    ))
+                )
+        )
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    /**
+     * Удаляет демо-пользователей (developer, security, admin).
+     */
+    private fun deleteDemoUsers() {
+        val demoUsernames = listOf("developer", "security", "admin")
+        demoUsernames.forEach { username ->
+            StepVerifier.create(
+                userRepository.findByUsername(username)
+                    .flatMap { user -> userRepository.delete(user).thenReturn(user) }
+                    .then()
+            )
+                .verifyComplete()
+        }
     }
 }

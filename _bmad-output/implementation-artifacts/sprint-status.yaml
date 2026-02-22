@@ -137,6 +137,6 @@ development_status:
   9-2-load-generator-fixes: done  # Code review: 8 issues fixed, 447 tests pass
   9-3-role-based-sidebar-visibility: done  # FR-NEW-01: Role-based menu filtering (code review: 4 issues fixed)
   9-4-self-service-password-change: done  # FR-NEW-02: Self-service password change (code review: 6 issues fixed)
-  9-5-demo-credentials-login-page: ready-for-dev  # Demo credentials table on login page
+  9-5-demo-credentials-login-page: dev-complete  # Demo credentials table on login page
   # Stories planned from Epic 8 Retrospective:
   # 9-6: DOC-01 — Architecture update (nginx, gateway.ymorozov.ru)

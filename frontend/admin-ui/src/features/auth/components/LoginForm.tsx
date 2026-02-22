@@ -4,6 +4,7 @@ import { Form, Input, Button, Alert } from 'antd'
 import type { InputRef } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useAuth } from '../hooks/useAuth'
+import { DemoCredentials } from './DemoCredentials'
 
 interface LoginFormValues {
   username: string
@@ -26,6 +27,11 @@ export function LoginForm() {
   const handleSubmit = async (values: LoginFormValues) => {
     clearError()
     await login(values.username, values.password)
+  }
+
+  // AC2: Заполнение формы при выборе демо-учётных данных
+  const handleDemoSelect = (username: string, password: string) => {
+    form.setFieldsValue({ username, password })
   }
 
   return (
@@ -86,6 +92,9 @@ export function LoginForm() {
           Войти
         </Button>
       </Form.Item>
+
+      {/* AC1: Таблица демо-учётных данных */}
+      <DemoCredentials onSelect={handleDemoSelect} />
     </Form>
   )
 }

@@ -4,6 +4,7 @@ import com.company.gateway.admin.dto.ChangePasswordRequest
 import com.company.gateway.admin.dto.ChangePasswordResponse
 import com.company.gateway.admin.dto.LoginRequest
 import com.company.gateway.admin.dto.LoginResponse
+import com.company.gateway.admin.dto.ResetDemoPasswordsResponse
 import com.company.gateway.admin.security.CookieService
 import com.company.gateway.admin.security.JwtService
 import com.company.gateway.admin.service.AuthService
@@ -26,6 +27,7 @@ import java.util.UUID
  * - POST /api/v1/auth/login - аутентификация пользователя
  * - POST /api/v1/auth/logout - выход из системы
  * - POST /api/v1/auth/change-password - смена пароля текущего пользователя
+ * - POST /api/v1/auth/reset-demo-passwords - сброс паролей демо-пользователей
  * - GET /api/v1/auth/me - получение информации о текущем пользователе
  */
 @RestController
@@ -140,6 +142,27 @@ class AuthController(
                 )
             )
         )
+    }
+
+    /**
+     * Сброс паролей демо-пользователей (Story 9.5).
+     *
+     * Публичный endpoint, доступный без аутентификации.
+     * Сбрасывает пароли для developer, security, admin на дефолтные.
+     *
+     * @return ResetDemoPasswordsResponse со списком обновлённых пользователей
+     */
+    @PostMapping("/reset-demo-passwords")
+    fun resetDemoPasswords(): Mono<ResponseEntity<ResetDemoPasswordsResponse>> {
+        return userService.resetDemoPasswords()
+            .map { users ->
+                ResponseEntity.ok(
+                    ResetDemoPasswordsResponse(
+                        message = "Demo passwords reset successfully",
+                        users = users
+                    )
+                )
+            }
     }
 
     /**
