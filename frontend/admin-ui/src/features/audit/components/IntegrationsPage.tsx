@@ -1,7 +1,7 @@
 // Страница Integrations Report (Story 7.6, AC3, AC4, AC5, AC6, AC9)
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Space, Typography, message } from 'antd'
+import { Card, Button, Space, Typography, App } from 'antd'
 import { DownloadOutlined, ClusterOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { useUpstreams } from '../hooks/useUpstreams'
@@ -23,6 +23,7 @@ const { Title } = Typography
 export function IntegrationsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { message } = App.useApp()
   const { data } = useUpstreams()
 
   // Проверка роли: redirect для developer (AC6)
@@ -31,7 +32,7 @@ export function IntegrationsPage() {
       message.error('Недостаточно прав для просмотра отчёта по интеграциям')
       navigate('/', { replace: true })
     }
-  }, [user, navigate])
+  }, [user, navigate, message])
 
   // Не рендерим если роль developer (пока идёт redirect)
   if (user?.role === 'developer') {
@@ -46,7 +47,7 @@ export function IntegrationsPage() {
     }
 
     try {
-      await exportUpstreamReport(data.upstreams)
+      await exportUpstreamReport(data.upstreams, message)
     } catch {
       // Ошибка уже обработана в exportUpstreamReport
     }

@@ -25,16 +25,26 @@ function createAxiosError(status: number): AxiosError {
   return error
 }
 
-// Мокаем antd message
+// Мокаем antd App.useApp() (Story 10.9 — theme-aware message)
 const mockMessageSuccess = vi.fn()
 const mockMessageError = vi.fn()
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd')
   return {
     ...actual,
-    message: {
-      success: (text: string) => mockMessageSuccess(text),
-      error: (text: string) => mockMessageError(text),
+    App: {
+      ...actual.App,
+      useApp: () => ({
+        message: {
+          success: (text: string) => mockMessageSuccess(text),
+          error: (text: string) => mockMessageError(text),
+          warning: vi.fn(),
+          info: vi.fn(),
+          loading: vi.fn(() => vi.fn()),
+        },
+        modal: { confirm: vi.fn() },
+        notification: { success: vi.fn(), error: vi.fn() },
+      }),
     },
   }
 })

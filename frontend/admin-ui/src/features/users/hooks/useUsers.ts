@@ -1,6 +1,6 @@
 // React Query hooks для управления пользователями (Story 2.6)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message } from 'antd'
+import { App } from 'antd'
 import * as usersApi from '../api/usersApi'
 import type {
   UserListParams,
@@ -32,6 +32,7 @@ export function useUsers(params: UserListParams = {}) {
  */
 export function useCreateUser() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (data: CreateUserRequest) => usersApi.createUser(data),
@@ -52,6 +53,7 @@ export function useCreateUser() {
  */
 export function useUpdateUser() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateUserRequest }) =>
@@ -73,6 +75,7 @@ export function useUpdateUser() {
  */
 export function useDeactivateUser() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => usersApi.deactivateUser(id),

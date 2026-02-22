@@ -1,6 +1,6 @@
 // Страница управления Rate Limit политиками (Story 5.4, AC1-AC8)
 import { useState } from 'react'
-import { Button, Typography, message } from 'antd'
+import { Button, Typography, App } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import RateLimitsTable from './RateLimitsTable'
 import RateLimitFormModal from './RateLimitFormModal'
@@ -22,6 +22,7 @@ const { Title } = Typography
  */
 function RateLimitsPage() {
   const { user } = useAuth()
+  const { message } = App.useApp()
   const isAdmin = user?.role === 'admin'
 
   // Состояние модального окна формы

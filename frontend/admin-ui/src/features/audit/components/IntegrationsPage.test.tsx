@@ -126,7 +126,11 @@ describe('IntegrationsPage', () => {
       await user.click(screen.getByText('Export Report'))
 
       await waitFor(() => {
-        expect(mockExportUpstreamReport).toHaveBeenCalledWith(mockUpstreams.upstreams)
+        // Story 10.9: exportUpstreamReport теперь принимает messageApi вторым аргументом
+        expect(mockExportUpstreamReport).toHaveBeenCalledWith(
+          mockUpstreams.upstreams,
+          expect.objectContaining({ success: expect.any(Function) })
+        )
       })
     })
 

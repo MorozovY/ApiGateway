@@ -1,7 +1,7 @@
 // Страница аудит-логов (Story 7.5, AC1-AC7)
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, Navigate } from 'react-router-dom'
-import { Card, Typography, Button, Space, Empty, Alert, message } from 'antd'
+import { Card, Typography, Button, Space, Empty, Alert, App } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { useAuditLogs } from '../hooks/useAuditLogs'
@@ -45,6 +45,7 @@ const { Title } = Typography
  */
 export function AuditPage() {
   const { user } = useAuth()
+  const { message } = App.useApp()
   const [searchParams, setSearchParams] = useSearchParams()
   const [isExporting, setIsExporting] = useState(false)
   const accessDeniedShown = useRef(false)
@@ -148,14 +149,14 @@ export function AuditPage() {
     try {
       // Загружаем все записи с текущими фильтрами (AC4)
       const allData = await fetchAllAuditLogsForExport(filter)
-      downloadAuditCsv(allData.items, filter.dateFrom, filter.dateTo)
+      downloadAuditCsv(allData.items, filter.dateFrom, filter.dateTo, message)
       message.success('Экспорт завершён')
     } catch {
       message.error('Ошибка при экспорте данных')
     } finally {
       setIsExporting(false)
     }
-  }, [data?.total, filter])
+  }, [data?.total, filter, message])
 
   // Показываем сообщение об отказе доступа
   useEffect(() => {
@@ -163,7 +164,7 @@ export function AuditPage() {
       accessDeniedShown.current = true
       message.error('Недостаточно прав для просмотра аудит-логов')
     }
-  }, [isAccessDenied])
+  }, [isAccessDenied, message])
 
   // Developer role редиректится на главную
   if (isAccessDenied) {

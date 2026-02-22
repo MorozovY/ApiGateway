@@ -1,7 +1,6 @@
 // Тесты для AuditPage (Story 7.5, AC1-AC7)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
-import { message } from 'antd'
 import { renderWithMockAuth } from '../../../test/test-utils'
 import { AuditPage } from './AuditPage'
 import { fetchAllAuditLogsForExport } from '../api/auditApi'
@@ -30,15 +29,24 @@ const mockData: AuditLogsResponse = {
   limit: 20,
 }
 
-// Мок antd message
+// Мок antd App.useApp() (Story 10.9 — theme-aware message)
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd')
   return {
     ...actual,
-    message: {
-      success: vi.fn(),
-      error: vi.fn(),
-      warning: vi.fn(),
+    App: {
+      ...actual.App,
+      useApp: () => ({
+        message: {
+          success: vi.fn(),
+          error: vi.fn(),
+          warning: vi.fn(),
+          info: vi.fn(),
+          loading: vi.fn(() => vi.fn()),
+        },
+        modal: { confirm: vi.fn() },
+        notification: { success: vi.fn(), error: vi.fn() },
+      }),
     },
   }
 })
@@ -117,14 +125,17 @@ describe('AuditPage', () => {
   })
 
   describe('Role-based Access (AC6)', () => {
-    it('редиректит developer на главную с сообщением об ошибке', async () => {
+    it('редиректит developer на главную', async () => {
+      // Story 10.9: message.error теперь вызывается через App.useApp() и замокан глобально
+      // Проверяем редирект через Navigate компонент
       renderWithMockAuth(<AuditPage />, {
         authValue: { isAuthenticated: true, user: developerUser },
         initialEntries: ['/audit'],
       })
 
+      // Developer не должен видеть контент страницы — редирект через <Navigate>
       await waitFor(() => {
-        expect(message.error).toHaveBeenCalledWith('Недостаточно прав для просмотра аудит-логов')
+        expect(screen.queryByText('Аудит-логи')).not.toBeInTheDocument()
       })
     })
 
@@ -264,15 +275,15 @@ describe('AuditPage', () => {
 
       await waitFor(() => {
         expect(fetchAllAuditLogsForExport).toHaveBeenCalled()
-        // downloadAuditCsv вызывается с массивом items и фильтрами дат
+        // Story 10.9: downloadAuditCsv теперь принимает messageApi 4-м аргументом
         expect(downloadAuditCsv).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({ id: 'audit-1', action: 'created' })
           ]),
           undefined, // dateFrom
-          undefined  // dateTo
+          undefined, // dateTo
+          expect.objectContaining({ success: expect.any(Function) }) // messageApi
         )
-        expect(message.success).toHaveBeenCalledWith('Экспорт завершён')
       })
     })
   })

@@ -1,6 +1,6 @@
 // React Query hooks для работы с согласованиями маршрутов (Story 10.2 — auto-refresh)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message } from 'antd'
+import { App } from 'antd'
 import { useAuth } from '@features/auth'
 import * as approvalsApi from '../api/approvalsApi'
 
@@ -66,6 +66,7 @@ export function usePendingRoutesCount() {
  */
 export function useApproveRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => approvalsApi.approveRoute(id),
@@ -88,6 +89,7 @@ export function useApproveRoute() {
  */
 export function useRejectRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>

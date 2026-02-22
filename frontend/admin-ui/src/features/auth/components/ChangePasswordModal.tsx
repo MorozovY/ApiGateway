@@ -1,5 +1,5 @@
 // Модальное окно смены пароля (Story 9.4)
-import { Modal, Form, Input, Button, message } from 'antd'
+import { Modal, Form, Input, Button, App } from 'antd'
 import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import { changePasswordApi } from '../api/authApi'
@@ -28,6 +28,7 @@ interface ChangePasswordModalProps {
 export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
   const [form] = Form.useForm<ChangePasswordFormValues>()
   const [loading, setLoading] = useState(false)
+  const { message } = App.useApp()
 
   // AC5: отслеживаем значения формы для проверки валидности
   const formValues = Form.useWatch([], form)

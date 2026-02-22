@@ -1,8 +1,8 @@
 // Утилита для экспорта аудит-логов в CSV (Story 7.5, AC4)
-import { message } from 'antd'
 import dayjs from 'dayjs'
 import type { AuditLogEntry } from '../types/audit.types'
 import { AUDIT_ACTION_LABELS, MAX_CSV_EXPORT_ROWS } from '../config/auditConfig'
+import type { MessageInstance } from 'antd/es/message/interface'
 
 /**
  * Экранирует значение для CSV.
@@ -25,15 +25,17 @@ function escapeCsvValue(value: string | null | undefined): string {
  * @param data Массив записей аудит-лога
  * @param dateFrom Начальная дата фильтра
  * @param dateTo Конечная дата фильтра
+ * @param messageApi Message API от App.useApp() для отображения уведомлений с поддержкой темы
  */
 export function downloadAuditCsv(
   data: AuditLogEntry[],
   dateFrom?: string,
-  dateTo?: string
+  dateTo?: string,
+  messageApi?: MessageInstance
 ): void {
   // Проверка на превышение лимита (AC4)
-  if (data.length >= MAX_CSV_EXPORT_ROWS) {
-    message.warning(`Экспорт ограничен ${MAX_CSV_EXPORT_ROWS} записями`)
+  if (data.length >= MAX_CSV_EXPORT_ROWS && messageApi) {
+    messageApi.warning(`Экспорт ограничен ${MAX_CSV_EXPORT_ROWS} записями`)
   }
 
   // Заголовки CSV

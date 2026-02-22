@@ -1,5 +1,5 @@
 // Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5, Story 5.5, Story 10.3 и Story 10.4)
-import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Modal, Alert, Popconfirm } from 'antd'
+import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Alert, Popconfirm, App } from 'antd'
 import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined, ExclamationCircleOutlined, RollbackOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -35,6 +35,7 @@ interface RouteDetailsCardProps {
 export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { modal } = App.useApp()
   const cloneMutation = useCloneRoute()
   const submitMutation = useSubmitRoute()
   const rollbackMutation = useRollbackRoute()
@@ -85,7 +86,7 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
    * Показывает модальное окно подтверждения submit.
    */
   const handleSubmitClick = () => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Отправить на согласование',
       icon: <ExclamationCircleOutlined />,
       content: 'Маршрут будет отправлен в Security на проверку. Вы не сможете редактировать его до одобрения или отклонения.',
@@ -106,7 +107,7 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
    * Story 10.3
    */
   const handleRollbackClick = () => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Откатить маршрут в Draft?',
       icon: <ExclamationCircleOutlined />,
       content: 'Маршрут будет удалён из gateway и вернётся в статус Draft.',

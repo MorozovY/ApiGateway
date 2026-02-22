@@ -1,10 +1,10 @@
 // Утилита для экспорта Upstream Report в CSV (Story 7.6, AC5)
-import { message } from 'antd'
 import dayjs from 'dayjs'
 import { fetchRoutes } from '@features/routes/api/routesApi'
 import type { UpstreamSummary } from '../types/audit.types'
 import type { Route } from '@features/routes/types/route.types'
 import { STATUS_LABELS } from '@shared/constants'
+import type { MessageInstance } from 'antd/es/message/interface'
 
 /**
  * Максимальное количество маршрутов на один upstream в отчёте.
@@ -94,9 +94,13 @@ async function fetchAllUpstreamsParallel(
  * Filename: upstream-report-YYYY-MM-DD.csv
  *
  * @param upstreams Список upstream сервисов
+ * @param messageApi Message API от App.useApp() для отображения уведомлений с поддержкой темы
  */
-export async function exportUpstreamReport(upstreams: UpstreamSummary[]): Promise<void> {
-  const hideLoading = message.loading('Формирование отчёта...', 0)
+export async function exportUpstreamReport(
+  upstreams: UpstreamSummary[],
+  messageApi: MessageInstance
+): Promise<void> {
+  const hideLoading = messageApi.loading('Формирование отчёта...', 0)
 
   try {
     // Заголовки CSV (AC5)
@@ -115,7 +119,7 @@ export async function exportUpstreamReport(upstreams: UpstreamSummary[]): Promis
     const truncatedUpstreams = fetchResults.filter((r) => r.truncated)
     if (truncatedUpstreams.length > 0) {
       const names = truncatedUpstreams.map((r) => `${r.host} (${r.total} маршрутов)`).join(', ')
-      message.warning(
+      messageApi.warning(
         `Некоторые upstream имеют более ${EXPORT_LIMIT_PER_UPSTREAM} маршрутов и были обрезаны: ${names}`,
         5
       )
@@ -183,10 +187,10 @@ export async function exportUpstreamReport(upstreams: UpstreamSummary[]): Promis
     URL.revokeObjectURL(url)
 
     hideLoading()
-    message.success(`Отчёт экспортирован: ${filename}`)
+    messageApi.success(`Отчёт экспортирован: ${filename}`)
   } catch (err) {
     hideLoading()
-    message.error('Ошибка экспорта отчёта')
+    messageApi.error('Ошибка экспорта отчёта')
     throw err
   }
 }

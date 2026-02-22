@@ -1,5 +1,5 @@
 // Компактная сноска с демо-учётными данными для страницы входа (Story 9.5)
-import { Button, Typography, message, Tooltip, Divider, Space } from 'antd'
+import { Button, Typography, Tooltip, Divider, Space, App } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import axios from '@shared/utils/axios'
@@ -48,6 +48,7 @@ interface DemoCredentialsProps {
  */
 export function DemoCredentials({ onSelect }: DemoCredentialsProps) {
   const [isResetting, setIsResetting] = useState(false)
+  const { message } = App.useApp()
 
   // AC4: Сброс паролей демо-пользователей
   const handleResetPasswords = async () => {

@@ -1,5 +1,45 @@
 // Настройка тестовой среды
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
+
+// Мок для App.useApp() (требуется для компонентов с message/modal через App.useApp)
+// Story 10.9: Глобальный мок для всех тестов, которые не имеют своего мока antd
+vi.mock('antd', async () => {
+  const actual = await vi.importActual('antd')
+  return {
+    ...actual,
+    App: {
+      ...actual.App,
+      useApp: () => ({
+        message: {
+          success: vi.fn(),
+          error: vi.fn(),
+          warning: vi.fn(),
+          info: vi.fn(),
+          loading: vi.fn(() => vi.fn()),
+        },
+        modal: {
+          // Мок modal.confirm который сразу вызывает onOk (симуляция подтверждения)
+          confirm: vi.fn((config: { onOk?: () => void }) => {
+            if (config?.onOk) {
+              config.onOk()
+            }
+          }),
+          info: vi.fn(),
+          success: vi.fn(),
+          error: vi.fn(),
+          warning: vi.fn(),
+        },
+        notification: {
+          success: vi.fn(),
+          error: vi.fn(),
+          warning: vi.fn(),
+          info: vi.fn(),
+        },
+      }),
+    },
+  }
+})
 
 // Мок для window.matchMedia (требуется для Ant Design)
 Object.defineProperty(window, 'matchMedia', {

@@ -1,6 +1,6 @@
 // React Query hooks для Rate Limit политик (Story 5.4)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message } from 'antd'
+import { App } from 'antd'
 import * as rateLimitsApi from '../api/rateLimitsApi'
 import type {
   CreateRateLimitRequest,
@@ -54,6 +54,7 @@ export function useRateLimit(id: string | undefined) {
  */
 export function useCreateRateLimit() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (data: CreateRateLimitRequest) => rateLimitsApi.createRateLimit(data),
@@ -74,6 +75,7 @@ export function useCreateRateLimit() {
  */
 export function useUpdateRateLimit() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateRateLimitRequest }) =>
@@ -106,6 +108,7 @@ interface ApiError extends Error {
  */
 export function useDeleteRateLimit() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => rateLimitsApi.deleteRateLimit(id),

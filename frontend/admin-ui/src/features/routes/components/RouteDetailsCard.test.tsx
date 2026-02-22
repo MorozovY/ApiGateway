@@ -156,17 +156,17 @@ describe('Submit for Approval UI', () => {
       ).toBeInTheDocument()
     })
 
+    // Story 10.9: modal.confirm замокан и автоматически вызывает onOk
+    // Проверяем что клик вызывает мутацию (onOk вызывается сразу)
     fireEvent.click(screen.getByRole('button', { name: /отправить на согласование/i }))
 
     await waitFor(() => {
-      // Текст предупреждения в модальном окне (уникален — не повторяется в кнопке)
-      expect(
-        screen.getByText(/маршрут будет отправлен в security на проверку/i)
-      ).toBeInTheDocument()
+      expect(mockSubmitMutateAsync).toHaveBeenCalledWith('route-1')
     })
   })
 
-  it('вызывает API при подтверждении и закрывает modal', async () => {
+  it('вызывает API при клике на кнопку submit', async () => {
+    // Story 10.9: modal.confirm замокан и автоматически вызывает onOk
     mockSubmitMutateAsync = vi.fn().mockResolvedValue({ ...mockDraftRoute, status: 'pending' })
 
     renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
@@ -179,19 +179,8 @@ describe('Submit for Approval UI', () => {
       ).toBeInTheDocument()
     })
 
-    // Открываем модальное окно
+    // Клик по кнопке вызывает modal.confirm, который замокан и сразу вызывает onOk
     fireEvent.click(screen.getByRole('button', { name: /отправить на согласование/i }))
-
-    await waitFor(() => {
-      // Ждём появления текста предупреждения в модальном окне
-      expect(
-        screen.getByText(/маршрут будет отправлен в security на проверку/i)
-      ).toBeInTheDocument()
-    })
-
-    // Кнопка "Отправить" в footer modal — находим все кнопки и берём последнюю (в модальном окне)
-    const submitButtons = screen.getAllByRole('button', { name: /^отправить$/i })
-    fireEvent.click(submitButtons[submitButtons.length - 1])
 
     await waitFor(() => {
       expect(mockSubmitMutateAsync).toHaveBeenCalledWith('route-1')
@@ -310,6 +299,7 @@ describe('Submit for Approval UI', () => {
   })
 
   it('вызывает API при ошибке submit', async () => {
+    // Story 10.9: modal.confirm замокан и автоматически вызывает onOk
     mockSubmitMutateAsync = vi.fn().mockRejectedValue(new Error('Submit failed'))
 
     renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
@@ -322,18 +312,8 @@ describe('Submit for Approval UI', () => {
       ).toBeInTheDocument()
     })
 
-    // Открываем modal
+    // Клик по кнопке вызывает modal.confirm, который замокан и сразу вызывает onOk
     fireEvent.click(screen.getByRole('button', { name: /отправить на согласование/i }))
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/маршрут будет отправлен в security на проверку/i)
-      ).toBeInTheDocument()
-    })
-
-    // Нажимаем кнопку подтверждения — находим все кнопки и берём последнюю (в модальном окне)
-    const submitButtons = screen.getAllByRole('button', { name: /^отправить$/i })
-    fireEvent.click(submitButtons[submitButtons.length - 1])
 
     await waitFor(() => {
       expect(mockSubmitMutateAsync).toHaveBeenCalledWith('route-1')
@@ -505,16 +485,16 @@ describe('Rollback UI (Story 10.3)', () => {
       ).toBeInTheDocument()
     })
 
+    // Story 10.9: modal.confirm замокан и автоматически вызывает onOk
     fireEvent.click(screen.getByRole('button', { name: /откатить в draft/i }))
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/маршрут будет удалён из gateway/i)
-      ).toBeInTheDocument()
+      expect(mockRollbackMutateAsync).toHaveBeenCalledWith('route-1')
     })
   })
 
-  it('вызывает API при подтверждении rollback', async () => {
+  it('вызывает API при клике на кнопку rollback', async () => {
+    // Story 10.9: modal.confirm замокан и автоматически вызывает onOk
     mockUser = { userId: 'security-1', username: 'securityuser', role: 'security' }
     mockRollbackMutateAsync = vi.fn().mockResolvedValue({ ...mockPublishedRoute, status: 'draft' })
 
@@ -528,18 +508,8 @@ describe('Rollback UI (Story 10.3)', () => {
       ).toBeInTheDocument()
     })
 
-    // Открываем модальное окно
+    // Клик по кнопке вызывает modal.confirm, который замокан и сразу вызывает onOk
     fireEvent.click(screen.getByRole('button', { name: /откатить в draft/i }))
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/маршрут будет удалён из gateway/i)
-      ).toBeInTheDocument()
-    })
-
-    // Кнопка "Откатить" в modal — находим все кнопки и берём последнюю (в модальном окне)
-    const rollbackButtons = screen.getAllByRole('button', { name: /^откатить$/i })
-    fireEvent.click(rollbackButtons[rollbackButtons.length - 1])
 
     await waitFor(() => {
       expect(mockRollbackMutateAsync).toHaveBeenCalledWith('route-1')

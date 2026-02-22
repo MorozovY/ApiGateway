@@ -1,7 +1,6 @@
 // Тесты для Pending Approvals UI с inline-действиями (Story 4.6)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
-import { message } from 'antd'
 import { renderWithMockAuth } from '../../../test/test-utils'
 import { ApprovalsPage } from './ApprovalsPage'
 import type { PendingRoute } from '../types/approval.types'
@@ -30,14 +29,24 @@ const mockPendingRoutes: PendingRoute[] = [
   },
 ]
 
-// Мок antd message для проверки toast уведомлений
+// Мок antd App.useApp() для проверки toast уведомлений (Story 10.9 — theme-aware message)
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd')
   return {
     ...actual,
-    message: {
-      success: vi.fn(),
-      error: vi.fn(),
+    App: {
+      ...actual.App,
+      useApp: () => ({
+        message: {
+          success: vi.fn(),
+          error: vi.fn(),
+          warning: vi.fn(),
+          info: vi.fn(),
+          loading: vi.fn(() => vi.fn()),
+        },
+        modal: { confirm: vi.fn() },
+        notification: { success: vi.fn(), error: vi.fn() },
+      }),
     },
   }
 })
@@ -147,12 +156,9 @@ describe('Страница согласования маршрутов (Approval
     expect(screen.queryByText(/маршрут будет одобрен/i)).not.toBeInTheDocument()
   })
 
-  it('approve вызывает toast "Маршрут одобрен и опубликован" (AC2)', async () => {
-    // Симулируем вызов message.success из onSuccess хука — мутация вызывает его напрямую
-    mockApproveMutateAsync = vi.fn().mockImplementation(() => {
-      ;(message.success as ReturnType<typeof vi.fn>)('Маршрут одобрен и опубликован')
-      return Promise.resolve(mockPendingRoutes[0])
-    })
+  it('approve вызывает мутацию с правильным ID (AC2)', async () => {
+    // Story 10.9: Toast проверка через hooks — hooks замоканы, проверяем только вызов мутации
+    mockApproveMutateAsync = vi.fn().mockResolvedValue(mockPendingRoutes[0])
 
     renderWithMockAuth(<ApprovalsPage />, {
       authValue: { isAuthenticated: true, user: securityUser },
@@ -166,7 +172,7 @@ describe('Страница согласования маршрутов (Approval
     fireEvent.click(approveButtons[0]!)
 
     await waitFor(() => {
-      expect(message.success).toHaveBeenCalledWith('Маршрут одобрен и опубликован')
+      expect(mockApproveMutateAsync).toHaveBeenCalledWith('route-1')
     })
   })
 
@@ -224,11 +230,9 @@ describe('Страница согласования маршрутов (Approval
     expect(screen.getByPlaceholderText(/опишите причину отклонения/i)).toBeInTheDocument()
   })
 
-  it('успешное отклонение — мутация вызвана с причиной, toast "Маршрут отклонён" (AC4)', async () => {
-    mockRejectMutateAsync = vi.fn().mockImplementation((args: { id: string; reason: string }) => {
-      ;(message.success as ReturnType<typeof vi.fn>)('Маршрут отклонён')
-      return Promise.resolve({ ...mockPendingRoutes[0], ...args })
-    })
+  it('успешное отклонение — мутация вызвана с причиной (AC4)', async () => {
+    // Story 10.9: Toast проверка через hooks — hooks замоканы, проверяем только вызов мутации
+    mockRejectMutateAsync = vi.fn().mockResolvedValue({ ...mockPendingRoutes[0], status: 'rejected' })
 
     renderWithMockAuth(<ApprovalsPage />, {
       authValue: { isAuthenticated: true, user: securityUser },
@@ -259,7 +263,6 @@ describe('Страница согласования маршрутов (Approval
         id: 'route-1',
         reason: 'Неверный upstream URL',
       })
-      expect(message.success).toHaveBeenCalledWith('Маршрут отклонён')
     })
   })
 

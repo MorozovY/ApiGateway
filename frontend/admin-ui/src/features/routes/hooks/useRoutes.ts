@@ -1,6 +1,6 @@
 // React Query hooks для управления маршрутами (Story 3.4)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message } from 'antd'
+import { App } from 'antd'
 import * as routesApi from '../api/routesApi'
 import type {
   RouteListParams,
@@ -45,6 +45,7 @@ export function useRoute(id: string | undefined) {
  */
 export function useCreateRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (request: CreateRouteRequest) => routesApi.createRoute(request),
@@ -65,6 +66,7 @@ export function useCreateRoute() {
  */
 export function useUpdateRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: ({ id, request }: { id: string; request: UpdateRouteRequest }) =>
@@ -86,6 +88,7 @@ export function useUpdateRoute() {
  */
 export function useDeleteRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => routesApi.deleteRoute(id),
@@ -106,6 +109,7 @@ export function useDeleteRoute() {
  */
 export function useSubmitRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => routesApi.submitForApproval(id),
@@ -127,6 +131,7 @@ export function useSubmitRoute() {
  */
 export function useCloneRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => routesApi.cloneRoute(id),
@@ -150,6 +155,7 @@ export function useCloneRoute() {
  */
 export function useRollbackRoute() {
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
 
   return useMutation({
     mutationFn: (id: string) => routesApi.rollbackRoute(id),

@@ -3,7 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConfigProvider, theme as antTheme } from 'antd'
+import { App as AntApp, ConfigProvider, theme as antTheme } from 'antd'
 import { AuthProvider } from '@features/auth'
 import { ThemeProvider, useThemeContext } from '@shared/providers'
 import App from './App'
@@ -32,11 +32,13 @@ function ThemedApp() {
         },
       }}
     >
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </BrowserRouter>
+      <AntApp>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   )
 }
