@@ -1,4 +1,4 @@
-// Тесты для HealthCheckSection (Story 8.1)
+// Тесты для HealthCheckSection (Story 8.1, 10.5)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -25,9 +25,10 @@ vi.mock('@/shared/providers/ThemeProvider', () => ({
 
 const mockGetServicesHealth = healthApi.getServicesHealth as ReturnType<typeof vi.fn>
 
-// Тестовые данные: 6 сервисов (4 из AC + prometheus + grafana)
+// Тестовые данные: 7 сервисов (nginx + 4 из AC + prometheus + grafana)
 const mockHealthResponse: HealthResponse = {
   services: [
+    { name: 'nginx', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'gateway-core', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
@@ -40,6 +41,7 @@ const mockHealthResponse: HealthResponse = {
 
 const mockHealthWithDown: HealthResponse = {
   services: [
+    { name: 'nginx', status: 'DOWN', lastCheck: '2026-02-21T10:30:00Z', details: 'Connection refused' },
     { name: 'gateway-core', status: 'DOWN', lastCheck: '2026-02-21T10:30:00Z', details: 'Connection refused' },
     { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
@@ -69,14 +71,15 @@ describe('HealthCheckSection', () => {
   })
 
   describe('AC1: отображает все сервисы со статусами', () => {
-    it('отображает все 6 сервисов', async () => {
+    it('отображает все 7 сервисов', async () => {
       render(<HealthCheckSection />, { wrapper: createWrapper() })
 
       await waitFor(() => {
         expect(screen.getByTestId('health-section')).toBeInTheDocument()
       })
 
-      // Проверяем наличие всех сервисов (4 из AC + prometheus + grafana)
+      // Проверяем наличие всех сервисов (nginx + 4 из AC + prometheus + grafana)
+      expect(screen.getByTestId('health-card-nginx')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-gateway-core')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-gateway-admin')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-postgresql')).toBeInTheDocument()
@@ -94,7 +97,7 @@ describe('HealthCheckSection', () => {
 
       // Проверяем что статусы отображаются
       const upTags = screen.getAllByText('UP')
-      expect(upTags.length).toBe(6) // Все 6 сервисов UP
+      expect(upTags.length).toBe(7) // Все 7 сервисов UP
     })
 
     it('отображает timestamp последней проверки', async () => {
@@ -121,7 +124,7 @@ describe('HealthCheckSection', () => {
 
       // Проверяем DOWN статусы
       const downTags = screen.getAllByText('DOWN')
-      expect(downTags.length).toBe(3) // gateway-core, redis, grafana
+      expect(downTags.length).toBe(4) // nginx, gateway-core, redis, grafana
 
       // Проверяем UP статусы
       const upTags = screen.getAllByText('UP')
@@ -215,6 +218,7 @@ describe('HealthCheckSection', () => {
           { name: 'grafana', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'redis', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'gateway-core', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+          { name: 'nginx', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'prometheus', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
@@ -229,13 +233,42 @@ describe('HealthCheckSection', () => {
         expect(screen.getByTestId('health-section')).toBeInTheDocument()
       })
 
-      // Проверяем что все карточки отображаются (порядок в DOM проверить сложнее)
+      // Проверяем что все карточки отображаются
+      expect(screen.getByText('Nginx')).toBeInTheDocument()
       expect(screen.getByText('Gateway Core')).toBeInTheDocument()
       expect(screen.getByText('Gateway Admin')).toBeInTheDocument()
       expect(screen.getByText('PostgreSQL')).toBeInTheDocument()
       expect(screen.getByText('Redis')).toBeInTheDocument()
       expect(screen.getByText('Prometheus')).toBeInTheDocument()
       expect(screen.getByText('Grafana')).toBeInTheDocument()
+    })
+
+    it('AC3: Nginx отображается первым в списке (entry point)', async () => {
+      // AC3: Nginx appears BEFORE gateway-core (as it's the entry point)
+      const shuffledResponse: HealthResponse = {
+        services: [
+          { name: 'gateway-core', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+          { name: 'nginx', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+          { name: 'grafana', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+        ],
+        timestamp: '2026-02-21T10:30:00Z',
+      }
+      mockGetServicesHealth.mockResolvedValue(shuffledResponse)
+
+      render(<HealthCheckSection />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('health-section')).toBeInTheDocument()
+      })
+
+      // Получаем все карточки и проверяем порядок в DOM
+      const nginxCard = screen.getByTestId('health-card-nginx')
+      const gatewayCoreCard = screen.getByTestId('health-card-gateway-core')
+
+      // Nginx должен быть ПЕРЕД gateway-core в DOM
+      // compareDocumentPosition возвращает битовую маску, DOCUMENT_POSITION_FOLLOWING = 4
+      const position = nginxCard.compareDocumentPosition(gatewayCoreCard)
+      expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
   })
 })

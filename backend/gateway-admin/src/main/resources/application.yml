@@ -91,6 +91,11 @@ gateway:
 grafana:
   url: ${GRAFANA_URL:http://localhost:3001}
 
+# Nginx конфигурация (Story 10.5)
+# Nginx является entry point (reverse proxy) системы
+nginx:
+  url: ${NGINX_URL:http://localhost:80}
+
 health:
   check:
     timeout: 5s

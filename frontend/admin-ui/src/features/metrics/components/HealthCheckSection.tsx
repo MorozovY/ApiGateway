@@ -24,8 +24,11 @@ const STATUS_COLORS = {
 /**
  * Конфигурация отображения сервисов.
  * Определяет порядок и отображаемые имена.
+ * Nginx первый (order: 0), так как это entry point системы (reverse proxy).
+ * Всего 7 сервисов: nginx, gateway-core, gateway-admin, postgresql, redis, prometheus, grafana.
  */
 const SERVICE_CONFIG: Record<string, { displayName: string; order: number }> = {
+  'nginx': { displayName: 'Nginx', order: 0 },
   'gateway-core': { displayName: 'Gateway Core', order: 1 },
   'gateway-admin': { displayName: 'Gateway Admin', order: 2 },
   'postgresql': { displayName: 'PostgreSQL', order: 3 },

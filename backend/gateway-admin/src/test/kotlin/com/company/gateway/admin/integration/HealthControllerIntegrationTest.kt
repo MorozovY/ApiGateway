@@ -21,7 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import reactor.test.StepVerifier
 
 /**
- * Интеграционные тесты для HealthController (Story 8.1).
+ * Интеграционные тесты для HealthController (Story 8.1, 10.5).
  *
  * Проверяет AC1, AC2:
  * - AC1: endpoint /health/services возвращает статусы сервисов
@@ -29,7 +29,7 @@ import reactor.test.StepVerifier
  *
  * Использует Testcontainers для PostgreSQL.
  * Redis отключён, поэтому в ответе Redis будет DOWN.
- * gateway-core не запущен, поэтому gateway-core будет DOWN.
+ * nginx, gateway-core, prometheus, grafana не запущены, поэтому будут DOWN.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -67,6 +67,12 @@ class HealthControllerIntegrationTest {
             registry.add("jwt.expiration") { 86400000 }
             // gateway-core URL (не запущен, будет DOWN)
             registry.add("gateway.core.url") { "http://localhost:58080" }  // порт недоступен
+            // nginx URL (не запущен, будет DOWN) — Story 10.5
+            registry.add("nginx.url") { "http://localhost:58081" }  // порт недоступен
+            // prometheus URL (не запущен, будет DOWN) — фиксация для изоляции тестов
+            registry.add("prometheus.url") { "http://localhost:58082" }  // порт недоступен
+            // grafana URL (не запущена, будет DOWN) — фиксация для изоляции тестов
+            registry.add("grafana.url") { "http://localhost:58083" }  // порт недоступен
         }
     }
 
@@ -108,7 +114,7 @@ class HealthControllerIntegrationTest {
 
         @Test
         fun `GET health services возвращает 200 и все сервисы`() {
-            // Backend возвращает 6 сервисов: 4 из AC (gateway-core, gateway-admin, postgresql, redis)
+            // Backend возвращает 7 сервисов: nginx + 4 из AC (gateway-core, gateway-admin, postgresql, redis)
             // + 2 дополнительных (prometheus, grafana) для мониторинга
             webTestClient.get()
                 .uri("/api/v1/health/services")
@@ -118,8 +124,22 @@ class HealthControllerIntegrationTest {
                 .expectStatus().isOk
                 .expectBody()
                 .jsonPath("$.services").isArray
-                .jsonPath("$.services.length()").isEqualTo(6)
+                .jsonPath("$.services.length()").isEqualTo(7)
                 .jsonPath("$.timestamp").exists()
+        }
+
+        @Test
+        fun `GET health services содержит nginx`() {
+            webTestClient.get()
+                .uri("/api/v1/health/services")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.services[?(@.name=='nginx')]").exists()
+                .jsonPath("$.services[?(@.name=='nginx')].status").exists()
+                .jsonPath("$.services[?(@.name=='nginx')].lastCheck").exists()
         }
 
         @Test
@@ -206,6 +226,20 @@ class HealthControllerIntegrationTest {
 
     @Nested
     inner class AC2_ServiceDown {
+
+        @Test
+        fun `nginx показывает DOWN когда сервис недоступен`() {
+            // nginx не запущен в тестах, должен быть DOWN
+            webTestClient.get()
+                .uri("/api/v1/health/services")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.services[?(@.name=='nginx')].status").isEqualTo("DOWN")
+                .jsonPath("$.services[?(@.name=='nginx')].details").exists()
+        }
 
         @Test
         fun `gateway-core показывает DOWN когда сервис недоступен`() {
@@ -345,6 +379,8 @@ class HealthControllerIntegrationTest {
                 .exchange()
                 .expectStatus().isOk
                 .expectBody()
+                // nginx — entry point (Story 10.5)
+                .jsonPath("$.services[?(@.name=='nginx')]").exists()
                 // 4 сервиса из AC
                 .jsonPath("$.services[?(@.name=='gateway-core')]").exists()
                 .jsonPath("$.services[?(@.name=='gateway-admin')]").exists()

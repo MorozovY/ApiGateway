@@ -22,10 +22,13 @@ import java.util.concurrent.TimeoutException
  * Сервис проверки здоровья всех компонентов системы.
  *
  * Проверяет:
+ * - nginx: HTTP GET на /nginx-health (entry point, reverse proxy)
  * - gateway-core: HTTP GET на /actuator/health
  * - gateway-admin: всегда UP (если сервис отвечает)
  * - PostgreSQL: R2DBC connection test (SELECT 1)
  * - Redis: команда PING
+ * - prometheus: HTTP GET на /-/healthy
+ * - grafana: HTTP GET на /api/health
  *
  * Каждая проверка имеет таймаут 5 секунд и возвращает DOWN при ошибке.
  */
@@ -41,6 +44,8 @@ class HealthService(
     private val prometheusUrl: String,
     @Value("\${grafana.url:http://localhost:3001}")
     private val grafanaUrl: String,
+    @Value("\${nginx.url:http://localhost:80}")
+    private val nginxUrl: String,
     @Value("\${health.check.timeout:5s}")
     private val checkTimeout: Duration
 ) {
@@ -49,6 +54,7 @@ class HealthService(
     private val webClient: WebClient = webClientBuilder.build()
 
     companion object {
+        const val SERVICE_NGINX = "nginx"
         const val SERVICE_GATEWAY_CORE = "gateway-core"
         const val SERVICE_GATEWAY_ADMIN = "gateway-admin"
         const val SERVICE_POSTGRESQL = "postgresql"
@@ -68,6 +74,7 @@ class HealthService(
         logger.debug("Запрос статуса здоровья всех сервисов")
 
         val healthChecks = listOf(
+            checkNginx(),
             checkGatewayCore(),
             checkGatewayAdmin(),
             checkPostgresql(),
@@ -83,6 +90,29 @@ class HealthService(
                 val upCount = response.services.count { it.status == ServiceStatus.UP }
                 val downCount = response.services.count { it.status == ServiceStatus.DOWN }
                 logger.info("Health check завершён: UP={}, DOWN={}", upCount, downCount)
+            }
+    }
+
+    /**
+     * Проверяет доступность Nginx через /nginx-health endpoint.
+     *
+     * Nginx является entry point системы (reverse proxy), поэтому его
+     * доступность критична для работы всего сервиса.
+     */
+    fun checkNginx(): Mono<ServiceHealthDto> {
+        logger.debug("Проверка Nginx: {}/nginx-health", nginxUrl)
+
+        return webClient.get()
+            .uri("$nginxUrl/nginx-health")
+            .retrieve()
+            .bodyToMono(String::class.java)
+            .map {
+                ServiceHealthDto(SERVICE_NGINX, ServiceStatus.UP, Instant.now())
+            }
+            .timeout(checkTimeout)
+            .onErrorResume { error ->
+                logger.warn("Nginx недоступен: {}", error.message)
+                Mono.just(createDownStatus(SERVICE_NGINX, error))
             }
     }
 
