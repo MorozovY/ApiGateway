@@ -17,7 +17,7 @@
 #     notes: дополнительные заметки
 
 generated: 2026-02-20
-last_updated: 2026-02-21
+last_updated: 2026-02-21  # Epic 8 Retrospective completed
 
 # =================================
 # TECH SPRINT COMPLETED
@@ -53,6 +53,18 @@ process_agreements:
   - id: PA-04
     description: "Action Items review — SM проверяет retro-actions.yaml на каждом Sprint Planning"
     source: epic-7-retro
+    created: 2026-02-21
+    status: active
+
+  - id: PA-05
+    description: "DTO Field Checklist — при добавлении поля в DTO проверить все методы создания/обновления"
+    source: epic-8-retro
+    created: 2026-02-21
+    status: active
+
+  - id: PA-06
+    description: "useEffect Cleanup — для setInterval/setTimeout/subscriptions обязателен cleanup в return"
+    source: epic-8-retro
     created: 2026-02-21
     status: active
 

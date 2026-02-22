@@ -2286,3 +2286,157 @@ So that changes are verified in real browser environment.
 - Starts load generation
 - Metrics page shows traffic increase
 - Stops load generation
+
+---
+
+## Epic 9: Stabilization & Polish
+
+**Goal:** Fix critical bugs discovered in Epic 8 and add essential UX/security features for production readiness.
+
+**Source:** Epic 8 Retrospective (2026-02-21)
+
+**Stories:** 5
+
+---
+
+### Story 9.1: Auth Session Expires Investigation
+
+As a **User**,
+I want my session to remain active while I'm using the application,
+So that I don't get unexpectedly logged out.
+
+**Bug Report:**
+- **Severity:** HIGH
+- **Observed:** Under admin role, application randomly requires re-login
+- **Reproduction:** Нестабильный — происходит в произвольные моменты
+- **Suspected cause:** JWT expiration или refresh token logic
+
+**Acceptance Criteria:**
+
+**Given** user is logged in
+**When** JWT token approaches expiration
+**Then** system automatically refreshes the token
+**And** user session continues without interruption
+
+**Given** refresh token is valid
+**When** access token expires
+**Then** new access token is obtained silently
+**And** no re-login is required
+
+**Given** refresh token is expired
+**When** user performs any action
+**Then** user is redirected to login page with message
+**And** reason for logout is clearly communicated
+
+---
+
+### Story 9.2: Load Generator Fixes
+
+As a **DevOps Engineer**,
+I want the Load Generator to work correctly,
+So that I can test routes and see metrics in Grafana.
+
+**Bug Report:**
+- **Severity:** HIGH
+- **Observed:** Ошибки парсинга ответов, нагрузка не видна в метриках и Grafana
+- **Reproduction:** Проверяется на `/test-local` маршруте
+
+**Acceptance Criteria:**
+
+**Given** user runs Load Generator on `/test-local` route
+**When** requests are sent
+**Then** no parsing errors occur
+**And** success/error counts are accurate
+
+**Given** Load Generator is running
+**When** user checks /metrics page
+**Then** RPS increase is visible
+
+**Given** Load Generator is running
+**When** user checks Grafana dashboard
+**Then** traffic is visible in graphs
+
+---
+
+### Story 9.3: Role-Based Sidebar Visibility
+
+As a **User**,
+I want to see only menu items I have access to,
+So that the interface is not cluttered with unavailable options.
+
+**Acceptance Criteria:**
+
+**Given** user with Developer role is logged in
+**When** sidebar is displayed
+**Then** only Developer-accessible menu items are shown:
+- Dashboard
+- Routes
+- Metrics
+- Test
+
+**Given** user with Security role is logged in
+**When** sidebar is displayed
+**Then** Security-accessible menu items are shown:
+- Dashboard
+- Routes
+- Approvals
+- Audit
+- Metrics
+- Test
+
+**Given** user with Admin role is logged in
+**When** sidebar is displayed
+**Then** all menu items are shown
+
+---
+
+### Story 9.4: Self-Service Password Change
+
+As a **User**,
+I want to change my own password,
+So that I can maintain account security.
+
+**Acceptance Criteria:**
+
+**Given** user is logged in
+**When** user navigates to profile/settings
+**Then** "Change Password" option is available
+
+**Given** user clicks "Change Password"
+**When** form is displayed
+**Then** form includes:
+- Current password (required)
+- New password (required)
+- Confirm new password (required)
+
+**Given** user submits valid password change
+**When** current password is correct
+**And** new passwords match
+**And** new password meets requirements
+**Then** password is updated
+**And** success message is shown
+
+**Given** user enters incorrect current password
+**When** form is submitted
+**Then** error message indicates current password is wrong
+**And** password is not changed
+
+---
+
+### Story 9.5: Architecture Documentation Update
+
+As a **Developer**,
+I want architecture documentation to reflect current deployment,
+So that onboarding and troubleshooting are easier.
+
+**Acceptance Criteria:**
+
+**Given** architecture.md exists
+**When** documentation is updated
+**Then** includes:
+- Nginx reverse proxy configuration
+- External domain: gateway.ymorozov.ru
+- SSL/TLS setup (if applicable)
+- Deployment topology diagram update
+
+---

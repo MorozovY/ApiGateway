@@ -291,6 +291,25 @@ SM проверяет `_bmad-output/implementation-artifacts/retro-actions.yaml`
 - Включить в sprint backlog
 - Обновить статусы после завершения
 
+### PA-05: DTO Field Checklist
+
+При добавлении нового поля в DTO:
+- Проверить все методы Service, которые создают этот DTO
+- Проверить все методы, которые обновляют этот DTO
+- Проверить связанные Service классы (например, ApprovalService при изменении RouteResponse)
+
+### PA-06: useEffect Cleanup
+
+Для всех setInterval/setTimeout/subscriptions в React компонентах:
+- Обязателен cleanup в return функции useEffect
+- Пример:
+```tsx
+useEffect(() => {
+  const interval = setInterval(() => { ... }, 1000)
+  return () => clearInterval(interval)  // cleanup обязателен
+}, [])
+```
+
 ---
 
-*Последнее обновление: 2026-02-21 (Process Agreements, Tech Sprint)*
+*Последнее обновление: 2026-02-21 (Epic 8 Retrospective — PA-05, PA-06)*
