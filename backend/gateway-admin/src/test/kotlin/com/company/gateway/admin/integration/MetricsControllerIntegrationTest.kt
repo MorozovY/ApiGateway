@@ -333,6 +333,50 @@ class MetricsControllerIntegrationTest {
                 .exchange()
                 .expectStatus().isOk
         }
+
+        // Story 10.10: Тесты для параметра period
+        @Test
+        fun `GET top-routes поддерживает параметр period`() {
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes?period=1h")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        @Test
+        fun `GET top-routes поддерживает все валидные значения period`() {
+            val validPeriods = listOf("5m", "15m", "1h", "6h", "24h")
+            for (period in validPeriods) {
+                webTestClient.get()
+                    .uri("/api/v1/metrics/top-routes?period=$period")
+                    .cookie("auth_token", developerToken)
+                    .exchange()
+                    .expectStatus().isOk
+            }
+        }
+
+        @Test
+        fun `GET top-routes с невалидным period возвращает 400`() {
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes?period=invalid")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/validation")
+                .jsonPath("$.status").isEqualTo(400)
+        }
+
+        @Test
+        fun `GET top-routes поддерживает комбинацию всех параметров`() {
+            webTestClient.get()
+                .uri("/api/v1/metrics/top-routes?by=latency&limit=5&period=24h")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isOk
+        }
     }
 
     // ============================================

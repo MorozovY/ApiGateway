@@ -150,40 +150,52 @@ object PromQLBuilder {
     // ============================================
     // Методы для запроса метрик по списку route_id
     // Используются для Top Routes (сначала БД, потом Prometheus)
+    // Story 10.10: Добавлен параметр period для поддержки time range
     // ============================================
 
     /**
-     * Общее количество запросов для списка маршрутов.
+     * Общее количество запросов для списка маршрутов за период.
      *
-     * PromQL: sum(gateway_requests_total{route_id=~"uuid1|uuid2|..."}) by (route_id)
+     * PromQL: sum(increase(gateway_requests_total{route_id=~"uuid1|uuid2|..."}[5m])) by (route_id)
      *
-     * Использует total (не rate) для показа накопленных метрик,
-     * что актуально когда нет текущей активности.
+     * Использует increase() для показа количества запросов за выбранный период.
+     *
+     * @param routeIds список UUID маршрутов
+     * @param period период времени для расчёта (5m, 15m, 1h, 6h, 24h)
      */
-    fun totalRequestsByRouteIds(routeIds: List<String>): String {
+    fun totalRequestsByRouteIds(routeIds: List<String>, period: MetricsPeriod): String {
         if (routeIds.isEmpty()) return ""
         val routeIdRegex = routeIds.joinToString("|")
-        return "sum(${METRIC_REQUESTS_TOTAL}{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID)"
+        return "sum(increase(${METRIC_REQUESTS_TOTAL}{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}[${period.value}])) by ($LABEL_ROUTE_ID)"
     }
 
     /**
-     * Средняя latency для списка маршрутов.
+     * Средняя latency для списка маршрутов за период.
      *
-     * PromQL: avg(gateway_request_duration_seconds_sum{...}) by (route_id) / avg(gateway_request_duration_seconds_count{...}) by (route_id)
+     * PromQL: (sum(rate(gateway_request_duration_seconds_sum{...}[5m])) by (route_id)) /
+     *         (sum(rate(gateway_request_duration_seconds_count{...}[5m])) by (route_id))
+     *
+     * @param routeIds список UUID маршрутов
+     * @param period период времени для расчёта
      */
-    fun avgLatencyByRouteIds(routeIds: List<String>): String {
+    fun avgLatencyByRouteIds(routeIds: List<String>, period: MetricsPeriod): String {
         if (routeIds.isEmpty()) return ""
         val routeIdRegex = routeIds.joinToString("|")
-        return "(sum(${METRIC_REQUEST_DURATION}_sum{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID)) / " +
-            "(sum(${METRIC_REQUEST_DURATION}_count{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID))"
+        return "(sum(rate(${METRIC_REQUEST_DURATION}_sum{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}[${period.value}])) by ($LABEL_ROUTE_ID)) / " +
+            "(sum(rate(${METRIC_REQUEST_DURATION}_count{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}[${period.value}])) by ($LABEL_ROUTE_ID))"
     }
 
     /**
-     * Общее количество ошибок для списка маршрутов.
+     * Общее количество ошибок для списка маршрутов за период.
+     *
+     * PromQL: sum(increase(gateway_errors_total{route_id=~"uuid1|uuid2|..."}[5m])) by (route_id)
+     *
+     * @param routeIds список UUID маршрутов
+     * @param period период времени для расчёта
      */
-    fun totalErrorsByRouteIds(routeIds: List<String>): String {
+    fun totalErrorsByRouteIds(routeIds: List<String>, period: MetricsPeriod): String {
         if (routeIds.isEmpty()) return ""
         val routeIdRegex = routeIds.joinToString("|")
-        return "sum(${METRIC_ERRORS_TOTAL}{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}) by ($LABEL_ROUTE_ID)"
+        return "sum(increase(${METRIC_ERRORS_TOTAL}{$LABEL_ROUTE_ID=~\"$routeIdRegex\"}[${period.value}])) by ($LABEL_ROUTE_ID)"
     }
 }

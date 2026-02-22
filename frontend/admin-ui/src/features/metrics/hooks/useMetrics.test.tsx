@@ -196,7 +196,8 @@ describe('useTopRoutes', () => {
     })
 
     expect(result.current.data).toEqual(mockTopRoutes)
-    expect(mockGetTopRoutes).toHaveBeenCalledWith('requests', 10)
+    // Story 10.10: useTopRoutes теперь передаёт period как третий параметр
+    expect(mockGetTopRoutes).toHaveBeenCalledWith('requests', 10, '5m')
   })
 
   it('использует кастомные параметры сортировки', async () => {
@@ -209,7 +210,52 @@ describe('useTopRoutes', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(mockGetTopRoutes).toHaveBeenCalledWith('latency', 5)
+    // Story 10.10: период по умолчанию '5m'
+    expect(mockGetTopRoutes).toHaveBeenCalledWith('latency', 5, '5m')
+  })
+
+  // Story 10.10: Новые тесты для параметра period
+  it('передаёт период в API запрос', async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createWrapper(queryClient)
+
+    const { result } = renderHook(() => useTopRoutes('requests', 10, '24h'), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(mockGetTopRoutes).toHaveBeenCalledWith('requests', 10, '24h')
+  })
+
+  it('обновляет кэш при смене периода', async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createWrapper(queryClient)
+
+    // Сначала загружаем с period=5m
+    const { result, rerender } = renderHook(
+      ({ period }) => useTopRoutes('requests', 10, period),
+      {
+        wrapper,
+        initialProps: { period: '5m' as const },
+      }
+    )
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(mockGetTopRoutes).toHaveBeenCalledWith('requests', 10, '5m')
+
+    // Меняем period на 24h — должен быть новый запрос
+    rerender({ period: '24h' as const })
+
+    await waitFor(() => {
+      expect(mockGetTopRoutes).toHaveBeenCalledWith('requests', 10, '24h')
+    })
+
+    // Должно быть 2 вызова API (5m и 24h)
+    expect(mockGetTopRoutes).toHaveBeenCalledTimes(2)
   })
 })
 

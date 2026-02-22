@@ -46,11 +46,12 @@ export function MetricsPage() {
     refetch: refetchSummary,
   } = useMetricsSummary(period)
 
+  // AC1: Top Routes реагирует на выбранный time range
   const {
     data: topRoutes,
     isLoading: topRoutesLoading,
     isError: topRoutesError,
-  } = useTopRoutes('requests', 10)
+  } = useTopRoutes('requests', 10, period)
 
   const isLoading = summaryLoading
   const isError = summaryError || topRoutesError

@@ -79,24 +79,29 @@ class MetricsController(
      * Получает топ маршрутов по указанному критерию.
      *
      * GET /api/v1/metrics/top-routes
-     * GET /api/v1/metrics/top-routes?by=latency&limit=5
+     * GET /api/v1/metrics/top-routes?by=latency&limit=5&period=1h
      *
      * Для роли DEVELOPER — автоматическая фильтрация по createdBy = currentUser.id (AC1 Story 6.5.1).
      * Для ролей ADMIN и SECURITY — без фильтрации, возвращаются все маршруты (AC2 Story 6.5.1).
      *
+     * Story 10.10: Добавлен параметр period для фильтрации метрик по time range.
+     *
      * @param by критерий сортировки: requests, latency, errors. По умолчанию: requests
      * @param limit максимальное количество маршрутов (1-100). По умолчанию: 10
+     * @param period период для расчёта метрик (5m, 15m, 1h, 6h, 24h). По умолчанию: 5m
      * @return список топ-маршрутов
      */
     @GetMapping("/top-routes")
     fun getTopRoutes(
         @RequestParam(defaultValue = "requests") by: String,
-        @RequestParam(defaultValue = "10") limit: Int
+        @RequestParam(defaultValue = "10") limit: Int,
+        @RequestParam(defaultValue = "5m") period: String
     ): Mono<List<TopRouteDto>> {
-        logger.debug("GET /metrics/top-routes?by={}&limit={}", by, limit)
+        logger.debug("GET /metrics/top-routes?by={}&limit={}&period={}", by, limit, period)
 
         val sortBy = validateSortBy(by)
         val validLimit = validateLimit(limit)
+        val metricsPeriod = validatePeriod(period)
 
         // Получаем текущего пользователя для определения фильтрации
         return SecurityContextUtils.currentUser()
@@ -110,8 +115,8 @@ class MetricsController(
                 } else {
                     null
                 }
-                logger.debug("Фильтрация top-routes: role={}, ownerId={}", user.role, ownerId)
-                metricsService.getTopRoutes(sortBy, validLimit, ownerId)
+                logger.debug("Фильтрация top-routes: role={}, ownerId={}, period={}", user.role, ownerId, metricsPeriod.value)
+                metricsService.getTopRoutes(sortBy, validLimit, ownerId, metricsPeriod)
             }
     }
 

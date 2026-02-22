@@ -116,13 +116,14 @@ describe('metricsApi', () => {
       },
     ]
 
+    // Story 10.10: Обновлены тесты — getTopRoutes теперь принимает period
     it('получает топ маршрутов с параметрами по умолчанию', async () => {
       mockAxiosGet.mockResolvedValue({ data: mockTopRoutes })
 
       const result = await getTopRoutes()
 
       expect(mockAxiosGet).toHaveBeenCalledWith('/api/v1/metrics/top-routes', {
-        params: { by: 'requests', limit: 10 },
+        params: { by: 'requests', limit: 10, period: '5m' },
       })
       expect(result).toEqual(mockTopRoutes)
     })
@@ -133,7 +134,7 @@ describe('metricsApi', () => {
       await getTopRoutes('latency', 5)
 
       expect(mockAxiosGet).toHaveBeenCalledWith('/api/v1/metrics/top-routes', {
-        params: { by: 'latency', limit: 5 },
+        params: { by: 'latency', limit: 5, period: '5m' },
       })
     })
 
@@ -143,7 +144,28 @@ describe('metricsApi', () => {
       await getTopRoutes('errors', 20)
 
       expect(mockAxiosGet).toHaveBeenCalledWith('/api/v1/metrics/top-routes', {
-        params: { by: 'errors', limit: 20 },
+        params: { by: 'errors', limit: 20, period: '5m' },
+      })
+    })
+
+    // Story 10.10: Новые тесты для period
+    it('получает топ маршрутов с указанным периодом', async () => {
+      mockAxiosGet.mockResolvedValue({ data: mockTopRoutes })
+
+      await getTopRoutes('requests', 10, '24h')
+
+      expect(mockAxiosGet).toHaveBeenCalledWith('/api/v1/metrics/top-routes', {
+        params: { by: 'requests', limit: 10, period: '24h' },
+      })
+    })
+
+    it('передаёт все параметры в API запрос', async () => {
+      mockAxiosGet.mockResolvedValue({ data: mockTopRoutes })
+
+      await getTopRoutes('latency', 5, '1h')
+
+      expect(mockAxiosGet).toHaveBeenCalledWith('/api/v1/metrics/top-routes', {
+        params: { by: 'latency', limit: 5, period: '1h' },
       })
     })
   })

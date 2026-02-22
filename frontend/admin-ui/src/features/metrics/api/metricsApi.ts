@@ -40,14 +40,19 @@ export async function getRouteMetrics(
 /**
  * Получение топ-маршрутов по указанному критерию.
  *
- * GET /api/v1/metrics/top-routes?by=requests&limit=10
+ * GET /api/v1/metrics/top-routes?by=requests&limit=10&period=5m
+ *
+ * @param sortBy критерий сортировки (requests, latency, errors)
+ * @param limit максимальное количество маршрутов
+ * @param period период для расчёта метрик (5m, 15m, 1h, 6h, 24h)
  */
 export async function getTopRoutes(
   sortBy: MetricsSortBy = 'requests',
-  limit: number = 10
+  limit: number = 10,
+  period: MetricsPeriod = '5m'
 ): Promise<TopRoute[]> {
   const { data } = await axios.get<TopRoute[]>(`${BASE_URL}/top-routes`, {
-    params: { by: sortBy, limit },
+    params: { by: sortBy, limit, period },
   })
   return data
 }

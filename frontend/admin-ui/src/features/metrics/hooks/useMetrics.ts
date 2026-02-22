@@ -9,8 +9,8 @@ import type { MetricsPeriod, MetricsSortBy } from '../types/metrics.types'
  */
 const QUERY_KEYS = {
   summary: (period: MetricsPeriod) => ['metrics', 'summary', period] as const,
-  topRoutes: (sortBy: MetricsSortBy, limit: number) =>
-    ['metrics', 'top-routes', sortBy, limit] as const,
+  topRoutes: (sortBy: MetricsSortBy, limit: number, period: MetricsPeriod) =>
+    ['metrics', 'top-routes', sortBy, limit, period] as const,
   routeMetrics: (routeId: string, period: MetricsPeriod) =>
     ['metrics', 'routes', routeId, period] as const,
 }
@@ -33,11 +33,16 @@ export function useMetricsSummary(period: MetricsPeriod = '5m') {
  * Hook для получения топ-маршрутов.
  *
  * Автоматически обновляется каждые 10 секунд.
+ * Story 10.10: Добавлен параметр period для фильтрации по time range.
  */
-export function useTopRoutes(sortBy: MetricsSortBy = 'requests', limit: number = 10) {
+export function useTopRoutes(
+  sortBy: MetricsSortBy = 'requests',
+  limit: number = 10,
+  period: MetricsPeriod = '5m'
+) {
   return useQuery({
-    queryKey: QUERY_KEYS.topRoutes(sortBy, limit),
-    queryFn: () => metricsApi.getTopRoutes(sortBy, limit),
+    queryKey: QUERY_KEYS.topRoutes(sortBy, limit, period),
+    queryFn: () => metricsApi.getTopRoutes(sortBy, limit, period),
     refetchInterval: METRICS_REFRESH_INTERVAL, // 10 секунд auto-refresh (AC2)
     staleTime: METRICS_STALE_TIME,
   })

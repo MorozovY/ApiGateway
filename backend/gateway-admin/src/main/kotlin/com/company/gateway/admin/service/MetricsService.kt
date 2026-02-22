@@ -39,9 +39,6 @@ class MetricsService(
         // Теги для фильтрации (используются при парсинге Prometheus ответов)
         const val TAG_ROUTE_ID = "route_id"
         const val TAG_STATUS = "status"
-
-        // Период по умолчанию для top routes
-        private val DEFAULT_TOP_ROUTES_PERIOD = MetricsPeriod.FIVE_MINUTES
     }
 
     /**
@@ -122,13 +119,21 @@ class MetricsService(
      * Это гарантирует что мы показываем только существующие маршруты,
      * даже если в Prometheus есть метрики удалённых маршрутов.
      *
+     * Story 10.10: Добавлен параметр period для фильтрации метрик по time range.
+     *
      * @param sortBy критерий сортировки (requests, latency, errors)
      * @param limit максимальное количество маршрутов
      * @param ownerId если указан — фильтрует только маршруты созданные этим пользователем
+     * @param period период для расчёта метрик (5m, 15m, 1h, 6h, 24h)
      * @return Mono со списком топ-маршрутов
      */
-    fun getTopRoutes(sortBy: MetricsSortBy, limit: Int, ownerId: UUID? = null): Mono<List<TopRouteDto>> {
-        logger.debug("Получение топ-{} маршрутов по: {}, ownerId: {}", limit, sortBy.value, ownerId)
+    fun getTopRoutes(
+        sortBy: MetricsSortBy,
+        limit: Int,
+        ownerId: UUID? = null,
+        period: MetricsPeriod = MetricsPeriod.FIVE_MINUTES
+    ): Mono<List<TopRouteDto>> {
+        logger.debug("Получение топ-{} маршрутов по: {}, ownerId: {}, period: {}", limit, sortBy.value, ownerId, period.value)
 
         // Шаг 1: Получаем маршруты из БД
         val routesMono = if (ownerId != null) {
@@ -149,11 +154,11 @@ class MetricsService(
             val routePathMap = routes.associate { it.id.toString() to it.path }
             val routeIds = routePathMap.keys.toList()
 
-            // Шаг 2: Формируем PromQL запрос для маршрутов из БД
+            // Шаг 2: Формируем PromQL запрос для маршрутов из БД с учётом period
             val query = when (sortBy) {
-                MetricsSortBy.REQUESTS -> PromQLBuilder.totalRequestsByRouteIds(routeIds)
-                MetricsSortBy.LATENCY -> PromQLBuilder.avgLatencyByRouteIds(routeIds)
-                MetricsSortBy.ERRORS -> PromQLBuilder.totalErrorsByRouteIds(routeIds)
+                MetricsSortBy.REQUESTS -> PromQLBuilder.totalRequestsByRouteIds(routeIds, period)
+                MetricsSortBy.LATENCY -> PromQLBuilder.avgLatencyByRouteIds(routeIds, period)
+                MetricsSortBy.ERRORS -> PromQLBuilder.totalErrorsByRouteIds(routeIds, period)
             }
 
             if (query.isEmpty()) {
