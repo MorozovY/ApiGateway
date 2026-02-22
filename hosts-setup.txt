@@ -1,0 +1,21 @@
+# Настройка файла hosts для работы с VPN
+
+## Путь к файлу:
+# Windows: C:\Windows\System32\drivers\etc\hosts
+# Linux/Mac: /etc/hosts
+
+## Добавить в конец файла:
+127.0.0.1 ymorozov.ru
+
+## Как редактировать (Windows):
+# 1. Запустить Notepad от администратора
+# 2. Открыть C:\Windows\System32\drivers\etc\hosts
+# 3. Добавить строку выше
+# 4. Сохранить
+
+## Проверка:
+ping ymorozov.ru
+# Должен показать 127.0.0.1
+
+## Очистка DNS кеша после изменений:
+ipconfig /flushdns

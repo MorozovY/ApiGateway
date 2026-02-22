@@ -1,0 +1,15 @@
+# Split Tunneling Configuration для VPN
+
+## Для OpenVPN (добавить в конфиг .ovpn):
+route-nopull
+route 193.41.78.204 255.255.255.255 net_gateway
+
+## Для WireGuard (исключить IP из AllowedIPs):
+# Удалить 193.41.78.204/32 из AllowedIPs
+
+## Для Windows встроенного VPN:
+# PowerShell команда (запустить от администратора):
+Add-VpnConnectionRoute -ConnectionName "Ваше_VPN_Подключение" -DestinationPrefix "193.41.78.204/32" -RouteMetric 1 -PassThru
+
+## Для проверки:
+route print | findstr "193.41.78.204"

@@ -2447,7 +2447,7 @@ So that onboarding and troubleshooting are easier.
 
 **Source:** Epic 9 Retrospective (2026-02-22) — feedback from Yury (Project Lead)
 
-**Stories:** 6
+**Stories:** 10
 
 ---
 
@@ -2578,5 +2578,118 @@ So that I can explore the API before logging in.
 **Given** user clicks Swagger link
 **When** link is activated
 **Then** Swagger UI opens in new tab
+
+---
+
+### Story 10.7: Quick Start Guide
+
+As a **new user** (Developer, Security, Admin),
+I want a Quick Start Guide explaining system capabilities and workflows,
+So that I can quickly understand how to use API Gateway without asking colleagues.
+
+**Source:** SM Chat Session (2026-02-22) — обсуждение необходимости пользовательской документации
+
+**Acceptance Criteria:**
+
+**Given** новый пользователь открывает документацию
+**When** он читает Quick Start Guide
+**Then** он понимает:
+- Как создать маршрут
+- Как отправить на согласование
+- Какие статусы существуют и что они значат
+- Кто может approve/reject/rollback
+
+**Given** Quick Start Guide
+**When** пользователь смотрит на workflow
+**Then** он видит визуальную диаграмму (DRAFT → PENDING → PUBLISHED)
+
+**Given** Quick Start Guide
+**When** пользователь ищет информацию о ролях
+**Then** он находит таблицу permissions по ролям
+
+**Given** пользователь залогинен в систему
+**When** он ищет помощь
+**Then** ссылка на Quick Start Guide доступна (footer или Help menu)
+
+---
+
+### Story 10.8: Fix Audit Changes Viewer
+
+As a **Security/Admin user**,
+I want to see actual change details when expanding audit log entries,
+So that I can understand what happened during approve/reject/submit/rollback actions.
+
+**Bug Report:**
+- **Severity:** MEDIUM
+- **Observed:** "До изменения" и "После изменения" показывают "null" для approved/rejected/submitted/rolledback actions
+- **Root Cause:** Backend сохраняет changes в формате `{"previousStatus": "...", "newStatus": "..."}`, frontend ожидает `{"before": {...}, "after": {...}}`
+
+**Acceptance Criteria:**
+
+**Given** audit log entry с любым action (created, updated, deleted, approved, rejected, submitted, rolledback, published)
+**When** пользователь раскрывает запись
+**Then** changes отображаются корректно (не "null")
+
+**Given** changes без структуры before/after
+**When** ChangesViewer рендерит данные
+**Then** показывается formatted JSON с заголовком "Детали изменения"
+
+**Given** action = "updated" с before/after структурой
+**When** ChangesViewer рендерит данные
+**Then** показывается side-by-side diff как раньше
+
+---
+
+### Story 10.9: Fix Theme Support for Modals and Messages
+
+As a **user**,
+I want modals and toast messages to respect the current theme (light/dark),
+So that the UI is consistent and comfortable to use in dark mode.
+
+**Bug Report:**
+- **Severity:** LOW
+- **Observed:** Modal.confirm и message.success отображаются в светлой теме при включённой тёмной теме
+- **Root Cause:** Ant Design статические методы создают элементы вне React tree, не получают theme context
+
+**Acceptance Criteria:**
+
+**Given** пользователь в тёмной теме
+**When** открывается Modal.confirm (Rollback, Delete, etc.)
+**Then** модалка отображается в тёмной теме
+
+**Given** пользователь в тёмной теме
+**When** появляется toast message
+**Then** сообщение отображается в тёмной теме
+
+**Given** пользователь в тёмной теме
+**When** появляется Popconfirm
+**Then** popconfirm отображается в тёмной теме
+
+---
+
+### Story 10.10: Fix Top Routes Time Range Filter
+
+As a **Security/Admin user**,
+I want "Top Routes by Requests" widget to respect the selected time range,
+So that I can analyze traffic patterns for different periods.
+
+**Bug Report:**
+- **Severity:** MEDIUM
+- **Observed:** Виджет "Top Routes by Requests" показывает те же данные при изменении time range
+- **Root Cause:** Time range не передаётся в API запрос или React Query key
+
+**Acceptance Criteria:**
+
+**Given** пользователь на странице Metrics
+**When** изменяется time range selector
+**Then** виджет "Top Routes by Requests" обновляется с новыми данными
+
+**Given** выбран time range "Last 24 hours"
+**When** запрашиваются top routes
+**Then** API получает параметры `from` и `to` соответствующие 24 часам
+
+**Given** пользователь меняет time range
+**When** данные загружаются
+**Then** виджет показывает loading spinner
 
 ---
