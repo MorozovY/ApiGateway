@@ -34,30 +34,22 @@ describe('DemoCredentials', () => {
     vi.clearAllMocks()
   })
 
-  // AC1: Рендеринг таблицы
-  describe('рендеринг таблицы (AC1)', () => {
-    it('отображает card с заголовком Демо-доступ', () => {
+  // AC1: Рендеринг credentials
+  describe('рендеринг credentials (AC1)', () => {
+    it('отображает секцию с заголовком Демо-доступ', () => {
       renderWithMockAuth(<DemoCredentials />)
 
       expect(screen.getByTestId('demo-credentials-card')).toBeInTheDocument()
       expect(screen.getByText('🔐 Демо-доступ')).toBeInTheDocument()
     })
 
-    it('отображает таблицу с тремя пользователями', () => {
+    it('отображает три набора credentials', () => {
       renderWithMockAuth(<DemoCredentials />)
 
       expect(screen.getByTestId('demo-credentials-table')).toBeInTheDocument()
-      expect(screen.getByText('developer')).toBeInTheDocument()
-      expect(screen.getByText('security')).toBeInTheDocument()
-      expect(screen.getByText('admin')).toBeInTheDocument()
-    })
-
-    it('отображает пароли для каждого пользователя', () => {
-      renderWithMockAuth(<DemoCredentials />)
-
-      expect(screen.getByText('developer123')).toBeInTheDocument()
-      expect(screen.getByText('security123')).toBeInTheDocument()
-      expect(screen.getByText('admin123')).toBeInTheDocument()
+      expect(screen.getByText('developer / developer123')).toBeInTheDocument()
+      expect(screen.getByText('security / security123')).toBeInTheDocument()
+      expect(screen.getByText('admin / admin123')).toBeInTheDocument()
     })
 
     it('отображает роли пользователей', () => {
@@ -167,7 +159,7 @@ describe('DemoCredentials', () => {
 
       // Проверяем, что кнопка в loading состоянии (Ant Design добавляет класс)
       await waitFor(() => {
-        expect(button.closest('button')).toHaveClass('ant-btn-loading')
+        expect(button).toHaveClass('ant-btn-loading')
       })
 
       // Завершаем промис
@@ -175,7 +167,7 @@ describe('DemoCredentials', () => {
 
       // После завершения loading должен исчезнуть
       await waitFor(() => {
-        expect(button.closest('button')).not.toHaveClass('ant-btn-loading')
+        expect(button).not.toHaveClass('ant-btn-loading')
       })
     })
   })
@@ -186,9 +178,8 @@ describe('DemoCredentials', () => {
       renderWithMockAuth(<DemoCredentials />)
 
       expect(screen.getByTestId('demo-hint')).toBeInTheDocument()
-      expect(
-        screen.getByText('Если учётные данные не работают, нажмите «Сбросить пароли»')
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Не работает\?/)).toBeInTheDocument()
+      expect(screen.getByText('Сбросить пароли')).toBeInTheDocument()
     })
   })
 })
