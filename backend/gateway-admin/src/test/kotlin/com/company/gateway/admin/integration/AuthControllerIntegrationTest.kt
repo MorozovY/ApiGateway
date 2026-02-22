@@ -416,6 +416,282 @@ class AuthControllerIntegrationTest {
     }
 
     // ============================================
+    // Story 9.4: Change Password — успешная смена пароля (AC3)
+    // ============================================
+
+    @Test
+    fun `Story 9-4 AC3 - успешная смена пароля возвращает 200`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        // Логинимся, чтобы получить cookie
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        // Меняем пароль
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.message").isEqualTo("Password changed successfully")
+    }
+
+    @Test
+    fun `Story 9-4 AC3 - после смены пароля старый пароль не работает`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        // Логинимся и меняем пароль
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isOk
+
+        // Пробуем залогиниться со старым паролем — должен быть 401
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `Story 9-4 AC3 - после смены пароля новый пароль работает`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        // Логинимся и меняем пароль
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isOk
+
+        // Пробуем залогиниться с новым паролем — должен быть 200
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `Story 9-4 AC3 - смена пароля записывает audit log`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        // Очищаем audit logs перед тестом
+        StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isOk
+
+        // Проверяем, что audit log записан
+        StepVerifier.create(auditLogRepository.findAll().collectList())
+            .expectNextMatches { logs ->
+                logs.any { it.action == "password_changed" && it.entityType == "user" && it.username == "maria" }
+            }
+            .verifyComplete()
+    }
+
+    // ============================================
+    // Story 9.4: Change Password — неверный текущий пароль (AC4)
+    // ============================================
+
+    @Test
+    fun `Story 9-4 AC4 - неверный текущий пароль возвращает 401`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "wrongPassword", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isUnauthorized
+            .expectBody()
+            .jsonPath("$.detail").isEqualTo("Current password is incorrect")
+    }
+
+    @Test
+    fun `Story 9-4 AC4 - при неверном текущем пароле пароль не изменяется`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        // Пытаемся сменить пароль с неверным текущим
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "wrongPassword", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isUnauthorized
+
+        // Проверяем, что старый пароль всё ещё работает
+        webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    // ============================================
+    // Story 9.4: Change Password — валидация (AC5)
+    // ============================================
+
+    @Test
+    fun `Story 9-4 валидация - слабый новый пароль менее 8 символов возвращает 400`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to "short"))
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectBody()
+            .jsonPath("$.detail").value<String> { detail ->
+                assert(detail.contains("8")) { "Сообщение должно упоминать минимум 8 символов" }
+            }
+    }
+
+    @Test
+    fun `Story 9-4 валидация - пустой currentPassword возвращает 400`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isBadRequest
+    }
+
+    @Test
+    fun `Story 9-4 валидация - пустой newPassword возвращает 400`() {
+        createTestUser("maria", "password123", Role.DEVELOPER)
+
+        val loginResponse = webTestClient.post()
+            .uri("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(LoginRequest("maria", "password123"))
+            .exchange()
+            .expectStatus().isOk
+            .returnResult(Any::class.java)
+
+        val authCookie = loginResponse.responseHeaders.getFirst("Set-Cookie")!!
+
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cookie", authCookie.split(";")[0])
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to ""))
+            .exchange()
+            .expectStatus().isBadRequest
+    }
+
+    @Test
+    fun `Story 9-4 - смена пароля без авторизации возвращает 401`() {
+        webTestClient.post()
+            .uri("/api/v1/auth/change-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(mapOf("currentPassword" to "password123", "newPassword" to "newSecurePassword123"))
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    // ============================================
     // Валидация входных данных
     // ============================================
 

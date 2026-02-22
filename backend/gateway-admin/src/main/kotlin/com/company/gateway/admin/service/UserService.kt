@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -370,6 +371,63 @@ class UserService(
         return userRepository.save(deactivatedUser)
             .doOnSuccess { logger.info("Пользователь деактивирован: id={}", user.id) }
             .then()
+    }
+
+    /**
+     * Смена пароля пользователя.
+     *
+     * Проверяет текущий пароль и обновляет на новый.
+     * Записывает audit log при успешной смене (Subtask 1.5).
+     *
+     * @param userId ID пользователя
+     * @param currentPassword текущий пароль для проверки
+     * @param newPassword новый пароль
+     * @param username имя пользователя для аудит-лога
+     * @return Mono<Void> при успехе
+     * @throws AuthenticationException если текущий пароль неверный
+     * @throws NotFoundException если пользователь не найден
+     */
+    fun changePassword(
+        userId: UUID,
+        currentPassword: String,
+        newPassword: String,
+        username: String
+    ): Mono<Void> {
+        logger.info("Смена пароля для пользователя: userId={}", userId)
+
+        return userRepository.findById(userId)
+            .switchIfEmpty(
+                Mono.error(NotFoundException("Пользователь не найден", "Пользователь с ID $userId не найден"))
+            )
+            .flatMap { user ->
+                // Проверяем текущий пароль (Subtask 1.3)
+                if (!passwordService.verify(currentPassword, user.passwordHash)) {
+                    logger.warn("Неверный текущий пароль при смене: userId={}", userId)
+                    return@flatMap Mono.error<User>(
+                        AuthenticationException("Current password is incorrect")
+                    )
+                }
+
+                // Хэшируем и сохраняем новый пароль (Subtask 1.4)
+                val updatedUser = user.copy(
+                    passwordHash = passwordService.hash(newPassword),
+                    updatedAt = Instant.now()
+                )
+                userRepository.save(updatedUser)
+            }
+            .flatMap { savedUser ->
+                // Записываем audit log (Subtask 1.5)
+                auditService.logWithContext(
+                    entityType = "user",
+                    entityId = savedUser.id.toString(),
+                    action = "password_changed",
+                    userId = savedUser.id!!,
+                    username = username
+                ).then()
+            }
+            .doOnSuccess {
+                logger.info("Пароль успешно изменён: userId={}", userId)
+            }
     }
 
     /**

@@ -32,6 +32,23 @@ export interface SessionCheckResult {
 }
 
 /**
+ * Запрос на смену пароля (Story 9.4).
+ */
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+/**
+ * Смена пароля текущего пользователя (Story 9.4).
+ *
+ * @throws Error с status 401 если текущий пароль неверный
+ */
+export async function changePasswordApi(request: ChangePasswordRequest): Promise<void> {
+  await axios.post('/api/v1/auth/change-password', request)
+}
+
+/**
  * Проверяет текущую сессию пользователя.
  * Используется при инициализации приложения для восстановления сессии.
  *
