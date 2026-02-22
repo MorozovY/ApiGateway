@@ -51,7 +51,12 @@ class RateLimitService(
             requestsPerSecond = rateLimit.requestsPerSecond,
             burstSize = rateLimit.burstSize
         )
-            .doOnSuccess {
+            .doOnSuccess { result ->
+                // Логируем результат проверки rate limit
+                if (!result.allowed) {
+                    logger.info("Rate limit exceeded: key={}, remaining={}, resetTime={}",
+                        bucketKey, result.remaining, result.resetTime)
+                }
                 // Успешно использовали Redis — сбрасываем fallback флаг
                 if (usingFallback.compareAndSet(true, false)) {
                     logger.info("Redis восстановлен, rate limiting вернулся к distributed режиму")

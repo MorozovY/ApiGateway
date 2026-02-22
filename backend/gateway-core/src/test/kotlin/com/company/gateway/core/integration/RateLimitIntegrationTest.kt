@@ -348,6 +348,121 @@ class RateLimitIntegrationTest {
             .jsonPath("$.correlationId").exists()
     }
 
+    @Test
+    fun `BUGFIX 10-1 - при 20 быстрых запросах только burst количество проходит`() {
+        // Story 10.1: Rate limit 5 req/s, burst 3
+        // При быстрых запросах (без задержки) только 3 должны пройти
+        // Остальные 17 должны получить 429
+        insertRouteWithRateLimit("/api/stress", rateLimitId)
+
+        val testClientIp = "10.1.1.1"
+        var successCount = 0
+        var rateLimitedCount = 0
+
+        // Отправляем 20 запросов быстро (без пауз)
+        repeat(20) {
+            val result = webTestClient.get()
+                .uri("/api/stress")
+                .header("X-Forwarded-For", testClientIp)
+                .exchange()
+                .returnResult(String::class.java)
+
+            if (result.status.value() == 200) {
+                successCount++
+            } else if (result.status.value() == 429) {
+                rateLimitedCount++
+            }
+        }
+
+        // Ожидаем: burst=3 запроса проходят, остальные блокируются
+        // Допускаем небольшое отклонение (+1) из-за timing восполнения токенов
+        org.assertj.core.api.Assertions.assertThat(successCount)
+            .describedAs("Количество успешных запросов должно быть примерно равно burst (3)")
+            .isBetween(3, 4)
+
+        org.assertj.core.api.Assertions.assertThat(rateLimitedCount)
+            .describedAs("Остальные запросы должны получить 429")
+            .isBetween(16, 17)
+
+        org.assertj.core.api.Assertions.assertThat(successCount + rateLimitedCount)
+            .describedAs("Всего должно быть 20 запросов")
+            .isEqualTo(20)
+    }
+
+    @Test
+    fun `BUGFIX 10-1 - за 2 секунды при 5 req_s проходит примерно 10-13 запросов`() {
+        // Story 10.1: Проверка восполнения токенов со временем
+        // Rate limit: 5 req/s, burst 3
+        // За 2 секунды должно пройти: burst(3) + 2sec * 5req/s = ~13 запросов
+        insertRouteWithRateLimit("/api/timed", rateLimitId)
+
+        val testClientIp = "10.2.2.2"
+        var successCount = 0
+        var rateLimitedCount = 0
+        val startTime = System.currentTimeMillis()
+
+        // Отправляем запросы в течение 2 секунд с небольшими интервалами
+        while (System.currentTimeMillis() - startTime < 2000) {
+            val result = webTestClient.get()
+                .uri("/api/timed")
+                .header("X-Forwarded-For", testClientIp)
+                .exchange()
+                .returnResult(String::class.java)
+
+            if (result.status.value() == 200) {
+                successCount++
+            } else if (result.status.value() == 429) {
+                rateLimitedCount++
+            }
+
+            // Небольшая пауза между запросами (50ms)
+            Thread.sleep(50)
+        }
+
+        // За 2 секунды при 5 req/s ожидаем примерно 10-13 успешных запросов
+        // burst(3) + время(~2сек) * rate(5) = 13, но timing может немного отличаться
+        org.assertj.core.api.Assertions.assertThat(successCount)
+            .describedAs("За 2 секунды при 5 req/s должно пройти 10-14 запросов")
+            .isBetween(10, 14)
+    }
+
+    @Test
+    fun `BUGFIX 10-1 - X-RateLimit заголовки присутствуют при rate limiting`() {
+        // Story 10.1 AC2: Проверка наличия rate limit заголовков
+        insertRouteWithRateLimit("/api/headers-test", rateLimitId)
+
+        val testClientIp = "10.3.3.3"
+
+        // Первый запрос — успешный с заголовками
+        webTestClient.get()
+            .uri("/api/headers-test")
+            .header("X-Forwarded-For", testClientIp)
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().valueEquals("X-RateLimit-Limit", "5")
+            .expectHeader().exists("X-RateLimit-Remaining")
+            .expectHeader().exists("X-RateLimit-Reset")
+
+        // Исчерпываем burst
+        repeat(2) {
+            webTestClient.get()
+                .uri("/api/headers-test")
+                .header("X-Forwarded-For", testClientIp)
+                .exchange()
+        }
+
+        // 429 ответ тоже должен содержать заголовки
+        webTestClient.get()
+            .uri("/api/headers-test")
+            .header("X-Forwarded-For", testClientIp)
+            .exchange()
+            .expectStatus().isEqualTo(429)
+            .expectHeader().valueEquals("X-RateLimit-Limit", "5")
+            .expectHeader().valueEquals("X-RateLimit-Remaining", "0")
+            .expectHeader().exists("X-RateLimit-Reset")
+            .expectHeader().exists("Retry-After")
+    }
+
     private fun insertRouteWithRateLimit(path: String, rateLimitId: UUID) {
         databaseClient.sql(
             """

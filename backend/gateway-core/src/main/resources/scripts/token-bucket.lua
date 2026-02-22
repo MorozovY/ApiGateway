@@ -24,13 +24,15 @@ if tokens == nil then
 end
 
 -- Рассчитываем восполнение токенов на основе прошедшего времени
+-- ВАЖНО: используем дробное значение для корректного накопления токенов
+-- (исправлено: math.floor терял дробные токены при коротких интервалах)
 local elapsed = (now - lastRefill) / 1000.0  -- в секундах
-local refill = math.floor(elapsed * rate)
+local refill = elapsed * rate  -- дробное восполнение
 
-if refill > 0 then
-    tokens = math.min(capacity, tokens + refill)
-    lastRefill = now
-end
+-- Добавляем токены и обновляем lastRefill
+-- Используем дробное хранение для точного учёта частичных токенов
+tokens = math.min(capacity, tokens + refill)
+lastRefill = now
 
 -- Проверяем доступность токена
 local allowed = 0
@@ -39,8 +41,8 @@ if tokens >= 1 then
     allowed = 1
 end
 
--- Сохраняем состояние
-redis.call('HSET', key, 'tokens', tokens, 'lastRefill', lastRefill)
+-- Сохраняем состояние (tokens теперь дробное для точного refill)
+redis.call('HSET', key, 'tokens', tostring(tokens), 'lastRefill', lastRefill)
 redis.call('EXPIRE', key, ttl)
 
 -- Рассчитываем время reset (когда bucket будет полностью восполнен)
@@ -51,5 +53,5 @@ if tokensNeeded > 0 and rate > 0 then
 end
 local resetTime = now + (secondsToFull * 1000)
 
--- Возвращаем: [allowed (0/1), remaining tokens, reset time (ms)]
-return {allowed, tokens, resetTime}
+-- Возвращаем: [allowed (0/1), remaining tokens (floor для ответа), reset time (ms)]
+return {allowed, math.floor(tokens), resetTime}

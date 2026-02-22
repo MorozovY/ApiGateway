@@ -2440,3 +2440,143 @@ So that onboarding and troubleshooting are easier.
 - Deployment topology diagram update
 
 ---
+
+## Epic 10: Maintenance & Bug Fixes
+
+**Goal:** Fix critical bugs discovered in production testing and add RBAC/UX improvements based on user feedback.
+
+**Source:** Epic 9 Retrospective (2026-02-22) — feedback from Yury (Project Lead)
+
+**Stories:** 6
+
+---
+
+### Story 10.1: Rate Limit Not Working Investigation
+
+As a **DevOps Engineer**,
+I want rate limiting to work correctly,
+So that upstream services are protected from overload.
+
+**Bug Report:**
+- **Severity:** CRITICAL
+- **Observed:** Rate limit set to 5 req/s, but 20 requests/second pass through
+- **Reproduction:** `/set-local-rate-limit` + Load Generator
+
+**Acceptance Criteria:**
+
+**Given** a route with rate limit 5 req/s
+**When** Load Generator sends 20 req/s
+**Then** only ~5 requests succeed per second
+**And** remaining requests receive HTTP 429
+
+**Given** rate limiting is configured
+**When** requests exceed the limit
+**Then** X-RateLimit-* headers are present in response
+
+---
+
+### Story 10.2: Approvals Real-Time Updates
+
+As a **Security Specialist**,
+I want the Approvals page to update automatically,
+So that I see new pending routes without refreshing.
+
+**Bug Report:**
+- **Severity:** MEDIUM
+- **Observed:** New pending routes don't appear until page refresh
+- **Reproduction:** Create pending route, check Approvals tab
+
+**Acceptance Criteria:**
+
+**Given** user is on /approvals page
+**When** a new route is submitted for approval
+**Then** the route appears in the table within 5 seconds
+**And** no manual page refresh is required
+
+**Given** polling or WebSocket is implemented
+**When** connection is active
+**Then** pending count in sidebar updates automatically
+
+---
+
+### Story 10.3: Security Role Route Rollback
+
+As a **Security Specialist**,
+I want to rollback a published route to draft status,
+So that I can unpublish problematic routes.
+
+**Acceptance Criteria:**
+
+**Given** user with Security role
+**When** viewing a published route
+**Then** "Rollback to Draft" action is available
+
+**Given** Security clicks "Rollback to Draft"
+**When** action is confirmed
+**Then** route status changes to draft
+**And** route is removed from gateway-core
+**And** audit log records "route.rolledback"
+
+**Given** user with Developer role
+**When** viewing a published route
+**Then** "Rollback to Draft" action is NOT available
+
+---
+
+### Story 10.4: Author Can Delete Own Draft Route
+
+As a **Developer**,
+I want to delete my own draft routes,
+So that I can clean up abandoned configurations.
+
+**Acceptance Criteria:**
+
+**Given** user is the author of a draft route
+**When** user clicks "Delete" on the route
+**Then** route is deleted
+**And** confirmation modal is shown first
+
+**Given** user is NOT the author of a draft route
+**When** viewing the route
+**Then** "Delete" action is NOT available (unless Admin)
+
+**Given** route is not in draft status
+**When** author tries to delete
+**Then** action is not available
+
+---
+
+### Story 10.5: Nginx Health Check on Metrics Page
+
+As a **DevOps Engineer**,
+I want to see Nginx health status on the Metrics page,
+So that I can monitor the reverse proxy.
+
+**Acceptance Criteria:**
+
+**Given** user navigates to /metrics
+**When** Health Check section loads
+**Then** Nginx status is displayed alongside other services
+**And** check verifies nginx is responding
+
+---
+
+### Story 10.6: Swagger Links on Login Page
+
+As a **Developer**,
+I want quick access to API documentation from the login page,
+So that I can explore the API before logging in.
+
+**Acceptance Criteria:**
+
+**Given** user is on /login page
+**When** page loads
+**Then** links to Swagger UI are displayed:
+- Gateway Admin API: /swagger-ui.html
+- Gateway Core (if applicable)
+
+**Given** user clicks Swagger link
+**When** link is activated
+**Then** Swagger UI opens in new tab
+
+---
