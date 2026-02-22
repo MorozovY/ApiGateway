@@ -1,7 +1,18 @@
-// Тесты для ChangesViewer (Story 7.5, AC3)
-import { describe, it, expect } from 'vitest'
+// Тесты для ChangesViewer (Story 7.5, AC3; Story 10.8)
+import { describe, it, expect, vi } from 'vitest'
 import { screen, render } from '@testing-library/react'
 import { ChangesViewer } from './ChangesViewer'
+
+// Мокаем ThemeProvider
+vi.mock('@/shared/providers/ThemeProvider', () => ({
+  useThemeContext: () => ({
+    theme: 'light',
+    isDark: false,
+    isLight: true,
+    toggle: vi.fn(),
+    setTheme: vi.fn(),
+  }),
+}))
 
 describe('ChangesViewer', () => {
   const beforeData = {
@@ -144,5 +155,132 @@ describe('ChangesViewer', () => {
 
     expect(screen.getByText('Опубликованные данные')).toBeInTheDocument()
     expect(screen.queryByText('До изменения')).not.toBeInTheDocument()
+  })
+
+  // Story 10.8: Generic режим для changes без before/after структуры
+  describe('generic режим (Story 10.8)', () => {
+    it('отображает generic JSON для approved без before/after', () => {
+      // Backend format: {previousStatus, newStatus, approvedAt}
+      const approvedChanges = {
+        previousStatus: 'pending',
+        newStatus: 'published',
+        approvedAt: '2026-02-22T10:30:00Z',
+      }
+
+      render(
+        <ChangesViewer
+          changes={approvedChanges}
+          action="approved"
+        />
+      )
+
+      expect(screen.getByText('Детали изменения')).toBeInTheDocument()
+      expect(screen.getByText(/previousStatus/)).toBeInTheDocument()
+      expect(screen.getByText(/pending/)).toBeInTheDocument()
+      expect(screen.getByText(/published/)).toBeInTheDocument()
+    })
+
+    it('отображает generic JSON для rejected без before/after', () => {
+      const rejectedChanges = {
+        previousStatus: 'pending',
+        newStatus: 'rejected',
+        rejectedAt: '2026-02-22T11:00:00Z',
+        rejectionReason: 'Неверная конфигурация',
+      }
+
+      render(
+        <ChangesViewer
+          changes={rejectedChanges}
+          action="rejected"
+        />
+      )
+
+      expect(screen.getByText('Детали изменения')).toBeInTheDocument()
+      expect(screen.getByText(/rejectionReason/)).toBeInTheDocument()
+      expect(screen.getByText(/Неверная конфигурация/)).toBeInTheDocument()
+    })
+
+    it('отображает generic JSON для submitted без before/after', () => {
+      const submittedChanges = {
+        newStatus: 'pending',
+        submittedAt: '2026-02-22T09:00:00Z',
+      }
+
+      render(
+        <ChangesViewer
+          changes={submittedChanges}
+          action="submitted"
+        />
+      )
+
+      expect(screen.getByText('Детали изменения')).toBeInTheDocument()
+      expect(screen.getByText(/newStatus/)).toBeInTheDocument()
+      expect(screen.getByText(/pending/)).toBeInTheDocument()
+    })
+
+    it('отображает generic JSON для route.rolledback без before/after', () => {
+      const rolledbackChanges = {
+        previousStatus: 'published',
+        newStatus: 'draft',
+        rolledbackAt: '2026-02-22T12:00:00Z',
+        rolledbackBy: 'admin',
+      }
+
+      render(
+        <ChangesViewer
+          changes={rolledbackChanges}
+          action="route.rolledback"
+        />
+      )
+
+      expect(screen.getByText('Детали изменения')).toBeInTheDocument()
+      expect(screen.getByText(/rolledbackBy/)).toBeInTheDocument()
+      expect(screen.getByText(/admin/)).toBeInTheDocument()
+    })
+
+    it('сохраняет diff режим для updated с before/after', () => {
+      const updatedChanges = {
+        before: {
+          path: '/api/v1/old',
+          upstreamUrl: 'http://old-service:8080',
+        },
+        after: {
+          path: '/api/v1/new',
+          upstreamUrl: 'http://new-service:8080',
+        },
+      }
+
+      render(
+        <ChangesViewer
+          changes={updatedChanges}
+          action="updated"
+        />
+      )
+
+      // Должен показывать diff режим, не generic
+      expect(screen.getByText('До изменения')).toBeInTheDocument()
+      expect(screen.getByText('После изменения')).toBeInTheDocument()
+      expect(screen.queryByText('Детали изменения')).not.toBeInTheDocument()
+    })
+
+    it('сохраняет after-only режим для created с after', () => {
+      const createdChanges = {
+        after: {
+          path: '/api/v1/new',
+          upstreamUrl: 'http://new-service:8080',
+        },
+      }
+
+      render(
+        <ChangesViewer
+          changes={createdChanges}
+          action="created"
+        />
+      )
+
+      // Должен показывать after-only режим
+      expect(screen.getByText('Созданные данные')).toBeInTheDocument()
+      expect(screen.queryByText('Детали изменения')).not.toBeInTheDocument()
+    })
   })
 })

@@ -74,10 +74,10 @@ export function AuditLogsTable({
         </Descriptions.Item>
       </Descriptions>
 
+      {/* Story 10.8: Передаём весь changes объект для поддержки generic режима */}
       {record.changes && (
         <ChangesViewer
-          before={record.changes.before}
-          after={record.changes.after}
+          changes={record.changes}
           action={record.action}
         />
       )}

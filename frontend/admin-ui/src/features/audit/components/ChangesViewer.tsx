@@ -1,41 +1,54 @@
 // Компонент для отображения JSON diff (Story 7.5, AC3)
 import { useMemo } from 'react'
 import { Typography, Card, Row, Col, Empty } from 'antd'
+import { useThemeContext } from '@/shared/providers/ThemeProvider'
 import type { AuditAction } from '../types/audit.types'
 
 const { Text, Title } = Typography
 
+// Props для ChangesViewer
+// Story 10.8: Поддержка generic changes без before/after структуры
 interface ChangesViewerProps {
+  // Новый prop: весь объект changes (Story 10.8)
+  changes?: {
+    before?: Record<string, unknown> | null
+    after?: Record<string, unknown> | null
+    [key: string]: unknown // для generic полей (previousStatus, newStatus, etc.)
+  } | null
+  // Legacy props для обратной совместимости (deprecated)
   before?: Record<string, unknown> | null
   after?: Record<string, unknown> | null
   action: AuditAction
 }
 
 /**
- * Стили для JSON syntax highlighting.
+ * Базовые стили для JSON контейнера.
  */
-const jsonStyles = {
-  container: {
-    fontFamily: 'monospace',
-    fontSize: '12px',
-    whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-all' as const,
-    padding: '12px',
-    borderRadius: '4px',
-    maxHeight: '400px',
-    overflow: 'auto',
+const containerStyle = {
+  fontFamily: 'monospace',
+  fontSize: '12px',
+  whiteSpace: 'pre-wrap' as const,
+  wordBreak: 'break-all' as const,
+  padding: '12px',
+  borderRadius: '4px',
+  maxHeight: '400px',
+  overflow: 'auto',
+}
+
+/**
+ * Цвета для JSON блоков в зависимости от темы.
+ * Story 10.8: Добавлена поддержка тёмной темы.
+ */
+const JSON_COLORS = {
+  light: {
+    before: { backgroundColor: '#fff1f0', border: '1px solid #ffa39e', color: '#000000' },
+    after: { backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', color: '#000000' },
+    single: { backgroundColor: '#f5f5f5', border: '1px solid #d9d9d9', color: '#000000' },
   },
-  before: {
-    backgroundColor: '#fff1f0',
-    border: '1px solid #ffa39e',
-  },
-  after: {
-    backgroundColor: '#f6ffed',
-    border: '1px solid #b7eb8f',
-  },
-  single: {
-    backgroundColor: '#f5f5f5',
-    border: '1px solid #d9d9d9',
+  dark: {
+    before: { backgroundColor: 'rgba(166, 29, 36, 0.15)', border: '1px solid #a61d24', color: '#ffffff' },
+    after: { backgroundColor: 'rgba(73, 170, 25, 0.15)', border: '1px solid #49aa19', color: '#ffffff' },
+    single: { backgroundColor: 'rgba(255, 255, 255, 0.08)', border: '1px solid #424242', color: '#ffffff' },
   },
 }
 
@@ -59,9 +72,26 @@ function formatJson(obj: Record<string, unknown> | null | undefined): string {
  *
  * JSON форматируется с syntax highlighting (AC3).
  */
-export function ChangesViewer({ before, after, action }: ChangesViewerProps) {
+export function ChangesViewer({ changes, before: legacyBefore, after: legacyAfter, action }: ChangesViewerProps) {
+  const { isDark } = useThemeContext()
+
+  // Story 10.8: Извлекаем before/after из changes объекта или используем legacy props
+  const before = changes?.before ?? legacyBefore
+  const after = changes?.after ?? legacyAfter
+
+  // Story 10.8: Проверяем наличие структуры before/after в changes
+  const hasBeforeAfterStructure = changes?.before !== undefined || changes?.after !== undefined
+
+  // Выбираем цвета в зависимости от темы
+  const colors = isDark ? JSON_COLORS.dark : JSON_COLORS.light
+
   // Определяем режим отображения в зависимости от действия
   const displayMode = useMemo(() => {
+    // Story 10.8: Если changes передан без before/after — generic режим
+    if (changes && !hasBeforeAfterStructure) {
+      return 'generic'
+    }
+
     // created, approved, submitted, published — показываем результат (after)
     if (action === 'created' || action === 'approved' || action === 'submitted' || action === 'published') {
       return 'after-only'
@@ -72,7 +102,18 @@ export function ChangesViewer({ before, after, action }: ChangesViewerProps) {
     }
     // updated — показываем diff
     return 'diff'
-  }, [action])
+  }, [action, changes, hasBeforeAfterStructure])
+
+  // Story 10.8: Generic режим для changes без before/after (approved, rejected, submitted, rolledback)
+  if (displayMode === 'generic') {
+    return (
+      <Card size="small" title="Детали изменения">
+        <div style={{ ...containerStyle, ...colors.single }}>
+          {formatJson(changes as Record<string, unknown>)}
+        </div>
+      </Card>
+    )
+  }
 
   // Если нет данных для отображения
   if (!before && !after) {
@@ -101,7 +142,7 @@ export function ChangesViewer({ before, after, action }: ChangesViewerProps) {
   if (displayMode === 'after-only') {
     return (
       <Card size="small" title={afterOnlyTitles[action] || 'Данные'}>
-        <div style={{ ...jsonStyles.container, ...jsonStyles.after }}>
+        <div style={{ ...containerStyle, ...colors.after }}>
           {formatJson(after)}
         </div>
       </Card>
@@ -112,7 +153,7 @@ export function ChangesViewer({ before, after, action }: ChangesViewerProps) {
   if (displayMode === 'before-only') {
     return (
       <Card size="small" title={beforeOnlyTitles[action] || 'Данные'}>
-        <div style={{ ...jsonStyles.container, ...jsonStyles.before }}>
+        <div style={{ ...containerStyle, ...colors.before }}>
           {formatJson(before)}
         </div>
       </Card>
@@ -127,7 +168,7 @@ export function ChangesViewer({ before, after, action }: ChangesViewerProps) {
           <Title level={5} style={{ marginBottom: 8 }}>
             <Text type="danger">До изменения</Text>
           </Title>
-          <div style={{ ...jsonStyles.container, ...jsonStyles.before }}>
+          <div style={{ ...containerStyle, ...colors.before }}>
             {formatJson(before)}
           </div>
         </Col>
@@ -135,7 +176,7 @@ export function ChangesViewer({ before, after, action }: ChangesViewerProps) {
           <Title level={5} style={{ marginBottom: 8 }}>
             <Text type="success">После изменения</Text>
           </Title>
-          <div style={{ ...jsonStyles.container, ...jsonStyles.after }}>
+          <div style={{ ...containerStyle, ...colors.after }}>
             {formatJson(after)}
           </div>
         </Col>

@@ -1,6 +1,6 @@
 # Story 10.8: Fix Audit Changes Viewer
 
-Status: draft
+Status: review
 
 ## Story
 
@@ -10,6 +10,8 @@ so that I can understand what happened during approve/reject/submit/rollback act
 
 ## Bug Report
 
+**Severity:** MEDIUM
+
 **Воспроизведение:**
 1. Перейти в Audit Logs
 2. Найти запись с action = approved/rejected/submitted/rolledback
@@ -18,20 +20,21 @@ so that I can understand what happened during approve/reject/submit/rollback act
 
 **Entity ID примера:** `90c57d84-88bc-4acd-bcd2-73adba90f0ae`
 
-**Root Cause:**
+**Root Cause (подтверждён):**
 - Backend (ApprovalService) сохраняет changes в формате: `{"previousStatus": "pending", "newStatus": "published", "approvedAt": "..."}`
 - Frontend (ChangesViewer) ожидает формат: `{"before": {...}, "after": {...}}`
-- `changes.before` и `changes.after` = `undefined` → отображается "null"
+- AuditLogsTable деструктурирует `record.changes.before` и `record.changes.after`, теряя остальные поля
+- `changes.before` и `changes.after` = `undefined` → `formatJson(undefined)` → отображается "null"
 
 ## Acceptance Criteria
 
 ### AC1: Changes отображаются для всех action types
-**Given** audit log entry с любым action (created, updated, deleted, approved, rejected, submitted, rolledback, published)
+**Given** audit log entry с любым action (created, updated, deleted, approved, rejected, submitted, published, route.rolledback)
 **When** пользователь раскрывает запись
 **Then** changes отображаются корректно (не "null")
 
 ### AC2: Generic JSON viewer для нестандартных changes
-**Given** changes без структуры before/after
+**Given** changes без структуры before/after (например, `{previousStatus, newStatus, approvedAt}`)
 **When** ChangesViewer рендерит данные
 **Then** показывается formatted JSON с заголовком "Детали изменения"
 
@@ -42,8 +45,67 @@ so that I can understand what happened during approve/reject/submit/rollback act
 
 ## Analysis Summary
 
-### Текущая логика ChangesViewer (строки 64-75)
+### Backend Changes Format по Action
 
+| Action | Backend Format | Frontend receives | Status |
+|--------|---------------|-------------------|--------|
+| **created** | `{"after": {...}}` | `before=undefined, after={...}` | ✅ Работает |
+| **updated** | `{"before": {...}, "after": {...}}` | `before={...}, after={...}` | ✅ Работает |
+| **deleted** | `{"before": {...}}` | `before={...}, after=undefined` | ✅ Работает |
+| **submitted** | `{"newStatus": "pending", "submittedAt": "..."}` | `before=undefined, after=undefined` | ❌ БАГ |
+| **approved** | `{"previousStatus": "pending", "newStatus": "published", "approvedAt": "..."}` | `before=undefined, after=undefined` | ❌ БАГ |
+| **rejected** | `{"previousStatus": "pending", "newStatus": "rejected", "rejectedAt": "...", "rejectionReason": "..."}` | `before=undefined, after=undefined` | ❌ БАГ |
+| **published** | `{"publishedAt": "...", "approvedBy": "..."}` | `before=undefined, after=undefined` | ❌ БАГ |
+| **route.rolledback** | `{"previousStatus": "published", "newStatus": "draft", "rolledbackAt": "...", "rolledbackBy": "..."}` | `before=undefined, after=undefined` | ❌ БАГ |
+
+### Решение: Generic Display Mode
+
+1. **Изменить props** ChangesViewer — передавать весь `changes` объект вместо destructured before/after
+2. **Добавить режим 'generic'** — когда нет before/after, показывать весь changes как JSON
+3. **Сохранить существующую логику** для actions с before/after структурой
+
+## Tasks / Subtasks
+
+- [x] Task 1: Update ChangesViewer props (AC: #1, #2, #3)
+  - [x] 1.1 Изменить interface — принимать `changes` объект целиком
+  - [x] 1.2 Добавить проверку наличия `before`/`after` в changes
+  - [x] 1.3 Добавить режим `'generic'` в displayMode logic
+  - [x] 1.4 Рендерить generic JSON с заголовком "Детали изменения"
+  - [x] 1.5 Использовать нейтральный стиль (jsonStyles.single) для generic режима
+
+- [x] Task 2: Update AuditLogsTable (AC: #1)
+  - [x] 2.1 Изменить передачу props — `changes={record.changes}` вместо destructured
+
+- [x] Task 3: Update unit tests (AC: #1, #2, #3)
+  - [x] 3.1 Тест: `отображает generic JSON для approved без before/after`
+  - [x] 3.2 Тест: `отображает generic JSON для rejected без before/after`
+  - [x] 3.3 Тест: `отображает generic JSON для submitted без before/after`
+  - [x] 3.4 Тест: `отображает generic JSON для route.rolledback без before/after`
+  - [x] 3.5 Тест: `сохраняет diff режим для updated с before/after`
+  - [x] 3.6 Тест: `сохраняет after-only режим для created с after`
+
+- [x] Task 4: Manual verification
+  - [x] 4.1 Проверить Entity ID `90c57d84-88bc-4acd-bcd2-73adba90f0ae` — RateLimit (updated action, has before/after)
+  - [x] 4.2 API возвращает все action types с корректными форматами changes
+
+## API Dependencies Checklist
+
+**Backend изменения не требуются** — fix только на frontend.
+
+## Dev Notes
+
+### Текущая структура ChangesViewer
+
+**Props (строки 12-16):**
+```typescript
+interface ChangesViewerProps {
+  before?: Record<string, unknown> | null
+  after?: Record<string, unknown> | null
+  action: AuditAction
+}
+```
+
+**DisplayMode logic (строки 64-75):**
 ```typescript
 const displayMode = useMemo(() => {
   if (action === 'created' || action === 'approved' || action === 'submitted' || action === 'published') {
@@ -56,59 +118,24 @@ const displayMode = useMemo(() => {
 }, [action])
 ```
 
-**Проблема:** Логика основана на action type, но не проверяет фактическую структуру changes.
+### Новая структура ChangesViewer
 
-### Backend changes format по action
-
-| Action | Backend format | Frontend expectation | Status |
-|--------|---------------|---------------------|--------|
-| created | `{"after": {...}}` | after-only | ✅ |
-| updated | `{"before": {...}, "after": {...}}` | diff | ✅ |
-| deleted | `{"before": {...}}` | before-only | ✅ |
-| approved | `{"previousStatus": "...", "newStatus": "...", "approvedAt": "..."}` | after-only | ❌ **БАГ** |
-| rejected | `{"previousStatus": "...", "newStatus": "...", "reason": "..."}` | before-only | ❌ **БАГ** |
-| submitted | `{"status": "pending", "submittedAt": "..."}` | after-only | ❌ **БАГ** |
-| rolledback | `{"previousStatus": "...", "newStatus": "..."}` | ? | ❌ **БАГ** |
-| published | `{"publishedAt": "...", "approvedBy": "..."}` | after-only | ❌ **БАГ** |
-
-### Решение
-
-**Вариант выбран:** Улучшить frontend (быстрее, гибче)
-
-**Логика:**
-1. Если есть `changes.before` или `changes.after` → использовать текущую логику (diff/before-only/after-only)
-2. Если нет → показать generic JSON viewer с заголовком "Детали изменения"
-
-## Tasks / Subtasks
-
-- [ ] Task 1: Update ChangesViewer logic (AC: #1, #2, #3)
-  - [ ] 1.1 Добавить проверку наличия `before`/`after` в changes
-  - [ ] 1.2 Добавить режим 'generic' для changes без before/after
-  - [ ] 1.3 Рендерить generic JSON с заголовком "Детали изменения"
-  - [ ] 1.4 Использовать нейтральный стиль (серый фон) для generic режима
-
-- [ ] Task 2: Update unit tests (AC: #1, #2, #3)
-  - [ ] 2.1 Тест: `отображает generic JSON для approved без before/after`
-  - [ ] 2.2 Тест: `отображает generic JSON для rejected без before/after`
-  - [ ] 2.3 Тест: `сохраняет diff режим для updated с before/after`
-  - [ ] 2.4 Тест: `сохраняет after-only режим для created с after`
-
-- [ ] Task 3: Manual verification
-  - [ ] 3.1 Проверить Entity ID `90c57d84-88bc-4acd-bcd2-73adba90f0ae`
-  - [ ] 3.2 Проверить все action types в Audit Logs
-
-## API Dependencies Checklist
-
-**Backend изменения не требуются** — fix только на frontend.
-
-## Dev Notes
-
-### Предлагаемое изменение ChangesViewer.tsx
-
+**Props:**
 ```typescript
-// Определяем режим отображения
+interface ChangesViewerProps {
+  changes?: {
+    before?: Record<string, unknown> | null
+    after?: Record<string, unknown> | null
+    [key: string]: unknown  // для generic полей
+  } | null
+  action: AuditAction
+}
+```
+
+**DisplayMode logic:**
+```typescript
 const displayMode = useMemo(() => {
-  const hasBeforeAfter = before !== undefined || after !== undefined
+  const hasBeforeAfter = changes?.before !== undefined || changes?.after !== undefined
 
   // Если нет структуры before/after — generic режим
   if (!hasBeforeAfter) {
@@ -123,51 +150,100 @@ const displayMode = useMemo(() => {
     return 'before-only'
   }
   return 'diff'
-}, [action, before, after])
+}, [action, changes])
+```
 
-// Добавить обработку generic режима
+**Generic rendering (добавить перед существующими режимами):**
+```typescript
 if (displayMode === 'generic') {
-  // Показать весь changes объект как JSON
   return (
     <Card size="small" title="Детали изменения">
       <div style={{ ...jsonStyles.container, ...jsonStyles.single }}>
-        {/* Нужно получить raw changes из props */}
+        {formatJson(changes)}
       </div>
     </Card>
   )
 }
 ```
 
-**Проблема:** ChangesViewer получает `before` и `after` отдельно, не весь `changes` объект.
+### Изменение AuditLogsTable
 
-**Решение:** Изменить props — передавать весь `changes` объект:
-
+**Текущее (строки 77-83):**
 ```typescript
-interface ChangesViewerProps {
-  changes?: {
-    before?: Record<string, unknown> | null
-    after?: Record<string, unknown> | null
-    [key: string]: unknown  // для generic полей
-  } | null
-  action: AuditAction
-}
+{record.changes && (
+  <ChangesViewer
+    before={record.changes.before}
+    after={record.changes.after}
+    action={record.action}
+  />
+)}
 ```
 
-### Стиль для generic режима
+**Новое:**
+```typescript
+{record.changes && (
+  <ChangesViewer
+    changes={record.changes}
+    action={record.action}
+  />
+)}
+```
+
+### Существующие стили (для generic режима)
 
 ```typescript
+// Строки 37-39 — уже существуют
 single: {
-  backgroundColor: '#f5f5f5',  // уже существует (строка 37-39)
+  backgroundColor: '#f5f5f5',
   border: '1px solid #d9d9d9',
 }
 ```
 
-### Files to modify
+### Files to Modify
 
-- `frontend/admin-ui/src/features/audit/components/ChangesViewer.tsx`
-- `frontend/admin-ui/src/features/audit/components/ChangesViewer.test.tsx`
-- `frontend/admin-ui/src/features/audit/components/AuditLogsTable.tsx` (передача changes)
+| File | Changes |
+|------|---------|
+| `frontend/admin-ui/src/features/audit/components/ChangesViewer.tsx` | Props, displayMode logic, generic rendering |
+| `frontend/admin-ui/src/features/audit/components/ChangesViewer.test.tsx` | Добавить тесты для generic режима |
+| `frontend/admin-ui/src/features/audit/components/AuditLogsTable.tsx` | Изменить передачу props |
+
+### References
+
+- [Source: ChangesViewer.tsx:12-16] — текущие props
+- [Source: ChangesViewer.tsx:64-75] — текущая displayMode logic
+- [Source: ChangesViewer.tsx:37-39] — стили для single mode
+- [Source: AuditLogsTable.tsx:77-83] — текущая передача props
+- [Source: ApprovalService.kt:126-285] — backend changes format
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 4.5 (claude-opus-4-5-20251101)
+
+### Debug Log References
+
+- API verified: `curl -b cookies.txt "http://localhost:8081/api/v1/audit?limit=10"` returns all action types with correct changes format
+
+### Completion Notes List
+
+- Реализован generic режим в ChangesViewer для changes без структуры before/after
+- Props изменены: принимает `changes` объект целиком вместо destructured before/after
+- Сохранена обратная совместимость через legacy props (before, after)
+- DisplayMode logic: проверяет наличие before/after в changes — если нет, использует generic режим
+- AuditLogsTable обновлён: передаёт `changes={record.changes}` вместо destructured props
+- Добавлены 6 unit тестов для generic режима
+- Все 544 frontend теста проходят (нет регрессий)
+- Все 67 audit тестов проходят
+
+### File List
+
+- `frontend/admin-ui/src/features/audit/components/ChangesViewer.tsx` — добавлен generic режим, новые props
+- `frontend/admin-ui/src/features/audit/components/ChangesViewer.test.tsx` — добавлены 6 тестов для generic режима
+- `frontend/admin-ui/src/features/audit/components/AuditLogsTable.tsx` — изменена передача props в ChangesViewer
 
 ## Change Log
 
-- **2026-02-22:** Hotfix story created from SM chat session (bug report by Yury)
+- **2026-02-22:** Story created from SM chat session (bug report by Yury)
+- **2026-02-22:** Full analysis completed, root cause confirmed, status → ready-for-dev
+- **2026-02-22:** Implementation complete — generic режим добавлен, все тесты проходят

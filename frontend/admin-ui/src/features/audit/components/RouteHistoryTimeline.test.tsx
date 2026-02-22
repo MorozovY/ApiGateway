@@ -6,6 +6,17 @@ import { renderWithMockAuth } from '../../../test/test-utils'
 import { RouteHistoryTimeline } from './RouteHistoryTimeline'
 import type { RouteHistoryResponse } from '../types/audit.types'
 
+// Мокаем ThemeProvider (Story 10.8: ChangesViewer использует тему)
+vi.mock('@/shared/providers/ThemeProvider', () => ({
+  useThemeContext: () => ({
+    theme: 'light',
+    isDark: false,
+    isLight: true,
+    toggle: vi.fn(),
+    setTheme: vi.fn(),
+  }),
+}))
+
 // Мок для API
 const mockFetchRouteHistory = vi.fn()
 vi.mock('@features/routes/api/routesApi', () => ({

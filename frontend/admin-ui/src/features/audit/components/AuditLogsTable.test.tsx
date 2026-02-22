@@ -5,6 +5,17 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuditLogsTable } from './AuditLogsTable'
 import type { AuditLogsResponse, AuditFilter, AuditLogEntry } from '../types/audit.types'
 
+// Мокаем ThemeProvider (Story 10.8: ChangesViewer использует тему)
+vi.mock('@/shared/providers/ThemeProvider', () => ({
+  useThemeContext: () => ({
+    theme: 'light',
+    isDark: false,
+    isLight: true,
+    toggle: vi.fn(),
+    setTheme: vi.fn(),
+  }),
+}))
+
 const mockAuditLogs: AuditLogEntry[] = [
   {
     id: 'audit-1',
