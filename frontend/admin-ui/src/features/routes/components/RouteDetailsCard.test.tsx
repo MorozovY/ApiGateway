@@ -39,6 +39,8 @@ let mockCloneMutateAsync = vi.fn()
 let mockCloneIsPending = false
 let mockRollbackMutateAsync = vi.fn()
 let mockRollbackIsPending = false
+let mockDeleteMutateAsync = vi.fn()
+let mockDeleteIsPending = false
 
 vi.mock('../hooks/useRoutes', () => ({
   useCloneRoute: () => ({
@@ -53,6 +55,10 @@ vi.mock('../hooks/useRoutes', () => ({
   useRollbackRoute: () => ({
     mutateAsync: mockRollbackMutateAsync,
     isPending: mockRollbackIsPending,
+  }),
+  useDeleteRoute: () => ({
+    mutateAsync: mockDeleteMutateAsync,
+    isPending: mockDeleteIsPending,
   }),
 }))
 
@@ -72,16 +78,23 @@ vi.mock('@features/auth', async () => {
   }
 })
 
+// Сброс всех моков перед каждым тестом
+function resetAllMocks() {
+  mockSubmitMutateAsync = vi.fn()
+  mockSubmitIsPending = false
+  mockCloneMutateAsync = vi.fn()
+  mockCloneIsPending = false
+  mockRollbackMutateAsync = vi.fn()
+  mockRollbackIsPending = false
+  mockDeleteMutateAsync = vi.fn()
+  mockDeleteIsPending = false
+  mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
+}
+
 describe('Submit for Approval UI', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSubmitMutateAsync = vi.fn()
-    mockSubmitIsPending = false
-    mockCloneMutateAsync = vi.fn()
-    mockCloneIsPending = false
-    mockRollbackMutateAsync = vi.fn()
-    mockRollbackIsPending = false
-    mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
+    resetAllMocks()
   })
 
   afterEach(() => {
@@ -331,13 +344,7 @@ describe('Submit for Approval UI', () => {
 describe('секция Rate Limit (Story 5.5)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSubmitMutateAsync = vi.fn()
-    mockSubmitIsPending = false
-    mockCloneMutateAsync = vi.fn()
-    mockCloneIsPending = false
-    mockRollbackMutateAsync = vi.fn()
-    mockRollbackIsPending = false
-    mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
+    resetAllMocks()
   })
 
   afterEach(() => {
@@ -412,13 +419,7 @@ describe('секция Rate Limit (Story 5.5)', () => {
 describe('Rollback UI (Story 10.3)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSubmitMutateAsync = vi.fn()
-    mockSubmitIsPending = false
-    mockCloneMutateAsync = vi.fn()
-    mockCloneIsPending = false
-    mockRollbackMutateAsync = vi.fn()
-    mockRollbackIsPending = false
-    mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
+    resetAllMocks()
   })
 
   afterEach(() => {
@@ -543,5 +544,216 @@ describe('Rollback UI (Story 10.3)', () => {
     await waitFor(() => {
       expect(mockRollbackMutateAsync).toHaveBeenCalledWith('route-1')
     })
+  })
+})
+
+// ============================================
+// Story 10.4: Delete кнопка
+// ============================================
+
+describe('Delete UI (Story 10.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('показывает кнопку Delete для автора draft маршрута', async () => {
+    renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /удалить/i })
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('скрывает кнопку Delete для не-автора draft маршрута', async () => {
+    const otherOwnerRoute = { ...mockDraftRoute, createdBy: 'other-user' }
+
+    renderWithMockAuth(<RouteDetailsCard route={otherOwnerRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /удалить/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('скрывает кнопку Delete для non-draft маршрутов', async () => {
+    const publishedRoute = { ...mockDraftRoute, status: 'published' as const }
+
+    renderWithMockAuth(<RouteDetailsCard route={publishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /удалить/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('показывает кнопку Delete для Admin на чужом draft маршруте', async () => {
+    mockUser = { userId: 'admin-1', username: 'adminuser', role: 'admin' }
+    const otherOwnerRoute = { ...mockDraftRoute, createdBy: 'other-user' }
+
+    renderWithMockAuth(<RouteDetailsCard route={otherOwnerRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /удалить/i })
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('скрывает кнопку Delete для pending маршрута даже если автор', async () => {
+    const pendingRoute = { ...mockDraftRoute, status: 'pending' as const }
+
+    renderWithMockAuth(<RouteDetailsCard route={pendingRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /удалить/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('скрывает кнопку Delete для rejected маршрута даже если автор', async () => {
+    const rejectedRoute = { ...mockDraftRoute, status: 'rejected' as const }
+
+    renderWithMockAuth(<RouteDetailsCard route={rejectedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /удалить/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('скрывает кнопку Delete для published маршрута даже если автор', async () => {
+    const publishedRoute = { ...mockDraftRoute, status: 'published' as const }
+
+    renderWithMockAuth(<RouteDetailsCard route={publishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /удалить/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('показывает Popconfirm при клике на кнопку Delete', async () => {
+    renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /удалить/i })
+      ).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /удалить/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/это действие нельзя отменить/i)
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('вызывает API и навигирует на /routes при подтверждении', async () => {
+    mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined)
+
+    renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /удалить/i })
+      ).toBeInTheDocument()
+    })
+
+    // Открываем Popconfirm
+    fireEvent.click(screen.getByRole('button', { name: /удалить/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/это действие нельзя отменить/i)
+      ).toBeInTheDocument()
+    })
+
+    // Кнопка "Да" в Popconfirm — берём последнюю из всех кнопок с текстом "Да"
+    const confirmButtons = screen.getAllByRole('button', { name: /^да$/i })
+    fireEvent.click(confirmButtons[confirmButtons.length - 1])
+
+    await waitFor(() => {
+      expect(mockDeleteMutateAsync).toHaveBeenCalledWith('route-1')
+    })
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/routes')
+    })
+  })
+
+  it('не навигирует при ошибке удаления', async () => {
+    mockDeleteMutateAsync = vi.fn().mockRejectedValue(new Error('Delete failed'))
+
+    renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /удалить/i })
+      ).toBeInTheDocument()
+    })
+
+    // Открываем Popconfirm
+    fireEvent.click(screen.getByRole('button', { name: /удалить/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/это действие нельзя отменить/i)
+      ).toBeInTheDocument()
+    })
+
+    // Кнопка "Да" в Popconfirm — берём последнюю из всех кнопок с текстом "Да"
+    const confirmButtons = screen.getAllByRole('button', { name: /^да$/i })
+    fireEvent.click(confirmButtons[confirmButtons.length - 1])
+
+    await waitFor(() => {
+      expect(mockDeleteMutateAsync).toHaveBeenCalledWith('route-1')
+    })
+
+    // При ошибке навигация НЕ должна происходить
+    expect(mockNavigate).not.toHaveBeenCalledWith('/routes')
   })
 })

@@ -1,11 +1,11 @@
-// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5, Story 5.5 и Story 10.3)
-import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Modal, Alert } from 'antd'
-import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined, ExclamationCircleOutlined, RollbackOutlined } from '@ant-design/icons'
+// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5, Story 5.5, Story 10.3 и Story 10.4)
+import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Modal, Alert, Popconfirm } from 'antd'
+import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined, ExclamationCircleOutlined, RollbackOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/ru'
-import { useCloneRoute, useSubmitRoute, useRollbackRoute } from '../hooks/useRoutes'
+import { useCloneRoute, useSubmitRoute, useRollbackRoute, useDeleteRoute } from '../hooks/useRoutes'
 import type { Route } from '../types/route.types'
 import { useAuth } from '@features/auth'
 import { STATUS_COLORS, STATUS_LABELS, METHOD_COLORS } from '@shared/constants'
@@ -38,6 +38,7 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   const cloneMutation = useCloneRoute()
   const submitMutation = useSubmitRoute()
   const rollbackMutation = useRollbackRoute()
+  const deleteMutation = useDeleteRoute()
 
   // Проверка прав для разных действий (canEdit и canSubmit — одно условие: draft + owner)
   const canSubmit = route.status === 'draft' && route.createdBy === user?.userId
@@ -47,6 +48,10 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   // Story 10.3: Rollback доступен только для Security/Admin на published маршрутах
   const canRollback = route.status === 'published' &&
     (user?.role === 'security' || user?.role === 'admin')
+
+  // Story 10.4: Delete доступен для draft маршрутов — автору или Admin
+  const canDelete = route.status === 'draft' &&
+    (route.createdBy === user?.userId || user?.role === 'admin')
 
   /**
    * Переход на страницу редактирования.
@@ -118,6 +123,19 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
     })
   }
 
+  /**
+   * Удаление маршрута и переход на список.
+   * Story 10.4
+   */
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(route.id)
+      navigate('/routes')
+    } catch {
+      // Ошибка уже обработана в useDeleteRoute hook (message.error)
+    }
+  }
+
   return (
     <>
       <Card
@@ -170,6 +188,26 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
               >
                 Редактировать и повторно отправить
               </Button>
+            )}
+            {/* Кнопка Delete — только для draft + (owner или admin) — Story 10.4 */}
+            {canDelete && (
+              <Popconfirm
+                title="Удалить маршрут?"
+                description="Это действие нельзя отменить"
+                onConfirm={handleDelete}
+                okText="Да"
+                okType="danger"
+                cancelText="Нет"
+              >
+                <Button
+                  type="default"
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={deleteMutation.isPending}
+                >
+                  Удалить
+                </Button>
+              </Popconfirm>
             )}
             <Button
               icon={<CopyOutlined />}

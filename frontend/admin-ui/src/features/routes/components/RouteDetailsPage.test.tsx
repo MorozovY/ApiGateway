@@ -62,6 +62,14 @@ vi.mock('../hooks/useRoutes', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useRollbackRoute: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteRoute: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }))
 
 // Мок useAuth

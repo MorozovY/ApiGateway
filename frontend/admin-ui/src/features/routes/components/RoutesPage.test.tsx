@@ -704,3 +704,65 @@ describe('RoutesPage удаление маршрута', () => {
     })
   })
 })
+
+// ============================================
+// Story 10.4: Admin может удалять чужие draft маршруты
+// ============================================
+
+describe('RoutesPage Admin права (Story 10.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetchRoutes.mockResolvedValue(mockRoutesResponse)
+    mockDeleteRoute.mockResolvedValue(undefined)
+  })
+
+  it('Admin видит кнопки Edit и Delete для чужих draft маршрутов', async () => {
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'admin-user', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/users')).toBeInTheDocument()
+    })
+
+    // Admin должен видеть кнопки Edit и Delete для draft маршрута другого пользователя
+    // route-2 - draft маршрут с createdBy: 'current-user' (не admin)
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
+    expect(deleteButtons.length).toBeGreaterThan(0)
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    expect(editButtons.length).toBeGreaterThan(0)
+  })
+
+  it('Admin может удалить чужой draft маршрут', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'admin-user', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/users')).toBeInTheDocument()
+    })
+
+    // Находим и кликаем кнопку удаления для draft маршрута
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
+    const firstDeleteButton = deleteButtons[0]!
+    await user.click(firstDeleteButton)
+
+    // Подтверждаем удаление
+    const confirmButton = await screen.findByRole('button', { name: /да/i })
+    await user.click(confirmButton)
+
+    // Проверяем что API был вызван
+    await waitFor(() => {
+      expect(mockDeleteRoute).toHaveBeenCalledWith('route-2')
+    })
+  })
+})

@@ -222,11 +222,14 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
   /**
    * Проверка, можно ли редактировать/удалять маршрут.
    * Draft маршруты могут редактировать только их создатели.
+   * Admin может редактировать/удалять любые draft маршруты (Story 10.4).
    */
   const canModify = useCallback((route: Route): boolean => {
     if (route.status !== 'draft') return false
-    return route.createdBy === user?.userId
-  }, [user?.userId])
+    // Developer может редактировать/удалять только свои маршруты
+    // Admin может редактировать/удалять любые draft маршруты
+    return route.createdBy === user?.userId || user?.role === 'admin'
+  }, [user?.userId, user?.role])
 
   // Определение колонок таблицы
   const columns: ColumnsType<Route> = useMemo(() => [
