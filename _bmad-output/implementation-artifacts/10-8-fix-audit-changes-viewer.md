@@ -1,6 +1,6 @@
 # Story 10.8: Fix Audit Changes Viewer
 
-Status: review
+Status: done
 
 ## Story
 
@@ -233,17 +233,21 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - DisplayMode logic: проверяет наличие before/after в changes — если нет, использует generic режим
 - AuditLogsTable обновлён: передаёт `changes={record.changes}` вместо destructured props
 - Добавлены 6 unit тестов для generic режима
-- Все 544 frontend теста проходят (нет регрессий)
-- Все 67 audit тестов проходят
+- Все frontend тесты проходят (нет регрессий)
+- Все audit тесты проходят
 
 ### File List
 
 - `frontend/admin-ui/src/features/audit/components/ChangesViewer.tsx` — добавлен generic режим, новые props
 - `frontend/admin-ui/src/features/audit/components/ChangesViewer.test.tsx` — добавлены 6 тестов для generic режима
 - `frontend/admin-ui/src/features/audit/components/AuditLogsTable.tsx` — изменена передача props в ChangesViewer
+- `frontend/admin-ui/src/features/audit/components/AuditLogsTable.test.tsx` — добавлен мок ThemeProvider
+- `frontend/admin-ui/src/features/audit/components/RouteHistoryTimeline.test.tsx` — добавлен мок ThemeProvider
+- `frontend/admin-ui/src/features/audit/types/audit.types.ts` — добавлен `route.rolledback` action, generic поля в AuditChanges
 
 ## Change Log
 
 - **2026-02-22:** Story created from SM chat session (bug report by Yury)
 - **2026-02-22:** Full analysis completed, root cause confirmed, status → ready-for-dev
 - **2026-02-22:** Implementation complete — generic режим добавлен, все тесты проходят
+- **2026-02-22:** Code review fixes — добавлен `route.rolledback` в AuditAction, обновлён AuditChanges interface, @deprecated JSDoc для legacy props

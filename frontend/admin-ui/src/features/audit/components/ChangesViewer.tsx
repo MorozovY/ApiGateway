@@ -6,17 +6,29 @@ import type { AuditAction } from '../types/audit.types'
 
 const { Text, Title } = Typography
 
-// Props для ChangesViewer
-// Story 10.8: Поддержка generic changes без before/after структуры
+/**
+ * Props для ChangesViewer.
+ * Story 10.8: Поддержка generic changes без before/after структуры.
+ */
 interface ChangesViewerProps {
-  // Новый prop: весь объект changes (Story 10.8)
+  /**
+   * Объект changes целиком (рекомендуемый способ).
+   * Поддерживает как before/after структуру, так и generic поля.
+   */
   changes?: {
     before?: Record<string, unknown> | null
     after?: Record<string, unknown> | null
     [key: string]: unknown // для generic полей (previousStatus, newStatus, etc.)
   } | null
-  // Legacy props для обратной совместимости (deprecated)
+  /**
+   * @deprecated Используйте `changes.before` вместо этого prop.
+   * Будет удалено в следующем мажорном релизе.
+   */
   before?: Record<string, unknown> | null
+  /**
+   * @deprecated Используйте `changes.after` вместо этого prop.
+   * Будет удалено в следующем мажорном релизе.
+   */
   after?: Record<string, unknown> | null
   action: AuditAction
 }
@@ -37,7 +49,6 @@ const containerStyle = {
 
 /**
  * Цвета для JSON блоков в зависимости от темы.
- * Story 10.8: Добавлена поддержка тёмной темы.
  */
 const JSON_COLORS = {
   light: {
@@ -109,6 +120,7 @@ export function ChangesViewer({ changes, before: legacyBefore, after: legacyAfte
     return (
       <Card size="small" title="Детали изменения">
         <div style={{ ...containerStyle, ...colors.single }}>
+          {/* Type assertion: changes гарантированно не null здесь (проверка в displayMode useMemo) */}
           {formatJson(changes as Record<string, unknown>)}
         </div>
       </Card>

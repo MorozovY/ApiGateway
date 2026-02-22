@@ -5,6 +5,7 @@
  *
  * Соответствует enum AuditAction на backend (Story 7.1).
  * Включает 'published' для полного соответствия backend schema.
+ * Story 10.8: Добавлен 'route.rolledback' для rollback операций.
  */
 export type AuditAction =
   | 'created'
@@ -14,6 +15,7 @@ export type AuditAction =
   | 'rejected'
   | 'submitted'
   | 'published'
+  | 'route.rolledback'
 
 /**
  * Типы сущностей аудит-лога.
@@ -33,14 +35,22 @@ export interface AuditUserInfo {
 }
 
 /**
- * Структура изменений для updated событий.
+ * Структура изменений для аудит-событий.
  *
- * before — состояние до изменения (null для created)
- * after — состояние после изменения (null для deleted)
+ * Для CRUD операций (created, updated, deleted):
+ * - before — состояние до изменения (null для created)
+ * - after — состояние после изменения (null для deleted)
+ *
+ * Для approval/status операций (approved, rejected, submitted, route.rolledback):
+ * - Generic поля: previousStatus, newStatus, approvedAt, rejectedAt, etc.
+ *
+ * Story 10.8: Добавлена поддержка generic полей через index signature.
  */
 export interface AuditChanges {
   before?: Record<string, unknown> | null
   after?: Record<string, unknown> | null
+  // Generic поля для approval/status операций (Story 10.8)
+  [key: string]: unknown
 }
 
 /**
