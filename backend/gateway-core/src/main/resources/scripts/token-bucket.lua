@@ -31,7 +31,8 @@ local refill = elapsed * rate  -- дробное восполнение
 
 -- Добавляем токены и обновляем lastRefill
 -- Используем дробное хранение для точного учёта частичных токенов
-tokens = math.min(capacity, tokens + refill)
+-- math.max(0, ...) защищает от edge case отрицательных токенов
+tokens = math.max(0, math.min(capacity, tokens + refill))
 lastRefill = now
 
 -- Проверяем доступность токена
