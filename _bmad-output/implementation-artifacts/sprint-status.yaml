@@ -149,7 +149,7 @@ development_status:
   10-4-author-draft-deletion: done  # FR-04: Author can delete own draft route
   10-5-nginx-health-check: done  # FR-02: Add Nginx to health check on Metrics page
   10-6-swagger-link-login-page: done  # FR-03: Add Swagger links on login page (code review: 2 issues fixed)
-  10-7-quick-start-guide: review  # DOC: Quick Start Guide for new users
+  10-7-quick-start-guide: done  # DOC: Quick Start Guide for new users — code review fixes applied
   10-8-fix-audit-changes-viewer: ready-for-dev  # BUG: Audit log changes показывают "null"
   10-9-fix-theme-modals-messages: ready-for-dev  # BUG: Modals/messages не поддерживают тёмную тему
   10-10-fix-top-routes-time-range: ready-for-dev  # BUG: Top Routes не реагирует на time range

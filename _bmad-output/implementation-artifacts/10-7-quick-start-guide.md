@@ -1,6 +1,6 @@
 # Story 10.7: Quick Start Guide
 
-Status: review
+Status: done
 
 ## Story
 
@@ -148,6 +148,10 @@ stateDiagram-v2
     DRAFT --> [*]: Delete (Owner/Admin)
 ```
 
+> **Примечание:** В HTML версии (`quick-start-guide.html`) используется ASCII-art диаграмма вместо Mermaid,
+> поскольку Mermaid требует подключения JavaScript библиотеки. Для standalone HTML документа ASCII-art
+> обеспечивает визуализацию без внешних зависимостей.
+
 ### Sidebar Integration
 
 **Файл:** `frontend/admin-ui/src/layouts/Sidebar.tsx`
@@ -261,10 +265,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `frontend/admin-ui/src/layouts/Sidebar.tsx` — MODIFIED (добавлена ссылка на guide)
 - `frontend/admin-ui/src/layouts/Sidebar.test.tsx` — MODIFIED (добавлены тесты для ссылки)
 - `docker/nginx/nginx.conf` — MODIFIED (добавлен location /docs/)
-- `docker-compose.override.yml` — MODIFIED (добавлен volume ./docs:/app/docs:ro)
+- `docker-compose.override.yml.example` — MODIFIED (добавлен volume ./docs:/app/docs:ro)
 
 ## Change Log
 
 - **2026-02-22:** Story created from SM chat session
 - **2026-02-22:** Full analysis completed, status → ready-for-dev
 - **2026-02-22:** Implementation completed — Quick Start Guide (MD + HTML), Sidebar link, Nginx config, tests passed, status → review
+- **2026-02-22:** Code review fixes — исправлен File List (docker-compose.override.yml.example), добавлен aria-label для accessibility, добавлены тесты для developer/security ролей

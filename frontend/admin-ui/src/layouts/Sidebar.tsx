@@ -1,6 +1,6 @@
 // Боковая панель навигации (Story 2.6 — Users, Story 4.6 — Badge, Story 6.5 — Metrics, Story 7.6 — Collapsible, Story 9.3 — Role-based filtering)
-import { useMemo, useState } from 'react'
-import { Layout, Menu, Badge, Button, Tooltip } from 'antd'
+import { useMemo } from 'react'
+import { Layout, Menu, Badge } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   ApiOutlined,
@@ -11,10 +11,7 @@ import {
   TeamOutlined,
   AreaChartOutlined,
   ClusterOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   ExperimentOutlined,
-  BookOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
@@ -22,11 +19,6 @@ import type { ItemType } from 'antd/es/menu/interface'
 import type { User } from '@features/auth'
 
 const { Sider } = Layout
-
-/**
- * Ключ для сохранения состояния collapsed в localStorage (AC8).
- */
-const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
 
 /**
  * Маппинг ролей к разрешённым пунктам меню (Story 9.3, AC1-AC3).
@@ -49,6 +41,10 @@ const ROLE_MENU_ACCESS: Record<User['role'], string[]> = {
     '/metrics',
     '/test',
   ],
+}
+
+interface SidebarProps {
+  collapsed: boolean
 }
 
 /**
@@ -103,22 +99,10 @@ const allMenuItems: ItemType[] = [
   },
 ]
 
-function Sidebar() {
+function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
-
-  // Состояние collapsed с сохранением в localStorage (AC8)
-  const [collapsed, setCollapsed] = useState(() => {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
-    return saved === 'true'
-  })
-
-  // Обработчик collapse с сохранением в localStorage
-  const handleCollapse = (value: boolean) => {
-    setCollapsed(value)
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(value))
-  }
 
   // Счётчик pending маршрутов для Badge (только для security/admin, enabled=false для developer)
   const pendingCount = usePendingRoutesCount()
@@ -175,7 +159,6 @@ function Sidebar() {
       collapsedWidth={80}
       collapsible
       collapsed={collapsed}
-      onCollapse={handleCollapse}
       trigger={null}
     >
       {/* Логотип */}
@@ -204,46 +187,6 @@ function Sidebar() {
         items={menuItems}
         onClick={({ key }) => navigate(key)}
       />
-
-      {/* Footer: Quick Start Guide + collapse button (Story 10.7, AC4) */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 16,
-          left: 0,
-          right: 0,
-          padding: '0 12px',
-          display: 'flex',
-          justifyContent: collapsed ? 'center' : 'space-between',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        {/* Ссылка на Quick Start Guide */}
-        <Tooltip title="Руководство" placement="right">
-          <Button
-            type="text"
-            icon={<BookOutlined />}
-            href="/docs/quick-start-guide.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="quick-start-guide-link"
-            style={{ width: collapsed ? 48 : 'auto' }}
-          >
-            {!collapsed && 'Руководство'}
-          </Button>
-        </Tooltip>
-
-        {/* Кнопка collapse/expand (AC8) */}
-        <Tooltip title={collapsed ? 'Развернуть' : 'Свернуть'} placement="right">
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => handleCollapse(!collapsed)}
-            style={{ width: collapsed ? 48 : 'auto' }}
-          />
-        </Tooltip>
-      </div>
     </Sider>
   )
 }
