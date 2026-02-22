@@ -110,13 +110,27 @@ describe('LoginForm', () => {
   })
 
   // Story 10.6: Ссылки на API документацию
-  it('отображает ссылки на API документацию', () => {
-    renderWithMockAuth(<LoginForm />, { authValue: baseAuthValue })
+  describe('ссылки на API документацию (Story 10.6)', () => {
+    it('отображает секцию API документации', () => {
+      renderWithMockAuth(<LoginForm />, { authValue: baseAuthValue })
 
-    // AC1: Секция API документации отображается
-    expect(screen.getByTestId('api-docs-links')).toBeInTheDocument()
+      // AC1: Секция API документации отображается
+      expect(screen.getByTestId('api-docs-links')).toBeInTheDocument()
 
-    // AC3: Ссылка на Swagger отображается
-    expect(screen.getByTestId('swagger-link')).toBeInTheDocument()
+      // AC1: Ссылка на Swagger отображается
+      expect(screen.getByTestId('swagger-link')).toBeInTheDocument()
+    })
+
+    it('секция API документации расположена после Demo Credentials (AC3)', () => {
+      renderWithMockAuth(<LoginForm />, { authValue: baseAuthValue })
+
+      const demoCredentials = screen.getByTestId('demo-credentials-card')
+      const apiDocsLinks = screen.getByTestId('api-docs-links')
+
+      // Проверяем что ApiDocsLinks идёт после DemoCredentials в DOM
+      // compareDocumentPosition возвращает битовую маску, DOCUMENT_POSITION_FOLLOWING = 4
+      const position = demoCredentials.compareDocumentPosition(apiDocsLinks)
+      expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
   })
 })

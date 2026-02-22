@@ -1,5 +1,5 @@
 // Ссылки на API документацию для страницы логина (Story 10.6)
-import { Typography, Divider, Space } from 'antd'
+import { Typography, Divider } from 'antd'
 import { FileTextOutlined } from '@ant-design/icons'
 
 const { Text, Link } = Typography
@@ -18,7 +18,7 @@ export function ApiDocsLinks() {
         <Text type="secondary" style={{ fontSize: 12 }}>📚 API документация</Text>
       </Divider>
 
-      <Space direction="vertical" size={4} style={{ width: '100%', textAlign: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
         <Link
           href="/swagger-ui.html"
           target="_blank"
@@ -27,7 +27,7 @@ export function ApiDocsLinks() {
         >
           <FileTextOutlined /> Gateway Admin API (Swagger)
         </Link>
-      </Space>
+      </div>
     </div>
   )
 }

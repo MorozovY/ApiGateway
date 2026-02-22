@@ -148,4 +148,4 @@ development_status:
   10-3-security-route-rollback: done  # FR-01: Security can rollback published route to draft (code review: 6 issues fixed)
   10-4-author-draft-deletion: done  # FR-04: Author can delete own draft route
   10-5-nginx-health-check: done  # FR-02: Add Nginx to health check on Metrics page
-  10-6-swagger-link-login-page: review  # FR-03: Add Swagger links on login page
+  10-6-swagger-link-login-page: done  # FR-03: Add Swagger links on login page (code review: 2 issues fixed)

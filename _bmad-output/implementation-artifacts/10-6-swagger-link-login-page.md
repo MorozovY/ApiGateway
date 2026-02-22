@@ -1,6 +1,6 @@
 # Story 10.6: Swagger Links on Login Page
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -131,6 +131,7 @@ import { ApiDocsLinks } from './ApiDocsLinks'
 
 - [x] Task 4: Integration test — LoginForm renders ApiDocsLinks (AC: #3)
   - [x] 4.1 Add test in LoginForm.test.tsx: `отображает ссылки на API документацию`
+  - [x] 4.2 Add test: `секция API документации расположена после Demo Credentials (AC3)` (code review fix)
 
 ## API Dependencies Checklist
 
@@ -255,6 +256,11 @@ N/A — реализация прошла без проблем
 - **FIX:** Добавлены location в nginx.conf для проксирования swagger на gateway-admin:
   - `/swagger-ui.html`, `/swagger-ui/`, `/v3/api-docs`, `/webjars/`
 
+**Code Review Fixes (2026-02-22):**
+- Убран избыточный Space компонент (был для одного элемента, заменён на div)
+- Добавлен тест на порядок элементов: ApiDocsLinks после DemoCredentials (AC3)
+- Все 526 frontend тестов проходят (+1 новый тест)
+
 ### File List
 
 - frontend/admin-ui/src/features/auth/components/ApiDocsLinks.tsx (new)
@@ -266,3 +272,4 @@ N/A — реализация прошла без проблем
 ## Change Log
 
 - **2026-02-22:** Story 10.6 implemented — Swagger links on login page (AC1, AC2, AC3 complete)
+- **2026-02-22:** Code review passed — fixed M1 (added AC3 order test), M2 (removed redundant Space)
