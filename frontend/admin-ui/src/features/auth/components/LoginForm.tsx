@@ -5,6 +5,7 @@ import type { InputRef } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useAuth } from '../hooks/useAuth'
 import { DemoCredentials } from './DemoCredentials'
+import { ApiDocsLinks } from './ApiDocsLinks'
 
 interface LoginFormValues {
   username: string
@@ -95,6 +96,9 @@ export function LoginForm() {
 
       {/* AC1: Таблица демо-учётных данных */}
       <DemoCredentials onSelect={handleDemoSelect} />
+
+      {/* AC3: Ссылки на API документацию после DemoCredentials (Story 10.6) */}
+      <ApiDocsLinks />
     </Form>
   )
 }

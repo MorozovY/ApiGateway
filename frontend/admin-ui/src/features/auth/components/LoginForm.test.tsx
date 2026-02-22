@@ -108,4 +108,15 @@ describe('LoginForm', () => {
     const button = screen.getByTestId('login-button')
     expect(button).not.toHaveClass('ant-btn-loading')
   })
+
+  // Story 10.6: Ссылки на API документацию
+  it('отображает ссылки на API документацию', () => {
+    renderWithMockAuth(<LoginForm />, { authValue: baseAuthValue })
+
+    // AC1: Секция API документации отображается
+    expect(screen.getByTestId('api-docs-links')).toBeInTheDocument()
+
+    // AC3: Ссылка на Swagger отображается
+    expect(screen.getByTestId('swagger-link')).toBeInTheDocument()
+  })
 })
