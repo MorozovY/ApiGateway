@@ -341,4 +341,23 @@ class RouteController(
             }
             .map { ResponseEntity.ok(it) }
     }
+
+    /**
+     * Откат опубликованного маршрута в статус DRAFT.
+     *
+     * Доступно только SECURITY и ADMIN ролям.
+     * Переводит маршрут из PUBLISHED в DRAFT, очищает approval fields
+     * и удаляет маршрут из gateway-core через Redis pub/sub.
+     *
+     * Story 10.3, AC1, AC2, AC3, AC4, AC5.
+     */
+    @PostMapping("/{id}/rollback")
+    @RequireRole(Role.SECURITY)
+    fun rollbackRoute(@PathVariable id: UUID): Mono<ResponseEntity<RouteResponse>> {
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                approvalService.rollback(id, user.userId, user.username)
+            }
+            .map { ResponseEntity.ok(it) }
+    }
 }

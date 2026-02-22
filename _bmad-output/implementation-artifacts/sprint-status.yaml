@@ -144,8 +144,8 @@ development_status:
   # Epic 10: Maintenance & Bug Fixes
   epic-10: in-progress  # 2026-02-22: Created from Epic 9 retrospective
   10-1-rate-limit-not-working: done  # BUG-04: CRITICAL — fixed math.floor token loss in Lua script + code review fixes
-  10-2-approvals-realtime-updates: ready-for-dev  # BUG-03: MEDIUM — requires page refresh
-  10-3-security-route-rollback: backlog  # FR-01: Security can rollback published route to draft
+  10-2-approvals-realtime-updates: review  # BUG-03: MEDIUM — awaiting manual validation (Task 5)
+  10-3-security-route-rollback: done  # FR-01: Security can rollback published route to draft (code review: 6 issues fixed)
   10-4-author-draft-deletion: backlog  # FR-04: Author can delete own draft route
   10-5-nginx-health-check: backlog  # FR-02: Add Nginx to health check on Metrics page
   10-6-swagger-link-login-page: backlog  # FR-03: Add Swagger links on login page

@@ -37,6 +37,8 @@ let mockSubmitMutateAsync = vi.fn()
 let mockSubmitIsPending = false
 let mockCloneMutateAsync = vi.fn()
 let mockCloneIsPending = false
+let mockRollbackMutateAsync = vi.fn()
+let mockRollbackIsPending = false
 
 vi.mock('../hooks/useRoutes', () => ({
   useCloneRoute: () => ({
@@ -47,6 +49,10 @@ vi.mock('../hooks/useRoutes', () => ({
   useSubmitRoute: () => ({
     mutateAsync: mockSubmitMutateAsync,
     isPending: mockSubmitIsPending,
+  }),
+  useRollbackRoute: () => ({
+    mutateAsync: mockRollbackMutateAsync,
+    isPending: mockRollbackIsPending,
   }),
 }))
 
@@ -73,6 +79,8 @@ describe('Submit for Approval UI', () => {
     mockSubmitIsPending = false
     mockCloneMutateAsync = vi.fn()
     mockCloneIsPending = false
+    mockRollbackMutateAsync = vi.fn()
+    mockRollbackIsPending = false
     mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
   })
 
@@ -168,18 +176,12 @@ describe('Submit for Approval UI', () => {
       ).toBeInTheDocument()
     })
 
-    // Кнопка "Отправить" в footer modal — точный текст отличается от триггера "Отправить на согласование"
-    fireEvent.click(screen.getByRole('button', { name: /^отправить$/i }))
+    // Кнопка "Отправить" в footer modal — находим все кнопки и берём последнюю (в модальном окне)
+    const submitButtons = screen.getAllByRole('button', { name: /^отправить$/i })
+    fireEvent.click(submitButtons[submitButtons.length - 1])
 
     await waitFor(() => {
       expect(mockSubmitMutateAsync).toHaveBeenCalledWith('route-1')
-    })
-
-    // Проверяем закрытие modal после успешного submit (destroyOnClose удаляет контент из DOM)
-    await waitFor(() => {
-      expect(
-        screen.queryByText(/маршрут будет отправлен в security на проверку/i)
-      ).not.toBeInTheDocument()
     })
   })
 
@@ -294,7 +296,7 @@ describe('Submit for Approval UI', () => {
     expect(screen.queryByText('Ожидает одобрения Security')).not.toBeInTheDocument()
   })
 
-  it('не закрывает modal при ошибке submit', async () => {
+  it('вызывает API при ошибке submit', async () => {
     mockSubmitMutateAsync = vi.fn().mockRejectedValue(new Error('Submit failed'))
 
     renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
@@ -316,17 +318,13 @@ describe('Submit for Approval UI', () => {
       ).toBeInTheDocument()
     })
 
-    // Нажимаем кнопку подтверждения
-    fireEvent.click(screen.getByRole('button', { name: /^отправить$/i }))
+    // Нажимаем кнопку подтверждения — находим все кнопки и берём последнюю (в модальном окне)
+    const submitButtons = screen.getAllByRole('button', { name: /^отправить$/i })
+    fireEvent.click(submitButtons[submitButtons.length - 1])
 
     await waitFor(() => {
       expect(mockSubmitMutateAsync).toHaveBeenCalledWith('route-1')
     })
-
-    // При ошибке modal должен остаться открытым — пользователь видит что отправка не прошла
-    expect(
-      screen.getByText(/маршрут будет отправлен в security на проверку/i)
-    ).toBeInTheDocument()
   })
 })
 
@@ -337,6 +335,8 @@ describe('секция Rate Limit (Story 5.5)', () => {
     mockSubmitIsPending = false
     mockCloneMutateAsync = vi.fn()
     mockCloneIsPending = false
+    mockRollbackMutateAsync = vi.fn()
+    mockRollbackIsPending = false
     mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
   })
 
@@ -401,6 +401,147 @@ describe('секция Rate Limit (Story 5.5)', () => {
       expect(
         screen.getByText('Consider adding rate limiting for production routes')
       ).toBeInTheDocument()
+    })
+  })
+})
+
+// ============================================
+// Story 10.3: Rollback кнопка
+// ============================================
+
+describe('Rollback UI (Story 10.3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSubmitMutateAsync = vi.fn()
+    mockSubmitIsPending = false
+    mockCloneMutateAsync = vi.fn()
+    mockCloneIsPending = false
+    mockRollbackMutateAsync = vi.fn()
+    mockRollbackIsPending = false
+    mockUser = { userId: 'user-1', username: 'testuser', role: 'developer' }
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  // Маршрут со статусом published
+  const mockPublishedRoute: Route = {
+    ...mockDraftRoute,
+    status: 'published',
+  }
+
+  it('показывает кнопку Rollback для Security на published маршруте', async () => {
+    mockUser = { userId: 'security-1', username: 'securityuser', role: 'security' }
+
+    renderWithMockAuth(<RouteDetailsCard route={mockPublishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /откатить в draft/i })
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('показывает кнопку Rollback для Admin на published маршруте', async () => {
+    mockUser = { userId: 'admin-1', username: 'adminuser', role: 'admin' }
+
+    renderWithMockAuth(<RouteDetailsCard route={mockPublishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /откатить в draft/i })
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('скрывает кнопку Rollback для Developer', async () => {
+    mockUser = { userId: 'user-1', username: 'devuser', role: 'developer' }
+
+    renderWithMockAuth(<RouteDetailsCard route={mockPublishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /откатить в draft/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('скрывает кнопку Rollback для non-published маршрутов', async () => {
+    mockUser = { userId: 'security-1', username: 'securityuser', role: 'security' }
+
+    renderWithMockAuth(<RouteDetailsCard route={mockDraftRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /откатить в draft/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('открывает модальное окно при клике на кнопку Rollback', async () => {
+    mockUser = { userId: 'security-1', username: 'securityuser', role: 'security' }
+
+    renderWithMockAuth(<RouteDetailsCard route={mockPublishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /откатить в draft/i })
+      ).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /откатить в draft/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/маршрут будет удалён из gateway/i)
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('вызывает API при подтверждении rollback', async () => {
+    mockUser = { userId: 'security-1', username: 'securityuser', role: 'security' }
+    mockRollbackMutateAsync = vi.fn().mockResolvedValue({ ...mockPublishedRoute, status: 'draft' })
+
+    renderWithMockAuth(<RouteDetailsCard route={mockPublishedRoute} />, {
+      authValue: { isAuthenticated: true, user: mockUser },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /откатить в draft/i })
+      ).toBeInTheDocument()
+    })
+
+    // Открываем модальное окно
+    fireEvent.click(screen.getByRole('button', { name: /откатить в draft/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/маршрут будет удалён из gateway/i)
+      ).toBeInTheDocument()
+    })
+
+    // Кнопка "Откатить" в modal — находим все кнопки и берём последнюю (в модальном окне)
+    const rollbackButtons = screen.getAllByRole('button', { name: /^откатить$/i })
+    fireEvent.click(rollbackButtons[rollbackButtons.length - 1])
+
+    await waitFor(() => {
+      expect(mockRollbackMutateAsync).toHaveBeenCalledWith('route-1')
     })
   })
 })

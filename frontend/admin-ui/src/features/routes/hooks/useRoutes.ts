@@ -139,3 +139,26 @@ export function useCloneRoute() {
     },
   })
 }
+
+/**
+ * Hook для отката опубликованного маршрута в draft.
+ *
+ * После успешного отката инвалидирует кэш маршрута и списка.
+ * Доступно только для SECURITY и ADMIN ролей.
+ *
+ * Story 10.3
+ */
+export function useRollbackRoute() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => routesApi.rollbackRoute(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ROUTES_QUERY_KEY], refetchType: 'all' })
+      message.success('Маршрут откатан в Draft')
+    },
+    onError: (error: Error) => {
+      message.error(error.message || 'Ошибка при откате маршрута')
+    },
+  })
+}

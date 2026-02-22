@@ -768,6 +768,127 @@ class RouteControllerIntegrationTest {
         }
     }
 
+    // ============================================
+    // Story 10.3: Rollback endpoint
+    // ============================================
+
+    @Nested
+    inner class Story10_3_RollbackEndpoint {
+
+        @Test
+        fun `успешно откатывает published маршрут в draft`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.PUBLISHED)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(route.id.toString())
+                .jsonPath("$.status").isEqualTo("draft")
+                // AC2: approvedBy и approvedAt должны быть очищены
+                .jsonPath("$.approvedBy").doesNotExist()
+                .jsonPath("$.approvedAt").doesNotExist()
+        }
+
+        @Test
+        fun `возвращает 409 при откате draft маршрута`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.DRAFT)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isEqualTo(409)
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/conflict")
+                .jsonPath("$.detail").isEqualTo("Only published routes can be rolled back")
+        }
+
+        @Test
+        fun `возвращает 409 при откате pending маршрута`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.PENDING)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isEqualTo(409)
+        }
+
+        @Test
+        fun `возвращает 409 при откате rejected маршрута`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.REJECTED)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isEqualTo(409)
+        }
+
+        @Test
+        fun `возвращает 404 для несуществующего маршрута`() {
+            val nonExistentId = UUID.randomUUID()
+
+            webTestClient.post()
+                .uri("/api/v1/routes/$nonExistentId/rollback")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isNotFound
+                .expectBody()
+                .jsonPath("$.type").isEqualTo("https://api.gateway/errors/not-found")
+                .jsonPath("$.detail").isEqualTo("Route not found")
+        }
+
+        @Test
+        fun `возвращает 403 для developer при откате`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.PUBLISHED)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isForbidden
+        }
+
+        @Test
+        fun `admin может откатить маршрут`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.PUBLISHED)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", adminToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.status").isEqualTo("draft")
+        }
+
+        @Test
+        fun `создаёт audit log entry при откате`() {
+            val route = createTestRoute("/api/orders", developerUser.id!!, RouteStatus.PUBLISHED)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${route.id}/rollback")
+                .cookie("auth_token", securityToken)
+                .exchange()
+                .expectStatus().isOk
+
+            // Проверяем audit log
+            StepVerifier.create(
+                auditLogRepository.findAll()
+                    .filter { it.action == "route.rolledback" && it.entityId == route.id.toString() }
+            )
+                .expectNextMatches { auditLog ->
+                    auditLog.entityType == "route" &&
+                    auditLog.action == "route.rolledback"
+                }
+                .verifyComplete()
+        }
+    }
+
     @Nested
     inner class Story8_5_SearchByPathAndUpstream {
 

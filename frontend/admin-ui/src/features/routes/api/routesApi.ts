@@ -112,3 +112,18 @@ export async function fetchRouteHistory(routeId: string): Promise<RouteHistoryRe
   const { data } = await axios.get<RouteHistoryResponse>(`${BASE_URL}/${routeId}/history`)
   return data
 }
+
+/**
+ * Откат опубликованного маршрута в статус draft.
+ *
+ * POST /api/v1/routes/{id}/rollback
+ *
+ * Доступно только для SECURITY и ADMIN ролей.
+ * Маршрут удаляется из gateway-core и переходит в draft.
+ *
+ * Story 10.3
+ */
+export async function rollbackRoute(id: string): Promise<Route> {
+  const { data } = await axios.post<Route>(`${BASE_URL}/${id}/rollback`)
+  return data
+}

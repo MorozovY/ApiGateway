@@ -1,12 +1,11 @@
-// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5 и Story 5.5)
-import { useState } from 'react'
+// Карточка с деталями маршрута (Story 3.6, расширена в Story 4.5, Story 5.5 и Story 10.3)
 import { Card, Descriptions, Tag, Button, Space, Typography, Tooltip, Modal, Alert } from 'antd'
-import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined } from '@ant-design/icons'
+import { EditOutlined, CopyOutlined, ArrowLeftOutlined, SendOutlined, ExclamationCircleOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/ru'
-import { useCloneRoute, useSubmitRoute } from '../hooks/useRoutes'
+import { useCloneRoute, useSubmitRoute, useRollbackRoute } from '../hooks/useRoutes'
 import type { Route } from '../types/route.types'
 import { useAuth } from '@features/auth'
 import { STATUS_COLORS, STATUS_LABELS, METHOD_COLORS } from '@shared/constants'
@@ -38,14 +37,16 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   const { user } = useAuth()
   const cloneMutation = useCloneRoute()
   const submitMutation = useSubmitRoute()
-
-  // Состояние модального окна подтверждения submit
-  const [submitModalVisible, setSubmitModalVisible] = useState(false)
+  const rollbackMutation = useRollbackRoute()
 
   // Проверка прав для разных действий (canEdit и canSubmit — одно условие: draft + owner)
   const canSubmit = route.status === 'draft' && route.createdBy === user?.userId
   const canResubmit = route.status === 'rejected' && route.createdBy === user?.userId
   const isPendingOwner = route.status === 'pending' && route.createdBy === user?.userId
+
+  // Story 10.3: Rollback доступен только для Security/Admin на published маршрутах
+  const canRollback = route.status === 'published' &&
+    (user?.role === 'security' || user?.role === 'admin')
 
   /**
    * Переход на страницу редактирования.
@@ -76,16 +77,45 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   }
 
   /**
-   * Подтверждение отправки на согласование.
-   * Ошибки обрабатываются в useSubmitRoute hook (message.error).
+   * Показывает модальное окно подтверждения submit.
    */
-  const handleSubmitConfirm = async () => {
-    try {
-      await submitMutation.mutateAsync(route.id)
-      setSubmitModalVisible(false)
-    } catch {
-      // Ошибка уже обработана в useSubmitRoute hook (message.error)
-    }
+  const handleSubmitClick = () => {
+    Modal.confirm({
+      title: 'Отправить на согласование',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Маршрут будет отправлен в Security на проверку. Вы не сможете редактировать его до одобрения или отклонения.',
+      okText: 'Отправить',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          await submitMutation.mutateAsync(route.id)
+        } catch {
+          // Ошибка уже обработана в useSubmitRoute hook (message.error)
+        }
+      },
+    })
+  }
+
+  /**
+   * Показывает модальное окно подтверждения rollback.
+   * Story 10.3
+   */
+  const handleRollbackClick = () => {
+    Modal.confirm({
+      title: 'Откатить маршрут в Draft?',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Маршрут будет удалён из gateway и вернётся в статус Draft.',
+      okText: 'Откатить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          await rollbackMutation.mutateAsync(route.id)
+        } catch {
+          // Ошибка уже обработана в useRollbackRoute hook (message.error)
+        }
+      },
+    })
   }
 
   return (
@@ -102,12 +132,25 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
             <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
               Назад
             </Button>
+            {/* Кнопка Rollback — только для published + Security/Admin (Story 10.3) */}
+            {canRollback && (
+              <Button
+                type="primary"
+                danger
+                icon={<RollbackOutlined />}
+                onClick={handleRollbackClick}
+                loading={rollbackMutation.isPending}
+              >
+                Откатить в Draft
+              </Button>
+            )}
             {/* Кнопка Submit — только для draft + owner */}
             {canSubmit && (
               <Button
                 type="primary"
                 icon={<SendOutlined />}
-                onClick={() => setSubmitModalVisible(true)}
+                onClick={handleSubmitClick}
+                loading={submitMutation.isPending}
               >
                 Отправить на согласование
               </Button>
@@ -220,23 +263,6 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
           )}
         </Descriptions>
       </Card>
-
-      {/* Модальное окно подтверждения submit */}
-      <Modal
-        title="Отправить на согласование"
-        open={submitModalVisible}
-        onCancel={() => setSubmitModalVisible(false)}
-        onOk={handleSubmitConfirm}
-        okText="Отправить"
-        cancelText="Отмена"
-        confirmLoading={submitMutation.isPending}
-        destroyOnHidden
-      >
-        <p>
-          Маршрут будет отправлен в Security на проверку. Вы не сможете
-          редактировать его до одобрения или отклонения.
-        </p>
-      </Modal>
     </>
   )
 }

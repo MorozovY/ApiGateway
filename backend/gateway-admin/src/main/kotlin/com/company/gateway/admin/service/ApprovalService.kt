@@ -404,4 +404,102 @@ class ApprovalService(
                 )
             }
     }
+
+    /**
+     * Откатывает опубликованный маршрут в статус DRAFT.
+     *
+     * Доступно только для пользователей с ролью SECURITY или ADMIN.
+     * После отката маршрут удаляется из gateway-core через Redis pub/sub.
+     * Поля approvedBy и approvedAt очищаются.
+     *
+     * @param routeId ID маршрута
+     * @param userId ID пользователя, выполняющего откат
+     * @param username имя пользователя для аудит-лога
+     * @return Mono<RouteResponse> обновлённый маршрут со статусом DRAFT
+     * @throws NotFoundException если маршрут не найден
+     * @throws ConflictException если маршрут не в статусе PUBLISHED
+     *
+     * Story 10.3, AC1: Rollback доступен для Security/Admin
+     * Story 10.3, AC2: Статус меняется на DRAFT, поля approval очищаются
+     * Story 10.3, AC3: Audit log записывает событие
+     * Story 10.3, AC5: Только PUBLISHED маршруты можно откатить
+     */
+    fun rollback(
+        routeId: UUID,
+        userId: UUID,
+        username: String
+    ): Mono<RouteResponse> {
+        logger.debug("Откат маршрута: routeId={}, userId={}", routeId, userId)
+
+        return routeRepository.findById(routeId)
+            .switchIfEmpty(Mono.error(NotFoundException("Route not found")))
+            .flatMap { route ->
+                // Проверяем статус — только PUBLISHED маршруты можно откатить
+                if (route.status != RouteStatus.PUBLISHED) {
+                    logger.warn(
+                        "Попытка отката не-published маршрута: routeId={}, status={}",
+                        routeId, route.status
+                    )
+                    return@flatMap Mono.error<Route>(
+                        ConflictException("Only published routes can be rolled back")
+                    )
+                }
+
+                // Обновляем статус и очищаем approval fields
+                val updatedRoute = route.copy(
+                    status = RouteStatus.DRAFT,
+                    approvedBy = null,
+                    approvedAt = null,
+                    updatedAt = Instant.now()
+                )
+                routeRepository.save(updatedRoute)
+            }
+            .flatMap { savedRoute ->
+                // Удаляем из gateway-core через Redis pub/sub
+                routeEventPublisher.publishRouteChanged(savedRoute.id!!)
+                    .thenReturn(savedRoute)
+            }
+            .flatMap { savedRoute ->
+                // Fire-and-forget audit log с извлечением IP и correlationId из context
+                // (Story 10.3, AC3)
+                Mono.deferContextual { ctx ->
+                    val ipAddress = ctx.getOrDefault<String>(AUDIT_IP_ADDRESS_KEY, null)
+                    val correlationId = ctx.getOrDefault<String>(AUDIT_CORRELATION_ID_KEY, null)
+
+                    auditService.logAsync(
+                        entityType = "route",
+                        entityId = savedRoute.id.toString(),
+                        action = "route.rolledback",
+                        userId = userId,
+                        username = username,
+                        changes = mapOf(
+                            "previousStatus" to RouteStatus.PUBLISHED.name.lowercase(),
+                            "newStatus" to RouteStatus.DRAFT.name.lowercase(),
+                            "rolledbackAt" to savedRoute.updatedAt.toString(),
+                            "rolledbackBy" to username
+                        ),
+                        ipAddress = ipAddress,
+                        correlationId = correlationId
+                    )
+
+                    Mono.just(savedRoute)
+                }
+            }
+            .flatMap { savedRoute ->
+                // Загружаем username создателя маршрута — Story 8.4
+                if (savedRoute.createdBy != null) {
+                    userRepository.findById(savedRoute.createdBy!!)
+                        .map { user -> RouteResponse.from(savedRoute, null, user.username) }
+                        .defaultIfEmpty(RouteResponse.from(savedRoute, null, null))
+                } else {
+                    Mono.just(RouteResponse.from(savedRoute, null, null))
+                }
+            }
+            .doOnSuccess {
+                logger.info(
+                    "Маршрут откатан: routeId={}, rolledbackBy={}",
+                    routeId, userId
+                )
+            }
+    }
 }

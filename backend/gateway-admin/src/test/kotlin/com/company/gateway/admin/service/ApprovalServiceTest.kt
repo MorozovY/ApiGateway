@@ -1184,6 +1184,268 @@ class ApprovalServiceTest {
     }
 
     // ============================================
+    // Story 10.3: Rollback - Откат published маршрута
+    // ============================================
+
+    @Nested
+    inner class Story103_ОткатМаршрута {
+
+        @Test
+        fun `успешно откатывает published маршрут в draft`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val approverId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.PUBLISHED,
+                createdBy = otherUserId
+            ).copy(
+                approvedBy = approverId,
+                approvedAt = Instant.now()
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
+
+            // When
+            StepVerifier.create(
+                approvalService.rollback(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
+                // Then
+                .expectNextMatches { response ->
+                    response.status == "draft" &&
+                    response.id == routeId
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `очищает approvedBy и approvedAt при откате`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val approverId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.PUBLISHED,
+                createdBy = otherUserId
+            ).copy(
+                approvedBy = approverId,
+                approvedAt = Instant.now()
+            )
+
+            val routeCaptor = argumentCaptor<Route>()
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(routeCaptor.capture())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
+
+            // When
+            StepVerifier.create(
+                approvalService.rollback(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
+                .expectNextCount(1)
+                .verifyComplete()
+
+            // Then — approval fields должны быть очищены
+            val savedRoute = routeCaptor.firstValue
+            assert(savedRoute.approvedBy == null) { "approvedBy должен быть null после rollback" }
+            assert(savedRoute.approvedAt == null) { "approvedAt должен быть null после rollback" }
+            assert(savedRoute.status == RouteStatus.DRAFT) { "status должен быть DRAFT" }
+        }
+
+        @Test
+        fun `публикует событие в Redis при откате`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.PUBLISHED,
+                createdBy = otherUserId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
+
+            // When
+            StepVerifier.create(
+                approvalService.rollback(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
+                .expectNextCount(1)
+                .verifyComplete()
+
+            // Then
+            verify(routeEventPublisher).publishRouteChanged(routeId)
+        }
+
+        @Test
+        fun `создаёт audit log entry при откате`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.PUBLISHED,
+                createdBy = otherUserId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+            whenever(routeRepository.save(any<Route>())).thenAnswer { invocation ->
+                Mono.just(invocation.getArgument<Route>(0))
+            }
+            whenever(routeEventPublisher.publishRouteChanged(any())).thenReturn(Mono.just(1L))
+
+            val changesCaptor = argumentCaptor<Map<String, Any?>>()
+
+            // When
+            StepVerifier.create(
+                approvalService.rollback(routeId, userId, securityUsername)
+                    .contextWrite { ctx ->
+                        ctx.put(AUDIT_IP_ADDRESS_KEY, "127.0.0.1")
+                            .put(AUDIT_CORRELATION_ID_KEY, "test-corr-id")
+                    }
+            )
+                .expectNextCount(1)
+                .verifyComplete()
+
+            // Then — проверяем вызов audit log для "route.rolledback"
+            verify(auditService).logAsync(
+                eq("route"),
+                eq(routeId.toString()),
+                eq("route.rolledback"),
+                eq(userId),
+                eq(securityUsername),
+                changesCaptor.capture(),
+                eq("127.0.0.1"),
+                eq("test-corr-id")
+            )
+
+            // Проверяем содержимое changes
+            val changes = changesCaptor.firstValue
+            assert(changes["previousStatus"] == "published") { "previousStatus должен быть 'published'" }
+            assert(changes["newStatus"] == "draft") { "newStatus должен быть 'draft'" }
+            assert(changes.containsKey("rolledbackAt")) { "changes должен содержать rolledbackAt" }
+            assert(changes["rolledbackBy"] == securityUsername) { "rolledbackBy должен быть '$securityUsername'" }
+        }
+
+        @Test
+        fun `возвращает 409 при откате draft маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.DRAFT,
+                createdBy = otherUserId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+
+            // When & Then
+            StepVerifier.create(approvalService.rollback(routeId, userId, securityUsername))
+                .expectErrorMatches { ex ->
+                    ex is ConflictException &&
+                    ex.detail == "Only published routes can be rolled back"
+                }
+                .verify()
+        }
+
+        @Test
+        fun `возвращает 409 при откате pending маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.PENDING,
+                createdBy = otherUserId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+
+            // When & Then
+            StepVerifier.create(approvalService.rollback(routeId, userId, securityUsername))
+                .expectErrorMatches { ex ->
+                    ex is ConflictException &&
+                    ex.detail == "Only published routes can be rolled back"
+                }
+                .verify()
+        }
+
+        @Test
+        fun `возвращает 409 при откате rejected маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.REJECTED,
+                createdBy = otherUserId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+
+            // When & Then
+            StepVerifier.create(approvalService.rollback(routeId, userId, securityUsername))
+                .expectErrorMatches { ex ->
+                    ex is ConflictException &&
+                    ex.detail == "Only published routes can be rolled back"
+                }
+                .verify()
+        }
+
+        @Test
+        fun `возвращает NotFoundException для несуществующего маршрута`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.empty())
+
+            // When & Then
+            StepVerifier.create(approvalService.rollback(routeId, userId, securityUsername))
+                .expectErrorMatches { ex ->
+                    ex is NotFoundException &&
+                    ex.detail == "Route not found"
+                }
+                .verify()
+        }
+
+        @Test
+        fun `не сохраняет маршрут при ошибке статуса`() {
+            // Given
+            val routeId = UUID.randomUUID()
+            val route = createTestRoute(
+                id = routeId,
+                status = RouteStatus.DRAFT,
+                createdBy = otherUserId
+            )
+
+            whenever(routeRepository.findById(routeId)).thenReturn(Mono.just(route))
+
+            // When
+            StepVerifier.create(approvalService.rollback(routeId, userId, securityUsername))
+                .expectError(ConflictException::class.java)
+                .verify()
+
+            // Then
+            verify(routeRepository, never()).save(any<Route>())
+        }
+    }
+
+    // ============================================
     // Вспомогательные методы
     // ============================================
 
