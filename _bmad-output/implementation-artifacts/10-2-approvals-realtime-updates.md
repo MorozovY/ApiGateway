@@ -1,6 +1,6 @@
 # Story 10.2: Approvals Real-Time Updates
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -75,12 +75,12 @@ so that I see new pending routes without refreshing.
   - [x] 4.3 Test: Loading state displays during fetch
   - [x] 4.4 N/A: No duplicate requests — React Query deduplicates by queryKey automatically
 
-- [ ] Task 5: Manual validation (AC: all)
-  - [ ] 5.1 Open Approvals page in browser 1
-  - [ ] 5.2 Create pending route in browser 2 (or via API)
-  - [ ] 5.3 Verify route appears in browser 1 within 5 seconds
-  - [ ] 5.4 Verify sidebar badge updates
-  - [ ] 5.5 Test Refresh button responsiveness
+- [x] Task 5: Manual validation (AC: all)
+  - [x] 5.1 Open Approvals page in browser 1
+  - [x] 5.2 Create pending route in browser 2 (or via API)
+  - [x] 5.3 Verify route appears in browser 1 within 5 seconds
+  - [x] 5.4 Verify sidebar badge updates
+  - [x] 5.5 Test Refresh button responsiveness
 
 ## API Dependencies Checklist
 
@@ -285,6 +285,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 5. **M2 Fixed**: Status изменён с "done" на "review" — Task 5 (Manual validation) не выполнен
 6. **M3 Fixed**: Добавлен комментарий в `useApprovals.test.ts` о design decision для polling тестов
 7. **L1 Fixed**: Mock в `ApprovalsPage.test.tsx` использует реальные константы через `vi.importActual`
+
+**Round 3 (2026-02-22):**
+8. **Task 5 Completed**: Manual validation пройдена — polling работает, sidebar badge обновляется, Refresh button работает
 
 ### File List
 
