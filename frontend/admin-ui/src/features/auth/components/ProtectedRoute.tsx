@@ -2,11 +2,16 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import type { ReactNode } from 'react'
+import type { User } from '../types/auth.types'
 
 interface ProtectedRouteProps {
   children: ReactNode
-  /** Если указана — проверяет роль пользователя, иначе только аутентификацию. Поддерживает одну роль или массив ролей. */
-  requiredRole?: string | string[]
+  /**
+   * Требуемая роль для доступа к роуту.
+   * Если указана — проверяет роль пользователя, иначе только аутентификацию.
+   * Допустимые значения: 'developer', 'security', 'admin' или массив ролей.
+   */
+  requiredRole?: User['role'] | User['role'][]
 }
 
 /**

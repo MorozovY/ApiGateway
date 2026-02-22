@@ -44,8 +44,15 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* Rate Limits Management (Story 5.4) — доступ для developer, security, admin */}
-        <Route path="/rate-limits" element={<RateLimitsPage />} />
+        {/* Rate Limits Management (Story 5.4, Story 9.3 AC4) — только для admin */}
+        <Route
+          path="/rate-limits"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <RateLimitsPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Согласование маршрутов (Story 4.6) — только для security и admin */}
         <Route
           path="/approvals"
@@ -75,8 +82,15 @@ function App() {
         />
         {/* Метрики (Story 6.5) — доступ для всех аутентифицированных пользователей */}
         <Route path="/metrics" element={<MetricsPage />} />
-        {/* Test Load Generator (Story 8.9) — доступ для всех аутентифицированных пользователей */}
-        <Route path="/test" element={<TestPage />} />
+        {/* Test Load Generator (Story 8.9, Story 9.3 AC4) — только для admin */}
+        <Route
+          path="/test"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <TestPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Редирект с корня на dashboard */}

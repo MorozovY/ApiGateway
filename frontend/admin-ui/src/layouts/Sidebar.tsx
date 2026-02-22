@@ -1,4 +1,4 @@
-// Боковая панель навигации (Story 2.6 — Users для admin, Story 4.6 — Badge для pending, Story 6.5 — Metrics, Story 7.6 — Collapsible + Integrations)
+// Боковая панель навигации (Story 2.6 — Users, Story 4.6 — Badge, Story 6.5 — Metrics, Story 7.6 — Collapsible, Story 9.3 — Role-based filtering)
 import { useMemo, useState } from 'react'
 import { Layout, Menu, Badge, Button, Tooltip } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
 import type { ItemType } from 'antd/es/menu/interface'
+import type { User } from '@features/auth'
 
 const { Sider } = Layout
 
@@ -27,13 +28,42 @@ const { Sider } = Layout
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
 
 /**
- * Базовые пункты меню для всех пользователей (расширено в Story 7.6 для Integrations).
+ * Маппинг ролей к разрешённым пунктам меню (Story 9.3, AC1-AC3).
+ *
+ * Developer: Dashboard, Routes, Metrics
+ * Security: Dashboard, Routes, Approvals, Audit, Integrations, Metrics
+ * Admin: Все пункты (Dashboard, Users, Routes, Rate Limits, Approvals, Audit, Integrations, Metrics, Test)
  */
-const baseMenuItems: ItemType[] = [
+const ROLE_MENU_ACCESS: Record<User['role'], string[]> = {
+  developer: ['/dashboard', '/routes', '/metrics'],
+  security: ['/dashboard', '/routes', '/approvals', '/audit', '/audit/integrations', '/metrics'],
+  admin: [
+    '/dashboard',
+    '/users',
+    '/routes',
+    '/rate-limits',
+    '/approvals',
+    '/audit',
+    '/audit/integrations',
+    '/metrics',
+    '/test',
+  ],
+}
+
+/**
+ * Все возможные пункты меню (включая Users).
+ * Порядок определяется ROLE_MENU_ACCESS при фильтрации.
+ */
+const allMenuItems: ItemType[] = [
   {
     key: '/dashboard',
     icon: <DashboardOutlined />,
     label: 'Dashboard',
+  },
+  {
+    key: '/users',
+    icon: <TeamOutlined />,
+    label: 'Users',
   },
   {
     key: '/routes',
@@ -51,37 +81,26 @@ const baseMenuItems: ItemType[] = [
     label: 'Approvals',
   },
   {
-    key: '/metrics',
-    icon: <AreaChartOutlined />,
-    label: 'Metrics',
-  },
-  {
     key: '/audit',
     icon: <AuditOutlined />,
     label: 'Audit Logs',
   },
-  // Integrations пункт меню (Story 7.6, AC7) — flat menu, без submenu
   {
     key: '/audit/integrations',
     icon: <ClusterOutlined />,
     label: 'Integrations',
   },
-  // Test пункт меню (Story 8.9, AC1) — генератор нагрузки
+  {
+    key: '/metrics',
+    icon: <AreaChartOutlined />,
+    label: 'Metrics',
+  },
   {
     key: '/test',
     icon: <ExperimentOutlined />,
     label: 'Test',
   },
 ]
-
-/**
- * Пункт меню Users — только для admin.
- */
-const usersMenuItem: ItemType = {
-  key: '/users',
-  icon: <TeamOutlined />,
-  label: 'Users',
-}
 
 function Sidebar() {
   const navigate = useNavigate()
@@ -103,38 +122,34 @@ function Sidebar() {
   // Счётчик pending маршрутов для Badge (только для security/admin, enabled=false для developer)
   const pendingCount = usePendingRoutesCount()
 
-  // Формируем меню на основе роли пользователя (расширено в Story 7.6)
+  // Формируем меню на основе роли пользователя (Story 9.3 — role-based filtering)
   const menuItems = useMemo(() => {
-    let items: ItemType[] = baseMenuItems.map((item) => {
-      // Добавляем Badge к пункту /approvals если есть pending маршруты
-      if (item && 'key' in item && item.key === '/approvals' && pendingCount > 0) {
-        return {
-          ...item,
-          label: (
-            <Badge count={pendingCount} offset={[8, 0]} size="small">
-              Approvals
-            </Badge>
-          ),
-        }
-      }
-      return item
-    })
+    // Определяем разрешённые ключи для текущей роли
+    const allowedKeys = user?.role ? ROLE_MENU_ACCESS[user.role] : []
 
-    // Фильтруем Integrations для developer (AC6 — только security/admin)
-    if (user?.role === 'developer') {
-      items = items.filter((item) => {
-        if (item && 'key' in item) {
-          return item.key !== '/audit/integrations'
+    // Фильтруем пункты меню по разрешённым ключам, сохраняя порядок из allowedKeys
+    const items: ItemType[] = allowedKeys
+      .map((key) => {
+        // Находим пункт меню по ключу
+        const menuItem = allMenuItems.find(
+          (item) => item && 'key' in item && item.key === key
+        )
+        if (!menuItem) return null
+
+        // Добавляем Badge к пункту /approvals если есть pending маршруты
+        if (menuItem && 'key' in menuItem && menuItem.key === '/approvals' && pendingCount > 0) {
+          return {
+            ...menuItem,
+            label: (
+              <Badge count={pendingCount} offset={[8, 0]} size="small">
+                Approvals
+              </Badge>
+            ),
+          }
         }
-        return true
+        return menuItem
       })
-    }
-
-    // Добавляем Users только для admin
-    if (user?.role === 'admin') {
-      // Вставляем после Dashboard (на второе место)
-      items.splice(1, 0, usersMenuItem)
-    }
+      .filter((item): item is ItemType => item !== null)
 
     return items
   }, [user?.role, pendingCount])
