@@ -628,11 +628,12 @@ Internet → DNS (gateway.ymorozov.ru) → Nginx:80/443
 | **Audit (FR21-24)** | `gateway-admin/controller/AuditController.kt` | `features/audit/` | — |
 | **Auth (FR25-27)** | `gateway-admin/security/` | `features/auth/` | — |
 | **Gateway Runtime (FR28-31)** | `gateway-core/` | — | — |
+| **Cache Sync** | `gateway-admin/publisher/` + `gateway-core/route/` | — | [docs/cache-sync.md](../../docs/cache-sync.md) |
 
 ### Integration Points
 
 **Internal:**
-- gateway-admin ↔ gateway-core: Redis pub/sub для cache invalidation
+- gateway-admin ↔ gateway-core: Redis pub/sub для cache invalidation (см. [docs/cache-sync.md](../../docs/cache-sync.md))
 - admin-ui → gateway-admin: REST API через Axios
 
 **External:**
