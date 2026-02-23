@@ -21,7 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import reactor.test.StepVerifier
 
 /**
- * Интеграционные тесты для HealthController (Story 8.1, 10.5).
+ * Интеграционные тесты для HealthController (Story 8.1, 10.5, 12.1).
  *
  * Проверяет AC1, AC2:
  * - AC1: endpoint /health/services возвращает статусы сервисов
@@ -29,7 +29,7 @@ import reactor.test.StepVerifier
  *
  * Использует Testcontainers для PostgreSQL.
  * Redis отключён, поэтому в ответе Redis будет DOWN.
- * nginx, gateway-core, prometheus, grafana не запущены, поэтому будут DOWN.
+ * nginx, gateway-core, keycloak, prometheus, grafana не запущены, поэтому будут DOWN.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -73,6 +73,8 @@ class HealthControllerIntegrationTest {
             registry.add("prometheus.url") { "http://localhost:58082" }  // порт недоступен
             // grafana URL (не запущена, будет DOWN) — фиксация для изоляции тестов
             registry.add("grafana.url") { "http://localhost:58083" }  // порт недоступен
+            // keycloak URL (не запущен, будет DOWN) — Story 12.1
+            registry.add("keycloak.url") { "http://localhost:58084" }  // порт недоступен
         }
     }
 
@@ -114,8 +116,8 @@ class HealthControllerIntegrationTest {
 
         @Test
         fun `GET health services возвращает 200 и все сервисы`() {
-            // Backend возвращает 7 сервисов: nginx + 4 из AC (gateway-core, gateway-admin, postgresql, redis)
-            // + 2 дополнительных (prometheus, grafana) для мониторинга
+            // Backend возвращает 8 сервисов: nginx + 4 из AC (gateway-core, gateway-admin, postgresql, redis)
+            // + 3 дополнительных (keycloak, prometheus, grafana)
             webTestClient.get()
                 .uri("/api/v1/health/services")
                 .cookie("auth_token", developerToken)
@@ -124,7 +126,7 @@ class HealthControllerIntegrationTest {
                 .expectStatus().isOk
                 .expectBody()
                 .jsonPath("$.services").isArray
-                .jsonPath("$.services.length()").isEqualTo(7)
+                .jsonPath("$.services.length()").isEqualTo(8)
                 .jsonPath("$.timestamp").exists()
         }
 
@@ -218,6 +220,19 @@ class HealthControllerIntegrationTest {
                 .jsonPath("$.services[?(@.name=='grafana')]").exists()
                 .jsonPath("$.services[?(@.name=='grafana')].status").exists()
         }
+
+        @Test
+        fun `GET health services содержит keycloak`() {
+            webTestClient.get()
+                .uri("/api/v1/health/services")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.services[?(@.name=='keycloak')]").exists()
+                .jsonPath("$.services[?(@.name=='keycloak')].status").exists()
+        }
     }
 
     // ============================================
@@ -294,6 +309,20 @@ class HealthControllerIntegrationTest {
                 .expectBody()
                 .jsonPath("$.services[?(@.name=='grafana')].status").isEqualTo("DOWN")
                 .jsonPath("$.services[?(@.name=='grafana')].details").exists()
+        }
+
+        @Test
+        fun `keycloak показывает DOWN когда не запущен`() {
+            // Keycloak не запущен в тестах
+            webTestClient.get()
+                .uri("/api/v1/health/services")
+                .cookie("auth_token", developerToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.services[?(@.name=='keycloak')].status").isEqualTo("DOWN")
+                .jsonPath("$.services[?(@.name=='keycloak')].details").exists()
         }
     }
 
@@ -386,6 +415,8 @@ class HealthControllerIntegrationTest {
                 .jsonPath("$.services[?(@.name=='gateway-admin')]").exists()
                 .jsonPath("$.services[?(@.name=='postgresql')]").exists()
                 .jsonPath("$.services[?(@.name=='redis')]").exists()
+                // keycloak — Identity Provider (Story 12.1)
+                .jsonPath("$.services[?(@.name=='keycloak')]").exists()
                 // + 2 дополнительных сервиса мониторинга
                 .jsonPath("$.services[?(@.name=='prometheus')]").exists()
                 .jsonPath("$.services[?(@.name=='grafana')]").exists()
