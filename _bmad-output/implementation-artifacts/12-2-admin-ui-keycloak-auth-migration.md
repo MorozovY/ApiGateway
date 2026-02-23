@@ -12,11 +12,43 @@ Status: ready-for-dev
 
 **Решение:** Код откачен, демо-данные восстановлены через `scripts/seed-demo-data.sql`
 
-**НОВЫЕ CONSTRAINTS (обязательны):**
-1. **НЕ удалять работающий auth код** пока новый не протестирован вручную
-2. **НЕ выполнять `docker-compose down -v`** или подобные команды
-3. **Инкрементальная миграция:** старый и новый auth должны работать параллельно на этапе тестирования
-4. **Feature flag:** добавить переключатель `VITE_USE_KEYCLOAK=true/false` для выбора auth метода
+**Post-Mortem Actions:** См. CLAUDE.md — PA-09 (Migration Pre-flight Checklist), PA-10 (Dangerous Operations Confirmation)
+
+---
+
+## 🛡️ MANDATORY CONSTRAINTS
+
+### 1. Feature Flag (КРИТИЧНО)
+```env
+VITE_USE_KEYCLOAK=false  # По умолчанию ВЫКЛЮЧЕН
+```
+- Keycloak auth активируется ТОЛЬКО при `VITE_USE_KEYCLOAK=true`
+- При `false` — используется текущий cookie-based auth
+- Оба механизма должны работать параллельно
+
+### 2. Smoke Test (после каждого изменения auth)
+```bash
+1. npm run dev
+2. Открыть http://localhost:3000
+3. Залогиниться admin/admin123
+4. Проверить что dashboard открылся
+5. Проверить что sidebar показывает все пункты меню
+```
+**Если smoke test не проходит — НЕ коммитить.**
+
+### 3. Staged Rollout Plan
+| День | Действие | Проверка |
+|------|----------|----------|
+| 1 | Feature flag OFF, новый код добавлен | Smoke test с flag OFF |
+| 2 | Manual testing с flag ON | Login/logout через Keycloak работает |
+| 3 | Flag ON по умолчанию, старый код ещё есть | Все AC проходят |
+| 4+ | Удаление старого auth кода | E2E тесты проходят |
+
+### 4. Запрещённые действия
+- ❌ НЕ удалять работающий auth код до Day 4
+- ❌ НЕ выполнять `docker-compose down -v`
+- ❌ НЕ коммитить без прохождения smoke test
+- ❌ НЕ включать flag ON по умолчанию до Day 3
 
 ## Story
 
@@ -76,28 +108,40 @@ so that I have a unified login experience (FR32).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Install OIDC Dependencies (AC: #1, #2)
-  - [x] 1.1 Добавить `oidc-client-ts` и `react-oidc-context` в package.json
-  - [x] 1.2 Удалить старые auth API endpoints (loginApi, logoutApi)
+> ⚠️ **ROLLBACK:** Все tasks сброшены после инцидента. Требуется повторная реализация с соблюдением constraints.
 
-- [x] Task 2: OIDC Configuration (AC: #1, #2, #4)
-  - [x] 2.1 Создать `features/auth/config/oidcConfig.ts` с настройками Keycloak
-  - [x] 2.2 Добавить environment variables: `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID`
-  - [x] 2.3 Обновить `.env.example` с новыми переменными
+- [ ] Task 0: Pre-flight Checklist (НОВЫЙ — PA-09)
+  - [ ] 0.1 Проверить что текущий login работает (smoke test)
+  - [ ] 0.2 Добавить `VITE_USE_KEYCLOAK=false` в `.env` и `.env.example`
+  - [ ] 0.3 Убедиться что `scripts/seed-demo-data.sql` актуален
 
-- [x] Task 3: Auth Provider Migration (AC: #1, #2, #3, #4)
-  - [x] 3.1 Заменить текущий `AuthContext.tsx` на OIDC-based provider
-  - [x] 3.2 Обернуть App в `AuthProvider` из `react-oidc-context`
-  - [x] 3.3 Добавить `/callback` route для обработки redirect
-  - [x] 3.4 Реализовать silent token refresh (automaticSilentRenew)
+- [ ] Task 1: Install OIDC Dependencies (AC: #1, #2)
+  - [ ] 1.1 Добавить `oidc-client-ts` и `react-oidc-context` в package.json
+  - [ ] 1.2 **НЕ удалять** старые auth API endpoints — они нужны для fallback
 
-- [x] Task 4: useAuth Hook Migration (AC: #5, #6, #7)
-  - [x] 4.1 Переписать `useAuth.ts` для работы с OIDC context
-  - [x] 4.2 Реализовать маппинг ролей Keycloak → Admin UI roles
-  - [x] 4.3 Экспортировать `getAccessToken()` для axios interceptor
+- [ ] Task 2: OIDC Configuration (AC: #1, #2, #4)
+  - [ ] 2.1 Создать `features/auth/config/oidcConfig.ts` с настройками Keycloak
+  - [ ] 2.2 Добавить environment variables: `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID`
+  - [ ] 2.3 Обновить `.env.example` с новыми переменными
+  - [ ] 2.4 **Smoke test** — проверить что старый login работает
 
-- [x] Task 5: Axios Interceptor Migration (AC: #2)
-  - [x] 5.1 Заменить cookie-based auth на Bearer token header
+- [ ] Task 3: Auth Provider с Feature Flag (AC: #1, #2, #3, #4)
+  - [ ] 3.1 Создать `OidcAuthProvider.tsx` — НОВЫЙ файл, не заменять AuthContext
+  - [ ] 3.2 Добавить feature flag check в `AuthContext.tsx`: if VITE_USE_KEYCLOAK → use OIDC, else → use cookie
+  - [ ] 3.3 Добавить `/callback` route для обработки redirect
+  - [ ] 3.4 Реализовать silent token refresh (automaticSilentRenew)
+  - [ ] 3.5 **Smoke test** с flag OFF — старый login работает
+  - [ ] 3.6 **Smoke test** с flag ON — Keycloak login работает
+
+- [ ] Task 4: useAuth Hook Migration (AC: #5, #6, #7)
+  - [ ] 4.1 Добавить OIDC логику в `useAuth.ts` с feature flag check
+  - [ ] 4.2 Реализовать маппинг ролей Keycloak → Admin UI roles
+  - [ ] 4.3 Экспортировать `getAccessToken()` для axios interceptor
+  - [ ] 4.4 **Smoke test** — оба режима работают
+
+- [ ] Task 5: Axios Interceptor Migration (AC: #2)
+  - [ ] 5.1 Добавить Bearer token header когда VITE_USE_KEYCLOAK=true
+  - [ ] 5.2 Сохранить cookie auth когда VITE_USE_KEYCLOAK=false
   - [x] 5.2 Удалить `withCredentials: true`
   - [x] 5.3 Обновить 401 handling для trigger re-login
 
