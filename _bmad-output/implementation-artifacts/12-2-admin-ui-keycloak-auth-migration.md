@@ -36,19 +36,9 @@ VITE_USE_KEYCLOAK=false  # По умолчанию ВЫКЛЮЧЕН
 ```
 **Если smoke test не проходит — НЕ коммитить.**
 
-### 3. Staged Rollout Plan
-| День | Действие | Проверка |
-|------|----------|----------|
-| 1 | Feature flag OFF, новый код добавлен | Smoke test с flag OFF |
-| 2 | Manual testing с flag ON | Login/logout через Keycloak работает |
-| 3 | Flag ON по умолчанию, старый код ещё есть | Все AC проходят |
-| 4+ | Удаление старого auth кода | E2E тесты проходят |
-
-### 4. Запрещённые действия
-- ❌ НЕ удалять работающий auth код до Day 4
+### 3. Запрещённые действия
 - ❌ НЕ выполнять `docker-compose down -v`
 - ❌ НЕ коммитить без прохождения smoke test
-- ❌ НЕ включать flag ON по умолчанию до Day 3
 
 ## Story
 
@@ -147,16 +137,16 @@ so that I have a unified login experience (FR32).
 - [x] Task 6: Login/Logout UI Updates (AC: #1, #4) — ИЗМЕНЕНО: используем Direct Access Grants
   - [x] 6.1 ~~Упростить LoginPage.tsx~~ → Сохранена наша форма, используется Keycloak API
   - [x] 6.2 Logout работает через Keycloak API (invalidate tokens)
-  - [x] 6.3 ~~Удалить DemoCredentials.tsx~~ → НЕ удаляем (Staged Rollout Day 1-2)
+  - [x] 6.3 ~~Удалить DemoCredentials.tsx~~ → Сохранён для fallback режима
 
 - [x] Task 7: Protected Routes Update (AC: #5, #6, #7)
   - [x] 7.1 ProtectedRoute работает с обоими режимами (OIDC loading state)
   - [x] 7.2 Role-based routing работает с Keycloak roles
 
-- [ ] Task 8: Remove Legacy Auth Code (AC: all) — ОТЛОЖЕНО до Day 4 (Staged Rollout)
-  - [ ] 8.1 ~~Удалить authApi.ts~~ → НЕ удаляем, нужен для fallback
-  - [ ] 8.2 ~~Удалить ChangePasswordModal.tsx~~ → НЕ удаляем до Day 4
-  - [ ] 8.3 Cleanup после Day 4
+- [ ] Task 8: Remove Legacy Auth Code (AC: all) — выполнить после включения VITE_USE_KEYCLOAK=true по умолчанию
+  - [ ] 8.1 Удалить authApi.ts
+  - [ ] 8.2 Удалить ChangePasswordModal.tsx
+  - [ ] 8.3 Включить VITE_USE_KEYCLOAK=true по умолчанию в .env.example
 
 - [x] Task 9: Testing (AC: all)
   - [x] 9.1 Unit тесты проходят (600 tests)
@@ -487,11 +477,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - **Task 5:** Axios interceptor обновлён: Bearer token при Keycloak mode, withCredentials при cookie mode.
 
-- **Task 6:** ИЗМЕНЕНО от оригинального плана: вместо редиректа на Keycloak UI используется Direct Access Grants API. Наша форма логина сохранена. Legacy код НЕ удалён (Staged Rollout Day 1-2).
+- **Task 6:** ИЗМЕНЕНО от оригинального плана: вместо редиректа на Keycloak UI используется Direct Access Grants API. Наша форма логина сохранена. Legacy код сохранён для fallback.
 
 - **Task 7:** ProtectedRoute работает с обоими режимами аутентификации.
 
-- **Task 8:** ОТЛОЖЕНО до Day 4 (Staged Rollout). Legacy auth код сохранён для fallback.
+- **Task 8:** Отложено — выполнить после включения Keycloak по умолчанию. Legacy auth код сохранён для fallback.
 
 - **Task 9:** 631 unit тест проходит (включая 31 новый для Keycloak). Manual testing выполнен: login/logout/role mapping работают в обоих режимах.
 
@@ -516,7 +506,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `docker/keycloak/realm-export.json` — directAccessGrantsEnabled=true
 
 **Удалённые файлы:**
-- Нет (согласно Staged Rollout — legacy код сохранён до Day 4)
+- Нет (legacy код сохранён для fallback режима)
 
 ## Senior Developer Review (AI)
 
