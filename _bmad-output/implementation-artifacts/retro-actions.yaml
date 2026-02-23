@@ -17,15 +17,29 @@
 #     notes: дополнительные заметки
 
 generated: 2026-02-20
-last_updated: 2026-02-21  # Epic 8 Retrospective completed
+last_updated: 2026-02-23  # Epic 10 Retrospective completed
 
 # =================================
-# TECH SPRINT COMPLETED
+# ACTIVE ACTION ITEMS
 # =================================
-# Все action items закрыты в Tech Sprint 2026-02-21
 
-action_items: []
-# Все items перемещены в completed_items
+action_items:
+  - id: E10-01
+    description: "Рефакторинг проверки ролей — централизованные хелперы canRollback(), canDelete(), canModify() с TypeScript literal types"
+    owner: "Charlie"
+    priority: medium
+    status: open
+    source: epic-10-retro
+    deadline: Epic 11
+    created: 2026-02-23
+    notes: "Story 11.6. Recurring bug: UPPERCASE vs lowercase role checks в 10.3 и 10.4"
+
+# Remaining items are Epic 11 stories (tracked in sprint-status.yaml):
+# - Story 11.1: Integrations expandable routes (FR-01)
+# - Story 11.2: System theme default (FR-02)
+# - Story 11.3: Lua + Redis documentation (DOC-01)
+# - Story 11.4: Redis Pub/Sub documentation (DOC-02)
+# - Story 11.5: WebFlux patterns documentation (DOC-03)
 
 # =================================
 # PROCESS AGREEMENTS

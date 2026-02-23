@@ -557,22 +557,22 @@ test.describe('Epic 7: Audit & Compliance', () => {
     await expect(upstreamRow).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
 
     // Проверяем количество маршрутов (должно быть 3)
+    // Story 11.1: Expand column справа, колонки: host, routeCount, expand
     await expect(upstreamRow.locator('td').nth(1)).toContainText(/3 маршрут/)
 
-    // Кликаем на кнопку "Маршруты" — redirect на /routes?upstream={host}
-    await upstreamRow.getByRole('button', { name: /Маршруты/ }).click()
+    // Story 11.1: Раскрываем expand row чтобы увидеть маршруты
+    const expandIcon = upstreamRow.locator('[data-testid="expand-icon"]')
+    await expandIcon.click()
 
-    // Ждём навигации
-    await page.waitForURL(/\/routes\?upstream=/)
+    // Ждём загрузки nested table с маршрутами
+    await page.waitForTimeout(UI_SYNC_DELAY)
 
-    // Проверяем что URL содержит upstream параметр
-    expect(page.url()).toContain(`upstream=${encodeURIComponent(upstreamHost)}`)
-
-    // Возвращаемся на integrations для теста Export через меню
-    await navigateToMenu(page, /Integrations/)
-    await expect(page.getByRole('heading', { name: /Integrations Report/ })).toBeVisible({
-      timeout: UI_ELEMENT_TIMEOUT,
-    })
+    // Проверяем что появилась nested table с маршрутами
+    // Все 3 маршрута должны быть видны
+    const nestedTable = page.locator('[data-testid="nested-routes-table"]')
+    await expect(nestedTable).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+    const nestedRows = nestedTable.locator('tbody tr')
+    await expect(nestedRows).toHaveCount(3, { timeout: UI_ELEMENT_TIMEOUT })
 
     // Тестируем Export Report
     const downloadPromise = page.waitForEvent('download')
@@ -627,5 +627,106 @@ test.describe('Epic 7: Audit & Compliance', () => {
     const upstreamsApiResponse = await page.request.get('/api/v1/routes/upstreams')
     // Developer имеет доступ к upstreams API (это минимальная роль)
     expect(upstreamsApiResponse.ok()).toBeTruthy()
+  })
+
+  /**
+   * Story 11.1: Expandable rows показывают маршруты inline.
+   *
+   * Сценарий:
+   * 1. Admin логинится и создаёт маршрут с upstream
+   * 2. Переходит на /audit/integrations
+   * 3. Кликает expand icon — показывается nested table с маршрутами
+   * 4. Проверяет колонки: Path, Status, Methods, Rate Limit
+   * 5. Кликает collapse icon — nested table скрывается
+   */
+  test('Expandable rows показывают маршруты inline (Story 11.1)', { timeout: TEST_TIMEOUT_LONG }, async ({ page }) => {
+    // Setup: логинимся и создаём маршрут
+    await login(page, 'test-admin', 'Test1234!', '/dashboard')
+
+    const upstreamHost = `expandable-test-${TIMESTAMP}.local:8080`
+    const upstreamUrl = `http://${upstreamHost}`
+    // createPublishedRoute добавляет префикс /e2e-audit-
+    const routePath = `/e2e-audit-expandable-${TIMESTAMP}`
+
+    // Создаём published маршрут для видимости в upstreams
+    await createPublishedRoute(page, `expandable-${TIMESTAMP}`, resources, upstreamUrl)
+
+    // Ждём синхронизации
+    await page.waitForTimeout(UI_SYNC_DELAY)
+
+    // Переходим на /audit/integrations
+    await navigateToMenu(page, /Integrations/)
+    await expect(page.getByRole('heading', { level: 3, name: /Integrations Report/ })).toBeVisible({
+      timeout: UI_ELEMENT_TIMEOUT,
+    })
+
+    // Ждём загрузки таблицы
+    await page.waitForSelector('table', { timeout: TABLE_LOAD_TIMEOUT })
+
+    // Ищем upstream в таблице
+    const searchInput = page.locator('input[placeholder*="Поиск по host"]')
+    await searchInput.fill(upstreamHost)
+    await page.waitForTimeout(500)
+
+    // Проверяем наличие строки с нашим upstream
+    const upstreamRow = page.locator(`tr:has-text("${upstreamHost}")`)
+    await expect(upstreamRow).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+
+    // AC1: Кликаем expand icon — показывается nested table
+    const expandIcon = upstreamRow.locator('[data-testid="expand-icon"]')
+    await expect(expandIcon).toBeVisible()
+    await expandIcon.click()
+
+    // Ждём загрузки маршрутов в nested table
+    await page.waitForTimeout(UI_SYNC_DELAY)
+
+    // AC3: Проверяем колонки в nested table
+    // Nested table содержит заголовки: Path, Статус, Методы, Rate Limit
+    await expect(page.locator('th:has-text("Path")')).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+    await expect(page.locator('th:has-text("Статус")')).toBeVisible()
+    await expect(page.locator('th:has-text("Методы")')).toBeVisible()
+    await expect(page.locator('th:has-text("Rate Limit")')).toBeVisible()
+
+    // Проверяем что маршрут отображается как ссылка
+    const pathLink = page.getByRole('link', { name: routePath })
+    await expect(pathLink).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+
+    // Проверяем статус published (Tag "Опубликован")
+    await expect(page.getByText('Опубликован')).toBeVisible()
+
+    // Проверяем что ссылка ведёт на детальную страницу маршрута
+    await pathLink.click()
+    await page.waitForURL(/\/routes\/[a-f0-9-]+/, { timeout: UI_ELEMENT_TIMEOUT })
+    expect(page.url()).toMatch(/\/routes\/[a-f0-9-]+$/)
+
+    // Story 11.1: Кнопка "Назад" возвращает на Integrations (browser history)
+    const backButton = page.getByRole('button', { name: /Назад/ })
+    await expect(backButton).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+    await backButton.click()
+
+    // Проверяем что вернулись на Integrations
+    await page.waitForURL(/\/audit\/integrations/, { timeout: UI_ELEMENT_TIMEOUT })
+    await expect(page.getByRole('heading', { name: /Integrations Report/ })).toBeVisible()
+
+    // AC2: Проверяем collapse функциональность
+    // Снова ищем upstream (фильтр сбросился после возврата)
+    await searchInput.fill(upstreamHost)
+    await page.waitForTimeout(500)
+
+    // Раскрываем строку снова
+    const expandIconAfterReturn = page.locator(`tr:has-text("${upstreamHost}") [data-testid="expand-icon"]`)
+    await expect(expandIconAfterReturn).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+    await expandIconAfterReturn.click()
+
+    // Ждём появления nested table
+    await expect(page.locator('[data-testid="nested-routes-table"]')).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+
+    // Кликаем collapse icon
+    const collapseIcon = page.locator(`tr:has-text("${upstreamHost}") [data-testid="collapse-icon"]`)
+    await expect(collapseIcon).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
+    await collapseIcon.click()
+
+    // Проверяем что expand icon появился (строка свёрнута)
+    await expect(expandIconAfterReturn).toBeVisible({ timeout: UI_ELEMENT_TIMEOUT })
   })
 })

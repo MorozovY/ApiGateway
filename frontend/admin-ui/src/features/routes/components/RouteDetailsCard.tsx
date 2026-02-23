@@ -76,10 +76,10 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   }
 
   /**
-   * Возврат к списку маршрутов.
+   * Возврат на предыдущую страницу (Story 11.1: из Integrations или Routes).
    */
   const handleBack = () => {
-    navigate('/routes')
+    navigate(-1)
   }
 
   /**

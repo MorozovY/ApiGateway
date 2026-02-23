@@ -428,7 +428,7 @@ describe('RouteDetailsPage', () => {
   })
 
   describe('навигация', () => {
-    it('навигирует назад к списку при клике кнопки Назад', async () => {
+    it('навигирует назад на предыдущую страницу при клике кнопки Назад', async () => {
       renderWithMockAuth(<RouteDetailsPage />, {
         authValue: { isAuthenticated: true, user: mockUser },
         initialEntries: ['/routes/route-1'],
@@ -440,7 +440,8 @@ describe('RouteDetailsPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /назад/i }))
 
-      expect(mockNavigate).toHaveBeenCalledWith('/routes')
+      // Story 11.1: Возврат на предыдущую страницу (Integrations или Routes)
+      expect(mockNavigate).toHaveBeenCalledWith(-1)
     })
   })
 

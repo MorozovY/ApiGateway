@@ -2693,3 +2693,137 @@ So that I can analyze traffic patterns for different periods.
 **Then** виджет показывает loading spinner
 
 ---
+
+## Epic 11: UX Improvements & Documentation
+
+**Goal:** Improve user experience with UI enhancements and document critical undocumented technologies (Lua, Redis Pub/Sub, WebFlux patterns).
+
+**Source:** Epic 10 Retrospective (2026-02-23) — feedback from Yury (Project Lead)
+
+**Stories:** 6
+
+---
+
+### Story 11.1: Integrations Expandable Routes
+
+As a **Security/Admin user**,
+I want to see routes in an expandable row on the Integrations page,
+So that I can review routes without navigating away from the page.
+
+**Acceptance Criteria:**
+
+**Given** user is on /audit/integrations page
+**When** user clicks on an upstream row
+**Then** row expands to show all routes for that upstream
+**And** routes are displayed in a nested table
+
+**Given** expandable row is open
+**When** user clicks again
+**Then** row collapses
+
+**Given** upstream has routes
+**When** row is expanded
+**Then** routes show: path, status, methods, rate limit (if any)
+
+---
+
+### Story 11.2: System Theme Default
+
+As a **user**,
+I want the application to respect my system theme preference on first visit,
+So that the UI matches my preferred color scheme without manual configuration.
+
+**Acceptance Criteria:**
+
+**Given** user visits the application for the first time
+**When** user's system is set to dark mode
+**Then** application displays in dark theme
+
+**Given** user visits the application for the first time
+**When** user's system is set to light mode
+**Then** application displays in light theme
+
+**Given** user manually changes theme
+**When** user returns to the application
+**Then** manually selected theme is preserved (overrides system preference)
+
+---
+
+### Story 11.3: Lua + Redis Rate Limiting Documentation
+
+As a **new developer**,
+I want documentation explaining the Lua-based rate limiting implementation,
+So that I can understand and maintain the token bucket algorithm.
+
+**Acceptance Criteria:**
+
+**Given** developer opens architecture.md or dedicated docs
+**When** searching for rate limiting
+**Then** documentation explains:
+- Why Lua is used (atomic operations in Redis)
+- Token bucket algorithm implementation
+- Redis data structure (`ratelimit:{routeId}:{clientKey}`)
+- How to debug and test Lua scripts
+
+---
+
+### Story 11.4: Redis Pub/Sub Documentation
+
+As a **new developer**,
+I want documentation explaining the Redis Pub/Sub mechanism,
+So that I can understand how route cache synchronization works.
+
+**Acceptance Criteria:**
+
+**Given** developer opens architecture.md or dedicated docs
+**When** searching for cache sync
+**Then** documentation explains:
+- How gateway-admin publishes route changes
+- How gateway-core subscribes and updates cache
+- Message format and channel naming
+- Troubleshooting cache sync issues
+
+---
+
+### Story 11.5: WebFlux Patterns Documentation
+
+As a **new developer**,
+I want documentation explaining Spring WebFlux reactive patterns,
+So that I can write correct non-blocking code.
+
+**Acceptance Criteria:**
+
+**Given** developer opens architecture.md or dedicated docs
+**When** searching for reactive patterns
+**Then** documentation explains:
+- When to use Mono vs Flux
+- Common operators (flatMap, map, switchIfEmpty, etc.)
+- Error handling patterns (onErrorResume, onErrorReturn)
+- Testing reactive code
+- Common anti-patterns to avoid
+
+---
+
+### Story 11.6: Role Check Refactoring
+
+As a **developer**,
+I want centralized role-checking helper functions,
+So that role permission checks are consistent and type-safe across the codebase.
+
+**Source:** Epic 10 Retrospective — recurring bug with UPPERCASE vs lowercase role checks
+
+**Acceptance Criteria:**
+
+**Given** developer needs to check user permissions
+**When** implementing a new feature
+**Then** they use centralized helpers: `canRollback()`, `canDelete()`, `canModify()`, etc.
+
+**Given** TypeScript literal type for roles exists
+**When** developer writes incorrect role string (e.g., 'SECURITY' instead of 'security')
+**Then** TypeScript compiler shows error
+
+**Given** permission logic changes
+**When** developer updates the helper function
+**Then** all usages across the codebase are automatically updated
+
+---

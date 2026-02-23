@@ -153,3 +153,13 @@ development_status:
   10-8-fix-audit-changes-viewer: done  # BUG: Audit log changes показывают "null" — code review fixes applied
   10-9-fix-theme-modals-messages: done  # BUG: Modals/messages не поддерживают тёмную тему — code review fixes applied
   10-10-fix-top-routes-time-range: done  # BUG: Top Routes не реагирует на time range
+  epic-10-retrospective: done  # 2026-02-23: Team retro completed, Epic 11 planned
+
+  # Epic 11: UX Improvements & Documentation
+  epic-11: in-progress  # 2026-02-23: Created from Epic 10 retrospective
+  11-1-integrations-expandable-routes: done  # FR-01: Показывать маршруты в expandable row (code review: 3 issues fixed)
+  11-2-system-theme-default: backlog  # FR-02: prefers-color-scheme при первом запуске
+  11-3-lua-redis-documentation: backlog  # DOC-01: Token bucket алгоритм, Redis структура
+  11-4-redis-pubsub-documentation: backlog  # DOC-02: Route cache sync между сервисами
+  11-5-webflux-patterns-documentation: backlog  # DOC-03: Reactive паттерны
+  11-6-role-check-refactoring: backlog  # PI-01: Централизованные хелперы canRollback(), canDelete()

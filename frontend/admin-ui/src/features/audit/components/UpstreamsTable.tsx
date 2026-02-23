@@ -1,30 +1,99 @@
 // Таблица upstream сервисов для Integrations Report (Story 7.6, AC3, AC4)
+// Story 11.1: Добавлены expandable rows для просмотра маршрутов inline
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Table, Input, Button, Space, Empty, Spin, Alert } from 'antd'
-import { SearchOutlined, EyeOutlined } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
+import { Table, Input, Space, Empty, Spin, Alert, Tag, Skeleton } from 'antd'
+import { SearchOutlined, ExpandOutlined, CompressOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useUpstreams } from '../hooks/useUpstreams'
+import { useUpstreamRoutes } from '../hooks/useUpstreamRoutes'
 import type { UpstreamSummary } from '../types/audit.types'
+import type { Route } from '@features/routes/types/route.types'
 import { pluralizeRoutes } from '@shared/utils/pluralize'
+import { STATUS_COLORS, STATUS_LABELS } from '@shared/constants'
 
-interface UpstreamsTableProps {
-  /** Callback при клике на upstream для навигации (опционально) */
-  onUpstreamClick?: (host: string) => void
+/**
+ * Компонент для отображения маршрутов в expandable row (Story 11.1, AC1, AC3).
+ *
+ * Показывает nested table с колонками: path, status, methods, rate limit.
+ * Состояния: loading (Skeleton), empty, error, данные.
+ */
+function ExpandedRoutes({ host }: { host: string }) {
+  const { data, isLoading, error } = useUpstreamRoutes(host)
+
+  if (isLoading) {
+    return <Skeleton active paragraph={{ rows: 3 }} data-testid="routes-skeleton" />
+  }
+
+  if (error) {
+    return <Alert type="error" message="Ошибка загрузки маршрутов" showIcon />
+  }
+
+  if (!data?.items?.length) {
+    return <Empty description="Нет маршрутов для этого upstream" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+  }
+
+  const routeColumns: ColumnsType<Route> = [
+    {
+      title: 'Path',
+      dataIndex: 'path',
+      key: 'path',
+      width: 250,
+      render: (path: string, record: Route) => (
+        <Link to={`/routes/${record.id}`}>{path}</Link>
+      ),
+    },
+    {
+      title: 'Статус',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (status: string) => (
+        <Tag color={STATUS_COLORS[status]}>
+          {STATUS_LABELS[status] || status}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Методы',
+      dataIndex: 'methods',
+      key: 'methods',
+      width: 150,
+      render: (methods: string[]) => methods?.join(', ') || '—',
+    },
+    {
+      title: 'Rate Limit',
+      key: 'rateLimit',
+      width: 150,
+      render: (_: unknown, record: Route) => record.rateLimit?.name || '—',
+    },
+  ]
+
+  return (
+    <div style={{ padding: '16px 0' }}>
+      <Table
+        dataSource={data.items}
+        columns={routeColumns}
+        rowKey="id"
+        pagination={false}
+        size="small"
+        data-testid="nested-routes-table"
+      />
+    </div>
+  )
 }
 
 /**
  * Таблица upstream сервисов.
  *
  * Особенности:
- * - Колонки: Upstream Host, Route Count, Actions (View)
- * - Click-through на /routes?upstream={host} (AC4)
+ * - Колонки: Upstream Host, Route Count
+ * - Expandable rows с маршрутами (Story 11.1)
  * - Sorting по routeCount (default DESC)
  * - Frontend search по host name
  * - Empty state для пустого списка
  */
-export function UpstreamsTable({ onUpstreamClick }: UpstreamsTableProps) {
-  const navigate = useNavigate()
+export function UpstreamsTable() {
   const { data, isLoading, error } = useUpstreams()
   const [searchText, setSearchText] = useState('')
 
@@ -39,16 +108,8 @@ export function UpstreamsTable({ onUpstreamClick }: UpstreamsTableProps) {
     )
   }, [data?.upstreams, searchText])
 
-  // Обработчик клика на upstream — навигация на /routes?upstream={host}
-  const handleViewRoutes = (host: string) => {
-    if (onUpstreamClick) {
-      onUpstreamClick(host)
-    } else {
-      navigate(`/routes?upstream=${encodeURIComponent(host)}`)
-    }
-  }
-
-  // Определение колонок таблицы
+  // Определение колонок таблицы (без колонки "Действия")
+  // Table.EXPAND_COLUMN используется для позиционирования expand icon справа
   const columns: ColumnsType<UpstreamSummary> = [
     {
       title: 'Upstream Host',
@@ -65,20 +126,7 @@ export function UpstreamsTable({ onUpstreamClick }: UpstreamsTableProps) {
       render: (count: number) => pluralizeRoutes(count),
       width: 150,
     },
-    {
-      title: 'Действия',
-      key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewRoutes(record.host)}
-        >
-          Маршруты
-        </Button>
-      ),
-    },
+    Table.EXPAND_COLUMN, // Expand icon справа
   ]
 
   // Состояние загрузки
@@ -130,11 +178,29 @@ export function UpstreamsTable({ onUpstreamClick }: UpstreamsTableProps) {
         />
       </Space>
 
-      {/* Таблица */}
+      {/* Таблица с expandable rows (Story 11.1, AC1, AC2) */}
       <Table
         dataSource={filteredUpstreams}
         columns={columns}
         rowKey="host"
+        expandable={{
+          expandedRowRender: (record) => <ExpandedRoutes host={record.host} />,
+          rowExpandable: () => true,
+          expandIcon: ({ expanded, onExpand, record }) =>
+            expanded ? (
+              <CompressOutlined
+                style={{ cursor: 'pointer', color: '#1890ff' }}
+                onClick={(e) => onExpand(record, e)}
+                data-testid="collapse-icon"
+              />
+            ) : (
+              <ExpandOutlined
+                style={{ cursor: 'pointer', color: '#1890ff' }}
+                onClick={(e) => onExpand(record, e)}
+                data-testid="expand-icon"
+              />
+            ),
+        }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
