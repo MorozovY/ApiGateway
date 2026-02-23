@@ -25,7 +25,8 @@ const STATUS_COLORS = {
  * Конфигурация отображения сервисов.
  * Определяет порядок и отображаемые имена.
  * Nginx первый (order: 0), так как это entry point системы (reverse proxy).
- * Всего 7 сервисов: nginx, gateway-core, gateway-admin, postgresql, redis, prometheus, grafana.
+ * Всего 8 сервисов: nginx, gateway-core, gateway-admin, postgresql, redis, keycloak, prometheus, grafana.
+ * Располагаются в 2 ряда по 4 карточки.
  */
 const SERVICE_CONFIG: Record<string, { displayName: string; order: number }> = {
   'nginx': { displayName: 'Nginx', order: 0 },
@@ -33,8 +34,9 @@ const SERVICE_CONFIG: Record<string, { displayName: string; order: number }> = {
   'gateway-admin': { displayName: 'Gateway Admin', order: 2 },
   'postgresql': { displayName: 'PostgreSQL', order: 3 },
   'redis': { displayName: 'Redis', order: 4 },
-  'prometheus': { displayName: 'Prometheus', order: 5 },
-  'grafana': { displayName: 'Grafana', order: 6 },
+  'keycloak': { displayName: 'Keycloak', order: 5 },
+  'prometheus': { displayName: 'Prometheus', order: 6 },
+  'grafana': { displayName: 'Grafana', order: 7 },
 }
 
 /**
@@ -206,10 +208,10 @@ export function HealthCheckSection() {
       style={{ marginBottom: 16 }}
       data-testid="health-section"
     >
-      {/* AC4: Responsive layout — все сервисы в строку на desktop, wrap на mobile */}
+      {/* AC4: Responsive layout — 2 ряда по 4 карточки на desktop, wrap на mobile */}
       <Row gutter={[8, 8]}>
         {sortedServices?.map((service) => (
-          <Col key={service.name} flex="1" style={{ minWidth: 130 }}>
+          <Col key={service.name} xs={12} sm={12} md={6} lg={6} xl={6}>
             <ServiceCard service={service} isDark={isDark} />
           </Col>
         ))}

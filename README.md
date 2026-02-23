@@ -19,6 +19,7 @@ docker-compose up -d
 Это запустит:
 - PostgreSQL 16 на порту 5432
 - Redis 7 на порту 6379
+- Keycloak 24 на порту 8180 (Identity Provider)
 
 ### 2. Backend
 
@@ -57,6 +58,13 @@ api-gateway/
 │   └── gateway-common/        # Shared entities, utils
 ├── frontend/                   # React SPA
 │   └── admin-ui/
+├── docker/                     # Docker configuration files
+│   ├── keycloak/              # Keycloak realm configuration
+│   │   └── realm-export.json  # Realm auto-import file
+│   ├── postgres/              # PostgreSQL init scripts
+│   │   └── init-keycloak-db.sql
+│   ├── prometheus/            # Prometheus configuration
+│   └── grafana/               # Grafana dashboards & provisioning
 ├── docker-compose.yml         # Development infrastructure
 ├── docker-compose.dev.yml     # Development overrides
 ├── .env.example               # Environment variables template
@@ -72,6 +80,7 @@ api-gateway/
 | admin-ui | 3000 | Frontend dev server |
 | PostgreSQL | 5432 | Database |
 | Redis | 6379 | Cache |
+| Keycloak | 8180 | Identity Provider (SSO) |
 
 ## Конфигурация
 
@@ -86,6 +95,41 @@ cp .env.example .env
 После запуска gateway-admin:
 - Swagger UI: http://localhost:8081/swagger-ui.html
 - OpenAPI spec: http://localhost:8081/api-docs
+
+## Keycloak (Identity Provider)
+
+При первом запуске Keycloak автоматически импортирует realm `api-gateway` с преднастроенными клиентами и пользователями.
+
+### Доступ к Admin Console
+
+- URL: http://localhost:8180
+- Login: `admin` / `admin`
+
+### Тестовые пользователи
+
+| Пользователь | Пароль | Роль |
+|--------------|--------|------|
+| admin@example.com | admin123 | admin-ui:admin |
+| dev@example.com | dev123 | admin-ui:developer |
+| security@example.com | security123 | admin-ui:security |
+
+### API Consumer (для тестирования)
+
+Client Credentials flow:
+- Client ID: `company-a`
+- Client Secret: `company-a-secret-change-in-production`
+
+> ⚠️ **ВАЖНО**: Все credentials выше предназначены только для локальной разработки.
+> В production необходимо сгенерировать новые секреты и пароли!
+
+Получение токена:
+```bash
+curl -X POST "http://localhost:8180/realms/api-gateway/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=company-a" \
+  -d "client_secret=company-a-secret-change-in-production"
+```
 
 ## Технологический стек
 

@@ -73,6 +73,7 @@ class HealthServiceTest {
             prometheusUrl = baseUrl,
             grafanaUrl = baseUrl,
             nginxUrl = baseUrl,
+            keycloakUrl = baseUrl,
             checkTimeout = Duration.ofSeconds(5)
         )
     }
@@ -228,6 +229,28 @@ class HealthServiceTest {
             StepVerifier.create(healthService.checkGrafana())
                 .expectNextMatches { service ->
                     service.name == "grafana" &&
+                        service.status == ServiceStatus.UP &&
+                        service.details == null
+                }
+                .verifyComplete()
+        }
+
+        @Test
+        fun `возвращает UP для Keycloak когда health endpoint отвечает UP`() {
+            // Given
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .setBody(objectMapper.writeValueAsString(mapOf("status" to "UP")))
+            )
+
+            val healthService = createHealthService()
+
+            // When & Then
+            StepVerifier.create(healthService.checkKeycloak())
+                .expectNextMatches { service ->
+                    service.name == "keycloak" &&
                         service.status == ServiceStatus.UP &&
                         service.details == null
                 }
@@ -413,6 +436,23 @@ class HealthServiceTest {
                 }
                 .verifyComplete()
         }
+
+        @Test
+        fun `возвращает DOWN для Keycloak когда сервер недоступен`() {
+            // Given: MockWebServer закрыт
+            mockWebServer.shutdown()
+
+            val healthService = createHealthService()
+
+            // When & Then
+            StepVerifier.create(healthService.checkKeycloak())
+                .expectNextMatches { service ->
+                    service.name == "keycloak" &&
+                        service.status == ServiceStatus.DOWN &&
+                        service.details != null
+                }
+                .verifyComplete()
+        }
     }
 
     // ============================================
@@ -436,15 +476,16 @@ class HealthServiceTest {
                     as Publisher<Connection>
             )
 
-            // When & Then: ожидаем 7 сервисов (nginx + 4 из AC + prometheus + grafana)
+            // When & Then: ожидаем 8 сервисов (nginx + gateway + postgresql + redis + keycloak + prometheus + grafana)
             StepVerifier.create(healthService.getServicesHealth())
                 .expectNextMatches { response ->
-                    response.services.size == 7 &&
+                    response.services.size == 8 &&
                         response.services.any { it.name == "nginx" && it.status == ServiceStatus.DOWN } &&
                         response.services.any { it.name == "gateway-core" && it.status == ServiceStatus.DOWN } &&
                         response.services.any { it.name == "gateway-admin" && it.status == ServiceStatus.UP } &&
                         response.services.any { it.name == "postgresql" && it.status == ServiceStatus.DOWN } &&
                         response.services.any { it.name == "redis" && it.status == ServiceStatus.DOWN } &&
+                        response.services.any { it.name == "keycloak" && it.status == ServiceStatus.DOWN } &&
                         response.services.any { it.name == "prometheus" && it.status == ServiceStatus.DOWN } &&
                         response.services.any { it.name == "grafana" && it.status == ServiceStatus.DOWN } &&
                         response.timestamp != null

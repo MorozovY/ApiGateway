@@ -27,6 +27,7 @@ import java.util.concurrent.TimeoutException
  * - gateway-admin: всегда UP (если сервис отвечает)
  * - PostgreSQL: R2DBC connection test (SELECT 1)
  * - Redis: команда PING
+ * - keycloak: HTTP GET на /health/ready (Identity Provider)
  * - prometheus: HTTP GET на /-/healthy
  * - grafana: HTTP GET на /api/health
  *
@@ -46,6 +47,8 @@ class HealthService(
     private val grafanaUrl: String,
     @Value("\${nginx.url:http://localhost:80}")
     private val nginxUrl: String,
+    @Value("\${keycloak.url:http://localhost:8180}")
+    private val keycloakUrl: String,
     @Value("\${health.check.timeout:5s}")
     private val checkTimeout: Duration
 ) {
@@ -59,6 +62,7 @@ class HealthService(
         const val SERVICE_GATEWAY_ADMIN = "gateway-admin"
         const val SERVICE_POSTGRESQL = "postgresql"
         const val SERVICE_REDIS = "redis"
+        const val SERVICE_KEYCLOAK = "keycloak"
         const val SERVICE_PROMETHEUS = "prometheus"
         const val SERVICE_GRAFANA = "grafana"
     }
@@ -79,6 +83,7 @@ class HealthService(
             checkGatewayAdmin(),
             checkPostgresql(),
             checkRedis(),
+            checkKeycloak(),
             checkPrometheus(),
             checkGrafana()
         )
@@ -204,6 +209,34 @@ class HealthService(
             .onErrorResume { error ->
                 logger.warn("Redis недоступен: {}", error.message)
                 Mono.just(createDownStatus(SERVICE_REDIS, error))
+            }
+    }
+
+    /**
+     * Проверяет доступность Keycloak через /health/ready endpoint.
+     *
+     * Keycloak предоставляет health endpoint на /health/ready,
+     * который возвращает статус готовности сервиса.
+     */
+    fun checkKeycloak(): Mono<ServiceHealthDto> {
+        logger.debug("Проверка Keycloak: {}/health/ready", keycloakUrl)
+
+        return webClient.get()
+            .uri("$keycloakUrl/health/ready")
+            .retrieve()
+            .bodyToMono(Map::class.java)
+            .map { response ->
+                val status = response["status"] as? String
+                if (status == "UP") {
+                    ServiceHealthDto(SERVICE_KEYCLOAK, ServiceStatus.UP, Instant.now())
+                } else {
+                    ServiceHealthDto(SERVICE_KEYCLOAK, ServiceStatus.DOWN, Instant.now(), "Status: $status")
+                }
+            }
+            .timeout(checkTimeout)
+            .onErrorResume { error ->
+                logger.warn("Keycloak недоступен: {}", error.message)
+                Mono.just(createDownStatus(SERVICE_KEYCLOAK, error))
             }
     }
 

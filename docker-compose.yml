@@ -16,6 +16,7 @@
 # Health checks:
 #   - PostgreSQL: pg_isready command (interval: 10s, timeout: 5s, retries: 5)
 #   - Redis: redis-cli ping (interval: 10s, timeout: 5s, retries: 5)
+#   - Keycloak 24 (port 8180): Identity Provider для SSO аутентификации
 
 services:
   postgres:
@@ -29,6 +30,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gateway}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gateway}"]
       interval: 10s
@@ -49,6 +51,37 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gateway-network
+
+  # Keycloak — Identity Provider для SSO аутентификации
+  # Запускается в development режиме (HTTP, без SSL)
+  # Realm автоматически импортируется при первом старте
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: gateway-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER:-gateway}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-gateway}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\nHost: localhost\nConnection: close\n\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     networks:
       - gateway-network
 

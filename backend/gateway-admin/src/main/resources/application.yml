@@ -96,6 +96,11 @@ grafana:
 nginx:
   url: ${NGINX_URL:http://localhost:80}
 
+# Keycloak конфигурация (Story 12.1)
+# Identity Provider для SSO аутентификации
+keycloak:
+  url: ${KEYCLOAK_URL:http://localhost:8180}
+
 health:
   check:
     timeout: 5s

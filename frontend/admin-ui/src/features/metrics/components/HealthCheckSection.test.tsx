@@ -25,7 +25,7 @@ vi.mock('@/shared/providers/ThemeProvider', () => ({
 
 const mockGetServicesHealth = healthApi.getServicesHealth as ReturnType<typeof vi.fn>
 
-// Тестовые данные: 7 сервисов (nginx + 4 из AC + prometheus + grafana)
+// Тестовые данные: 8 сервисов (nginx + gateway + postgresql + redis + keycloak + prometheus + grafana)
 const mockHealthResponse: HealthResponse = {
   services: [
     { name: 'nginx', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
@@ -33,6 +33,7 @@ const mockHealthResponse: HealthResponse = {
     { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'redis', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+    { name: 'keycloak', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'prometheus', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'grafana', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
   ],
@@ -46,6 +47,7 @@ const mockHealthWithDown: HealthResponse = {
     { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'redis', status: 'DOWN', lastCheck: '2026-02-21T10:30:00Z', details: 'Redis not configured' },
+    { name: 'keycloak', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'prometheus', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
     { name: 'grafana', status: 'DOWN', lastCheck: '2026-02-21T10:30:00Z', details: 'Connection refused' },
   ],
@@ -71,19 +73,20 @@ describe('HealthCheckSection', () => {
   })
 
   describe('AC1: отображает все сервисы со статусами', () => {
-    it('отображает все 7 сервисов', async () => {
+    it('отображает все 8 сервисов', async () => {
       render(<HealthCheckSection />, { wrapper: createWrapper() })
 
       await waitFor(() => {
         expect(screen.getByTestId('health-section')).toBeInTheDocument()
       })
 
-      // Проверяем наличие всех сервисов (nginx + 4 из AC + prometheus + grafana)
+      // Проверяем наличие всех 8 сервисов
       expect(screen.getByTestId('health-card-nginx')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-gateway-core')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-gateway-admin')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-postgresql')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-redis')).toBeInTheDocument()
+      expect(screen.getByTestId('health-card-keycloak')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-prometheus')).toBeInTheDocument()
       expect(screen.getByTestId('health-card-grafana')).toBeInTheDocument()
     })
@@ -97,7 +100,7 @@ describe('HealthCheckSection', () => {
 
       // Проверяем что статусы отображаются
       const upTags = screen.getAllByText('UP')
-      expect(upTags.length).toBe(7) // Все 7 сервисов UP
+      expect(upTags.length).toBe(8) // Все 8 сервисов UP
     })
 
     it('отображает timestamp последней проверки', async () => {
@@ -128,7 +131,7 @@ describe('HealthCheckSection', () => {
 
       // Проверяем UP статусы
       const upTags = screen.getAllByText('UP')
-      expect(upTags.length).toBe(3) // gateway-admin, postgresql, prometheus
+      expect(upTags.length).toBe(4) // gateway-admin, postgresql, keycloak, prometheus
     })
 
     it('отображает детали ошибки в Tooltip для DOWN сервиса', async () => {
@@ -219,6 +222,7 @@ describe('HealthCheckSection', () => {
           { name: 'redis', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'gateway-core', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'nginx', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
+          { name: 'keycloak', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'prometheus', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'postgresql', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
           { name: 'gateway-admin', status: 'UP', lastCheck: '2026-02-21T10:30:00Z', details: null },
@@ -239,6 +243,7 @@ describe('HealthCheckSection', () => {
       expect(screen.getByText('Gateway Admin')).toBeInTheDocument()
       expect(screen.getByText('PostgreSQL')).toBeInTheDocument()
       expect(screen.getByText('Redis')).toBeInTheDocument()
+      expect(screen.getByText('Keycloak')).toBeInTheDocument()
       expect(screen.getByText('Prometheus')).toBeInTheDocument()
       expect(screen.getByText('Grafana')).toBeInTheDocument()
     })
