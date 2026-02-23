@@ -1,4 +1,4 @@
-// Тесты для useTheme hook (Story 6.0 — Theme Switcher)
+// Тесты для useTheme hook (Story 11.2 — System Theme Default)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useTheme } from './useTheme'
@@ -38,6 +38,11 @@ describe('useTheme', () => {
   beforeEach(() => {
     // Сбрасываем localStorage и mocks перед каждым тестом
     localStorageMock.clear()
+    // Сбрасываем spy вызовы
+    localStorageMock.getItem.mockClear()
+    localStorageMock.setItem.mockClear()
+    localStorageMock.removeItem.mockClear()
+
     vi.stubGlobal('localStorage', localStorageMock)
     vi.stubGlobal('matchMedia', createMatchMediaMock(false)) // По умолчанию light system theme
 
@@ -114,14 +119,45 @@ describe('useTheme', () => {
     expect(result.current.isLight).toBe(true)
   })
 
-  it('сохраняет тему в localStorage при изменении', () => {
+  it('НЕ сохраняет системную тему в localStorage при первом визите', () => {
+    // Первый визит: localStorage пуст, система в dark mode
+    vi.stubGlobal('matchMedia', createMatchMediaMock(true))
+
     const { result } = renderHook(() => useTheme())
+
+    // Тема должна быть dark (от системы), но НЕ сохранена в localStorage
+    expect(result.current.theme).toBe('dark')
+    expect(localStorageMock.setItem).not.toHaveBeenCalled()
+  })
+
+  it('сохраняет тему в localStorage при явном toggle', () => {
+    const { result } = renderHook(() => useTheme())
+
+    // Сбрасываем вызовы setItem (если были при инициализации)
+    localStorageMock.setItem.mockClear()
 
     act(() => {
       result.current.toggle()
     })
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith('app-theme', 'dark')
+    // Проверяем что setItem вызван ровно 1 раз (нет дублирования)
+    expect(localStorageMock.setItem).toHaveBeenCalledTimes(1)
+  })
+
+  it('сохраняет тему в localStorage при явном setTheme', () => {
+    const { result } = renderHook(() => useTheme())
+
+    // Сбрасываем вызовы setItem (если были при инициализации)
+    localStorageMock.setItem.mockClear()
+
+    act(() => {
+      result.current.setTheme('dark')
+    })
+
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('app-theme', 'dark')
+    // Проверяем что setItem вызван ровно 1 раз (нет дублирования)
+    expect(localStorageMock.setItem).toHaveBeenCalledTimes(1)
   })
 
   it('setTheme устанавливает конкретную тему', () => {
@@ -216,5 +252,70 @@ describe('useTheme', () => {
 
     // Должна использоваться системная тема (light по умолчанию в mock)
     expect(result.current.theme).toBe('light')
+  })
+
+  it('обновляет тему при изменении системной когда нет сохранённой', () => {
+    // Создаём mock с возможностью вызвать change handler
+    let changeHandler: ((e: { matches: boolean }) => void) | null = null
+    const mediaQueryMock = {
+      matches: false,
+      media: '(prefers-color-scheme: dark)',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event: string, handler: (e: { matches: boolean }) => void) => {
+        if (event === 'change') changeHandler = handler
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mediaQueryMock))
+
+    const { result } = renderHook(() => useTheme())
+
+    // Изначально light (система в light mode)
+    expect(result.current.theme).toBe('light')
+
+    // Симулируем изменение системной темы на dark
+    act(() => {
+      changeHandler?.({ matches: true })
+    })
+
+    // Тема должна измениться на dark
+    expect(result.current.theme).toBe('dark')
+  })
+
+  it('сохранённая тема НЕ обновляется при изменении системной', () => {
+    // Есть сохранённая тема dark
+    localStorageMock.setItem('app-theme', 'dark')
+
+    // Создаём mock с возможностью вызвать change handler
+    let changeHandler: ((e: { matches: boolean }) => void) | null = null
+    const mediaQueryMock = {
+      matches: false,
+      media: '(prefers-color-scheme: dark)',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event: string, handler: (e: { matches: boolean }) => void) => {
+        if (event === 'change') changeHandler = handler
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue(mediaQueryMock))
+
+    const { result } = renderHook(() => useTheme())
+
+    // Изначально dark (из localStorage)
+    expect(result.current.theme).toBe('dark')
+
+    // Симулируем изменение системной темы на light
+    act(() => {
+      changeHandler?.({ matches: false })
+    })
+
+    // Тема НЕ должна измениться (сохранённая имеет приоритет)
+    expect(result.current.theme).toBe('dark')
   })
 })

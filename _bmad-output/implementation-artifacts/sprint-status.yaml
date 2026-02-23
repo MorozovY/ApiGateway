@@ -158,7 +158,7 @@ development_status:
   # Epic 11: UX Improvements & Documentation
   epic-11: in-progress  # 2026-02-23: Created from Epic 10 retrospective
   11-1-integrations-expandable-routes: done  # FR-01: Показывать маршруты в expandable row (code review: 3 issues fixed)
-  11-2-system-theme-default: backlog  # FR-02: prefers-color-scheme при первом запуске
+  11-2-system-theme-default: done  # FR-02: prefers-color-scheme при первом запуске (code review: 3 issues fixed)
   11-3-lua-redis-documentation: backlog  # DOC-01: Token bucket алгоритм, Redis структура
   11-4-redis-pubsub-documentation: backlog  # DOC-02: Route cache sync между сервисами
   11-5-webflux-patterns-documentation: backlog  # DOC-03: Reactive паттерны
