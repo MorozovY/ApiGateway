@@ -150,7 +150,9 @@ class DynamicRouteLocator(
             val newPath = if (upstreamPath.endsWith("/") && relativePath.startsWith("/")) {
                 upstreamPath + relativePath.substring(1)
             } else if (upstreamPath.isEmpty()) {
-                relativePath.ifEmpty { "/" }
+                // Если upstream path пустой, сохраняем оригинальный request path
+                // (включая route prefix, т.к. upstream ожидает полный путь)
+                requestPath
             } else {
                 upstreamPath + relativePath
             }
