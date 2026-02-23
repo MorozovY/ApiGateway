@@ -67,11 +67,14 @@ test.describe('Epic 4: Approval Workflow', () => {
 
     // Нажимаем кнопку — появляется модальное окно подтверждения
     await page.locator('button:has-text("Отправить на согласование")').click()
-    await expect(page.locator('.ant-modal-title:has-text("Отправить на согласование")')).toBeVisible()
+
+    // Ждём появления модального окна (antd Modal.confirm)
+    const modal = page.locator('.ant-modal-confirm')
+    await expect(modal).toBeVisible({ timeout: 10_000 })
 
     // Подтверждаем отправку
-    await page.locator('.ant-modal-footer button:has-text("Отправить")').click()
-    await expect(page.locator('.ant-modal-title:has-text("Отправить на согласование")')).not.toBeVisible({ timeout: 10_000 })
+    await modal.locator('button:has-text("Отправить")').click()
+    await expect(modal).not.toBeVisible({ timeout: 10_000 })
 
     // Статус меняется на "Ожидает одобрения"
     await expect(page.locator('text=Ожидает одобрения')).toBeVisible()

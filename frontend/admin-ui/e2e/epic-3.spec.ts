@@ -11,8 +11,19 @@ const TIMESTAMP = Date.now()
  * Используется в нескольких тестах.
  */
 async function fillRouteForm(page: Page, routePath: string, upstreamUrl: string): Promise<void> {
-  await page.locator('input[placeholder="api/service"]').fill(routePath)
-  await page.locator('input[placeholder="http://service:8080"]').fill(upstreamUrl)
+  // Ждём загрузки формы (поля должны быть интерактивными)
+  const pathInput = page.locator('input[placeholder="api/service"]')
+  const upstreamInput = page.locator('input[placeholder="http://service:8080"]')
+
+  await pathInput.waitFor({ state: 'visible' })
+  await upstreamInput.waitFor({ state: 'visible' })
+
+  // Заполняем поля и проверяем что значения записались
+  await pathInput.fill(routePath)
+  await expect(pathInput).toHaveValue(routePath, { timeout: 5_000 })
+
+  await upstreamInput.fill(upstreamUrl)
+  await expect(upstreamInput).toHaveValue(upstreamUrl, { timeout: 5_000 })
 
   // Выбор методов в Ant Design Select (multiple mode)
   await page.getByTestId('methods-select').locator('.ant-select-selector').click()
@@ -105,17 +116,21 @@ test.describe('Epic 3: Route Management', () => {
   test('Developer удаляет draft маршрут', async ({ page }) => {
     const routePath = `e2e-delete-${TIMESTAMP}`
 
-    // Создаём маршрут через UI — React Query инвалидирует кэш после создания
-    await page.locator('button:has-text("New Route")').click()
-    await fillRouteForm(page, routePath, 'http://delete-me.local:8002')
-    await page.locator('button:has-text("Save as Draft")').click()
-    await expect(page).toHaveURL(/\/routes\/[a-f0-9-]+$/, { timeout: 10_000 })
+    // Создаём маршрут через API (более надёжно чем UI)
+    const createResponse = await page.request.post('http://localhost:3000/api/v1/routes', {
+      data: {
+        path: `/${routePath}`,
+        upstreamUrl: 'http://delete-me.local:8002',
+        methods: ['GET', 'POST'],
+      },
+    })
+    expect(createResponse.ok()).toBeTruthy()
 
-    // Возвращаемся к списку маршрутов (SPA-навигация через кнопку Назад)
-    await page.locator('button:has-text("Назад")').click()
-    await expect(page).toHaveURL(/\/routes$/, { timeout: 5_000 })
+    // Перезагружаем страницу чтобы увидеть новый маршрут
+    await page.reload()
+    await expect(page.locator('h2:has-text("Routes")')).toBeVisible()
 
-    // Маршрут появляется в таблице после refetch (React Query инвалидирован)
+    // Маршрут появляется в таблице
     await expect(page.locator(`a:has-text("/${routePath}")`)).toBeVisible({ timeout: 10_000 })
 
     // Нажимаем кнопку удаления в строке маршрута

@@ -292,17 +292,20 @@ test.describe('Epic 5: Rate Limiting', () => {
     expect(Number(headers['x-ratelimit-remaining'])).toBeGreaterThanOrEqual(0)
     expect(headers['x-ratelimit-reset']).toBeTruthy()
 
-    // Превышаем лимит — отправляем много запросов подряд
-    for (let i = 0; i < 10; i++) {
-      await page.request.get(gatewayUrl, { failOnStatusCode: false })
-    }
+    // Превышаем лимит — отправляем запросы ПАРАЛЛЕЛЬНО чтобы исчерпать bucket быстрее
+    // При rate limit 2 req/s, burst 2 — bucket восполняется медленно,
+    // поэтому параллельные запросы исчерпают его до восполнения
+    const parallelRequests = Array.from({ length: 15 }, () =>
+      page.request.get(gatewayUrl, { failOnStatusCode: false })
+    )
+    const responses = await Promise.all(parallelRequests)
 
-    // Финальный запрос — ожидаем HTTP 429
-    const overLimitResponse = await page.request.get(gatewayUrl, { failOnStatusCode: false })
-    expect(overLimitResponse.status()).toBe(429)
+    // Проверяем что хотя бы один запрос получил 429
+    const response429 = responses.find(r => r.status() === 429)
+    expect(response429).toBeTruthy()
 
     // Проверяем заголовок Retry-After
-    const retryAfter = overLimitResponse.headers()['retry-after']
+    const retryAfter = response429!.headers()['retry-after']
     expect(retryAfter).toBeTruthy()
   })
 

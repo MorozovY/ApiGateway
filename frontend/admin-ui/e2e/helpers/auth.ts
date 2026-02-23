@@ -1,6 +1,14 @@
 import type { Page } from '@playwright/test'
 
 /**
+ * Очищает сессию, удаляя cookies.
+ * Используется перед повторным login() чтобы гарантировать чистое состояние.
+ */
+export async function clearSession(page: Page): Promise<void> {
+  await page.context().clearCookies()
+}
+
+/**
  * Выполняет вход через форму логина с поддержкой returnUrl механизма.
  *
  * Алгоритм:
@@ -18,6 +26,9 @@ export async function login(
   password: string,
   landingUrl = '/dashboard'
 ): Promise<void> {
+  // Очищаем сессию перед новым логином (важно для тестов со сменой пользователя)
+  await clearSession(page)
+
   // Переходим на целевую страницу — вызовет редирект на /login с returnUrl
   await page.goto(landingUrl)
 
@@ -33,13 +44,18 @@ export async function login(
 }
 
 /**
- * Выполняет выход через кнопку Logout в header.
+ * Выполняет выход через dropdown menu в header.
  *
- * Использует точный селектор header-кнопки чтобы избежать конфликтов
- * с другими элементами, содержащими слово "Logout".
+ * Story 9.4 изменила UI: теперь Logout — пункт в dropdown меню пользователя,
+ * а не отдельная кнопка. Нужно кликнуть на dropdown, затем на "Выйти".
  */
 export async function logout(page: Page): Promise<void> {
-  // Кнопка Logout находится в banner (header) зоне MainLayout
-  await page.getByRole('banner').getByRole('button', { name: /logout/i }).click()
+  // Кликаем на dropdown button (показывает username и роль)
+  // Ищем кнопку в header, которая содержит DownOutlined иконку
+  await page.getByRole('banner').locator('button').filter({ hasText: /developer|security|admin/i }).click()
+
+  // Ждём появления dropdown menu и кликаем на "Выйти"
+  await page.getByRole('menuitem', { name: /выйти/i }).click()
+
   await page.waitForURL(/\/login/, { timeout: 10_000 })
 }
