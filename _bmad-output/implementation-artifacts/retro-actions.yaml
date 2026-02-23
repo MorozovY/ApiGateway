@@ -17,29 +17,32 @@
 #     notes: дополнительные заметки
 
 generated: 2026-02-20
-last_updated: 2026-02-23  # Epic 10 Retrospective completed
+last_updated: 2026-02-23  # Epic 11 Retrospective completed
 
 # =================================
 # ACTIVE ACTION ITEMS
 # =================================
 
 action_items:
-  - id: E10-01
-    description: "Рефакторинг проверки ролей — централизованные хелперы canRollback(), canDelete(), canModify() с TypeScript literal types"
+  - id: E11-TD01
+    description: "Fix pre-existing TypeScript errors in RouteDetailsCard.test.tsx — literal types вместо UserRole"
     owner: "Charlie"
-    priority: medium
+    priority: low
     status: open
-    source: epic-10-retro
-    deadline: Epic 11
+    source: epic-11-retro
+    deadline: Epic 12 (если будет)
     created: 2026-02-23
-    notes: "Story 11.6. Recurring bug: UPPERCASE vs lowercase role checks в 10.3 и 10.4"
+    notes: "Ошибки существовали до Story 11.6, стали заметнее после рефакторинга"
 
-# Remaining items are Epic 11 stories (tracked in sprint-status.yaml):
-# - Story 11.1: Integrations expandable routes (FR-01)
-# - Story 11.2: System theme default (FR-02)
-# - Story 11.3: Lua + Redis documentation (DOC-01)
-# - Story 11.4: Redis Pub/Sub documentation (DOC-02)
-# - Story 11.5: WebFlux patterns documentation (DOC-03)
+  - id: E11-DOC01
+    description: "Update docs/webflux-patterns.md — clarify @Configuration exception for @PostConstruct"
+    owner: "Paige"
+    priority: low
+    status: open
+    source: epic-11-retro
+    deadline: Epic 12 (если будет)
+    created: 2026-02-23
+    notes: "MdcContextConfig.kt использует @PostConstruct, но это допустимо для @Configuration классов"
 
 # =================================
 # PROCESS AGREEMENTS
@@ -87,6 +90,19 @@ process_agreements:
 # =================================
 
 completed_items:
+  # --- Epic 11 (2026-02-23) ---
+
+  - id: E10-01
+    description: "Рефакторинг проверки ролей — централизованные хелперы canRollback(), canDelete(), canModify() с TypeScript literal types"
+    owner: "Charlie"
+    priority: medium
+    status: done
+    source: epic-10-retro
+    deadline: Epic 11
+    created: 2026-02-23
+    completed: 2026-02-23
+    notes: "Story 11.6. Реализованы 7 helpers: isAdmin, isDeveloper, isAdminOrSecurity, canApprove, canRollback, canDelete, canModify. 42 unit теста."
+
   # --- Tech Sprint 2026-02-21 ---
 
   - id: E7-01
