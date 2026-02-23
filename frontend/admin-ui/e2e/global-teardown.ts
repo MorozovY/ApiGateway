@@ -55,30 +55,19 @@ async function cleanupTestData(): Promise<void> {
     console.log('[E2E Teardown] Очистка тестовых данных после прогона...')
 
     // --- Удаление audit_logs для тестовых сущностей ---
-    // Удаляем по entity_type и entity_id (UUID маршрутов/политик с e2e паттерном)
-    const auditLogsRoutesResult = await pool.query(`
+    // Удаляем по changes (содержит /e2e-% паттерн) или по тестовым username
+    const auditLogsResult = await pool.query(`
       DELETE FROM audit_logs
-      WHERE entity_type = 'route'
-        AND entity_id IN (SELECT id::text FROM routes WHERE path LIKE '/e2e-%')
+      WHERE changes LIKE '%/e2e-%'
+        OR changes LIKE '%"e2e-%'
+        OR username IN ('test-developer', 'test-admin', 'test-security')
     `).catch((err: { code?: string }) => {
       if (err.code !== '42P01') {
-        console.warn('[E2E Teardown] Ошибка при удалении audit_logs (routes):', err)
+        console.warn('[E2E Teardown] Ошибка при удалении audit_logs:', err)
       }
       return { rowCount: 0 }
     })
-    console.log(`[E2E Teardown] Удалено audit_logs (routes): ${auditLogsRoutesResult.rowCount ?? 0}`)
-
-    const auditLogsPoliciesResult = await pool.query(`
-      DELETE FROM audit_logs
-      WHERE entity_type = 'rate_limit'
-        AND entity_id IN (SELECT id::text FROM rate_limits WHERE name LIKE 'e2e-%')
-    `).catch((err: { code?: string }) => {
-      if (err.code !== '42P01') {
-        console.warn('[E2E Teardown] Ошибка при удалении audit_logs (rate_limits):', err)
-      }
-      return { rowCount: 0 }
-    })
-    console.log(`[E2E Teardown] Удалено audit_logs (rate_limits): ${auditLogsPoliciesResult.rowCount ?? 0}`)
+    console.log(`[E2E Teardown] Удалено audit_logs: ${auditLogsResult.rowCount ?? 0}`)
 
     // --- Удаление route_versions ---
     await pool.query(`
