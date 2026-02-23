@@ -14,6 +14,10 @@ classification:
   domain: general
   complexity: medium
   projectContext: greenfield
+revisions:
+  - date: '2026-02-23'
+    author: 'Yury'
+    description: 'Phase 2: Keycloak Integration & Multi-tenant Metrics (Epic 12)'
 ---
 
 # Product Requirements Document - ApiGateway
@@ -71,6 +75,32 @@ classification:
 **Go/No-Go Decision для MVP:**
 MVP успешен если ≥5 сервисов работают через gateway без критических инцидентов в течение 1 недели.
 
+**Go/No-Go Decision для Phase 2 (Keycloak & Multi-tenant):**
+Phase 2 успешен если:
+- ≥3 consumers аутентифицируются через Keycloak без инцидентов
+- Метрики корректно разделяются по consumer_id
+- Per-consumer rate limits работают независимо
+
+### Success Criteria (Phase 2)
+
+#### User Success (Phase 2)
+
+| Персона | Метрика | Целевое значение |
+|---------|---------|------------------|
+| **DevOps** | Время анализа трафика по consumer | < 5 минут (vs невозможно ранее) |
+| **DevOps** | Время установки per-consumer rate limit | < 2 минуты |
+| **Admin** | Время onboarding нового consumer | < 5 минут |
+| **Consumer** | Время от получения credentials до первого запроса | < 10 минут |
+
+#### Technical Success (Phase 2)
+
+| Критерий | Метрика | Target |
+|----------|---------|--------|
+| **JWT Validation** | Успешная валидация токенов | 100% |
+| **Consumer Identity** | Корректная идентификация | 100% запросов |
+| **Metrics Labels** | consumer_id присутствует | 100% метрик |
+| **Keycloak Sync** | Синхронизация consumers | < 5 секунд |
+
 ## Product Scope
 
 ### MVP Strategy
@@ -95,9 +125,70 @@ MVP успешен если ≥5 сервисов работают через ga
 
 ### Growth Features (Post-MVP / Phase 2)
 
-- Keycloak интеграция (JWT validation, SSO)
-- Per-endpoint/per-client аналитика
-- Dashboard метрик в Admin UI
+#### Epic 12: Keycloak Integration & Multi-tenant Metrics
+
+**Цель:** Централизованная аутентификация через Keycloak + трекинг трафика по consumers для анализа использования API.
+
+**Ключевые capabilities:**
+
+| Capability | Описание |
+|------------|----------|
+| **Keycloak SSO** | Единая аутентификация для Admin UI и API consumers |
+| **Consumer Identity** | Идентификация компании-потребителя в каждом запросе |
+| **Multi-tenant Metrics** | Метрики с разбивкой по consumer_id |
+| **Per-consumer Rate Limits** | Лимиты на уровне consumer (не только route) |
+| **Public Routes** | Поддержка маршрутов без аутентификации |
+| **Consumer Management** | Управление API consumers через Admin UI (синхронизация с Keycloak) |
+
+**Authentication Flows:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 ADMIN UI (Authorization Code + PKCE)            │
+│  Browser → Admin UI → Keycloak Login → JWT (user claims)        │
+│  Roles: DEVELOPER, SECURITY, ADMIN                              │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                 API CONSUMERS (Client Credentials)              │
+│  Consumer → POST /token (client_id + secret) → Keycloak         │
+│          ← JWT { azp: "company-a", ... }                        │
+│  Consumer → GET /api/... (Bearer token) → Gateway Core          │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      PUBLIC ROUTES (Optional Auth)              │
+│  Client → GET /public/... → Gateway Core                        │
+│  Consumer ID: JWT azp → X-Consumer-ID header → "anonymous"      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Route Configuration Model:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `auth_required` | Boolean | Требуется ли аутентификация (default: true) |
+| `allowed_consumers` | List<String>? | Whitelist consumers (null = все разрешены) |
+
+**Consumer Identity Resolution (приоритет):**
+1. JWT claim `azp` (authorized party) — если токен присутствует
+2. Header `X-Consumer-ID` — для public routes или legacy клиентов
+3. `"anonymous"` — fallback для неидентифицированных запросов
+
+**Prometheus Labels (расширение):**
+
+```prometheus
+gateway_requests_total{
+  route_id="...",
+  consumer_id="company-a",  # ← НОВЫЙ label
+  method="GET",
+  status="200"
+} 1500
+```
+
+#### Другие Growth Features (Phase 2)
+
+- Dashboard метрик в Admin UI (реализовано в Epic 6-7)
 - Header-based routing
 - Feature flags для маршрутов
 - Уведомления (email/Slack)
@@ -177,7 +268,7 @@ MVP успешен если ≥5 сервисов работают через ga
 
 **Resolution:** Отчёт готов, аудит завершён. Полная видимость 100% интеграций.
 
-### Journey Requirements Summary
+### Journey Requirements Summary (MVP)
 
 | Journey | Выявленные capabilities |
 |---------|------------------------|
@@ -186,6 +277,70 @@ MVP успешен если ≥5 сервисов работают через ga
 | Мария — создание | CRUD маршрутов в UI, workflow согласования, уведомления |
 | Дмитрий — согласование | Approval workflow, аудит-лог, role-based access |
 | Дмитрий — аудит | Фильтрация/поиск маршрутов, история изменений, отчёты |
+
+---
+
+## User Journeys (Phase 2: Keycloak & Multi-tenant)
+
+### Journey 4: Сергей (API Consumer) — Получение доступа к API
+
+**Персона:** Сергей, Backend Developer в компании-партнёре (Company A). Интегрирует свои системы с нашим API.
+
+**Opening Scene:** Компания A заключила договор на использование API. Сергею нужно получить credentials и начать интеграцию. Раньше — долгая переписка, ручная выдача ключей, неясная документация.
+
+**Rising Action:** Admin создаёт client "company-a" в Admin UI. Система синхронизирует с Keycloak. Сергей получает `client_id` и `client_secret`.
+
+**Climax:** Сергей выполняет `POST /token`, получает JWT, делает первый успешный запрос к API. "Работает с первой попытки!"
+
+**Resolution:** Company A интегрирована. Все запросы идентифицируются как `consumer_id=company-a`. Метрики и rate limits применяются per-consumer.
+
+### Journey 5: Алексей (DevOps) — Анализ трафика по consumers
+
+**Персона:** Алексей, DevOps Engineer. Нужно понять паттерны использования API разными партнёрами.
+
+**Opening Scene:** Руководство спрашивает: "Кто из партнёров больше всего использует API? У кого больше ошибок?" Раньше — невозможно ответить, весь трафик смешан.
+
+**Rising Action:** Алексей открывает Grafana dashboard. Выбирает группировку по `consumer_id`. Видит:
+- Company A: 100K запросов/день, 0.1% ошибок
+- Company B: 500K запросов/день, 2% ошибок ← аномалия
+- Company C: 10K запросов/день, 0.05% ошибок
+
+**Climax:** "Вижу, что Company B генерирует много ошибок. Можем связаться и помочь исправить интеграцию!"
+
+**Resolution:** Данные для бизнес-решений, проактивная поддержка партнёров, понимание нагрузки от каждого consumer.
+
+### Journey 6: Алексей (DevOps) — Per-consumer Rate Limiting
+
+**Персона:** Алексей, DevOps Engineer. Company B начала злоупотреблять API — 10x больше запросов чем договорено.
+
+**Opening Scene:** Алерт: резкий рост нагрузки. Один из consumers перегружает систему, влияя на других.
+
+**Rising Action:** Алексей открывает Admin UI → видит что Company B генерирует аномальный трафик. Устанавливает per-consumer rate limit: 1000 req/min для Company B.
+
+**Climax:** "Ограничил одного consumer без влияния на других!"
+
+**Resolution:** Company B получает 429 при превышении лимита. Остальные consumers работают нормально. Справедливое распределение ресурсов.
+
+### Journey 7: Дмитрий (Admin) — Onboarding нового consumer
+
+**Персона:** Дмитрий, Admin. Нужно подключить нового партнёра Company D к API.
+
+**Opening Scene:** Договор подписан, нужно выдать credentials. Раньше — ручное создание в Keycloak, риск ошибок, нет единого места управления.
+
+**Rising Action:** Дмитрий открывает Admin UI → Consumers → Create. Вводит client_id "company-d". Система создаёт client в Keycloak, генерирует secret.
+
+**Climax:** "Создал consumer за минуту, всё синхронизировано с Keycloak!"
+
+**Resolution:** Company D получает credentials. Admin видит всех consumers в одном месте, может управлять доступом, отзывать credentials.
+
+### Journey Requirements Summary (Phase 2)
+
+| Journey | Выявленные capabilities |
+|---------|------------------------|
+| Сергей — получение доступа | Consumer создание в Admin UI, Keycloak sync, Client Credentials flow |
+| Алексей — анализ трафика | Multi-tenant метрики, группировка по consumer_id, Grafana dashboards |
+| Алексей — rate limiting | Per-consumer rate limits, независимые лимиты от per-route |
+| Дмитрий — onboarding | Consumer CRUD в Admin UI, синхронизация с Keycloak API |
 
 ## API Backend Specific Requirements
 
@@ -208,12 +363,32 @@ ApiGateway — это backend-сервис для централизованно
 
 ### Authentication Model
 
-| Аспект | Решение |
-|--------|---------|
-| **MVP** | Базовая аутентификация или API keys |
-| **Phase 2** | Keycloak + JWT validation |
-| **Authorization** | Role-based (Admin, Developer, Security) |
-| **Gateway requests** | Pass-through (аутентификация на upstream) |
+| Аспект | MVP | Phase 2 |
+|--------|-----|---------|
+| **Admin UI Auth** | JWT (custom) | Keycloak (Authorization Code + PKCE) |
+| **Admin API Auth** | JWT (custom) | Keycloak JWT validation |
+| **API Consumer Auth** | N/A | Keycloak (Client Credentials) |
+| **Gateway Requests** | Pass-through | JWT validation для protected routes |
+| **Authorization** | Role-based (3 roles) | Role-based + per-consumer access |
+
+**Keycloak Realm Structure (Phase 2):**
+
+```
+Realm: api-gateway
+├── Clients
+│   ├── gateway-admin-ui (Authorization Code + PKCE)
+│   ├── gateway-core (bearer-only)
+│   └── API Consumers (Client Credentials)
+│       ├── company-a
+│       ├── company-b
+│       └── ...
+├── Realm Roles
+│   ├── admin-ui:developer
+│   ├── admin-ui:security
+│   ├── admin-ui:admin
+│   └── api:consumer
+└── Users (Admin portal users)
+```
 
 ### Data Schemas
 
@@ -313,6 +488,56 @@ ApiGateway — это backend-сервис для централизованно
 - **FR30:** System применяет изменения конфигурации без перезапуска (hot-reload)
 - **FR31:** System логирует все запросы через Gateway
 
+---
+
+## Functional Requirements (Phase 2: Keycloak & Multi-tenant)
+
+### Keycloak Authentication
+
+- **FR32:** Admin UI аутентифицирует пользователей через Keycloak (Authorization Code + PKCE flow)
+- **FR33:** Gateway Admin API валидирует JWT токены от Keycloak
+- **FR34:** System извлекает роли пользователя (DEVELOPER, SECURITY, ADMIN) из JWT claims
+- **FR35:** API consumers аутентифицируются через Keycloak Client Credentials flow
+- **FR36:** Gateway Core валидирует JWT токены consumers через Keycloak JWKS endpoint
+
+### Route Authentication Configuration
+
+- **FR37:** Developer может настроить маршрут как public (auth_required = false)
+- **FR38:** Developer может настроить маршрут как protected (auth_required = true, default)
+- **FR39:** Developer может ограничить маршрут для конкретных consumers (allowed_consumers whitelist)
+- **FR40:** System возвращает 401 для protected routes без валидного JWT
+- **FR41:** System возвращает 403 для routes с allowed_consumers если consumer не в whitelist
+
+### Consumer Identity
+
+- **FR42:** System извлекает consumer_id из JWT claim `azp` (authorized party)
+- **FR43:** System принимает `X-Consumer-ID` header как fallback для public routes
+- **FR44:** System использует `anonymous` как consumer_id для неидентифицированных запросов
+- **FR45:** System добавляет consumer_id в Reactor Context для downstream фильтров
+
+### Multi-tenant Metrics
+
+- **FR46:** System добавляет label `consumer_id` ко всем gateway метрикам
+- **FR47:** DevOps может фильтровать метрики по consumer_id в Grafana
+- **FR48:** DevOps может сравнивать метрики разных consumers (RPS, latency, errors)
+- **FR49:** Admin UI отображает breakdown трафика по consumers
+
+### Per-consumer Rate Limiting
+
+- **FR50:** Admin может создать rate limit политику для конкретного consumer
+- **FR51:** System применяет per-consumer rate limits независимо от per-route limits
+- **FR52:** System возвращает 429 с указанием какой лимит превышен (route или consumer)
+- **FR53:** Per-consumer rate limits имеют приоритет над per-route (более строгий применяется)
+
+### Consumer Management
+
+- **FR54:** Admin может просматривать список consumers в Admin UI
+- **FR55:** Admin может создать нового consumer (синхронизация с Keycloak)
+- **FR56:** Admin может деактивировать consumer (отзыв доступа)
+- **FR57:** Admin может сгенерировать новый secret для consumer (ротация credentials)
+- **FR58:** System синхронизирует consumer данные с Keycloak Admin API
+- **FR59:** Admin может просматривать метрики конкретного consumer
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -360,4 +585,41 @@ ApiGateway — это backend-сервис для централизованно
 | **Logging** | Structured JSON logs, correlation IDs |
 | **Health Checks** | Liveness и Readiness endpoints |
 | **Alerting** | Интеграция с Grafana alerting |
+
+---
+
+## Non-Functional Requirements (Phase 2: Keycloak & Multi-tenant)
+
+### Authentication Performance
+
+| Метрика | Target | Условие |
+|---------|--------|---------|
+| **JWT Validation Latency** | < 5ms | Валидация токена (cached JWKS) |
+| **JWKS Cache TTL** | 5 минут | Время кэширования Keycloak public keys |
+| **Token Introspection** | Не используется | Только локальная валидация JWT |
+
+### Keycloak Integration
+
+| Требование | Target | Примечание |
+|------------|--------|------------|
+| **Keycloak Availability** | 99.9% | Критичен для auth, но не для runtime (cached tokens) |
+| **Graceful Degradation** | Обязательно | При недоступности Keycloak — работа с cached JWKS |
+| **Admin API Sync** | Eventually consistent | Создание consumer отражается в Keycloak < 5 секунд |
+
+### Multi-tenant Metrics
+
+| Требование | Target | Примечание |
+|------------|--------|------------|
+| **Cardinality** | < 1000 consumers | Ограничение для Prometheus label cardinality |
+| **Metrics Overhead** | < 1ms | Добавленная задержка на извлечение consumer_id |
+| **Dashboard Latency** | < 3 секунд | Загрузка per-consumer метрик в Grafana |
+
+### Security (Phase 2 Extensions)
+
+| Требование | Описание |
+|------------|----------|
+| **Token Expiration** | Access token TTL: 5 минут, Refresh: 30 минут |
+| **Secret Rotation** | Поддержка ротации client secrets без downtime |
+| **Consumer Isolation** | Consumer A не может видеть данные Consumer B |
+| **Audit** | Все операции с consumers логируются |
 

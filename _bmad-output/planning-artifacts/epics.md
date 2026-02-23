@@ -6,6 +6,12 @@ inputDocuments:
   - 'prd.md'
   - 'architecture.md'
   - 'ux-design-specification.md'
+revisions:
+  - date: '2026-02-23'
+    author: 'Yury'
+    description: 'Phase 2: Epic 12 — Keycloak Integration & Multi-tenant Metrics'
+    stories_added: 10
+    frs_covered: 'FR32-FR59'
 ---
 
 # ApiGateway - Epic Breakdown
@@ -155,6 +161,35 @@ This document provides the complete epic and story breakdown for ApiGateway, dec
 | FR29 | Epic 1 | System возвращает коды ошибок при недоступности |
 | FR30 | Epic 1 | System применяет изменения без перезапуска |
 | FR31 | Epic 1 | System логирует все запросы |
+| **Phase 2 — Keycloak & Multi-tenant** | | |
+| FR32 | Epic 12 | Admin UI аутентификация через Keycloak |
+| FR33 | Epic 12 | Gateway Admin валидирует JWT от Keycloak |
+| FR34 | Epic 12 | System извлекает роли из JWT claims |
+| FR35 | Epic 12 | API consumers аутентификация через Client Credentials |
+| FR36 | Epic 12 | Gateway Core валидирует JWT через JWKS |
+| FR37 | Epic 12 | Developer может настроить маршрут как public |
+| FR38 | Epic 12 | Developer может настроить маршрут как protected |
+| FR39 | Epic 12 | Developer может ограничить маршрут для consumers |
+| FR40 | Epic 12 | System возвращает 401 для protected routes без JWT |
+| FR41 | Epic 12 | System возвращает 403 если consumer не в whitelist |
+| FR42 | Epic 12 | System извлекает consumer_id из JWT azp |
+| FR43 | Epic 12 | System принимает X-Consumer-ID header как fallback |
+| FR44 | Epic 12 | System использует "anonymous" для неидентифицированных |
+| FR45 | Epic 12 | System добавляет consumer_id в Reactor Context |
+| FR46 | Epic 12 | System добавляет consumer_id label к метрикам |
+| FR47 | Epic 12 | DevOps может фильтровать метрики по consumer_id |
+| FR48 | Epic 12 | DevOps может сравнивать метрики consumers |
+| FR49 | Epic 12 | Admin UI отображает breakdown по consumers |
+| FR50 | Epic 12 | Admin может создать per-consumer rate limit |
+| FR51 | Epic 12 | System применяет per-consumer rate limits |
+| FR52 | Epic 12 | System возвращает 429 с указанием типа лимита |
+| FR53 | Epic 12 | Per-consumer limits имеют приоритет |
+| FR54 | Epic 12 | Admin может просматривать список consumers |
+| FR55 | Epic 12 | Admin может создать нового consumer |
+| FR56 | Epic 12 | Admin может деактивировать consumer |
+| FR57 | Epic 12 | Admin может ротировать secret consumer |
+| FR58 | Epic 12 | System синхронизирует с Keycloak Admin API |
+| FR59 | Epic 12 | Admin может просматривать метрики consumer |
 
 ## Epic List
 
@@ -2825,5 +2860,409 @@ So that role permission checks are consistent and type-safe across the codebase.
 **Given** permission logic changes
 **When** developer updates the helper function
 **Then** all usages across the codebase are automatically updated
+
+---
+
+## Epic 12: Keycloak Integration & Multi-tenant Metrics
+
+**Goal:** Централизованная аутентификация через Keycloak + трекинг трафика по consumers для анализа использования API.
+
+**Source:** Phase 2 PRD (2026-02-23) — FR32-FR59
+
+**Stories:** 10
+
+**Key Capabilities:**
+- Keycloak SSO для Admin UI и API consumers
+- Consumer Identity в каждом запросе (JWT azp claim)
+- Multi-tenant метрики с label `consumer_id`
+- Per-consumer rate limits
+- Consumer Management через Admin UI
+
+---
+
+### Story 12.1: Keycloak Setup & Configuration
+
+As a **DevOps Engineer**,
+I want Keycloak deployed and configured,
+So that we have a centralized identity provider for all authentication needs (FR32).
+
+**Acceptance Criteria:**
+
+**Given** docker-compose environment
+**When** `docker-compose up -d keycloak`
+**Then** Keycloak starts on port 8180
+**And** admin console is accessible at http://localhost:8180
+
+**Given** Keycloak is running
+**When** realm is imported from `docker/keycloak/realm-export.json`
+**Then** realm `api-gateway` is created with:
+- Client `gateway-admin-ui` (Authorization Code + PKCE)
+- Client `gateway-admin-api` (bearer-only)
+- Client `gateway-core` (bearer-only)
+- Realm roles: `admin-ui:developer`, `admin-ui:security`, `admin-ui:admin`, `api:consumer`
+
+**Given** realm is configured
+**When** test user is created
+**Then** user can authenticate via Keycloak login page
+**And** JWT token contains expected claims (sub, azp, realm_access.roles)
+
+**Given** docker-compose includes keycloak
+**When** running full stack
+**Then** keycloak starts after postgres
+**And** realm is auto-imported on first start
+
+---
+
+### Story 12.2: Admin UI — Keycloak Auth Migration
+
+As a **User**,
+I want to authenticate via Keycloak SSO,
+So that I have a unified login experience (FR32).
+
+**Acceptance Criteria:**
+
+**Given** user navigates to Admin UI
+**When** user is not authenticated
+**Then** user is redirected to Keycloak login page
+
+**Given** user enters valid credentials on Keycloak login
+**When** authentication succeeds
+**Then** user is redirected back to Admin UI
+**And** JWT token is stored (Authorization Code + PKCE flow)
+**And** user session is established
+
+**Given** user is authenticated
+**When** JWT token approaches expiration
+**Then** token is silently refreshed using refresh token
+**And** user session continues without interruption
+
+**Given** user clicks "Logout"
+**When** logout is triggered
+**Then** user is logged out from Admin UI
+**And** user is logged out from Keycloak (SSO logout)
+**And** user is redirected to login page
+
+**Given** user has role `admin-ui:developer` in Keycloak
+**When** user logs in
+**Then** user has Developer role in Admin UI
+
+**Given** user has role `admin-ui:security` in Keycloak
+**When** user logs in
+**Then** user has Security role in Admin UI
+
+**Given** user has role `admin-ui:admin` in Keycloak
+**When** user logs in
+**Then** user has Admin role in Admin UI
+
+---
+
+### Story 12.3: Gateway Admin — Keycloak JWT Validation
+
+As a **System**,
+I want Gateway Admin API to validate JWT tokens from Keycloak,
+So that only authenticated users can access the API (FR33, FR34).
+
+**Acceptance Criteria:**
+
+**Given** gateway-admin is configured with Keycloak issuer URI
+**When** application starts
+**Then** Spring Security OAuth2 Resource Server is configured
+**And** JWKS endpoint is cached
+
+**Given** request with valid JWT token
+**When** request is made to protected endpoint
+**Then** request is authenticated
+**And** user principal contains Keycloak claims
+
+**Given** request with invalid JWT token
+**When** request is made to protected endpoint
+**Then** response returns HTTP 401 Unauthorized
+**And** error follows RFC 7807 format
+
+**Given** request with expired JWT token
+**When** request is made to protected endpoint
+**Then** response returns HTTP 401 Unauthorized
+
+**Given** JWT contains `realm_access.roles: ["admin-ui:security"]`
+**When** Spring Security evaluates authorization
+**Then** user has `ROLE_SECURITY` authority
+
+**Given** user without `admin-ui:admin` role
+**When** accessing `/api/v1/users/**` endpoints
+**Then** response returns HTTP 403 Forbidden
+
+---
+
+### Story 12.4: Gateway Core — JWT Authentication Filter
+
+As a **System**,
+I want Gateway Core to validate JWT tokens for protected routes,
+So that only authenticated consumers can access protected APIs (FR35, FR36, FR40, FR41).
+
+**Acceptance Criteria:**
+
+**Given** route with `auth_required = true`
+**When** request without Authorization header
+**Then** response returns HTTP 401 Unauthorized
+**And** response includes `WWW-Authenticate: Bearer` header
+
+**Given** route with `auth_required = true`
+**When** request with valid JWT token
+**Then** request is forwarded to upstream
+**And** consumer_id is extracted from JWT `azp` claim
+
+**Given** route with `auth_required = false`
+**When** request without Authorization header
+**Then** request is forwarded to upstream (public route)
+**And** consumer_id fallback to header or "anonymous"
+
+**Given** route with `allowed_consumers = ["company-a", "company-b"]`
+**When** request from consumer "company-c"
+**Then** response returns HTTP 403 Forbidden
+**And** detail: "Consumer not allowed for this route"
+
+**Given** route with `allowed_consumers = null` (no restriction)
+**When** request from any authenticated consumer
+**Then** request is allowed
+
+**Given** Keycloak is temporarily unavailable
+**When** JWKS is cached
+**Then** JWT validation continues using cached keys
+**And** warning is logged about Keycloak unavailability
+
+---
+
+### Story 12.5: Gateway Core — Consumer Identity Filter
+
+As a **System**,
+I want to identify the consumer for every request,
+So that metrics and rate limits can be applied per-consumer (FR42, FR43, FR44, FR45).
+
+**Acceptance Criteria:**
+
+**Given** request with valid JWT token
+**When** ConsumerIdentityFilter processes request
+**Then** consumer_id is extracted from JWT `azp` claim
+**And** consumer_id is stored in Reactor Context
+**And** consumer_id is added to MDC for logging
+
+**Given** request without JWT (public route)
+**When** `X-Consumer-ID` header is present
+**Then** consumer_id is taken from header value
+
+**Given** request without JWT and without `X-Consumer-ID` header
+**When** ConsumerIdentityFilter processes request
+**Then** consumer_id is set to "anonymous"
+
+**Given** consumer_id is determined
+**When** request continues through filter chain
+**Then** MetricsFilter has access to consumer_id
+**And** RateLimitFilter has access to consumer_id
+**And** LoggingFilter has access to consumer_id (via MDC)
+
+**Given** structured log output
+**When** request is logged
+**Then** log entry includes `consumer_id` field
+
+---
+
+### Story 12.6: Multi-tenant Metrics
+
+As a **DevOps Engineer**,
+I want metrics broken down by consumer,
+So that I can analyze usage patterns per company (FR46, FR47, FR48).
+
+**Acceptance Criteria:**
+
+**Given** requests pass through gateway
+**When** MetricsFilter records metrics
+**Then** `consumer_id` label is added to all metrics:
+- `gateway_requests_total{consumer_id="company-a", ...}`
+- `gateway_request_duration_seconds{consumer_id="company-a", ...}`
+- `gateway_errors_total{consumer_id="company-a", ...}`
+
+**Given** Prometheus is scraping metrics
+**When** querying per-consumer data
+**Then** query `sum by (consumer_id) (rate(gateway_requests_total[5m]))` returns data
+**And** each consumer is listed separately
+
+**Given** PromQL builder in gateway-admin
+**When** requesting route metrics
+**Then** optional `consumer_id` filter is supported
+
+**Given** Grafana dashboard
+**When** viewing gateway metrics
+**Then** "Consumer" dropdown filter is available
+**And** selecting consumer filters all panels
+
+**Given** high cardinality concern
+**When** consumers exceed 1000
+**Then** alert is triggered for cardinality review
+
+---
+
+### Story 12.7: Route Authentication Configuration
+
+As a **Developer**,
+I want to configure authentication requirements per route,
+So that I can have both public and protected endpoints (FR37, FR38, FR39).
+
+**Acceptance Criteria:**
+
+**Given** route create/edit form
+**When** form renders
+**Then** "Authentication Required" toggle is displayed (default: ON)
+**And** "Allowed Consumers" multi-select is displayed (optional)
+
+**Given** migration V11__add_route_auth_fields.sql
+**When** executed
+**Then** columns are added to routes table:
+- `auth_required` (BOOLEAN, NOT NULL, DEFAULT true)
+- `allowed_consumers` (TEXT[], nullable)
+
+**Given** route with `auth_required = true`
+**When** displayed in routes list
+**Then** "Protected" badge is shown
+
+**Given** route with `auth_required = false`
+**When** displayed in routes list
+**Then** "Public" badge is shown
+
+**Given** route details API
+**When** GET `/api/v1/routes/{id}`
+**Then** response includes `authRequired` and `allowedConsumers` fields
+
+---
+
+### Story 12.8: Per-consumer Rate Limits
+
+As an **Admin**,
+I want to set rate limits per consumer,
+So that I can control API usage independently of per-route limits (FR50, FR51, FR52, FR53).
+
+**Acceptance Criteria:**
+
+**Given** migration V12__add_consumer_rate_limits.sql
+**When** executed
+**Then** `consumer_rate_limits` table is created:
+- `id` (UUID, PK)
+- `consumer_id` (VARCHAR, UNIQUE)
+- `requests_per_second` (INTEGER)
+- `burst_size` (INTEGER)
+- `created_at`, `updated_at`, `created_by`
+
+**Given** admin user
+**When** PUT `/api/v1/consumers/{consumerId}/rate-limit`
+**Then** per-consumer rate limit is set
+**And** Redis key `rate_limit:consumer:{consumerId}` is used for enforcement
+
+**Given** request from consumer with per-consumer rate limit
+**When** rate limit is exceeded
+**Then** HTTP 429 is returned
+**And** `X-RateLimit-Type: consumer` header indicates which limit was hit
+
+**Given** both per-route and per-consumer limits exist
+**When** request is processed
+**Then** both limits are checked
+**And** stricter limit is enforced (lower of two)
+
+**Given** consumer without specific rate limit
+**When** request is processed
+**Then** only per-route limit applies (if any)
+
+---
+
+### Story 12.9: Consumer Management UI
+
+As an **Admin**,
+I want to manage API consumers through Admin UI,
+So that I can onboard new partners and manage access (FR54, FR55, FR56, FR57, FR58, FR59).
+
+**Acceptance Criteria:**
+
+**Given** admin navigates to `/consumers`
+**When** page loads
+**Then** table displays all Keycloak clients with `serviceAccountsEnabled = true`
+**And** columns: Client ID, Status (Active/Disabled), Created, Actions
+
+**Given** admin clicks "Create Consumer"
+**When** modal opens
+**Then** form includes:
+- Client ID (required, pattern: lowercase letters, numbers, hyphens)
+
+**Given** admin submits valid consumer creation
+**When** creation succeeds
+**Then** client is created in Keycloak via Admin API
+**And** client secret is displayed (shown only once)
+**And** modal warns: "Save this secret now. It won't be shown again."
+
+**Given** admin clicks "Rotate Secret" on existing consumer
+**When** action is confirmed
+**Then** new client secret is generated in Keycloak
+**And** new secret is displayed
+**And** old secret is invalidated
+
+**Given** admin clicks "Disable" on consumer
+**When** action is confirmed
+**Then** consumer is disabled in Keycloak
+**And** consumer can no longer authenticate
+**And** status changes to "Disabled" in UI
+
+**Given** consumer row in table
+**When** admin clicks on row
+**Then** consumer details panel opens
+**And** shows: metrics summary, rate limit (if any), created date
+
+**Given** consumer details panel
+**When** "View Metrics" is clicked
+**Then** user is navigated to metrics page filtered by this consumer
+
+---
+
+### Story 12.10: E2E Playwright Tests for Epic 12
+
+As a **QA Engineer**,
+I want E2E tests covering Keycloak integration and multi-tenant features,
+So that critical flows are verified in a real browser environment.
+
+**Acceptance Criteria:**
+
+**Given** Playwright test suite is configured
+**When** E2E tests for Epic 12 are executed
+**Then** the following scenarios pass:
+
+**Scenario 1 — Keycloak SSO Login:**
+- User opens Admin UI
+- User is redirected to Keycloak login
+- User enters credentials
+- User is redirected back to Admin UI with session
+
+**Scenario 2 — Role-based access after Keycloak auth:**
+- User with developer role logs in
+- User sees only developer menu items
+- User cannot access /users or /consumers
+
+**Scenario 3 — API Consumer authentication:**
+- Consumer obtains token via Client Credentials flow
+- Consumer makes request to protected route
+- Request succeeds with valid token
+- Request fails with invalid/expired token
+
+**Scenario 4 — Public route without auth:**
+- Route is configured as auth_required=false
+- Request without token succeeds
+- consumer_id is "anonymous" or from X-Consumer-ID header
+
+**Scenario 5 — Multi-tenant metrics visible:**
+- Multiple consumers make requests
+- Metrics page shows breakdown by consumer_id
+- Grafana dashboard filters by consumer
+
+**Scenario 6 — Consumer Management:**
+- Admin creates new consumer
+- Client secret is displayed
+- Consumer can authenticate with credentials
+- Admin disables consumer
+- Consumer authentication fails
 
 ---
