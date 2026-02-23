@@ -1,8 +1,24 @@
 // Настройка axios instance для API запросов
+// Story 12.2: Добавлена поддержка Bearer token для Keycloak OIDC
+
 import axios from 'axios'
+import { isKeycloakEnabled } from '@features/auth/config/oidcConfig'
+
+// Функция получения access token — устанавливается из AuthContext при Keycloak mode
+let getAccessToken: (() => string | undefined) | null = null
+
+/**
+ * Устанавливает функцию получения access token для Bearer auth.
+ * Используется только при VITE_USE_KEYCLOAK=true.
+ */
+export const setTokenGetter = (getter: () => string | undefined) => {
+  getAccessToken = getter
+}
 
 const instance = axios.create({
-  withCredentials: true, // Для отправки cookies (auth_token)
+  // Cookie credentials нужны только для cookie-auth mode
+  // При Keycloak используем Bearer token
+  withCredentials: !isKeycloakEnabled(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,6 +31,17 @@ const instance = axios.create({
 export const authEvents = {
   onUnauthorized: () => {},
 }
+
+// Request interceptor — добавляем Bearer token при Keycloak mode
+instance.interceptors.request.use((config) => {
+  if (isKeycloakEnabled() && getAccessToken) {
+    const token = getAccessToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
 
 // Response interceptor для обработки ошибок
 instance.interceptors.response.use(
@@ -30,24 +57,20 @@ instance.interceptors.response.use(
     }
 
     if (error.response.status === 401) {
-      // Исключаем login и me endpoints из автоматического logout
-      // login — чтобы показать ошибку "Неверные учётные данные"
-      // me — чтобы не зацикливаться при проверке сессии
+      // Исключаем auth endpoints из автоматического logout
       const url = error.config?.url || ''
-      // Используем endsWith для точного совпадения (избегаем false positive для /auth/login-history и т.п.)
-      const isAuthEndpoint = url.endsWith('/auth/login') || url.endsWith('/auth/me')
+      const isAuthEndpoint =
+        url.endsWith('/auth/login') || url.endsWith('/auth/me') || url.includes('/callback')
 
       if (!isAuthEndpoint) {
-        // Вызываем logout callback (AC2)
         authEvents.onUnauthorized()
       }
 
-      // Извлекаем detail из RFC 7807 ответа
       const detail = error.response.data?.detail || 'Неверные учётные данные'
       return Promise.reject(new Error(detail))
     }
 
-    // Для других ошибок также пробуем извлечь detail
+    // Для других ошибок также пробуем извлечь detail из RFC 7807 ответа
     const message = error.response.data?.detail || error.message || 'Произошла ошибка'
     return Promise.reject(new Error(message))
   }

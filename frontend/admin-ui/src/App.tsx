@@ -2,7 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AuthLayout from '@layouts/AuthLayout'
 import MainLayout from '@layouts/MainLayout'
-import { LoginPage, ProtectedRoute } from '@features/auth'
+import { LoginPage, ProtectedRoute, CallbackPage } from '@features/auth'
 import { DashboardPage } from '@features/dashboard'
 import { RoutesPage, RouteFormPage, RouteDetailsPage } from '@features/routes'
 import { UsersPage } from '@features/users'
@@ -18,6 +18,8 @@ function App() {
       {/* Auth routes - используют AuthLayout */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
+        {/* OIDC callback для Keycloak (Story 12.2) */}
+        <Route path="/callback" element={<CallbackPage />} />
       </Route>
 
       {/* Protected routes - используют MainLayout и требуют аутентификации */}
