@@ -625,6 +625,7 @@ Internet → DNS (gateway.ymorozov.ru) → Nginx:80/443
 | **Approval Workflow (FR7-12)** | `gateway-admin/service/ApprovalService.kt` | `features/approval/` | — |
 | **Rate Limiting (FR13-16)** | `gateway-admin/` + `gateway-core/filter/` | `features/rate-limits/` | [docs/rate-limiting.md](../../docs/rate-limiting.md) |
 | **Monitoring (FR17-20)** | `gateway-admin/controller/MetricsController.kt` | Grafana (external) | — |
+| **Reactive Patterns** | All backend services | — | [docs/webflux-patterns.md](../../docs/webflux-patterns.md) |
 | **Audit (FR21-24)** | `gateway-admin/controller/AuditController.kt` | `features/audit/` | — |
 | **Auth (FR25-27)** | `gateway-admin/security/` | `features/auth/` | — |
 | **Gateway Runtime (FR28-31)** | `gateway-core/` | — | — |

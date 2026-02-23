@@ -161,5 +161,5 @@ development_status:
   11-2-system-theme-default: done  # FR-02: prefers-color-scheme при первом запуске (code review: 3 issues fixed)
   11-3-lua-redis-documentation: done  # DOC-01: Token bucket алгоритм, Redis структура (code review: 3 issues fixed)
   11-4-redis-pubsub-documentation: done  # DOC-02: Route cache sync между сервисами (code review: 6 issues fixed)
-  11-5-webflux-patterns-documentation: backlog  # DOC-03: Reactive паттерны
+  11-5-webflux-patterns-documentation: done  # DOC-03: Reactive паттерны (code review: 4 issues fixed)
   11-6-role-check-refactoring: backlog  # PI-01: Централизованные хелперы canRollback(), canDelete()
