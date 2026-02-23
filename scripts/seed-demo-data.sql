@@ -122,9 +122,110 @@ BEGIN
          'Внутренние сервисы не должны быть доступны через публичный gateway')
     ON CONFLICT (path) DO NOTHING;
 
+    -- ==========================================
+    -- Audit Logs (история изменений)
+    -- ==========================================
+
+    -- Audit logs для rate limits
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'rate_limit',
+        id::text,
+        'created',
+        admin_id,
+        'admin',
+        json_build_object('name', name, 'requestsPerSecond', requests_per_second, 'burstSize', burst_size)::text,
+        created_at
+    FROM rate_limits
+    WHERE NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'rate_limit'
+        AND al.entity_id = rate_limits.id::text
+        AND al.action = 'created'
+    );
+
+    -- Audit logs для routes (created)
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'route',
+        id::text,
+        'created',
+        created_by,
+        (SELECT username FROM users WHERE id = routes.created_by),
+        json_build_object('path', path, 'upstreamUrl', upstream_url, 'methods', methods, 'status', 'draft')::text,
+        created_at
+    FROM routes
+    WHERE NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'route'
+        AND al.entity_id = routes.id::text
+        AND al.action = 'created'
+    );
+
+    -- Audit logs для routes (submitted) — pending routes
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'route',
+        id::text,
+        'submitted',
+        created_by,
+        (SELECT username FROM users WHERE id = routes.created_by),
+        json_build_object('path', path, 'status', 'pending')::text,
+        submitted_at
+    FROM routes
+    WHERE status IN ('pending', 'published', 'rejected')
+    AND submitted_at IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'route'
+        AND al.entity_id = routes.id::text
+        AND al.action = 'submitted'
+    );
+
+    -- Audit logs для routes (approved) — published routes
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'route',
+        id::text,
+        'approved',
+        approved_by,
+        (SELECT username FROM users WHERE id = routes.approved_by),
+        json_build_object('path', path, 'status', 'published')::text,
+        approved_at
+    FROM routes
+    WHERE status = 'published'
+    AND approved_at IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'route'
+        AND al.entity_id = routes.id::text
+        AND al.action = 'approved'
+    );
+
+    -- Audit logs для routes (rejected) — rejected routes
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'route',
+        id::text,
+        'rejected',
+        rejected_by,
+        (SELECT username FROM users WHERE id = routes.rejected_by),
+        json_build_object('path', path, 'status', 'rejected', 'reason', rejection_reason)::text,
+        rejected_at
+    FROM routes
+    WHERE status = 'rejected'
+    AND rejected_at IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'route'
+        AND al.entity_id = routes.id::text
+        AND al.action = 'rejected'
+    );
+
     RAISE NOTICE 'Демо-данные успешно созданы!';
     RAISE NOTICE 'Rate Limits: 3 политики';
     RAISE NOTICE 'Routes: 8 маршрутов (3 published, 2 pending, 2 draft, 1 rejected)';
+    RAISE NOTICE 'Audit Logs: созданы для всех сущностей';
 END $$;
 
 -- Вывод результатов
@@ -138,4 +239,6 @@ SELECT 'Pending:', COUNT(*) FROM routes WHERE status = 'pending'
 UNION ALL
 SELECT 'Draft:', COUNT(*) FROM routes WHERE status = 'draft'
 UNION ALL
-SELECT 'Rejected:', COUNT(*) FROM routes WHERE status = 'rejected';
+SELECT 'Rejected:', COUNT(*) FROM routes WHERE status = 'rejected'
+UNION ALL
+SELECT 'Audit Logs:', COUNT(*) FROM audit_logs;
