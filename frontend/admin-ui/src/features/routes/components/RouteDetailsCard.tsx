@@ -9,6 +9,7 @@ import { useCloneRoute, useSubmitRoute, useRollbackRoute, useDeleteRoute } from 
 import type { Route } from '../types/route.types'
 import { useAuth } from '@features/auth'
 import { STATUS_COLORS, STATUS_LABELS, METHOD_COLORS } from '@shared/constants'
+import { canRollback as canRollbackFn, canDelete as canDeleteFn } from '@shared/utils'
 
 // Настройка dayjs для относительного времени
 dayjs.extend(relativeTime)
@@ -47,12 +48,12 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
   const isPendingOwner = route.status === 'pending' && route.createdBy === user?.userId
 
   // Story 10.3: Rollback доступен только для Security/Admin на published маршрутах
-  const canRollback = route.status === 'published' &&
-    (user?.role === 'security' || user?.role === 'admin')
+  // Story 11.6: используем централизованный helper
+  const canRollback = canRollbackFn(route, user ?? undefined)
 
   // Story 10.4: Delete доступен для draft маршрутов — автору или Admin
-  const canDelete = route.status === 'draft' &&
-    (route.createdBy === user?.userId || user?.role === 'admin')
+  // Story 11.6: используем централизованный helper
+  const canDelete = canDeleteFn(route, user ?? undefined)
 
   /**
    * Переход на страницу редактирования.

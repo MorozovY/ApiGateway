@@ -4,7 +4,8 @@ import { Table, Tag, Button, Space, Popconfirm, Input } from 'antd'
 import { EditOutlined, StopOutlined, SearchOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useUsers, useDeactivateUser } from '../hooks/useUsers'
-import type { User, UserRole } from '../types/user.types'
+import type { User } from '../types/user.types'
+import { ROLE_COLORS, ROLE_LABELS, type UserRole } from '@shared/constants'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 
 interface UsersTableProps {
@@ -15,24 +16,6 @@ interface UsersTableProps {
  * Задержка debounce для поиска (мс).
  */
 const SEARCH_DEBOUNCE_MS = 300
-
-/**
- * Цвета для badges ролей.
- */
-const roleColors: Record<UserRole, string> = {
-  developer: 'blue',
-  security: 'orange',
-  admin: 'purple',
-}
-
-/**
- * Человекочитаемые названия ролей.
- */
-const roleLabels: Record<UserRole, string> = {
-  developer: 'Developer',
-  security: 'Security',
-  admin: 'Admin',
-}
 
 /**
  * Размер страницы по умолчанию.
@@ -136,7 +119,7 @@ function UsersTable({ onEdit }: UsersTableProps) {
       dataIndex: 'role',
       key: 'role',
       render: (role: UserRole) => (
-        <Tag color={roleColors[role]}>{roleLabels[role]}</Tag>
+        <Tag color={ROLE_COLORS[role]}>{ROLE_LABELS[role]}</Tag>
       ),
       filters: [
         { text: 'Developer', value: 'developer' },

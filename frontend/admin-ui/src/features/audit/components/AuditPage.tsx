@@ -4,6 +4,7 @@ import { useSearchParams, Navigate } from 'react-router-dom'
 import { Card, Typography, Button, Space, Empty, Alert, App } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
+import { isDeveloper } from '@shared/utils'
 import { useAuditLogs } from '../hooks/useAuditLogs'
 import { fetchAllAuditLogsForExport } from '../api/auditApi'
 import { AuditFilterBar } from './AuditFilterBar'
@@ -51,7 +52,8 @@ export function AuditPage() {
   const accessDeniedShown = useRef(false)
 
   // Проверка доступа (AC6) — показываем сообщение только один раз
-  const isAccessDenied = user?.role === 'developer'
+  // Story 11.6: используем централизованный helper
+  const isAccessDenied = isDeveloper(user ?? undefined)
 
   // Извлечение фильтров из URL (AC2)
   // action поддерживает multi-select: хранится в URL как "created,updated,deleted"

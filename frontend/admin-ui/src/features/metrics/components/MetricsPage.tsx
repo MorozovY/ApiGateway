@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
 import { LinkOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
+import { isDeveloper as isDeveloperFn } from '@shared/utils'
 import { useMetricsSummary, useTopRoutes } from '../hooks/useMetrics'
 import TopRoutesTable from './TopRoutesTable'
 import HealthCheckSection from './HealthCheckSection'
@@ -36,7 +37,8 @@ export function MetricsPage() {
   const { user } = useAuth()
 
   // Developer видит только свои маршруты (AC6 — фильтрация на backend)
-  const isDeveloper = user?.role === 'developer'
+  // Story 11.6: используем централизованный helper
+  const isDeveloper = isDeveloperFn(user ?? undefined)
 
   const {
     data: summary,

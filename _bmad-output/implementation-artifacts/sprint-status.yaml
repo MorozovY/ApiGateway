@@ -162,4 +162,4 @@ development_status:
   11-3-lua-redis-documentation: done  # DOC-01: Token bucket алгоритм, Redis структура (code review: 3 issues fixed)
   11-4-redis-pubsub-documentation: done  # DOC-02: Route cache sync между сервисами (code review: 6 issues fixed)
   11-5-webflux-patterns-documentation: done  # DOC-03: Reactive паттерны (code review: 4 issues fixed)
-  11-6-role-check-refactoring: backlog  # PI-01: Централизованные хелперы canRollback(), canDelete()
+  11-6-role-check-refactoring: done  # PI-01: Централизованные хелперы canRollback(), canDelete(), isDeveloper() — code review fixes applied

@@ -1,13 +1,9 @@
 // Типы для управления пользователями (Story 2.6)
+// Story 11.6: UserRole импортируется из shared/constants
+import type { UserRole } from '@shared/constants'
 
-/**
- * Роль пользователя в системе.
- *
- * developer — базовая роль для разработчиков
- * security — роль для команды безопасности
- * admin — полный доступ к администрированию
- */
-export type UserRole = 'developer' | 'security' | 'admin'
+// Re-export для обратной совместимости
+export type { UserRole }
 
 /**
  * Данные пользователя (без passwordHash).

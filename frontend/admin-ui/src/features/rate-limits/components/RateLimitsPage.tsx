@@ -7,6 +7,7 @@ import RateLimitFormModal from './RateLimitFormModal'
 import RateLimitRoutesModal from './RateLimitRoutesModal'
 import { useDeleteRateLimit } from '../hooks/useRateLimits'
 import { useAuth } from '@features/auth'
+import { isAdmin as isAdminFn } from '@shared/utils'
 import type { RateLimit } from '../types/rateLimit.types'
 
 const { Title } = Typography
@@ -23,7 +24,8 @@ const { Title } = Typography
 function RateLimitsPage() {
   const { user } = useAuth()
   const { message } = App.useApp()
-  const isAdmin = user?.role === 'admin'
+  // Story 11.6: используем централизованный helper
+  const isAdmin = isAdminFn(user ?? undefined)
 
   // Состояние модального окна формы
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)

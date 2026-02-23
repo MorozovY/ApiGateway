@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { App } from 'antd'
 import { useAuth } from '@features/auth'
+import { canApprove } from '@shared/utils'
 import * as approvalsApi from '../api/approvalsApi'
 
 /**
@@ -49,7 +50,8 @@ export function usePendingRoutesCount() {
     queryKey: [PENDING_ROUTES_QUERY_KEY],
     queryFn: approvalsApi.fetchPendingRoutes,
     // Запрос только для security и admin — предотвращает 403 для developer
-    enabled: user?.role === 'security' || user?.role === 'admin',
+    // Story 11.6: используем централизованный helper canApprove
+    enabled: canApprove(user ?? undefined),
     select: (data) => data.length,
     refetchInterval: APPROVALS_REFRESH_INTERVAL, // 5 секунд auto-refresh для badge (AC2)
     refetchIntervalInBackground: false, // не polling когда tab скрыт

@@ -1,9 +1,10 @@
 // Типы пользователя и аутентификации
+import type { UserRole } from '@shared/constants'
 
 export interface User {
   userId: string
   username: string
-  role: 'developer' | 'security' | 'admin'
+  role: UserRole
 }
 
 export interface AuthState {
@@ -23,7 +24,7 @@ export interface AuthContextType extends AuthState {
 export interface LoginResponse {
   userId: string
   username: string
-  role: 'developer' | 'security' | 'admin'
+  role: UserRole
 }
 
 // Ответ API при ошибке (RFC 7807)

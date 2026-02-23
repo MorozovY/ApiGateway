@@ -17,7 +17,7 @@ import 'dayjs/locale/ru'
 import { useRoutes, useDeleteRoute } from '../hooks/useRoutes'
 import type { Route, RouteStatus, RouteListParams } from '../types/route.types'
 import { useAuth } from '@features/auth'
-import { pluralizeRoutes } from '@shared/utils/pluralize'
+import { pluralizeRoutes, canModify as canModifyFn } from '@shared/utils'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 
 // Настройка dayjs для относительного времени
@@ -223,13 +223,11 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
    * Проверка, можно ли редактировать/удалять маршрут.
    * Draft маршруты могут редактировать только их создатели.
    * Admin может редактировать/удалять любые draft маршруты (Story 10.4).
+   * Story 11.6: используем централизованный helper.
    */
   const canModify = useCallback((route: Route): boolean => {
-    if (route.status !== 'draft') return false
-    // Developer может редактировать/удалять только свои маршруты
-    // Admin может редактировать/удалять любые draft маршруты
-    return route.createdBy === user?.userId || user?.role === 'admin'
-  }, [user?.userId, user?.role])
+    return canModifyFn(route, user ?? undefined)
+  }, [user])
 
   // Определение колонок таблицы
   const columns: ColumnsType<Route> = useMemo(() => [

@@ -2,22 +2,14 @@
 import { useEffect } from 'react'
 import { Modal, Form, Input, Select, Alert } from 'antd'
 import { useCreateUser, useUpdateUser } from '../hooks/useUsers'
-import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from '../types/user.types'
+import type { User, CreateUserRequest, UpdateUserRequest } from '../types/user.types'
+import { ROLE_OPTIONS, type UserRole } from '@shared/constants'
 
 interface UserFormModalProps {
   open: boolean
   user: User | null  // null — режим создания, User — режим редактирования
   onClose: () => void
 }
-
-/**
- * Опции выбора роли.
- */
-const roleOptions = [
-  { value: 'developer', label: 'Developer' },
-  { value: 'security', label: 'Security' },
-  { value: 'admin', label: 'Admin' },
-]
 
 /**
  * Модальное окно для создания и редактирования пользователя.
@@ -149,7 +141,7 @@ function UserFormModal({ open, user, onClose }: UserFormModalProps) {
           label="Role"
           rules={[{ required: true, message: 'Роль обязательна' }]}
         >
-          <Select options={roleOptions} placeholder="Выберите роль" />
+          <Select options={ROLE_OPTIONS} placeholder="Выберите роль" />
         </Form.Item>
 
         {/* Информация о пароле в режиме редактирования */}

@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { Card, Button, Space, Typography, App } from 'antd'
 import { DownloadOutlined, ClusterOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
+import { isDeveloper } from '@shared/utils'
 import { useUpstreams } from '../hooks/useUpstreams'
 import { UpstreamsTable } from './UpstreamsTable'
 import { exportUpstreamReport } from '../utils/exportUpstreamReport'
@@ -27,7 +28,8 @@ export function IntegrationsPage() {
   const accessDeniedShown = useRef(false)
 
   // Проверка доступа (AC6) — показываем сообщение только один раз
-  const isAccessDenied = user?.role === 'developer'
+  // Story 11.6: используем централизованный helper
+  const isAccessDenied = isDeveloper(user ?? undefined)
 
   // Показываем сообщение об отказе доступа перед редиректом
   useEffect(() => {
