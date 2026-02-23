@@ -42,7 +42,7 @@ function loadEnvFile(): void {
  * - routes: path LIKE '/e2e-%'
  * - rate_limits: name LIKE 'e2e-%'
  * - users: username LIKE 'e2e-%'
- * - audit_logs: связанные с тестовыми данными
+ * - audit_logs: entity_id совпадает с тестовыми routes/rate_limits
  *
  * Порядок удаления учитывает FK constraints.
  */
@@ -55,14 +55,11 @@ async function cleanupTestData(): Promise<void> {
     console.log('[E2E Teardown] Очистка тестовых данных после прогона...')
 
     // --- Удаление audit_logs для тестовых сущностей ---
-    // Удаляем по entity_type и паттернам в details (JSONB)
+    // Удаляем по entity_type и entity_id (UUID маршрутов/политик с e2e паттерном)
     const auditLogsRoutesResult = await pool.query(`
       DELETE FROM audit_logs
       WHERE entity_type = 'route'
-        AND (
-          details->>'path' LIKE '/e2e-%'
-          OR details->>'routeId' IN (SELECT id::text FROM routes WHERE path LIKE '/e2e-%')
-        )
+        AND entity_id IN (SELECT id::text FROM routes WHERE path LIKE '/e2e-%')
     `).catch((err: { code?: string }) => {
       if (err.code !== '42P01') {
         console.warn('[E2E Teardown] Ошибка при удалении audit_logs (routes):', err)
@@ -74,10 +71,7 @@ async function cleanupTestData(): Promise<void> {
     const auditLogsPoliciesResult = await pool.query(`
       DELETE FROM audit_logs
       WHERE entity_type = 'rate_limit'
-        AND (
-          details->>'name' LIKE 'e2e-%'
-          OR details->>'rateLimitId' IN (SELECT id::text FROM rate_limits WHERE name LIKE 'e2e-%')
-        )
+        AND entity_id IN (SELECT id::text FROM rate_limits WHERE name LIKE 'e2e-%')
     `).catch((err: { code?: string }) => {
       if (err.code !== '42P01') {
         console.warn('[E2E Teardown] Ошибка при удалении audit_logs (rate_limits):', err)
