@@ -15,6 +15,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import reactor.core.publisher.Mono
@@ -214,8 +215,8 @@ class RateLimitFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
             .verifyComplete()
 
-        // Assert: Content-Type application/json
-        assertThat(exchange.response.headers.contentType?.toString())
-            .contains("application/json")
+        // Assert: Content-Type application/problem+json (RFC 7807)
+        assertThat(exchange.response.headers.contentType)
+            .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON)
     }
 }

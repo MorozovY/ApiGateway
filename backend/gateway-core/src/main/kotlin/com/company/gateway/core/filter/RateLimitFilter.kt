@@ -150,7 +150,7 @@ class RateLimitFilter(
         val retryAfterSeconds = ((result.resetTime - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
         response.headers.add(HEADER_RETRY_AFTER, retryAfterSeconds.toString())
 
-        response.headers.contentType = MediaType.APPLICATION_JSON
+        response.headers.contentType = MediaType.APPLICATION_PROBLEM_JSON
 
         // Получаем correlation ID из атрибутов
         val correlationId = exchange.getAttribute<String>(CorrelationIdFilter.CORRELATION_ID_ATTRIBUTE)

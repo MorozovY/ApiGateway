@@ -1,9 +1,12 @@
 package com.company.gateway.core
 
+import com.company.gateway.core.properties.KeycloakProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
+@EnableConfigurationProperties(KeycloakProperties::class)
 class GatewayApplication
 
 fun main(args: Array<String>) {

@@ -1,6 +1,13 @@
 server:
   port: 8080
 
+# Keycloak JWT authentication (Story 12.4)
+# Feature flag — ВЫКЛЮЧЕН по умолчанию для обратной совместимости
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:false}
+  url: ${KEYCLOAK_URL:http://localhost:8180}
+  realm: api-gateway
+
 gateway:
   cache:
     invalidation-channel: route-cache-invalidation

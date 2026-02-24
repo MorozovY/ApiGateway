@@ -1,6 +1,7 @@
 package com.company.gateway.core.route
 
 import com.company.gateway.core.cache.RouteCacheManager
+import com.company.gateway.core.filter.JwtAuthenticationFilter
 import com.company.gateway.core.filter.RateLimitFilter
 import org.slf4j.LoggerFactory
 import org.springframework.cloud.gateway.filter.GatewayFilter
@@ -25,6 +26,7 @@ import java.net.URI
  *
  * При совпадении маршрута устанавливает атрибуты exchange для:
  * - Rate limiting (routeId, rateLimit policy)
+ * - JWT authentication (authRequired, allowedConsumers)
  */
 @Component
 class DynamicRouteLocator(
@@ -64,9 +66,16 @@ class DynamicRouteLocator(
                         log.debug("Predicate: path={}, routePath={}, method={}, pathMatches={}, methodMatches={}",
                             path, dbRoute.path, method, pathMatches, methodMatches)
 
-                        // Устанавливаем атрибуты для rate limiting при совпадении маршрута
+                        // Устанавливаем атрибуты при совпадении маршрута
                         if (pathMatches && methodMatches) {
+                            // Route ID для rate limiting и метрик
                             exchange.attributes[RateLimitFilter.ROUTE_ID_ATTRIBUTE] = dbRoute.id
+
+                            // JWT authentication атрибуты (Story 12.4)
+                            exchange.attributes[JwtAuthenticationFilter.AUTH_REQUIRED_ATTRIBUTE] = dbRoute.authRequired
+                            dbRoute.allowedConsumers?.let { consumers ->
+                                exchange.attributes[JwtAuthenticationFilter.ALLOWED_CONSUMERS_ATTRIBUTE] = consumers
+                            }
 
                             // Загружаем rate limit политику из кэша, если назначена
                             // Story 5.8, AC2: fallback загрузка если политика не в кэше

@@ -85,7 +85,17 @@ data class Route(
 
     /** ID политики rate limiting, назначенной маршруту */
     @Column("rate_limit_id")
-    val rateLimitId: UUID? = null
+    val rateLimitId: UUID? = null,
+
+    // === JWT Authentication Fields (Epic 12) ===
+
+    /** Требуется ли JWT аутентификация для маршрута */
+    @Column("auth_required")
+    val authRequired: Boolean = true,
+
+    /** Whitelist consumer IDs (null = все разрешены) */
+    @Column("allowed_consumers")
+    val allowedConsumers: List<String>? = null
 )
 
 /**

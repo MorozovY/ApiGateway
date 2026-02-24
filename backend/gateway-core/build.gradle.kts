@@ -37,6 +37,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     testImplementation("org.springframework.security:spring-security-test")
 
+    // OAuth2 Resource Server (JWT validation, JWKS support) — Story 12.4
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+
     // Prometheus Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 
