@@ -1,0 +1,11 @@
+# Keycloak test profile - включает Keycloak аутентификацию для интеграционных тестов
+keycloak:
+  enabled: true
+  url: http://localhost:8180
+  realm: api-gateway
+  client-id: admin-ui
+
+# Тестовый JWT secret для legacy режима (не используется при keycloak.enabled=true)
+jwt:
+  secret: test-secret-key-minimum-32-characters-long
+  expiration: 86400000

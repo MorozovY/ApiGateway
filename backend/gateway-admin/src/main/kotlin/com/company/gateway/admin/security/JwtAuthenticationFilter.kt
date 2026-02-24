@@ -1,6 +1,7 @@
 package com.company.gateway.admin.security
 
 import com.company.gateway.common.Constants.AUTH_COOKIE_NAME
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.stereotype.Component
@@ -17,8 +18,12 @@ import reactor.core.publisher.Mono
  *
  * Если токен отсутствует — пропускает запрос для дальнейшей обработки SecurityConfig.
  * Если токен невалиден или истёк — выбрасывает JwtAuthenticationException.
+ *
+ * Активируется только при keycloak.enabled=false (по умолчанию).
+ * При keycloak.enabled=true JWT валидация выполняется через OAuth2 Resource Server.
  */
 @Component
+@ConditionalOnProperty(name = ["keycloak.enabled"], havingValue = "false", matchIfMissing = true)
 class JwtAuthenticationFilter(
     private val jwtService: JwtService
 ) : WebFilter {

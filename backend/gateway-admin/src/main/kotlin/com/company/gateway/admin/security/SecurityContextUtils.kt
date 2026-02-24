@@ -1,6 +1,7 @@
 package com.company.gateway.admin.security
 
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
+import org.springframework.security.oauth2.jwt.Jwt
 import reactor.core.publisher.Mono
 import java.util.UUID
 
@@ -9,19 +10,40 @@ import java.util.UUID
  *
  * Предоставляет удобные методы для получения информации
  * о текущем аутентифицированном пользователе.
+ *
+ * Поддерживает два типа аутентификации:
+ * - Legacy HMAC JWT → principal = AuthenticatedUser
+ * - Keycloak OAuth2 JWT → principal = Jwt (конвертируется в AuthenticatedUser)
  */
 object SecurityContextUtils {
 
     /**
      * Получает текущего аутентифицированного пользователя.
      *
+     * Поддерживает:
+     * - AuthenticatedUser principal (legacy JWT)
+     * - Jwt principal (Keycloak OAuth2)
+     *
      * @return Mono с AuthenticatedUser или empty если пользователь не аутентифицирован
      */
     fun currentUser(): Mono<AuthenticatedUser> {
         return ReactiveSecurityContextHolder.getContext()
             .filter { it.authentication != null }
-            .filter { it.authentication.principal is AuthenticatedUser }
-            .map { it.authentication.principal as AuthenticatedUser }
+            .flatMap { context ->
+                val principal = context.authentication.principal
+                when (principal) {
+                    is AuthenticatedUser -> Mono.just(principal)
+                    is Jwt -> {
+                        // Конвертируем Keycloak JWT в AuthenticatedUser
+                        try {
+                            Mono.just(AuthenticatedUser.fromKeycloakJwt(principal))
+                        } catch (e: Exception) {
+                            Mono.empty()
+                        }
+                    }
+                    else -> Mono.empty()
+                }
+            }
     }
 
     /**

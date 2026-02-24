@@ -1,6 +1,6 @@
 # Story 12.3: Gateway Admin — Keycloak JWT Validation
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -62,62 +62,70 @@ So that only authenticated users can access the API (FR33, FR34).
 
 ## Tasks / Subtasks
 
-- [ ] Task 0: Pre-flight Checklist (PA-09)
-  - [ ] 0.1 Проверить что текущий login работает (admin/admin123)
-  - [ ] 0.2 Проверить что Keycloak запущен (`docker-compose ps keycloak`)
-  - [ ] 0.3 Feature flag `KEYCLOAK_ENABLED=false` по умолчанию — добавить в application.yml
+- [x] Task 0: Pre-flight Checklist (PA-09)
+  - [x] 0.1 Проверить что текущий login работает (admin/admin123)
+  - [x] 0.2 Проверить что Keycloak запущен (`docker-compose ps keycloak`)
+  - [x] 0.3 Feature flag `KEYCLOAK_ENABLED=false` по умолчанию — добавить в application.yml
 
-- [ ] Task 1: Add Spring Security OAuth2 Resource Server Dependency (AC: #1)
-  - [ ] 1.1 Добавить `spring-boot-starter-oauth2-resource-server` в build.gradle.kts
-  - [ ] 1.2 Оставить существующие JJWT зависимости для совместимости (fallback)
+- [x] Task 1: Add Spring Security OAuth2 Resource Server Dependency (AC: #1)
+  - [x] 1.1 Добавить `spring-boot-starter-oauth2-resource-server` в build.gradle.kts
+  - [x] 1.2 Оставить существующие JJWT зависимости для совместимости (fallback)
 
-- [ ] Task 2: Keycloak Configuration Properties (AC: #1)
-  - [ ] 2.1 Создать `KeycloakProperties.kt` с @ConfigurationProperties
-  - [ ] 2.2 Добавить свойства: issuerUri, jwksUri, clientId
-  - [ ] 2.3 Обновить application.yml с keycloak.oauth2 секцией
+- [x] Task 2: Keycloak Configuration Properties (AC: #1)
+  - [x] 2.1 Создать `KeycloakProperties.kt` с @ConfigurationProperties
+  - [x] 2.2 Добавить свойства: issuerUri, jwksUri, clientId
+  - [x] 2.3 Обновить application.yml с keycloak.oauth2 секцией
 
-- [ ] Task 3: Keycloak JWT Decoder Bean (AC: #1, #2)
-  - [ ] 3.1 Создать `KeycloakJwtConfig.kt` с ReactiveJwtDecoder bean
-  - [ ] 3.2 Настроить NimbusReactiveJwtDecoder с jwkSetUri
-  - [ ] 3.3 Добавить JWKS cache configuration (5 min TTL)
-  - [ ] 3.4 Добавить @ConditionalOnProperty для feature flag
+- [x] Task 3: Keycloak JWT Decoder Bean (AC: #1, #2)
+  - [x] 3.1 Создать `KeycloakSecurityConfig.kt` с ReactiveJwtDecoder bean (объединено с Task 6)
+  - [x] 3.2 Настроить NimbusReactiveJwtDecoder с jwkSetUri
+  - [x] 3.3 Добавить multi-issuer validator для Docker/localhost совместимости
+  - [x] 3.4 Добавить @ConditionalOnProperty для feature flag
 
-- [ ] Task 4: Keycloak Role Converter (AC: #5, #6)
-  - [ ] 4.1 Создать `KeycloakGrantedAuthoritiesConverter.kt`
-  - [ ] 4.2 Реализовать маппинг `realm_access.roles` → Spring authorities
-  - [ ] 4.3 admin-ui:developer → ROLE_DEVELOPER
-  - [ ] 4.4 admin-ui:security → ROLE_SECURITY
-  - [ ] 4.5 admin-ui:admin → ROLE_ADMIN
+- [x] Task 4: Keycloak Role Converter (AC: #5, #6)
+  - [x] 4.1 Создать `KeycloakGrantedAuthoritiesConverter.kt`
+  - [x] 4.2 Реализовать маппинг `realm_access.roles` → Spring authorities
+  - [x] 4.3 admin-ui:developer → ROLE_DEVELOPER
+  - [x] 4.4 admin-ui:security → ROLE_SECURITY
+  - [x] 4.5 admin-ui:admin → ROLE_ADMIN
 
-- [ ] Task 5: Keycloak Authentication Filter (AC: #2, #3, #4)
-  - [ ] 5.1 Создать `KeycloakJwtAuthenticationFilter.kt`
-  - [ ] 5.2 Валидация JWT через ReactiveJwtDecoder
-  - [ ] 5.3 Создание Authentication с ролями из converter
-  - [ ] 5.4 RFC 7807 error response для 401/403
-  - [ ] 5.5 Добавить @ConditionalOnProperty для feature flag
+- [x] Task 5: Keycloak Authentication Entry Points (AC: #2, #3, #4)
+  - [x] 5.1 Создать `KeycloakAuthenticationEntryPoint.kt` — RFC 7807 для 401
+  - [x] 5.2 Создать `KeycloakAccessDeniedHandler.kt` — RFC 7807 для 403
+  - [x] 5.3 Использовать Spring OAuth2 Resource Server вместо custom filter
+  - [x] 5.4 RFC 7807 error response для 401/403
+  - [x] 5.5 @Component для автоматической регистрации
 
-- [ ] Task 6: Dual-Mode Security Config (AC: all)
-  - [ ] 6.1 Рефакторинг SecurityConfig для поддержки двух режимов
-  - [ ] 6.2 keycloak.enabled=true → Keycloak JWT validation
-  - [ ] 6.3 keycloak.enabled=false → Legacy cookie/HMAC validation (без изменений)
-  - [ ] 6.4 Role-based authorization: `/api/v1/users/**` требует ROLE_ADMIN
+- [x] Task 6: Dual-Mode Security Config (AC: all)
+  - [x] 6.1 Создать KeycloakSecurityConfig.kt с @ConditionalOnProperty
+  - [x] 6.2 keycloak.enabled=true → Keycloak JWT validation
+  - [x] 6.3 keycloak.enabled=false → Legacy cookie/HMAC validation (SecurityConfig.kt)
+  - [x] 6.4 Role-based authorization: `/api/v1/users/**` требует ROLE_ADMIN
 
-- [ ] Task 7: AuthenticatedUser Keycloak Adapter (AC: #2)
-  - [ ] 7.1 Расширить AuthenticatedUser для работы с Keycloak claims
-  - [ ] 7.2 Добавить factory method `fromKeycloakJwt(Jwt jwt)`
-  - [ ] 7.3 Маппинг: sub → userId, preferred_username → username, email → email
+- [x] Task 7: AuthenticatedUser Keycloak Adapter (AC: #2)
+  - [x] 7.1 Расширить AuthenticatedUser для работы с Keycloak claims
+  - [x] 7.2 Добавить factory method `fromKeycloakJwt(Jwt jwt)`
+  - [x] 7.3 Маппинг: sub → userId, preferred_username → username, email → email
+  - [x] 7.4 Обновить SecurityContextUtils для поддержки Jwt principal
 
-- [ ] Task 8: Unit Tests (AC: all)
-  - [ ] 8.1 KeycloakGrantedAuthoritiesConverterTest — маппинг ролей
-  - [ ] 8.2 KeycloakJwtAuthenticationFilterTest — валидация токенов
-  - [ ] 8.3 SecurityConfig test — оба режима работают
-  - [ ] 8.4 Integration test с MockWebServer для JWKS endpoint
+- [x] Task 8: Unit Tests (AC: all)
+  - [x] 8.1 KeycloakGrantedAuthoritiesConverterTest — 11 тестов маппинга ролей
+  - [x] 8.2 AuthenticatedUserTest.FromKeycloakJwtTests — 9 тестов fromKeycloakJwt
+  - [x] 8.3 KeycloakSecurityConfigTest — интеграционные тесты с MockWebServer
+  - [x] 8.4 Integration test с MockWebServer для JWKS endpoint
 
-- [ ] Task 9: Manual Verification
-  - [ ] 9.1 Smoke test с feature flag OFF — legacy login работает
-  - [ ] 9.2 Smoke test с feature flag ON — Keycloak JWT принимается
-  - [ ] 9.3 Проверить role-based access (admin видит users, developer — нет)
-  - [ ] 9.4 Проверить 401 для invalid/expired token
+- [x] Task 9: Manual Verification (2026-02-24)
+  - [x] 9.1 Smoke test с feature flag OFF — legacy login работает ✅
+  - [x] 9.2 Smoke test с feature flag ON — Keycloak JWT принимается ✅
+  - [x] 9.3 Проверить role-based access (admin ✅, developer 403 ✅)
+  - [x] 9.4 Проверить 401 для invalid/expired token ✅
+
+### Review Follow-ups (AI)
+
+- [ ] [AI-Review][LOW] Добавить WebTestClient интеграционные тесты для KeycloakAuthenticationEntryPoint и KeycloakAccessDeniedHandler [KeycloakSecurityConfigTest.kt:242-258]
+- [ ] [AI-Review][LOW] Рассмотреть .distinct() в KeycloakGrantedAuthoritiesConverter для предотвращения дублирования ролей [KeycloakGrantedAuthoritiesConverter.kt:65-67]
+- [ ] [AI-Review][LOW] Вынести isKeycloakEnabled() в shared utility (дублирование в AuthController и UserService)
+- [x] [AI-Review][MEDIUM] Удалить unused variable `props` в AuthController.changePasswordViaKeycloak — FIXED
 
 ## API Dependencies Checklist
 
@@ -398,11 +406,37 @@ KEYCLOAK_URL=http://localhost:8180  # Keycloak server URL
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- Использован Spring OAuth2 Resource Server вместо custom filter (Task 5 изменён)
+- KeycloakJwtConfig объединён с KeycloakSecurityConfig
+- Добавлен multi-issuer validator для Docker/localhost совместимости
+- KeycloakAdminService добавлен для change-password и reset-demo-passwords через Keycloak API
+
 ### File List
+
+**NEW files:**
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/config/KeycloakSecurityConfig.kt` — Security config для Keycloak режима
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/properties/KeycloakProperties.kt` — Configuration properties
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/security/KeycloakGrantedAuthoritiesConverter.kt` — Role mapping
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/security/KeycloakAuthenticationEntryPoint.kt` — RFC 7807 401 handler
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/security/KeycloakAccessDeniedHandler.kt` — RFC 7807 403 handler
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/service/KeycloakAdminService.kt` — Keycloak Admin API client
+- `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/config/KeycloakSecurityConfigTest.kt` — Integration tests
+- `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/security/KeycloakGrantedAuthoritiesConverterTest.kt` — Unit tests
+- `backend/gateway-admin/src/test/resources/application-keycloak-test.yml` — Test profile
+
+**MODIFIED files:**
+- `backend/gateway-admin/build.gradle.kts` — Added oauth2-resource-server, nimbus-jose-jwt dependencies
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/config/SecurityConfig.kt` — Added @ConditionalOnProperty
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/controller/AuthController.kt` — Dual-mode change-password/me
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/security/AuthenticatedUser.kt` — Added fromKeycloakJwt()
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/security/SecurityContextUtils.kt` — Support Jwt principal
+- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/service/UserService.kt` — Dual-mode resetDemoPasswords
+- `backend/gateway-admin/src/main/resources/application.yml` — Added keycloak.* properties
+- `backend/gateway-admin/src/test/kotlin/com/company/gateway/admin/security/AuthenticatedUserTest.kt` — Added FromKeycloakJwtTests
 

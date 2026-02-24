@@ -35,7 +35,9 @@ class PrometheusClientTest {
         mockWebServer = MockWebServer()
         mockWebServer.start()
 
-        val baseUrl = mockWebServer.url("/").toString().dropLast(1) // Убираем trailing slash
+        // Используем явный IP-адрес чтобы избежать проблем с hosts файлом
+        // (ymorozov.ru -> 127.0.0.1 в hosts может ломать тесты)
+        val baseUrl = "http://127.0.0.1:${mockWebServer.port}"
 
         prometheusClient = PrometheusClientImpl(
             webClientBuilder = WebClient.builder(),

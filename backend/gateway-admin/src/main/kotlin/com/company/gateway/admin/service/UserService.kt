@@ -9,6 +9,7 @@ import com.company.gateway.admin.dto.UserResponse
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
+import com.company.gateway.admin.properties.KeycloakProperties
 import com.company.gateway.admin.repository.UserRepository
 import com.company.gateway.admin.security.SecurityContextUtils
 import com.company.gateway.common.model.Role
@@ -18,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.time.Instant
+import java.util.Optional
 import java.util.UUID
 
 /**
@@ -30,9 +32,17 @@ import java.util.UUID
 class UserService(
     private val userRepository: UserRepository,
     private val passwordService: PasswordService,
-    private val auditService: AuditService
+    private val auditService: AuditService,
+    private val keycloakProperties: Optional<KeycloakProperties>,
+    private val keycloakAdminService: Optional<KeycloakAdminService>
 ) {
     private val logger = LoggerFactory.getLogger(UserService::class.java)
+
+    /**
+     * Проверяет, включен ли режим Keycloak.
+     */
+    private fun isKeycloakEnabled(): Boolean =
+        keycloakProperties.map { it.enabled }.orElse(false)
 
     /**
      * Получение списка пользователей с пагинацией и опциональным поиском.
@@ -438,18 +448,61 @@ class UserService(
      * - security → security123 (Role.SECURITY)
      * - admin → admin123 (Role.ADMIN)
      *
+     * При keycloak.enabled=true сбрасывает пароли через Keycloak Admin API.
+     * При keycloak.enabled=false сбрасывает пароли в локальной БД.
+     *
      * @return список имён пользователей, у которых сброшены/созданы пароли
      */
     fun resetDemoPasswords(): Mono<List<String>> {
         // Данные демо-пользователей: username -> (password, role, email)
-        data class DemoUser(val password: String, val role: Role, val email: String)
         val demoUsers = mapOf(
             "developer" to DemoUser("developer123", Role.DEVELOPER, "developer@example.com"),
             "security" to DemoUser("security123", Role.SECURITY, "security@example.com"),
             "admin" to DemoUser("admin123", Role.ADMIN, "admin@example.com")
         )
 
-        logger.info("Сброс/создание демо-пользователей: {}", demoUsers.keys)
+        // Выбираем стратегию сброса паролей в зависимости от режима
+        return if (isKeycloakEnabled() && keycloakAdminService.isPresent) {
+            resetDemoPasswordsInKeycloak(demoUsers)
+        } else {
+            resetDemoPasswordsInDatabase(demoUsers)
+        }
+    }
+
+    /**
+     * Сброс паролей демо-пользователей в Keycloak.
+     */
+    private fun resetDemoPasswordsInKeycloak(
+        demoUsers: Map<String, DemoUser>
+    ): Mono<List<String>> {
+        val adminService = keycloakAdminService.get()
+
+        logger.info("Сброс паролей демо-пользователей в Keycloak: {}", demoUsers.keys)
+
+        return reactor.core.publisher.Flux.fromIterable(demoUsers.entries)
+            .flatMap { (username, demoData) ->
+                adminService.resetPasswordByUsername(username, demoData.password)
+                    .doOnSuccess {
+                        logger.info("Пароль сброшен в Keycloak для пользователя: {}", username)
+                    }
+                    .onErrorResume { e ->
+                        logger.warn("Не удалось сбросить пароль в Keycloak для {}: {}", username, e.message)
+                        Mono.empty()
+                    }
+            }
+            .collectList()
+            .doOnSuccess { users ->
+                logger.info("Сброс паролей в Keycloak завершено: {} пользователей", users.size)
+            }
+    }
+
+    /**
+     * Сброс паролей демо-пользователей в локальной БД (legacy режим).
+     */
+    private fun resetDemoPasswordsInDatabase(
+        demoUsers: Map<String, DemoUser>
+    ): Mono<List<String>> {
+        logger.info("Сброс/создание демо-пользователей в БД: {}", demoUsers.keys)
 
         return reactor.core.publisher.Flux.fromIterable(demoUsers.entries)
             .flatMap { (username, demoData) ->
@@ -492,6 +545,11 @@ class UserService(
                 logger.info("Сброс/создание демо-пользователей завершено: {} пользователей", users.size)
             }
     }
+
+    /**
+     * Внутренний data class для демо-пользователей.
+     */
+    private data class DemoUser(val password: String, val role: Role, val email: String)
 
     /**
      * Преобразование User в UserResponse.

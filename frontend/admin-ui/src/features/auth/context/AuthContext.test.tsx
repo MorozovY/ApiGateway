@@ -18,6 +18,14 @@ vi.mock('../api/authApi', () => ({
   checkSessionApi: vi.fn(),
 }))
 
+// Мок oidcConfig — принудительно используем CookieAuthProvider для тестов
+vi.mock('../config/oidcConfig', () => ({
+  isKeycloakEnabled: vi.fn(() => false),
+  mapKeycloakRoles: vi.fn(),
+  extractKeycloakRoles: vi.fn(),
+  decodeJwtPayload: vi.fn(),
+}))
+
 // Мок axios authEvents
 vi.mock('@shared/utils/axios', () => ({
   default: {
@@ -27,6 +35,7 @@ vi.mock('@shared/utils/axios', () => ({
   authEvents: {
     onUnauthorized: vi.fn(),
   },
+  setTokenGetter: vi.fn(),
 }))
 
 // Компонент для тестирования AuthContext

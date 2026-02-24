@@ -29,6 +29,8 @@ dependencies {
 
     // Security
     implementation("org.springframework.boot:spring-boot-starter-security")
+    // OAuth2 Resource Server для Keycloak JWT валидации (Story 12.3)
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 
     // Validation
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -64,6 +66,8 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     // MockWebServer для PrometheusClient тестов (Story 7.0)
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    // Nimbus JOSE+JWT для тестов Keycloak JWT validation (Story 12.3)
+    testImplementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
 }
 
 java {

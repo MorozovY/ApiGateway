@@ -2,6 +2,8 @@ package com.company.gateway.admin.config
 
 import com.company.gateway.admin.security.JwtAuthenticationEntryPoint
 import com.company.gateway.admin.security.JwtAuthenticationFilter
+import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -10,12 +12,26 @@ import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.web.server.SecurityWebFilterChain
 
+/**
+ * Конфигурация Spring Security для legacy JWT аутентификации (HMAC-SHA256).
+ *
+ * Активируется при `keycloak.enabled=false` (по умолчанию).
+ * Использует cookie-based JWT authentication через JwtAuthenticationFilter.
+ *
+ * @see com.company.gateway.admin.config.KeycloakSecurityConfig для Keycloak режима
+ */
 @Configuration
 @EnableWebFluxSecurity
+@ConditionalOnProperty(name = ["keycloak.enabled"], havingValue = "false", matchIfMissing = true)
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    init {
+        log.info("Legacy security mode ENABLED (keycloak.enabled=false)")
+    }
 
     @Bean
     @Profile("dev", "default")

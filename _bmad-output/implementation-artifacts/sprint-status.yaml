@@ -169,7 +169,7 @@ development_status:
   epic-12: in-progress  # 2026-02-23: Phase 2 — Keycloak SSO + Consumer tracking
   12-1-keycloak-setup-configuration: done  # Code review: 6 issues fixed, health check integration documented
   12-2-admin-ui-keycloak-auth-migration: done  # 2026-02-23: Code review passed, 31 tests added, feature flag OFF по умолчанию
-  12-3-gateway-admin-keycloak-jwt-validation: ready-for-dev
+  12-3-gateway-admin-keycloak-jwt-validation: review
   12-4-gateway-core-jwt-authentication-filter: backlog
   12-5-gateway-core-consumer-identity-filter: backlog
   12-6-multi-tenant-metrics: backlog

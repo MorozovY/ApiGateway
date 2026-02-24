@@ -5,9 +5,12 @@ import com.company.gateway.admin.dto.ChangePasswordResponse
 import com.company.gateway.admin.dto.LoginRequest
 import com.company.gateway.admin.dto.LoginResponse
 import com.company.gateway.admin.dto.ResetDemoPasswordsResponse
+import com.company.gateway.admin.properties.KeycloakProperties
 import com.company.gateway.admin.security.CookieService
 import com.company.gateway.admin.security.JwtService
+import com.company.gateway.admin.security.SecurityContextUtils
 import com.company.gateway.admin.service.AuthService
+import com.company.gateway.admin.service.KeycloakAdminService
 import com.company.gateway.admin.service.UserService
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.util.Optional
 import java.util.UUID
 
 /**
@@ -36,8 +40,15 @@ class AuthController(
     private val authService: AuthService,
     private val userService: UserService,
     private val jwtService: JwtService,
-    private val cookieService: CookieService
+    private val cookieService: CookieService,
+    private val keycloakProperties: Optional<KeycloakProperties>,
+    private val keycloakAdminService: Optional<KeycloakAdminService>
 ) {
+    /**
+     * Проверяет, включен ли режим Keycloak.
+     */
+    private fun isKeycloakEnabled(): Boolean =
+        keycloakProperties.map { it.enabled }.orElse(false)
     /**
      * Аутентификация пользователя.
      *
@@ -91,6 +102,9 @@ class AuthController(
      * Проверяет текущий пароль и обновляет на новый.
      * Записывает audit log при успешной смене.
      *
+     * При keycloak.enabled=true использует Keycloak Admin API.
+     * При keycloak.enabled=false использует локальную БД.
+     *
      * @param request запрос с текущим и новым паролем
      * @param exchange ServerWebExchange для доступа к cookies и JWT
      * @return ChangePasswordResponse при успехе, 401 если текущий пароль неверный
@@ -98,6 +112,52 @@ class AuthController(
     @PostMapping("/change-password")
     fun changePassword(
         @Valid @RequestBody request: ChangePasswordRequest,
+        exchange: ServerWebExchange
+    ): Mono<ResponseEntity<ChangePasswordResponse>> {
+        return if (isKeycloakEnabled() && keycloakAdminService.isPresent) {
+            changePasswordViaKeycloak(request)
+        } else {
+            changePasswordViaLegacy(request, exchange)
+        }
+    }
+
+    /**
+     * Смена пароля через Keycloak Admin API.
+     */
+    private fun changePasswordViaKeycloak(
+        request: ChangePasswordRequest
+    ): Mono<ResponseEntity<ChangePasswordResponse>> {
+        val adminService = keycloakAdminService.get()
+
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                // Проверяем текущий пароль через Keycloak token endpoint
+                adminService.verifyPassword(user.username, request.currentPassword)
+                    .flatMap { valid ->
+                        if (!valid) {
+                            Mono.just(
+                                ResponseEntity.status(401)
+                                    .body(ChangePasswordResponse("Current password is incorrect"))
+                            )
+                        } else {
+                            // Сбрасываем пароль через Admin API
+                            adminService.resetPasswordByUsername(user.username, request.newPassword)
+                                .map {
+                                    ResponseEntity.ok(
+                                        ChangePasswordResponse("Password changed successfully")
+                                    )
+                                }
+                        }
+                    }
+            }
+            .switchIfEmpty(Mono.just(ResponseEntity.status(401).build()))
+    }
+
+    /**
+     * Смена пароля через локальную БД (legacy режим).
+     */
+    private fun changePasswordViaLegacy(
+        request: ChangePasswordRequest,
         exchange: ServerWebExchange
     ): Mono<ResponseEntity<ChangePasswordResponse>> {
         val claims = extractAndValidateToken(exchange)
@@ -122,17 +182,46 @@ class AuthController(
      * Получение информации о текущем пользователе.
      *
      * Используется для восстановления сессии при перезагрузке страницы.
-     * Читает JWT из cookie и возвращает данные пользователя.
+     *
+     * При keycloak.enabled=true читает из SecurityContext (Keycloak JWT).
+     * При keycloak.enabled=false читает JWT из cookie.
      *
      * @param exchange ServerWebExchange для доступа к cookies
      * @return LoginResponse с userId, username и role, или 401 если токен невалиден
      */
     @GetMapping("/me")
     fun getCurrentUser(exchange: ServerWebExchange): Mono<ResponseEntity<LoginResponse>> {
+        return if (isKeycloakEnabled()) {
+            getCurrentUserFromSecurityContext()
+        } else {
+            getCurrentUserFromCookie(exchange)
+        }
+    }
+
+    /**
+     * Получение пользователя из SecurityContext (Keycloak режим).
+     */
+    private fun getCurrentUserFromSecurityContext(): Mono<ResponseEntity<LoginResponse>> {
+        return SecurityContextUtils.currentUser()
+            .map { user ->
+                ResponseEntity.ok(
+                    LoginResponse(
+                        userId = user.userId.toString(),
+                        username = user.username,
+                        role = user.role.name.lowercase()
+                    )
+                )
+            }
+            .switchIfEmpty(Mono.just(ResponseEntity.status(401).build()))
+    }
+
+    /**
+     * Получение пользователя из cookie (legacy режим).
+     */
+    private fun getCurrentUserFromCookie(exchange: ServerWebExchange): Mono<ResponseEntity<LoginResponse>> {
         val claims = extractAndValidateToken(exchange)
             ?: return Mono.just(ResponseEntity.status(401).build())
 
-        // Возвращаем данные пользователя из claims
         return Mono.just(
             ResponseEntity.ok(
                 LoginResponse(
