@@ -1,6 +1,7 @@
 package com.company.gateway.core.integration
 
 import com.company.gateway.common.model.RouteStatus
+import com.company.gateway.core.cache.ConsumerRateLimitCacheManager
 import com.company.gateway.core.cache.RouteCacheManager
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
@@ -99,6 +100,9 @@ class RateLimitIntegrationTest {
     private lateinit var cacheManager: RouteCacheManager
 
     @Autowired
+    private lateinit var consumerRateLimitCacheManager: ConsumerRateLimitCacheManager
+
+    @Autowired
     private lateinit var redisTemplate: ReactiveRedisTemplate<String, String>
 
     private lateinit var rateLimitId: UUID
@@ -114,9 +118,11 @@ class RateLimitIntegrationTest {
         databaseClient.sql("UPDATE routes SET rate_limit_id = NULL").fetch().rowsUpdated().block()
         databaseClient.sql("DELETE FROM routes").fetch().rowsUpdated().block()
         databaseClient.sql("DELETE FROM rate_limits").fetch().rowsUpdated().block()
+        databaseClient.sql("DELETE FROM consumer_rate_limits").fetch().rowsUpdated().block()
 
-        // Очищаем кэш маршрутов
+        // Очищаем кэши маршрутов и consumer rate limits
         cacheManager.refreshCache().block()
+        consumerRateLimitCacheManager.invalidateAll().block()
 
         // Создаём rate limit policy
         rateLimitId = UUID.randomUUID()
@@ -461,6 +467,112 @@ class RateLimitIntegrationTest {
             .expectHeader().valueEquals("X-RateLimit-Remaining", "0")
             .expectHeader().exists("X-RateLimit-Reset")
             .expectHeader().exists("Retry-After")
+    }
+
+    // ============ Story 12.8: Per-consumer Rate Limiting Integration Tests ============
+
+    @Test
+    fun `Story 12-8 AC3 - per-consumer rate limit enforcement`() {
+        // Создаём маршрут БЕЗ route rate limit
+        insertRoute("/api/consumer-only")
+
+        // Создаём consumer rate limit (3 req/s, burst 2)
+        insertConsumerRateLimit("test-consumer-1", requestsPerSecond = 3, burstSize = 2)
+
+        // Первые 2 запроса проходят (burst = 2)
+        repeat(2) {
+            webTestClient.get()
+                .uri("/api/consumer-only")
+                .header("X-Consumer-ID", "test-consumer-1")
+                .exchange()
+                .expectStatus().isOk
+                .expectHeader().valueEquals("X-RateLimit-Type", "consumer")
+        }
+
+        // 3-й запрос блокируется
+        webTestClient.get()
+            .uri("/api/consumer-only")
+            .header("X-Consumer-ID", "test-consumer-1")
+            .exchange()
+            .expectStatus().isEqualTo(429)
+            .expectHeader().valueEquals("X-RateLimit-Type", "consumer")
+            .expectHeader().valueEquals("X-RateLimit-Limit", "3")
+    }
+
+    @Test
+    fun `Story 12-8 AC4 - stricter limit wins когда consumer limit строже`() {
+        // Route limit: 10 req/s, burst 5
+        // Consumer limit: 3 req/s, burst 2 (строже)
+        insertRouteWithRateLimit("/api/both-limits", rateLimitId)
+        insertConsumerRateLimit("strict-consumer", requestsPerSecond = 3, burstSize = 2)
+
+        // Consumer лимит строже (burst 2 < burst 3 route)
+        // Первые 2 запроса проходят
+        repeat(2) {
+            webTestClient.get()
+                .uri("/api/both-limits")
+                .header("X-Consumer-ID", "strict-consumer")
+                .exchange()
+                .expectStatus().isOk
+        }
+
+        // 3-й запрос блокируется consumer лимитом
+        webTestClient.get()
+            .uri("/api/both-limits")
+            .header("X-Consumer-ID", "strict-consumer")
+            .exchange()
+            .expectStatus().isEqualTo(429)
+            .expectHeader().valueEquals("X-RateLimit-Type", "consumer")
+    }
+
+    @Test
+    fun `Story 12-8 AC3 - X-RateLimit-Type header указывает consumer`() {
+        insertRoute("/api/type-header")
+        insertConsumerRateLimit("header-consumer", requestsPerSecond = 10, burstSize = 5)
+
+        webTestClient.get()
+            .uri("/api/type-header")
+            .header("X-Consumer-ID", "header-consumer")
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().valueEquals("X-RateLimit-Type", "consumer")
+            .expectHeader().valueEquals("X-RateLimit-Limit", "10")
+            .expectHeader().exists("X-RateLimit-Remaining")
+    }
+
+    @Test
+    fun `Story 12-8 AC5 - fallback на per-route лимит когда consumer лимит отсутствует`() {
+        // Создаём маршрут с route rate limit
+        insertRouteWithRateLimit("/api/route-fallback", rateLimitId)
+        // НЕ создаём consumer rate limit для этого consumer
+
+        // Запрос без consumer rate limit использует route limit
+        webTestClient.get()
+            .uri("/api/route-fallback")
+            .header("X-Consumer-ID", "no-limit-consumer")
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().valueEquals("X-RateLimit-Type", "route")
+            .expectHeader().valueEquals("X-RateLimit-Limit", "5") // route limit = 5 req/s
+    }
+
+    private fun insertConsumerRateLimit(consumerId: String, requestsPerSecond: Int, burstSize: Int) {
+        databaseClient.sql(
+            """
+            INSERT INTO consumer_rate_limits (id, consumer_id, requests_per_second, burst_size)
+            VALUES (:id, :consumerId, :rps, :burst)
+            """.trimIndent()
+        )
+            .bind("id", UUID.randomUUID())
+            .bind("consumerId", consumerId)
+            .bind("rps", requestsPerSecond)
+            .bind("burst", burstSize)
+            .fetch()
+            .rowsUpdated()
+            .block()
+
+        // Инвалидируем кэш чтобы тест подхватил новый consumer rate limit
+        consumerRateLimitCacheManager.invalidateCache(consumerId).block()
     }
 
     private fun insertRouteWithRateLimit(path: String, rateLimitId: UUID) {

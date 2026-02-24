@@ -174,7 +174,7 @@ development_status:
   12-5-gateway-core-consumer-identity-filter: done  # 2026-02-24: Code review — H1 constant duplication, M3 header validation fixes
   12-6-multi-tenant-metrics: done  # 2026-02-24: Code review — 2 integration tests added
   12-7-route-authentication-configuration: done  # 2026-02-24: Backend + Frontend, all tests pass
-  12-8-per-consumer-rate-limits: backlog
+  12-8-per-consumer-rate-limits: done  # 2026-02-24: Code review fixes — V12 migration, integration tests, Caffeine simplification
   12-9-consumer-management-ui: backlog
   12-10-e2e-playwright-tests: backlog
   epic-12-retrospective: optional

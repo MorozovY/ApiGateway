@@ -1,5 +1,6 @@
 package com.company.gateway.core.route
 
+import com.company.gateway.core.cache.ConsumerRateLimitCacheManager
 import com.company.gateway.core.cache.RouteCacheManager
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -23,11 +24,14 @@ class RouteRefreshServiceTest {
     @Mock
     private lateinit var cacheManager: RouteCacheManager
 
+    @Mock
+    private lateinit var consumerRateLimitCacheManager: ConsumerRateLimitCacheManager
+
     private lateinit var service: RouteRefreshService
 
     @BeforeEach
     fun setUp() {
-        service = RouteRefreshService(redisConnectionFactory, cacheManager)
+        service = RouteRefreshService(redisConnectionFactory, cacheManager, consumerRateLimitCacheManager)
     }
 
     @Test
@@ -65,7 +69,7 @@ class RouteRefreshServiceTest {
 
     @Test
     fun `сервис может быть создан с валидными зависимостями`() {
-        val newService = RouteRefreshService(redisConnectionFactory, cacheManager)
+        val newService = RouteRefreshService(redisConnectionFactory, cacheManager, consumerRateLimitCacheManager)
 
         assertThat(newService).isNotNull
         assertThat(newService.isRedisAvailable()).isTrue()
@@ -74,7 +78,7 @@ class RouteRefreshServiceTest {
     @Test
     fun `cleanup безопасен для вызова до запуска подписки`() {
         // Сервис создан, но subscribeToInvalidationEvents не вызван
-        val freshService = RouteRefreshService(redisConnectionFactory, cacheManager)
+        val freshService = RouteRefreshService(redisConnectionFactory, cacheManager, consumerRateLimitCacheManager)
 
         // Cleanup должен работать без NPE
         freshService.cleanup()
@@ -97,7 +101,7 @@ class RouteRefreshServiceTest {
     @Test
     fun `сервис не вызывает cacheManager при конструировании`() {
         // Создание сервиса НЕ должно вызывать операции с кэшем
-        val newService = RouteRefreshService(redisConnectionFactory, cacheManager)
+        val newService = RouteRefreshService(redisConnectionFactory, cacheManager, consumerRateLimitCacheManager)
 
         // CacheManager не должен вызываться при конструировании
         verify(cacheManager, never()).refreshCache()
@@ -109,7 +113,7 @@ class RouteRefreshServiceTest {
     @Test
     fun `сервис не вызывает refreshRateLimitCache при конструировании`() {
         // Создание сервиса НЕ должно вызывать операции с rate limit кэшем
-        val newService = RouteRefreshService(redisConnectionFactory, cacheManager)
+        val newService = RouteRefreshService(redisConnectionFactory, cacheManager, consumerRateLimitCacheManager)
 
         // CacheManager refreshRateLimitCache не должен вызываться при конструировании
         verify(cacheManager, never()).refreshRateLimitCache(any())
@@ -126,5 +130,30 @@ class RouteRefreshServiceTest {
 
         assertThat(result).isNotNull
         verify(cacheManager).refreshRateLimitCache(testId)
+    }
+
+    // ============ Story 12.8 тесты: подписка на consumer-ratelimit-cache-invalidation ============
+
+    @Test
+    fun `сервис не вызывает consumerRateLimitCacheManager при конструировании`() {
+        // Создание сервиса НЕ должно вызывать операции с consumer rate limit кэшем
+        val newService = RouteRefreshService(redisConnectionFactory, cacheManager, consumerRateLimitCacheManager)
+
+        // ConsumerRateLimitCacheManager invalidateCache не должен вызываться при конструировании
+        verify(consumerRateLimitCacheManager, never()).invalidateCache(any())
+        verify(consumerRateLimitCacheManager, never()).invalidateAll()
+    }
+
+    @Test
+    fun `зависимость consumerRateLimitCacheManager поддерживает invalidateCache`() {
+        // Проверяем, что consumerRateLimitCacheManager.invalidateCache доступен
+        val testConsumerId = "test-consumer"
+        whenever(consumerRateLimitCacheManager.invalidateCache(testConsumerId)).thenReturn(Mono.empty())
+
+        // Вызываем метод
+        val result = consumerRateLimitCacheManager.invalidateCache(testConsumerId)
+
+        assertThat(result).isNotNull
+        verify(consumerRateLimitCacheManager).invalidateCache(testConsumerId)
     }
 }

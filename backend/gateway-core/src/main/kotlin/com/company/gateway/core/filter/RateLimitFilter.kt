@@ -1,6 +1,8 @@
 package com.company.gateway.core.filter
 
 import com.company.gateway.common.model.RateLimit
+import com.company.gateway.core.cache.ConsumerRateLimitCacheManager
+import com.company.gateway.core.ratelimit.RateLimitCheckResult
 import com.company.gateway.core.ratelimit.RateLimitResult
 import com.company.gateway.core.ratelimit.RateLimitService
 import org.slf4j.LoggerFactory
@@ -28,7 +30,8 @@ import java.util.UUID
  */
 @Component
 class RateLimitFilter(
-    private val rateLimitService: RateLimitService
+    private val rateLimitService: RateLimitService,
+    private val consumerRateLimitCacheManager: ConsumerRateLimitCacheManager
 ) : GlobalFilter, Ordered {
 
     private val logger = LoggerFactory.getLogger(RateLimitFilter::class.java)
@@ -54,6 +57,12 @@ class RateLimitFilter(
         private const val HEADER_RATE_REMAINING = "X-RateLimit-Remaining"
         private const val HEADER_RATE_RESET = "X-RateLimit-Reset"
         private const val HEADER_RETRY_AFTER = "Retry-After"
+
+        /**
+         * Заголовок типа сработавшего лимита.
+         * Story 12.8, AC3: Указывает какой лимит сработал (route/consumer).
+         */
+        private const val HEADER_RATE_LIMIT_TYPE = "X-RateLimit-Type"
     }
 
     override fun getOrder(): Int = FILTER_ORDER
@@ -62,28 +71,70 @@ class RateLimitFilter(
         // Получаем routeId и rateLimit из атрибутов exchange
         // Эти атрибуты устанавливаются в DynamicRouteLocator
         val routeId = exchange.getAttribute<UUID>(ROUTE_ID_ATTRIBUTE)
-        val rateLimit = exchange.getAttribute<RateLimit>(RATE_LIMIT_ATTRIBUTE)
+        val routeLimit = exchange.getAttribute<RateLimit>(RATE_LIMIT_ATTRIBUTE)
 
-        // Если нет rate limit политики — пропускаем проверку (AC5)
-        if (rateLimit == null || routeId == null) {
-            return chain.filter(exchange)
-        }
+        // Получаем consumer ID из JwtAuthenticationFilter/ConsumerIdentityFilter
+        val consumerId = exchange.getAttribute<String>(JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE)
+            ?: ConsumerIdentityFilter.ANONYMOUS
 
-        // Получаем идентификатор клиента
+        // Получаем идентификатор клиента (IP)
         val clientKey = extractClientKey(exchange)
 
-        // Выполняем проверку rate limit
-        return rateLimitService.checkRateLimit(routeId, clientKey, rateLimit)
-            .flatMap { result ->
-                if (result.allowed) {
-                    // Запрос разрешён — добавляем информационные заголовки и продолжаем
-                    addRateLimitHeaders(exchange, rateLimit, result)
-                    chain.filter(exchange)
+        // Проверяем наличие per-consumer rate limit
+        // Используем hasElement() + flatMap для корректной обработки Mono<Void>
+        return consumerRateLimitCacheManager.getConsumerRateLimit(consumerId)
+            .flatMap { consumerLimit ->
+                if (consumerLimit != null) {
+                    // AC4: Есть consumer limit — проверяем оба лимита
+                    rateLimitService.checkBothLimits(routeId, clientKey, consumerId, routeLimit, consumerLimit)
+                        .flatMap { checkResult -> handleCheckResult(exchange, chain, checkResult) }
+                        .then(Mono.just(true))  // Маркер: rate limit обработан
                 } else {
-                    // Запрос отклонён — возвращаем 429 Too Many Requests
-                    rejectRequest(exchange, rateLimit, result)
+                    // Consumer limit = null, нужен fallback
+                    Mono.just(false)
                 }
             }
+            .defaultIfEmpty(false)  // Если Mono.empty() от getConsumerRateLimit
+            .flatMap { wasProcessed ->
+                if (wasProcessed) {
+                    // Rate limit уже обработан
+                    Mono.empty()
+                } else {
+                    // AC5: Fallback на per-route rate limit
+                    if (routeLimit != null && routeId != null) {
+                        rateLimitService.checkRateLimit(routeId, clientKey, routeLimit)
+                            .flatMap { result ->
+                                val checkResult = RateLimitCheckResult(
+                                    result = result,
+                                    limitType = RateLimitCheckResult.TYPE_ROUTE,
+                                    limit = routeLimit.requestsPerSecond
+                                )
+                                handleCheckResult(exchange, chain, checkResult)
+                            }
+                    } else {
+                        // Нет никаких rate limits — пропускаем
+                        chain.filter(exchange)
+                    }
+                }
+            }
+    }
+
+    /**
+     * Обрабатывает результат проверки rate limit.
+     */
+    private fun handleCheckResult(
+        exchange: ServerWebExchange,
+        chain: GatewayFilterChain,
+        checkResult: RateLimitCheckResult
+    ): Mono<Void> {
+        return if (checkResult.result.allowed) {
+            // Запрос разрешён — добавляем информационные заголовки и продолжаем
+            addRateLimitHeaders(exchange, checkResult)
+            chain.filter(exchange)
+        } else {
+            // Запрос отклонён — возвращаем 429 Too Many Requests
+            rejectRequest(exchange, checkResult)
+        }
     }
 
     /**
@@ -117,34 +168,53 @@ class RateLimitFilter(
 
     /**
      * Добавляет заголовки rate limit в успешный ответ (AC7).
+     *
+     * Story 12.8: Добавляет X-RateLimit-Type для указания типа лимита.
      */
     private fun addRateLimitHeaders(
         exchange: ServerWebExchange,
-        rateLimit: RateLimit,
-        result: RateLimitResult
+        checkResult: RateLimitCheckResult
     ) {
         val response = exchange.response
-        response.headers.add(HEADER_RATE_LIMIT, rateLimit.requestsPerSecond.toString())
-        response.headers.add(HEADER_RATE_REMAINING, result.remaining.toString())
+        checkResult.limit?.let { limit ->
+            response.headers.add(HEADER_RATE_LIMIT, limit.toString())
+        }
+        response.headers.add(HEADER_RATE_REMAINING, checkResult.result.remaining.toString())
         // Reset time в Unix seconds (не миллисекунды)
-        response.headers.add(HEADER_RATE_RESET, (result.resetTime / 1000).toString())
+        if (checkResult.result.resetTime > 0) {
+            response.headers.add(HEADER_RATE_RESET, (checkResult.result.resetTime / 1000).toString())
+        }
+        // Тип лимита (route/consumer) — AC3, AC4, AC5
+        checkResult.limitType?.let { type ->
+            response.headers.add(HEADER_RATE_LIMIT_TYPE, type)
+        }
     }
 
     /**
      * Отклоняет запрос с HTTP 429 Too Many Requests в формате RFC 7807 (AC2, Task 6).
+     *
+     * Story 12.8, AC3: Добавляет X-RateLimit-Type для указания какой лимит превышен.
      */
     private fun rejectRequest(
         exchange: ServerWebExchange,
-        rateLimit: RateLimit,
-        result: RateLimitResult
+        checkResult: RateLimitCheckResult
     ): Mono<Void> {
         val response = exchange.response
         response.statusCode = HttpStatus.TOO_MANY_REQUESTS
 
+        val result = checkResult.result
+
         // Rate limit заголовки
-        response.headers.add(HEADER_RATE_LIMIT, rateLimit.requestsPerSecond.toString())
+        checkResult.limit?.let { limit ->
+            response.headers.add(HEADER_RATE_LIMIT, limit.toString())
+        }
         response.headers.add(HEADER_RATE_REMAINING, "0")
         response.headers.add(HEADER_RATE_RESET, (result.resetTime / 1000).toString())
+
+        // Тип лимита (route/consumer) — AC3
+        checkResult.limitType?.let { type ->
+            response.headers.add(HEADER_RATE_LIMIT_TYPE, type)
+        }
 
         // Retry-After в секундах
         val retryAfterSeconds = ((result.resetTime - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
@@ -157,12 +227,13 @@ class RateLimitFilter(
             ?: "unknown"
 
         // RFC 7807 Problem Details формат
+        val limitTypeDesc = checkResult.limitType ?: "unknown"
         val errorBody = """
         {
             "type": "https://api.gateway/errors/rate-limit-exceeded",
             "title": "Too Many Requests",
             "status": 429,
-            "detail": "Rate limit exceeded. Try again in $retryAfterSeconds seconds.",
+            "detail": "Rate limit ($limitTypeDesc) exceeded. Try again in $retryAfterSeconds seconds.",
             "correlationId": "$correlationId"
         }
         """.trimIndent()

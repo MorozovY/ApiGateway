@@ -1,5 +1,6 @@
 package com.company.gateway.core.route
 
+import com.company.gateway.core.cache.ConsumerRateLimitCacheManager
 import com.company.gateway.core.cache.RouteCacheManager
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
@@ -20,9 +21,10 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Сервис подписки на Redis Pub/Sub для обновления кэша маршрутов и rate limit политик.
  *
- * Подписывается на два канала:
+ * Подписывается на три канала:
  * - route-cache-invalidation: события изменения маршрутов
  * - ratelimit-cache-invalidation: события изменения rate limit политик (Story 5.8)
+ * - consumer-ratelimit-cache-invalidation: события изменения consumer rate limits (Story 12.8)
  *
  * При недоступности Redis использует Caffeine cache с TTL fallback
  * и автоматически переподключается каждые 30 секунд.
@@ -30,7 +32,8 @@ import java.util.concurrent.atomic.AtomicReference
 @Service
 class RouteRefreshService(
     private val redisConnectionFactory: ReactiveRedisConnectionFactory,
-    private val cacheManager: RouteCacheManager
+    private val cacheManager: RouteCacheManager,
+    private val consumerRateLimitCacheManager: ConsumerRateLimitCacheManager
 ) {
     private val logger = LoggerFactory.getLogger(RouteRefreshService::class.java)
 
@@ -40,13 +43,18 @@ class RouteRefreshService(
     @Value("\${gateway.cache.ratelimit-invalidation-channel:ratelimit-cache-invalidation}")
     private lateinit var rateLimitInvalidationChannel: String
 
+    @Value("\${gateway.cache.consumer-ratelimit-invalidation-channel:consumer-ratelimit-cache-invalidation}")
+    private lateinit var consumerRateLimitInvalidationChannel: String
+
     @Value("\${gateway.cache.reconnect-delay-seconds:30}")
     private var reconnectDelaySeconds: Long = 30
 
     private val routeSubscription = AtomicReference<Disposable?>(null)
     private val rateLimitSubscription = AtomicReference<Disposable?>(null)
+    private val consumerRateLimitSubscription = AtomicReference<Disposable?>(null)
     private val routeContainer = AtomicReference<ReactiveRedisMessageListenerContainer?>(null)
     private val rateLimitContainer = AtomicReference<ReactiveRedisMessageListenerContainer?>(null)
+    private val consumerRateLimitContainer = AtomicReference<ReactiveRedisMessageListenerContainer?>(null)
     private val redisAvailable = AtomicBoolean(true)
     private val reconnecting = AtomicBoolean(false)
     private var reconnectSubscription: Disposable? = null
@@ -55,6 +63,7 @@ class RouteRefreshService(
     fun subscribeToInvalidationEvents() {
         startRouteSubscription()
         startRateLimitSubscription()
+        startConsumerRateLimitSubscription()
     }
 
     /**
@@ -150,6 +159,49 @@ class RouteRefreshService(
     }
 
     /**
+     * Запускает подписку на канал consumer-ratelimit-cache-invalidation.
+     * При получении события инвалидируется кэш для конкретного consumer.
+     *
+     * Story 12.8, AC2: Consumer rate limits синхронизируются немедленно
+     */
+    private fun startConsumerRateLimitSubscription() {
+        // Cleanup previous subscription and container if they exist
+        consumerRateLimitSubscription.getAndSet(null)?.dispose()
+        consumerRateLimitContainer.getAndSet(null)?.destroy()
+
+        try {
+            val newContainer = ReactiveRedisMessageListenerContainer(redisConnectionFactory)
+            consumerRateLimitContainer.set(newContainer)
+
+            val newSubscription = newContainer.receive(ChannelTopic.of(consumerRateLimitInvalidationChannel))
+                .flatMap { message ->
+                    val consumerId = message.message
+                    logger.info("Получено событие инвалидации consumer rate limit на канале '{}': {}",
+                        consumerRateLimitInvalidationChannel, consumerId)
+
+                    consumerRateLimitCacheManager.invalidateCache(consumerId)
+                }
+                .doOnSubscribe {
+                    logger.info("Подписка на Redis канал '{}' активирована", consumerRateLimitInvalidationChannel)
+                }
+                .doOnError { error ->
+                    logger.warn("Ошибка подписки Redis (consumer-ratelimit): {}", error.message)
+                    scheduleReconnect()
+                }
+                .onErrorResume { _ ->
+                    logger.warn("Redis недоступен для consumer rate limit events")
+                    Mono.empty()
+                }
+                .subscribe()
+
+            consumerRateLimitSubscription.set(newSubscription)
+        } catch (e: Exception) {
+            logger.warn("Ошибка подключения к Redis (consumer-ratelimit): {}", e.message)
+            scheduleReconnect()
+        }
+    }
+
+    /**
      * Очищает все текущие подписки и контейнеры.
      */
     private fun cleanupCurrentSubscription() {
@@ -157,6 +209,8 @@ class RouteRefreshService(
         routeContainer.getAndSet(null)?.destroy()
         rateLimitSubscription.getAndSet(null)?.dispose()
         rateLimitContainer.getAndSet(null)?.destroy()
+        consumerRateLimitSubscription.getAndSet(null)?.dispose()
+        consumerRateLimitContainer.getAndSet(null)?.destroy()
     }
 
     private fun scheduleReconnect() {
@@ -178,6 +232,7 @@ class RouteRefreshService(
             .subscribe {
                 startRouteSubscription()
                 startRateLimitSubscription()
+                startConsumerRateLimitSubscription()
             }
     }
 
