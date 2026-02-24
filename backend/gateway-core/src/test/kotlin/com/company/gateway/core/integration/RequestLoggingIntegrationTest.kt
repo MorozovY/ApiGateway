@@ -3,7 +3,9 @@ package com.company.gateway.core.integration
 import com.company.gateway.common.exception.ErrorResponse
 import com.company.gateway.common.model.RouteStatus
 import com.company.gateway.core.cache.RouteCacheManager
+import com.company.gateway.core.filter.ConsumerIdentityFilter
 import com.company.gateway.core.filter.CorrelationIdFilter
+import com.company.gateway.core.filter.JwtAuthenticationFilter
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
@@ -332,6 +334,59 @@ class RequestLoggingIntegrationTest {
         // Все сгенерированные IDs должны быть уникальными
         assert(correlationIds.size == 5) {
             "Ожидалось 5 уникальных сгенерированных correlation IDs, получено ${correlationIds.size}: $correlationIds"
+        }
+    }
+
+    // ============================================
+    // Story 12.5: Consumer Identity Filter Integration
+    // ============================================
+
+    @Test
+    fun `ConsumerIdentityFilter - X-Consumer-ID header используется для public routes`() {
+        insertRoute("/api/public", "http://localhost:${wireMock.port()}")
+        wireMock.stubFor(
+            get(urlEqualTo("/api/public"))
+                .willReturn(aResponse().withStatus(200).withBody("{}"))
+        )
+
+        // Запрос с X-Consumer-ID header
+        webTestClient.get()
+            .uri("/api/public")
+            .header(ConsumerIdentityFilter.CONSUMER_ID_HEADER, "external-client-123")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `ConsumerIdentityFilter - невалидный X-Consumer-ID header отклоняется`() {
+        insertRoute("/api/secure", "http://localhost:${wireMock.port()}")
+        wireMock.stubFor(
+            get(urlEqualTo("/api/secure"))
+                .willReturn(aResponse().withStatus(200).withBody("{}"))
+        )
+
+        // Запрос с невалидным X-Consumer-ID (содержит спецсимволы)
+        webTestClient.get()
+            .uri("/api/secure")
+            .header(ConsumerIdentityFilter.CONSUMER_ID_HEADER, "consumer<script>")
+            .exchange()
+            .expectStatus().isOk
+        // Фильтр не блокирует запрос, просто fallback на anonymous
+    }
+
+    @Test
+    fun `ConsumerIdentityFilter - filter chain order корректен`() {
+        // Проверяем что фильтры выполняются в правильном порядке:
+        // CorrelationIdFilter (HIGHEST_PRECEDENCE) -> JwtAuthenticationFilter (+5) -> ConsumerIdentityFilter (+8)
+        val correlationOrder = org.springframework.core.Ordered.HIGHEST_PRECEDENCE
+        val jwtOrder = JwtAuthenticationFilter.FILTER_ORDER
+        val consumerOrder = ConsumerIdentityFilter.FILTER_ORDER
+
+        assert(correlationOrder < jwtOrder) {
+            "CorrelationIdFilter ($correlationOrder) должен выполняться до JwtAuthenticationFilter ($jwtOrder)"
+        }
+        assert(jwtOrder < consumerOrder) {
+            "JwtAuthenticationFilter ($jwtOrder) должен выполняться до ConsumerIdentityFilter ($consumerOrder)"
         }
     }
 

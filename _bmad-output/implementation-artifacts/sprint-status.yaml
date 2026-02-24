@@ -171,7 +171,7 @@ development_status:
   12-2-admin-ui-keycloak-auth-migration: done  # 2026-02-23: Code review passed, 31 tests added, feature flag OFF по умолчанию
   12-3-gateway-admin-keycloak-jwt-validation: done  # 2026-02-24: Code review + smoke tests passed
   12-4-gateway-core-jwt-authentication-filter: done  # 2026-02-24: Code review — 4 теста добавлены, RFC 7807 fix
-  12-5-gateway-core-consumer-identity-filter: backlog
+  12-5-gateway-core-consumer-identity-filter: done  # 2026-02-24: Code review — H1 constant duplication, M3 header validation fixes
   12-6-multi-tenant-metrics: backlog
   12-7-route-authentication-configuration: backlog
   12-8-per-consumer-rate-limits: backlog

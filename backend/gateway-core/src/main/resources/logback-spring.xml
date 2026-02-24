@@ -8,8 +8,9 @@
                 <!-- ISO 8601 timestamp format (AC3 requirement) -->
                 <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSXXX</timestampPattern>
 
-                <!-- Include MDC fields in JSON output (AC3 requirement) -->
+                <!-- Include MDC fields in JSON output (AC3 requirement, Story 12.5) -->
                 <includeMdcKeyName>correlationId</includeMdcKeyName>
+                <includeMdcKeyName>consumerId</includeMdcKeyName>
                 <includeMdcKeyName>method</includeMdcKeyName>
                 <includeMdcKeyName>path</includeMdcKeyName>
                 <includeMdcKeyName>status</includeMdcKeyName>
@@ -37,7 +38,7 @@
     <springProfile name="dev">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n</pattern>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{correlationId}] [%X{consumerId}] - %msg%n</pattern>
             </encoder>
         </appender>
 
@@ -56,7 +57,7 @@
     <springProfile name="test">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} [%X{correlationId}] - %msg%n</pattern>
+                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} [%X{correlationId}] [%X{consumerId}] - %msg%n</pattern>
             </encoder>
         </appender>
 

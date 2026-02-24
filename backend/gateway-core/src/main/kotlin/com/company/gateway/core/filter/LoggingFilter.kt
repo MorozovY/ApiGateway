@@ -42,6 +42,8 @@ class LoggingFilter : GlobalFilter, Ordered {
                 if (signal.isOnComplete || signal.isOnError) {
                     val correlationId = signal.contextView
                         .getOrDefault(CorrelationIdFilter.CORRELATION_ID_CONTEXT_KEY, "unknown")
+                    val consumerId = signal.contextView
+                        .getOrDefault(ConsumerIdentityFilter.CONSUMER_ID_CONTEXT_KEY, "anonymous")
 
                     val duration = System.currentTimeMillis() - startTime
                     // Получаем код статуса; при error signal может быть null если обработчик ошибок ещё не установил его
@@ -52,6 +54,7 @@ class LoggingFilter : GlobalFilter, Ordered {
 
                     try {
                         MDC.put("correlationId", correlationId)
+                        MDC.put("consumerId", consumerId)
                         MDC.put("method", request.method.name())
                         MDC.put("path", request.path.value())
                         MDC.put("status", status.toString())
