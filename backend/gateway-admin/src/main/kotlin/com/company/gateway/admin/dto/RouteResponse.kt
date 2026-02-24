@@ -27,6 +27,8 @@ import java.util.UUID
  * @property rejectionReason причина отклонения
  * @property rateLimitId ID назначенной политики rate limiting
  * @property rateLimit детали политики rate limiting (если назначена)
+ * @property authRequired требуется ли JWT аутентификация для маршрута (Story 12.7)
+ * @property allowedConsumers whitelist consumer IDs (Story 12.7)
  */
 data class RouteResponse(
     val id: UUID,
@@ -46,7 +48,9 @@ data class RouteResponse(
     val rejectedAt: Instant? = null,
     val rejectionReason: String? = null,
     val rateLimitId: UUID? = null,
-    val rateLimit: RateLimitInfo? = null
+    val rateLimit: RateLimitInfo? = null,
+    val authRequired: Boolean = true,
+    val allowedConsumers: List<String>? = null
 ) {
     companion object {
         /**
@@ -75,7 +79,9 @@ data class RouteResponse(
                 rejectedAt = route.rejectedAt,
                 rejectionReason = route.rejectionReason,
                 rateLimitId = route.rateLimitId,
-                rateLimit = rateLimit
+                rateLimit = rateLimit,
+                authRequired = route.authRequired,
+                allowedConsumers = route.allowedConsumers
             )
         }
     }

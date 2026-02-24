@@ -23,6 +23,8 @@ import java.util.UUID
  * @property updatedAt дата последнего обновления
  * @property rateLimitId ID политики rate limiting (если назначена)
  * @property rateLimit детали политики rate limiting (если назначена)
+ * @property authRequired требуется ли JWT аутентификация для маршрута (Story 12.7)
+ * @property allowedConsumers whitelist consumer IDs (Story 12.7)
  */
 data class RouteDetailResponse(
     val id: UUID,
@@ -44,7 +46,9 @@ data class RouteDetailResponse(
     val rejectedAt: Instant? = null,
     val rejectionReason: String? = null,
     val rateLimitId: UUID? = null,
-    val rateLimit: RateLimitInfo? = null
+    val rateLimit: RateLimitInfo? = null,
+    val authRequired: Boolean = true,
+    val allowedConsumers: List<String>? = null
 )
 
 /**
@@ -76,7 +80,9 @@ data class RouteWithCreator(
     val rateLimitId: UUID? = null,
     val rateLimitName: String? = null,
     val rateLimitRequestsPerSecond: Int? = null,
-    val rateLimitBurstSize: Int? = null
+    val rateLimitBurstSize: Int? = null,
+    val authRequired: Boolean = true,
+    val allowedConsumers: List<String>? = null
 ) {
     /**
      * Преобразует в RouteDetailResponse для API.
@@ -112,7 +118,9 @@ data class RouteWithCreator(
             rejectedAt = rejectedAt,
             rejectionReason = rejectionReason,
             rateLimitId = rateLimitId,
-            rateLimit = rateLimitInfo
+            rateLimit = rateLimitInfo,
+            authRequired = authRequired,
+            allowedConsumers = allowedConsumers
         )
     }
 }

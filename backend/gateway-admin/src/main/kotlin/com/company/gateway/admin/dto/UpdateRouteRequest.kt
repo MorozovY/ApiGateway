@@ -84,6 +84,64 @@ class UpdateRouteRequest(
         this.rateLimitIdProvided = true
     }
 
+    // === JWT Authentication Fields (Story 12.7) ===
+
+    /**
+     * Внутреннее хранилище для authRequired.
+     */
+    @JsonIgnore
+    private var _authRequired: Boolean? = null
+
+    /**
+     * Требуется ли JWT аутентификация.
+     */
+    val authRequired: Boolean?
+        get() = _authRequired
+
+    /**
+     * Флаг, указывающий был ли authRequired явно передан в JSON.
+     */
+    @JsonIgnore
+    var authRequiredProvided: Boolean = false
+        private set
+
+    /**
+     * Jackson setter для authRequired.
+     */
+    @JsonSetter("authRequired")
+    fun setAuthRequiredFromJson(value: Boolean?) {
+        this._authRequired = value
+        this.authRequiredProvided = true
+    }
+
+    /**
+     * Внутреннее хранилище для allowedConsumers.
+     */
+    @JsonIgnore
+    private var _allowedConsumers: List<String>? = null
+
+    /**
+     * Whitelist consumer IDs.
+     */
+    val allowedConsumers: List<String>?
+        get() = _allowedConsumers
+
+    /**
+     * Флаг, указывающий был ли allowedConsumers явно передан в JSON.
+     */
+    @JsonIgnore
+    var allowedConsumersProvided: Boolean = false
+        private set
+
+    /**
+     * Jackson setter для allowedConsumers.
+     */
+    @JsonSetter("allowedConsumers")
+    fun setAllowedConsumersFromJson(value: List<String>?) {
+        this._allowedConsumers = value
+        this.allowedConsumersProvided = true
+    }
+
     companion object {
         /**
          * Создаёт запрос с явно указанным rateLimitId для использования в тестах.
@@ -104,6 +162,33 @@ class UpdateRouteRequest(
             )
             // Эмулируем поведение @JsonSetter
             request.setRateLimitIdFromJson(rateLimitId)
+            return request
+        }
+
+        /**
+         * Создаёт запрос с явно указанными auth полями для использования в тестах (Story 12.7).
+         * Эквивалентно получению JSON с полями "authRequired" и/или "allowedConsumers".
+         */
+        fun withAuthFields(
+            authRequired: Boolean? = null,
+            allowedConsumers: List<String>? = null,
+            path: String? = null,
+            upstreamUrl: String? = null,
+            methods: List<String>? = null,
+            description: String? = null
+        ): UpdateRouteRequest {
+            val request = UpdateRouteRequest(
+                path = path,
+                upstreamUrl = upstreamUrl,
+                methods = methods,
+                description = description
+            )
+            if (authRequired != null) {
+                request.setAuthRequiredFromJson(authRequired)
+            }
+            if (allowedConsumers != null) {
+                request.setAllowedConsumersFromJson(allowedConsumers)
+            }
             return request
         }
     }

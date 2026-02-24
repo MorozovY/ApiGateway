@@ -502,3 +502,179 @@ describe('loading state Rate Limit (Story 5.5)', () => {
     }
   })
 })
+
+// ============================================
+// Story 12.7: Route Authentication Configuration
+// ============================================
+
+describe('поля Authentication (Story 12.7)', () => {
+  const mockOnSubmit = vi.fn()
+  const mockOnCancel = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockRateLimitsLoading = false
+    mockOnSubmit.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('отображает switch Authentication Required', () => {
+    renderWithMockAuth(
+      <RouteForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        mode="create"
+      />,
+      { authValue: { isAuthenticated: true } }
+    )
+
+    // Проверяем наличие label и switch
+    expect(screen.getByText('Authentication Required')).toBeInTheDocument()
+    expect(screen.getByTestId('auth-required-switch')).toBeInTheDocument()
+  })
+
+  it('отображает поле Allowed Consumers', () => {
+    renderWithMockAuth(
+      <RouteForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        mode="create"
+      />,
+      { authValue: { isAuthenticated: true } }
+    )
+
+    // Проверяем наличие label
+    expect(screen.getByText('Allowed Consumers')).toBeInTheDocument()
+  })
+
+  it('authRequired по умолчанию включён (true)', () => {
+    renderWithMockAuth(
+      <RouteForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        mode="create"
+      />,
+      { authValue: { isAuthenticated: true } }
+    )
+
+    // Switch должен быть checked по умолчанию
+    const authSwitch = screen.getByTestId('auth-required-switch')
+    expect(authSwitch).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('включает authRequired и allowedConsumers в onSubmit', async () => {
+    const user = userEvent.setup()
+
+    const routeData: Route = {
+      id: 'route-1',
+      path: '/api/test',
+      upstreamUrl: 'http://localhost:8080',
+      methods: ['GET'],
+      description: 'Test',
+      status: 'draft',
+      createdBy: 'user-1',
+      createdAt: '2026-02-18T10:00:00Z',
+      updatedAt: '2026-02-18T10:00:00Z',
+      rateLimitId: null,
+      rateLimit: null,
+      authRequired: true,
+      allowedConsumers: null,
+    }
+
+    renderWithMockAuth(
+      <RouteForm
+        initialValues={routeData}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        mode="edit"
+      />,
+      { authValue: { isAuthenticated: true } }
+    )
+
+    // Submit формы
+    await user.click(screen.getByRole('button', { name: /save as draft/i }))
+
+    // Проверяем что onSubmit вызван с authRequired
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authRequired: true,
+          allowedConsumers: null,
+        })
+      )
+    })
+  })
+
+  it('инициализирует форму с authRequired=false в edit mode', () => {
+    const routeData: Route = {
+      id: 'route-1',
+      path: '/api/public',
+      upstreamUrl: 'http://localhost:8080',
+      methods: ['GET'],
+      description: 'Public route',
+      status: 'draft',
+      createdBy: 'user-1',
+      createdAt: '2026-02-18T10:00:00Z',
+      updatedAt: '2026-02-18T10:00:00Z',
+      rateLimitId: null,
+      rateLimit: null,
+      authRequired: false,
+      allowedConsumers: null,
+    }
+
+    renderWithMockAuth(
+      <RouteForm
+        initialValues={routeData}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        mode="edit"
+      />,
+      { authValue: { isAuthenticated: true } }
+    )
+
+    // Switch должен быть unchecked для public route
+    const authSwitch = screen.getByTestId('auth-required-switch')
+    expect(authSwitch).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('инициализирует форму с allowedConsumers в edit mode', () => {
+    const routeData: Route = {
+      id: 'route-1',
+      path: '/api/restricted',
+      upstreamUrl: 'http://localhost:8080',
+      methods: ['GET'],
+      description: 'Restricted route',
+      status: 'draft',
+      createdBy: 'user-1',
+      createdAt: '2026-02-18T10:00:00Z',
+      updatedAt: '2026-02-18T10:00:00Z',
+      rateLimitId: null,
+      rateLimit: null,
+      authRequired: true,
+      allowedConsumers: ['company-a', 'company-b'],
+    }
+
+    renderWithMockAuth(
+      <RouteForm
+        initialValues={routeData}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        mode="edit"
+      />,
+      { authValue: { isAuthenticated: true } }
+    )
+
+    // Проверяем что consumers отображаются как tags
+    expect(screen.getByText('company-a')).toBeInTheDocument()
+    expect(screen.getByText('company-b')).toBeInTheDocument()
+  })
+})

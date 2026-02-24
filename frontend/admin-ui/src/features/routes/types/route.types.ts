@@ -46,6 +46,11 @@ export interface Route {
   rejectedAt?: string | null
   approverUsername?: string | null
   approvedAt?: string | null
+  // JWT Authentication fields (Story 12.7)
+  /** Требуется ли JWT аутентификация для маршрута */
+  authRequired: boolean
+  /** Whitelist consumer IDs (null = все разрешены) */
+  allowedConsumers: string[] | null
 }
 
 /**
@@ -83,6 +88,10 @@ export interface CreateRouteRequest {
   description?: string
   /** ID политики rate limit (Story 5.5) */
   rateLimitId?: string | null
+  /** Требуется ли JWT аутентификация (Story 12.7). Default: true */
+  authRequired?: boolean
+  /** Whitelist consumer IDs (Story 12.7). Null = все разрешены */
+  allowedConsumers?: string[] | null
 }
 
 /**
@@ -97,6 +106,10 @@ export interface UpdateRouteRequest {
   description?: string
   /** ID политики rate limit (Story 5.5) */
   rateLimitId?: string | null
+  /** Требуется ли JWT аутентификация (Story 12.7) */
+  authRequired?: boolean
+  /** Whitelist consumer IDs (Story 12.7) */
+  allowedConsumers?: string[] | null
 }
 
 // ========================================

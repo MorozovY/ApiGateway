@@ -1023,4 +1023,178 @@ class RouteControllerIntegrationTest {
             .verifyComplete()
         return savedRoute!!
     }
+
+    /**
+     * Создаёт тестовый маршрут с auth настройками (Story 12.7).
+     */
+    private fun createTestRouteWithAuth(
+        path: String,
+        createdBy: UUID,
+        authRequired: Boolean = true,
+        allowedConsumers: List<String>? = null
+    ): Route {
+        val route = Route(
+            path = path,
+            upstreamUrl = "http://test-service:8080",
+            methods = listOf("GET", "POST"),
+            description = "Test route with auth",
+            status = RouteStatus.DRAFT,
+            createdBy = createdBy,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+            authRequired = authRequired,
+            allowedConsumers = allowedConsumers
+        )
+        var savedRoute: Route? = null
+        StepVerifier.create(routeRepository.save(route))
+            .consumeNextWith { savedRoute = it }
+            .verifyComplete()
+        return savedRoute!!
+    }
+
+    // ============================================
+    // Story 12.7: Route Authentication Configuration
+    // ============================================
+
+    @Nested
+    inner class Story_12_7_RouteAuthentication {
+
+        @Test
+        fun `создаёт маршрут с authRequired=true по умолчанию`() {
+            val request = CreateRouteRequest(
+                path = "/api/protected",
+                upstreamUrl = "http://protected-service:8080",
+                methods = listOf("GET", "POST")
+            )
+
+            webTestClient.post()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.authRequired").isEqualTo(true)
+                .jsonPath("$.allowedConsumers").doesNotExist()
+        }
+
+        @Test
+        fun `создаёт public маршрут с authRequired=false`() {
+            val request = CreateRouteRequest(
+                path = "/api/public",
+                upstreamUrl = "http://public-service:8080",
+                methods = listOf("GET"),
+                authRequired = false
+            )
+
+            webTestClient.post()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.authRequired").isEqualTo(false)
+                .jsonPath("$.allowedConsumers").doesNotExist()
+        }
+
+        @Test
+        fun `создаёт маршрут с allowedConsumers whitelist`() {
+            val request = CreateRouteRequest(
+                path = "/api/restricted",
+                upstreamUrl = "http://restricted-service:8080",
+                methods = listOf("GET", "POST"),
+                authRequired = true,
+                allowedConsumers = listOf("company-a", "company-b")
+            )
+
+            webTestClient.post()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.authRequired").isEqualTo(true)
+                .jsonPath("$.allowedConsumers[0]").isEqualTo("company-a")
+                .jsonPath("$.allowedConsumers[1]").isEqualTo("company-b")
+        }
+
+        @Test
+        fun `обновляет authRequired с true на false`() {
+            val route = createTestRouteWithAuth("/api/test-auth", developerUser.id!!, authRequired = true)
+
+            val request = UpdateRouteRequest.withAuthFields(
+                authRequired = false
+            )
+
+            webTestClient.put()
+                .uri("/api/v1/routes/${route.id}")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.authRequired").isEqualTo(false)
+        }
+
+        @Test
+        fun `обновляет allowedConsumers`() {
+            val route = createTestRouteWithAuth("/api/test-whitelist", developerUser.id!!, allowedConsumers = listOf("old-consumer"))
+
+            val request = UpdateRouteRequest.withAuthFields(
+                allowedConsumers = listOf("new-consumer-1", "new-consumer-2")
+            )
+
+            webTestClient.put()
+                .uri("/api/v1/routes/${route.id}")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.allowedConsumers[0]").isEqualTo("new-consumer-1")
+                .jsonPath("$.allowedConsumers[1]").isEqualTo("new-consumer-2")
+        }
+
+        @Test
+        fun `GET routes id возвращает authRequired и allowedConsumers`() {
+            val route = createTestRouteWithAuth(
+                "/api/get-test",
+                developerUser.id!!,
+                authRequired = false,
+                allowedConsumers = listOf("test-consumer")
+            )
+
+            webTestClient.get()
+                .uri("/api/v1/routes/${route.id}")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.authRequired").isEqualTo(false)
+                .jsonPath("$.allowedConsumers[0]").isEqualTo("test-consumer")
+        }
+
+        @Test
+        fun `GET routes список содержит authRequired поле`() {
+            createTestRouteWithAuth("/api/list-protected", developerUser.id!!, authRequired = true)
+            createTestRouteWithAuth("/api/list-public", developerUser.id!!, authRequired = false)
+
+            webTestClient.get()
+                .uri("/api/v1/routes?limit=10")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isOk
+                .expectBody()
+                .jsonPath("$.items.length()").isEqualTo(2)
+                .jsonPath("$.items[?(@.path == '/api/list-protected')].authRequired").isEqualTo(true)
+                .jsonPath("$.items[?(@.path == '/api/list-public')].authRequired").isEqualTo(false)
+        }
+    }
 }

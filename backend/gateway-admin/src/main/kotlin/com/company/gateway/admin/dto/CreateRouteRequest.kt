@@ -16,6 +16,8 @@ import java.util.UUID
  * @property methods список разрешённых HTTP методов (обязателен, не пустой)
  * @property description описание маршрута (опционально)
  * @property rateLimitId ID политики rate limit (опционально, Story 5.5)
+ * @property authRequired требуется ли JWT аутентификация (default: true, Story 12.7)
+ * @property allowedConsumers whitelist consumer IDs (null = все разрешены, Story 12.7)
  */
 data class CreateRouteRequest(
     @field:NotBlank(message = "Path обязателен")
@@ -43,5 +45,11 @@ data class CreateRouteRequest(
     val description: String? = null,
 
     /** ID политики rate limit (Story 5.5). Null = без rate limit. */
-    val rateLimitId: UUID? = null
+    val rateLimitId: UUID? = null,
+
+    /** Требуется ли JWT аутентификация для маршрута (Story 12.7). Default: true = protected. */
+    val authRequired: Boolean = true,
+
+    /** Whitelist consumer IDs (Story 12.7). Null = все consumers разрешены. */
+    val allowedConsumers: List<String>? = null
 )

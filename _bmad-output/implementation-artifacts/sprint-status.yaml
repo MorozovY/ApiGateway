@@ -173,7 +173,7 @@ development_status:
   12-4-gateway-core-jwt-authentication-filter: done  # 2026-02-24: Code review — 4 теста добавлены, RFC 7807 fix
   12-5-gateway-core-consumer-identity-filter: done  # 2026-02-24: Code review — H1 constant duplication, M3 header validation fixes
   12-6-multi-tenant-metrics: done  # 2026-02-24: Code review — 2 integration tests added
-  12-7-route-authentication-configuration: backlog
+  12-7-route-authentication-configuration: done  # 2026-02-24: Backend + Frontend, all tests pass
   12-8-per-consumer-rate-limits: backlog
   12-9-consumer-management-ui: backlog
   12-10-e2e-playwright-tests: backlog

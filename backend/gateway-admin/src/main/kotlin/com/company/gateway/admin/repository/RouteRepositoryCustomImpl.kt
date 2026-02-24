@@ -165,8 +165,18 @@ class RouteRepositoryCustomImpl(
             rejectedBy = row.get("rejected_by", UUID::class.java),
             rejectedAt = row.get("rejected_at", Instant::class.java),
             rejectionReason = row.get("rejection_reason", String::class.java),
-            rateLimitId = row.get("rate_limit_id", UUID::class.java)
+            rateLimitId = row.get("rate_limit_id", UUID::class.java),
+            authRequired = row.get("auth_required", java.lang.Boolean::class.java)?.booleanValue() ?: true,
+            allowedConsumers = mapAllowedConsumers(row.get("allowed_consumers", Array::class.java))
         )
+    }
+
+    /**
+     * Маппинг PostgreSQL TEXT[] в List<String>.
+     * Story 12.7.
+     */
+    private fun mapAllowedConsumers(rawArray: Array<*>?): List<String>? {
+        return rawArray?.mapNotNull { it?.toString() }?.takeIf { it.isNotEmpty() }
     }
 
     override fun findByIdWithCreator(id: UUID): Mono<RouteWithCreator> {
@@ -176,7 +186,7 @@ class RouteRepositoryCustomImpl(
                    r.status, r.created_by, r.created_at, r.updated_at,
                    r.submitted_at, r.approved_by, r.approved_at,
                    r.rejected_by, r.rejected_at, r.rejection_reason,
-                   r.rate_limit_id,
+                   r.rate_limit_id, r.auth_required, r.allowed_consumers,
                    creator.username  AS creator_username,
                    approver.username AS approver_username,
                    rejector.username AS rejector_username,
@@ -221,7 +231,7 @@ class RouteRepositoryCustomImpl(
                    r.status, r.created_by, r.created_at, r.updated_at,
                    r.submitted_at, r.approved_by, r.approved_at,
                    r.rejected_by, r.rejected_at, r.rejection_reason,
-                   r.rate_limit_id,
+                   r.rate_limit_id, r.auth_required, r.allowed_consumers,
                    u.username as creator_username,
                    rl.name AS rl_name,
                    rl.requests_per_second AS rl_requests_per_second,
@@ -306,7 +316,9 @@ class RouteRepositoryCustomImpl(
             rateLimitId = row.get("rate_limit_id", UUID::class.java),
             rateLimitName = row.get("rl_name", String::class.java),
             rateLimitRequestsPerSecond = row.get("rl_requests_per_second", java.lang.Number::class.java)?.intValue(),
-            rateLimitBurstSize = row.get("rl_burst_size", java.lang.Number::class.java)?.intValue()
+            rateLimitBurstSize = row.get("rl_burst_size", java.lang.Number::class.java)?.intValue(),
+            authRequired = row.get("auth_required", java.lang.Boolean::class.java)?.booleanValue() ?: true,
+            allowedConsumers = mapAllowedConsumers(row.get("allowed_consumers", Array::class.java))
         )
     }
 
@@ -341,7 +353,9 @@ class RouteRepositoryCustomImpl(
             rateLimitId = row.get("rate_limit_id", UUID::class.java),
             rateLimitName = row.get("rl_name", String::class.java),
             rateLimitRequestsPerSecond = row.get("rl_requests_per_second", java.lang.Number::class.java)?.intValue(),
-            rateLimitBurstSize = row.get("rl_burst_size", java.lang.Number::class.java)?.intValue()
+            rateLimitBurstSize = row.get("rl_burst_size", java.lang.Number::class.java)?.intValue(),
+            authRequired = row.get("auth_required", java.lang.Boolean::class.java)?.booleanValue() ?: true,
+            allowedConsumers = mapAllowedConsumers(row.get("allowed_consumers", Array::class.java))
         )
     }
 }

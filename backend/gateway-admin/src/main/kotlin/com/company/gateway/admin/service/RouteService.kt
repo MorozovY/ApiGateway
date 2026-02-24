@@ -91,7 +91,9 @@ class RouteService(
                             createdBy = userId,
                             createdAt = Instant.now(),
                             updatedAt = Instant.now(),
-                            rateLimitId = request.rateLimitId
+                            rateLimitId = request.rateLimitId,
+                            authRequired = request.authRequired,
+                            allowedConsumers = request.allowedConsumers
                         )
                         routeRepository.save(route)
                     }
@@ -109,7 +111,9 @@ class RouteService(
                         "upstreamUrl" to savedRoute.upstreamUrl,
                         "methods" to savedRoute.methods,
                         "description" to savedRoute.description,
-                        "rateLimitId" to savedRoute.rateLimitId
+                        "rateLimitId" to savedRoute.rateLimitId,
+                        "authRequired" to savedRoute.authRequired,
+                        "allowedConsumers" to savedRoute.allowedConsumers
                     )
                 ).thenReturn(savedRoute)
             }
@@ -201,6 +205,12 @@ class RouteService(
                     Mono.just(true)
                 }
 
+                // Сохраняем значения auth полей из request
+                val requestAuthRequired = request.authRequired
+                val authRequiredProvided = request.authRequiredProvided
+                val requestAllowedConsumers = request.allowedConsumers
+                val allowedConsumersProvided = request.allowedConsumersProvided
+
                 // Объединяем проверку path и rateLimitId
                 pathCheck.then(rateLimitCheck).flatMap {
                     val oldValues = mapOf(
@@ -208,7 +218,9 @@ class RouteService(
                         "upstreamUrl" to route.upstreamUrl,
                         "methods" to route.methods,
                         "description" to route.description,
-                        "rateLimitId" to route.rateLimitId
+                        "rateLimitId" to route.rateLimitId,
+                        "authRequired" to route.authRequired,
+                        "allowedConsumers" to route.allowedConsumers
                     )
 
                     // Определяем новое значение rateLimitId:
@@ -220,12 +232,28 @@ class RouteService(
                         route.rateLimitId // partial update — сохранить текущее
                     }
 
+                    // Определяем новое значение authRequired (Story 12.7)
+                    val newAuthRequired = if (authRequiredProvided && requestAuthRequired != null) {
+                        requestAuthRequired
+                    } else {
+                        route.authRequired // partial update — сохранить текущее
+                    }
+
+                    // Определяем новое значение allowedConsumers (Story 12.7)
+                    val newAllowedConsumers = if (allowedConsumersProvided) {
+                        requestAllowedConsumers // null = очистить whitelist, List = установить
+                    } else {
+                        route.allowedConsumers // partial update — сохранить текущее
+                    }
+
                     val updatedRoute = route.copy(
                         path = request.path ?: route.path,
                         upstreamUrl = request.upstreamUrl ?: route.upstreamUrl,
                         methods = request.methods ?: route.methods,
                         description = request.description ?: route.description,
                         rateLimitId = newRateLimitId,
+                        authRequired = newAuthRequired,
+                        allowedConsumers = newAllowedConsumers,
                         updatedAt = Instant.now()
                     )
 
@@ -236,7 +264,9 @@ class RouteService(
                                 "upstreamUrl" to saved.upstreamUrl,
                                 "methods" to saved.methods,
                                 "description" to saved.description,
-                                "rateLimitId" to saved.rateLimitId
+                                "rateLimitId" to saved.rateLimitId,
+                                "authRequired" to saved.authRequired,
+                                "allowedConsumers" to saved.allowedConsumers
                             )
                             auditService.logUpdated(
                                 entityType = "route",

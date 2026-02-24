@@ -9,6 +9,8 @@ import {
   EyeOutlined,
   SearchOutlined,
   CloseCircleOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -283,6 +285,22 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       key: 'status',
       render: (status: RouteStatus) => (
         <Tag color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Tag>
+      ),
+    },
+    {
+      // Story 12.7: Auth badge (Protected/Public)
+      title: 'Auth',
+      dataIndex: 'authRequired',
+      key: 'authRequired',
+      width: 100,
+      render: (authRequired: boolean) => (
+        <Tag color={authRequired ? 'green' : 'default'}>
+          {authRequired ? (
+            <><LockOutlined /> Protected</>
+          ) : (
+            <><UnlockOutlined /> Public</>
+          )}
+        </Tag>
       ),
     },
     {

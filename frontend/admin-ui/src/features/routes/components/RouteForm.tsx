@@ -1,6 +1,7 @@
-// Компонент формы маршрута (Story 3.5, расширен в Story 5.5)
+// Компонент формы маршрута (Story 3.5, расширен в Story 5.5, 12.7)
 import { forwardRef, useImperativeHandle, useCallback, useRef, useState, useEffect } from 'react'
-import { Form, Input, Select, Button, Space } from 'antd'
+import { Form, Input, Select, Button, Space, Switch, Tooltip } from 'antd'
+import { LockOutlined, UnlockOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import type { Route, CreateRouteRequest, UpdateRouteRequest } from '../types/route.types'
 import { checkPathExists } from '../api/routesApi'
 import { useRateLimits } from '@features/rate-limits'
@@ -79,6 +80,8 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
         methods: initialValues.methods,
         description: initialValues.description || '',
         rateLimitId: initialValues.rateLimitId || null,
+        authRequired: initialValues.authRequired ?? true,
+        allowedConsumers: initialValues.allowedConsumers || [],
       })
     }
   }, [initialValues, form])
@@ -157,6 +160,8 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       methods: string[]
       description?: string
       rateLimitId?: string | null
+      authRequired?: boolean
+      allowedConsumers?: string[]
     }) => {
       // Блокируем отправку если есть ошибка уникальности path
       if (pathError) {
@@ -169,12 +174,19 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       // Преобразуем пустую строку (опция "None") в null
       const rateLimitId = values.rateLimitId && values.rateLimitId !== '' ? values.rateLimitId : null
 
+      // Преобразуем пустой массив allowedConsumers в null (Story 12.7)
+      const allowedConsumers = values.allowedConsumers && values.allowedConsumers.length > 0
+        ? values.allowedConsumers
+        : null
+
       const request: CreateRouteRequest | UpdateRouteRequest = {
         path: fullPath,
         upstreamUrl: values.upstreamUrl,
         methods: values.methods,
         description: values.description || undefined,
         rateLimitId,
+        authRequired: values.authRequired ?? true,
+        allowedConsumers,
       }
 
       await onSubmit(request)
@@ -272,6 +284,50 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
               label: `${policy.name} (${policy.requestsPerSecond}/sec)`,
             })),
           ]}
+        />
+      </Form.Item>
+
+      {/* Authentication Required Toggle (Story 12.7) */}
+      <Form.Item
+        name="authRequired"
+        label={
+          <Space>
+            <span>Authentication Required</span>
+            <Tooltip title="Если включено, маршрут требует валидный JWT токен. Public маршруты доступны без аутентификации.">
+              <QuestionCircleOutlined style={{ color: '#999' }} />
+            </Tooltip>
+          </Space>
+        }
+        valuePropName="checked"
+        initialValue={true}
+        data-testid="auth-required-form-item"
+      >
+        <Switch
+          checkedChildren={<><LockOutlined /> Protected</>}
+          unCheckedChildren={<><UnlockOutlined /> Public</>}
+          data-testid="auth-required-switch"
+        />
+      </Form.Item>
+
+      {/* Allowed Consumers Multi-select (Story 12.7) */}
+      <Form.Item
+        name="allowedConsumers"
+        label={
+          <Space>
+            <span>Allowed Consumers</span>
+            <Tooltip title="Оставьте пустым для доступа всем consumers. Укажите client_id для ограничения доступа (whitelist).">
+              <QuestionCircleOutlined style={{ color: '#999' }} />
+            </Tooltip>
+          </Space>
+        }
+        data-testid="allowed-consumers-form-item"
+      >
+        <Select
+          mode="tags"
+          placeholder="Введите consumer IDs (опционально)"
+          tokenSeparators={[',', ' ']}
+          allowClear
+          data-testid="allowed-consumers-select"
         />
       </Form.Item>
 
