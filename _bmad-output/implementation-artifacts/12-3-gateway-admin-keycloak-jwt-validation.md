@@ -1,6 +1,6 @@
 # Story 12.3: Gateway Admin — Keycloak JWT Validation
 
-Status: review
+Status: done
 
 ## Story
 
