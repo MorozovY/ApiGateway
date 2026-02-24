@@ -104,7 +104,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(gateway_requests_total[5m]))",
+          "expr": "sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m]))",
           "instant": false,
           "legendFormat": "Total RPS",
           "range": true,
@@ -116,7 +116,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(gateway_requests_total[5m])) by (route_path)",
+          "expr": "sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m])) by (route_path)",
           "hide": false,
           "instant": false,
           "legendFormat": "{{route_path}}",
@@ -217,7 +217,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(gateway_request_duration_seconds_bucket{consumer_id=~\"$consumer\"}[5m])) by (le))",
           "instant": false,
           "legendFormat": "P50",
           "range": true,
@@ -229,7 +229,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket{consumer_id=~\"$consumer\"}[5m])) by (le))",
           "hide": false,
           "instant": false,
           "legendFormat": "P95",
@@ -242,7 +242,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(gateway_request_duration_seconds_bucket{consumer_id=~\"$consumer\"}[5m])) by (le))",
           "hide": false,
           "instant": false,
           "legendFormat": "P99",
@@ -343,7 +343,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(gateway_errors_total[5m])) / sum(rate(gateway_requests_total[5m])) * 100",
+          "expr": "sum(rate(gateway_errors_total{consumer_id=~\"$consumer\"}[5m])) / sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m])) * 100",
           "instant": false,
           "legendFormat": "Error Rate %",
           "range": true,
@@ -481,7 +481,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(gateway_requests_total[1h])) by (status)",
+          "expr": "sum(increase(gateway_requests_total{consumer_id=~\"$consumer\"}[1h])) by (status)",
           "instant": true,
           "legendFormat": "{{status}}",
           "range": false,
@@ -583,7 +583,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk(10, sum(rate(gateway_requests_total[5m])) by (route_path))",
+          "expr": "topk(10, sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m])) by (route_path))",
           "format": "table",
           "instant": true,
           "legendFormat": "{{route_path}}",
@@ -688,7 +688,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(gateway_errors_total[5m])) by (error_type)",
+          "expr": "sum(rate(gateway_errors_total{consumer_id=~\"$consumer\"}[5m])) by (error_type)",
           "instant": false,
           "legendFormat": "{{error_type}}",
           "range": true,
@@ -697,6 +697,355 @@
       ],
       "title": "Errors by Type",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Request rate per API consumer (Story 12.6)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m])) by (consumer_id)",
+          "instant": false,
+          "legendFormat": "{{consumer_id}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Requests by Consumer",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Per-consumer statistics: RPS, error rate, P95 latency (Story 12.6)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "consumer_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "displayName",
+                "value": "Consumer"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #RPS"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "RPS"
+              },
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #Error Rate"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Error Rate"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #P95"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "P95 Latency"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.2
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 9,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "RPS"
+          }
+        ]
+      },
+      "pluginVersion": "10.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m])) by (consumer_id)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "RPS"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(rate(gateway_errors_total{consumer_id=~\"$consumer\"}[5m])) by (consumer_id) / sum(rate(gateway_requests_total{consumer_id=~\"$consumer\"}[5m])) by (consumer_id) * 100",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "Error Rate"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket{consumer_id=~\"$consumer\"}[5m])) by (consumer_id, le))",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "P95"
+        }
+      ],
+      "title": "Consumer Statistics",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "consumer_id"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true
+            },
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "30s",
@@ -721,6 +1070,35 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(gateway_requests_total, consumer_id)",
+        "description": "Filter by API consumer",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Consumer",
+        "multi": true,
+        "name": "consumer",
+        "options": [],
+        "query": {
+          "query": "label_values(gateway_requests_total, consumer_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },

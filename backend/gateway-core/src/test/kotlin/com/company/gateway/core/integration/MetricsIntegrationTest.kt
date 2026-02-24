@@ -230,11 +230,181 @@ class MetricsIntegrationTest {
      * - Метрики для 404 можно отслеживать через Spring Boot Actuator metrics (http.server.requests)
      */
 
+    // ====== Story 12.6 Integration Tests: Multi-tenant Metrics ======
+
+    @Nested
+    inner class ConsumerIdLabelIntegration {
+
+        @Test
+        fun `AC2 - Prometheus endpoint содержит consumer_id label (anonymous)`() {
+            // Arrange: создаём route
+            insertRoute("/api/consumers-test", "http://localhost:${wireMock.port()}")
+
+            wireMock.stubFor(
+                WireMock.get(WireMock.urlMatching("/.*"))
+                    .willReturn(WireMock.aResponse().withStatus(200).withBody("{}"))
+            )
+
+            // Act: запрос без JWT — consumer_id будет "anonymous"
+            webTestClient.get()
+                .uri("/api/consumers-test")
+                .exchange()
+                .expectStatus().isOk
+
+            // Assert: проверяем что метрика содержит consumer_id label
+            webTestClient.get()
+                .uri("/actuator/prometheus")
+                .exchange()
+                .expectStatus().isOk
+                .expectBody(String::class.java)
+                .consumeWith { response ->
+                    val body = response.responseBody!!
+
+                    // Находим метрику для нашего route
+                    val metricLine = body.lines()
+                        .find { it.startsWith("gateway_requests_total") && it.contains("/api/consumers-test") }
+
+                    assert(metricLine != null) {
+                        "Должна существовать метрика gateway_requests_total для /api/consumers-test"
+                    }
+
+                    // consumer_id должен быть "anonymous" для запросов без JWT
+                    assert(metricLine!!.contains("consumer_id=\"anonymous\"")) {
+                        "Метрика должна содержать consumer_id=anonymous, но получено:\n$metricLine"
+                    }
+                }
+        }
+
+        @Test
+        fun `AC2 - consumer_id присутствует в gateway_request_duration_seconds`() {
+            insertRoute("/api/duration-test", "http://localhost:${wireMock.port()}")
+
+            wireMock.stubFor(
+                WireMock.get(WireMock.urlMatching("/.*"))
+                    .willReturn(WireMock.aResponse().withStatus(200).withBody("{}"))
+            )
+
+            webTestClient.get()
+                .uri("/api/duration-test")
+                .exchange()
+                .expectStatus().isOk
+
+            webTestClient.get()
+                .uri("/actuator/prometheus")
+                .exchange()
+                .expectStatus().isOk
+                .expectBody(String::class.java)
+                .consumeWith { response ->
+                    val body = response.responseBody!!
+
+                    // Timer создаёт _count метрику
+                    val timerLine = body.lines()
+                        .find { it.startsWith("gateway_request_duration_seconds_count") && it.contains("/api/duration-test") }
+
+                    assert(timerLine != null) {
+                        "Должна существовать метрика gateway_request_duration_seconds для /api/duration-test"
+                    }
+
+                    assert(timerLine!!.contains("consumer_id=")) {
+                        "Timer должен содержать consumer_id label"
+                    }
+                }
+        }
+
+        @Test
+        fun `AC2 - consumer_id из X-Consumer-ID header включён в метрики`() {
+            // Arrange: создаём route
+            insertRoute("/api/header-consumer-test", "http://localhost:${wireMock.port()}")
+
+            wireMock.stubFor(
+                WireMock.get(WireMock.urlMatching("/.*"))
+                    .willReturn(WireMock.aResponse().withStatus(200).withBody("{}"))
+            )
+
+            // Act: запрос с X-Consumer-ID header
+            webTestClient.get()
+                .uri("/api/header-consumer-test")
+                .header("X-Consumer-ID", "company-abc")
+                .exchange()
+                .expectStatus().isOk
+
+            // Assert: проверяем что метрика содержит consumer_id из header
+            webTestClient.get()
+                .uri("/actuator/prometheus")
+                .exchange()
+                .expectStatus().isOk
+                .expectBody(String::class.java)
+                .consumeWith { response ->
+                    val body = response.responseBody!!
+
+                    // Находим метрику для нашего route с consumer_id
+                    val metricLine = body.lines()
+                        .find { it.startsWith("gateway_requests_total") && it.contains("/api/header-consumer-test") }
+
+                    assert(metricLine != null) {
+                        "Должна существовать метрика gateway_requests_total для /api/header-consumer-test"
+                    }
+
+                    // consumer_id должен быть из X-Consumer-ID header
+                    assert(metricLine!!.contains("consumer_id=\"company-abc\"")) {
+                        "Метрика должна содержать consumer_id=company-abc из header, но получено:\n$metricLine"
+                    }
+                }
+        }
+
+        @Test
+        fun `AC1 - consumer_id включён в gateway_errors_total`() {
+            // Arrange: создаём route, upstream возвращает 500
+            insertRoute("/api/error-consumer-test", "http://localhost:${wireMock.port()}")
+
+            wireMock.stubFor(
+                WireMock.get(WireMock.urlMatching("/.*"))
+                    .willReturn(WireMock.aResponse().withStatus(500).withBody("Internal Server Error"))
+            )
+
+            // Act: запрос с X-Consumer-ID header, upstream возвращает 500
+            webTestClient.get()
+                .uri("/api/error-consumer-test")
+                .header("X-Consumer-ID", "company-xyz")
+                .exchange()
+                .expectStatus().is5xxServerError
+
+            // Assert: проверяем что gateway_errors_total содержит consumer_id
+            webTestClient.get()
+                .uri("/actuator/prometheus")
+                .exchange()
+                .expectStatus().isOk
+                .expectBody(String::class.java)
+                .consumeWith { response ->
+                    val body = response.responseBody!!
+
+                    // Находим метрику gateway_errors_total с consumer_id
+                    val errorMetricLine = body.lines()
+                        .find { it.startsWith("gateway_errors_total") && it.contains("/api/error-consumer-test") }
+
+                    assert(errorMetricLine != null) {
+                        "Должна существовать метрика gateway_errors_total для /api/error-consumer-test.\n" +
+                            "Все error метрики:\n" + body.lines().filter { it.startsWith("gateway_errors_total") }.joinToString("\n")
+                    }
+
+                    // consumer_id должен присутствовать
+                    assert(errorMetricLine!!.contains("consumer_id=\"company-xyz\"")) {
+                        "gateway_errors_total должна содержать consumer_id=company-xyz, но получено:\n$errorMetricLine"
+                    }
+
+                    // error_type тоже должен быть
+                    assert(errorMetricLine.contains("error_type=")) {
+                        "gateway_errors_total должна содержать error_type label"
+                    }
+                }
+        }
+    }
+
     @Nested
     inner class AllLabelsPresent {
 
         @Test
-        fun `все 5 labels присутствуют в gateway_requests_total`() {
+        fun `все 6 labels присутствуют в gateway_requests_total включая consumer_id`() {
             insertRoute("/api/items", "http://localhost:${wireMock.port()}")
 
             // Gateway переписывает путь: /api/items/42 → /42
@@ -264,12 +434,13 @@ class MetricsIntegrationTest {
                         "Должна существовать метрика gateway_requests_total для /api/items"
                     }
 
-                    // Проверяем все labels
+                    // Проверяем все 6 labels включая consumer_id
                     assert(metricLine!!.contains("route_id=")) { "Метрика должна содержать route_id" }
                     assert(metricLine.contains("route_path=\"/api/items/{id}\"")) { "Метрика должна содержать route_path" }
                     assert(metricLine.contains("upstream_host=")) { "Метрика должна содержать upstream_host" }
                     assert(metricLine.contains("method=\"GET\"")) { "Метрика должна содержать method" }
                     assert(metricLine.contains("status=\"2xx\"")) { "Метрика должна содержать status" }
+                    assert(metricLine.contains("consumer_id=")) { "Метрика должна содержать consumer_id" }
                 }
         }
 

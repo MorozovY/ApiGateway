@@ -1,0 +1,35 @@
+# Prometheus alert rules для мониторинга cardinality API Gateway метрик
+# Story 12.6: Multi-tenant Metrics (AC5)
+
+groups:
+  - name: gateway-cardinality
+    rules:
+      # AC5: Alert при высоком количестве уникальных consumers
+      - alert: HighConsumerCardinality
+        expr: count(count by (consumer_id) (gateway_requests_total)) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High consumer cardinality detected"
+          description: "Number of unique consumers exceeds 1000 (current: {{ $value }}). This may impact Prometheus performance and storage."
+
+      # Дополнительный alert для очень высокой cardinality
+      - alert: CriticalConsumerCardinality
+        expr: count(count by (consumer_id) (gateway_requests_total)) > 5000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical consumer cardinality detected"
+          description: "Number of unique consumers exceeds 5000 (current: {{ $value }}). Immediate action required to prevent Prometheus OOM."
+
+      # Alert для общей cardinality метрик (route_id × consumer_id × method × status)
+      - alert: HighMetricsCardinality
+        expr: count(gateway_requests_total) > 100000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High gateway metrics cardinality"
+          description: "Total number of gateway_requests_total series exceeds 100,000 (current: {{ $value }}). Consider enabling recording rules."

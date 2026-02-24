@@ -53,6 +53,7 @@ class MetricsFilter(
         const val TAG_METHOD = "method"
         const val TAG_STATUS = "status"
         const val TAG_ERROR_TYPE = "error_type"
+        const val TAG_CONSUMER_ID = "consumer_id"
     }
 
     /**
@@ -104,13 +105,18 @@ class MetricsFilter(
         val method = exchange.request.method.name()
         val statusCategory = statusCategory(statusCode)
 
+        // Получаем consumer_id из exchange.attributes (установлен ConsumerIdentityFilter)
+        val consumerId = exchange.getAttribute<String>(JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE)
+            ?: ConsumerIdentityFilter.ANONYMOUS
+
         // Полный набор tags для всех метрик
         val baseTags = Tags.of(
             TAG_ROUTE_ID, routeId,
             TAG_ROUTE_PATH, routePath,
             TAG_UPSTREAM_HOST, upstreamHost,
             TAG_METHOD, method,
-            TAG_STATUS, statusCategory
+            TAG_STATUS, statusCategory,
+            TAG_CONSUMER_ID, consumerId
         )
 
         // Counter: общее количество запросов

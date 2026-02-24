@@ -583,17 +583,176 @@ class MetricsFilterTest {
         }
     }
 
+    // ====== Story 12.6 тесты: Multi-tenant Metrics ======
+
+    @Nested
+    inner class ConsumerIdLabel {
+
+        @Test
+        fun `consumer_id из JWT включён в метрики (AC1)`() {
+            // Arrange: consumer_id установлен ConsumerIdentityFilter (через JwtAuthenticationFilter атрибут)
+            val request = MockServerHttpRequest.get("/api/orders").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri("orders-route", "http://orders-service:8080")
+            exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = "company-a"
+            exchange.response.statusCode = HttpStatus.OK
+
+            // Act
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            // Assert: gateway_requests_total содержит consumer_id label
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "company-a")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать consumer_id=company-a"
+            }
+            assert(counter!!.count() == 1.0) {
+                "Counter должен быть равен 1"
+            }
+        }
+
+        @Test
+        fun `anonymous consumer_id для запросов без JWT (AC1)`() {
+            // Arrange: consumer_id не установлен (нет JWT, нет X-Consumer-ID header)
+            val request = MockServerHttpRequest.get("/api/public/data").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri("public-route", "http://public-service:8080")
+            // consumer_id атрибут не установлен — должен использоваться anonymous
+            exchange.response.statusCode = HttpStatus.OK
+
+            // Act
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            // Assert: gateway_requests_total содержит consumer_id=anonymous
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "anonymous")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать consumer_id=anonymous для запросов без JWT"
+            }
+        }
+
+        @Test
+        fun `consumer_id не нарушает существующие метрики`() {
+            // Arrange: стандартный запрос с consumer_id
+            val request = MockServerHttpRequest.get("/api/orders/123").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri("orders-route", "http://orders-service:8080")
+            exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = "company-b"
+            exchange.response.statusCode = HttpStatus.OK
+
+            // Act
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            // Assert: все существующие labels по-прежнему работают
+            val counter = meterRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                .tag(MetricsFilter.TAG_ROUTE_ID, "orders-route")
+                .tag(MetricsFilter.TAG_ROUTE_PATH, "/api/orders/{id}")
+                .tag(MetricsFilter.TAG_UPSTREAM_HOST, "orders-service:8080")
+                .tag(MetricsFilter.TAG_METHOD, "GET")
+                .tag(MetricsFilter.TAG_STATUS, "2xx")
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "company-b")
+                .counter()
+
+            assert(counter != null) {
+                "Counter должен содержать все 6 labels включая consumer_id"
+            }
+        }
+
+        @Test
+        fun `consumer_id включён в gateway_request_duration_seconds`() {
+            // Arrange
+            val request = MockServerHttpRequest.get("/api/items").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri("items-route", "http://items-service:8080")
+            exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = "company-c"
+            exchange.response.statusCode = HttpStatus.OK
+
+            // Act
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            // Assert: timer содержит consumer_id label
+            val timer = meterRegistry.find(MetricsFilter.METRIC_REQUEST_DURATION)
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "company-c")
+                .timer()
+
+            assert(timer != null) {
+                "Timer должен содержать consumer_id=company-c"
+            }
+        }
+
+        @Test
+        fun `consumer_id включён в gateway_errors_total`() {
+            // Arrange: запрос с ошибкой
+            val request = MockServerHttpRequest.get("/api/fail").build()
+            val exchange = MockServerWebExchange.from(request)
+            exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri("fail-route", "http://fail-service:8080")
+            exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = "company-d"
+            exchange.response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR
+
+            // Act
+            StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete()
+
+            // Assert: error counter содержит consumer_id label
+            val counter = meterRegistry.find(MetricsFilter.METRIC_ERRORS_TOTAL)
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "company-d")
+                .tag(MetricsFilter.TAG_ERROR_TYPE, "internal_error")
+                .counter()
+
+            assert(counter != null) {
+                "Error counter должен содержать consumer_id=company-d"
+            }
+        }
+
+        @Test
+        fun `разные consumers создают разные series`() {
+            // Arrange & Act: два запроса от разных consumers
+            val consumers = listOf("company-a", "company-b")
+
+            consumers.forEach { consumerId ->
+                val localRegistry = SimpleMeterRegistry()
+                val localFilter = MetricsFilter(localRegistry)
+                val request = MockServerHttpRequest.get("/api/orders").build()
+                val exchange = MockServerWebExchange.from(request)
+                exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri("orders-route", "http://orders-service:8080")
+                exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = consumerId
+                exchange.response.statusCode = HttpStatus.OK
+
+                StepVerifier.create(localFilter.filter(exchange, chain))
+                    .verifyComplete()
+
+                // Assert: каждый consumer имеет свою метрику
+                val counter = localRegistry.find(MetricsFilter.METRIC_REQUESTS_TOTAL)
+                    .tag(MetricsFilter.TAG_CONSUMER_ID, consumerId)
+                    .counter()
+
+                assert(counter != null) {
+                    "Counter для consumer_id=$consumerId должен существовать"
+                }
+            }
+        }
+    }
+
     @Nested
     inner class AllLabelsInMetrics {
 
         @Test
-        fun `gateway_requests_total содержит все 5 labels`() {
+        fun `gateway_requests_total содержит все 6 labels включая consumer_id`() {
             val request = MockServerHttpRequest.get("/api/orders/42").build()
             val exchange = MockServerWebExchange.from(request)
             exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
                 "orders-route",
                 "http://orders-service:9000"
             )
+            exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = "company-x"
             exchange.response.statusCode = HttpStatus.OK
 
             StepVerifier.create(filter.filter(exchange, chain))
@@ -605,21 +764,23 @@ class MetricsFilterTest {
                 .tag(MetricsFilter.TAG_UPSTREAM_HOST, "orders-service:9000")
                 .tag(MetricsFilter.TAG_METHOD, "GET")
                 .tag(MetricsFilter.TAG_STATUS, "2xx")
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "company-x")
                 .counter()
 
             assert(counter != null) {
-                "Counter должен содержать все 5 labels: route_id, route_path, upstream_host, method, status"
+                "Counter должен содержать все 6 labels: route_id, route_path, upstream_host, method, status, consumer_id"
             }
         }
 
         @Test
-        fun `gateway_request_duration_seconds содержит все 5 labels`() {
+        fun `gateway_request_duration_seconds содержит все 6 labels`() {
             val request = MockServerHttpRequest.post("/api/items/999").build()
             val exchange = MockServerWebExchange.from(request)
             exchange.attributes[GATEWAY_ROUTE_ATTR] = createRouteWithUri(
                 "items-route",
                 "http://items-api:8080"
             )
+            exchange.attributes[JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE] = "company-y"
             exchange.response.statusCode = HttpStatus.CREATED
 
             StepVerifier.create(filter.filter(exchange, chain))
@@ -631,10 +792,11 @@ class MetricsFilterTest {
                 .tag(MetricsFilter.TAG_UPSTREAM_HOST, "items-api:8080")
                 .tag(MetricsFilter.TAG_METHOD, "POST")
                 .tag(MetricsFilter.TAG_STATUS, "2xx")
+                .tag(MetricsFilter.TAG_CONSUMER_ID, "company-y")
                 .timer()
 
             assert(timer != null) {
-                "Timer должен содержать все 5 labels"
+                "Timer должен содержать все 6 labels"
             }
         }
 
