@@ -359,6 +359,41 @@ class RouteDetailsCloneIntegrationTest {
                 .jsonPath("$.path").isEqualTo("/api/no-desc-copy")
                 .jsonPath("$.description").doesNotExist()
         }
+
+        @Test
+        fun `клонирует маршрут с authRequired=false (Story 12-7)`() {
+            val original = createTestRouteWithAuth("/api/public-route", developerUser.id!!, authRequired = false)
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${original.id}/clone")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.path").isEqualTo("/api/public-route-copy")
+                .jsonPath("$.authRequired").isEqualTo(false)
+        }
+
+        @Test
+        fun `клонирует маршрут с allowedConsumers whitelist (Story 12-7)`() {
+            val original = createTestRouteWithAuth(
+                "/api/restricted",
+                developerUser.id!!,
+                authRequired = true,
+                allowedConsumers = listOf("company-a", "company-b")
+            )
+
+            webTestClient.post()
+                .uri("/api/v1/routes/${original.id}/clone")
+                .cookie("auth_token", developerToken)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.path").isEqualTo("/api/restricted-copy")
+                .jsonPath("$.authRequired").isEqualTo(true)
+                .jsonPath("$.allowedConsumers[0]").isEqualTo("company-a")
+                .jsonPath("$.allowedConsumers[1]").isEqualTo("company-b")
+        }
     }
 
     // ============================================
@@ -586,6 +621,34 @@ class RouteDetailsCloneIntegrationTest {
             createdBy = createdBy,
             createdAt = createdAt,
             updatedAt = createdAt
+        )
+        var savedRoute: Route? = null
+        StepVerifier.create(routeRepository.save(route))
+            .consumeNextWith { savedRoute = it }
+            .verifyComplete()
+        return savedRoute!!
+    }
+
+    /**
+     * Создаёт тестовый маршрут с auth настройками (Story 12.7).
+     */
+    private fun createTestRouteWithAuth(
+        path: String,
+        createdBy: UUID,
+        authRequired: Boolean = true,
+        allowedConsumers: List<String>? = null
+    ): Route {
+        val route = Route(
+            path = path,
+            upstreamUrl = "http://test-service:8080",
+            methods = listOf("GET", "POST"),
+            description = "Test route with auth",
+            status = RouteStatus.DRAFT,
+            createdBy = createdBy,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+            authRequired = authRequired,
+            allowedConsumers = allowedConsumers
         )
         var savedRoute: Route? = null
         StepVerifier.create(routeRepository.save(route))

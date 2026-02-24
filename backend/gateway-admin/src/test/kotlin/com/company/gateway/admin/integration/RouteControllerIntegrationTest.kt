@@ -1196,5 +1196,49 @@ class RouteControllerIntegrationTest {
                 .jsonPath("$.items[?(@.path == '/api/list-protected')].authRequired").isEqualTo(true)
                 .jsonPath("$.items[?(@.path == '/api/list-public')].authRequired").isEqualTo(false)
         }
+
+        @Test
+        fun `санитизирует allowedConsumers при создании — убирает пустые строки`() {
+            val request = CreateRouteRequest(
+                path = "/api/sanitize-test",
+                upstreamUrl = "http://service:8080",
+                methods = listOf("GET"),
+                authRequired = true,
+                allowedConsumers = listOf("company-a", "", "  ", "company-b")
+            )
+
+            webTestClient.post()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.allowedConsumers.length()").isEqualTo(2)
+                .jsonPath("$.allowedConsumers[0]").isEqualTo("company-a")
+                .jsonPath("$.allowedConsumers[1]").isEqualTo("company-b")
+        }
+
+        @Test
+        fun `санитизирует allowedConsumers при создании — возвращает null если все пустые`() {
+            val request = CreateRouteRequest(
+                path = "/api/all-empty-test",
+                upstreamUrl = "http://service:8080",
+                methods = listOf("GET"),
+                authRequired = true,
+                allowedConsumers = listOf("", "  ", "   ")
+            )
+
+            webTestClient.post()
+                .uri("/api/v1/routes")
+                .cookie("auth_token", developerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody()
+                .jsonPath("$.allowedConsumers").doesNotExist()
+        }
     }
 }

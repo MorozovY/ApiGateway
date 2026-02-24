@@ -82,6 +82,9 @@ class RouteService(
                     }
 
                     rateLimitValidation.flatMap {
+                        // Санитизация allowedConsumers: убираем пустые строки (Story 12.7)
+                        val sanitizedConsumers = sanitizeAllowedConsumers(request.allowedConsumers)
+
                         val route = Route(
                             path = request.path,
                             upstreamUrl = request.upstreamUrl,
@@ -93,7 +96,7 @@ class RouteService(
                             updatedAt = Instant.now(),
                             rateLimitId = request.rateLimitId,
                             authRequired = request.authRequired,
-                            allowedConsumers = request.allowedConsumers
+                            allowedConsumers = sanitizedConsumers
                         )
                         routeRepository.save(route)
                     }
@@ -240,8 +243,9 @@ class RouteService(
                     }
 
                     // Определяем новое значение allowedConsumers (Story 12.7)
+                    // Санитизация: убираем пустые строки
                     val newAllowedConsumers = if (allowedConsumersProvided) {
-                        requestAllowedConsumers // null = очистить whitelist, List = установить
+                        sanitizeAllowedConsumers(requestAllowedConsumers)
                     } else {
                         route.allowedConsumers // partial update — сохранить текущее
                     }
@@ -474,7 +478,10 @@ class RouteService(
                             status = RouteStatus.DRAFT,
                             createdBy = currentUserId,
                             createdAt = Instant.now(),
-                            updatedAt = Instant.now()
+                            updatedAt = Instant.now(),
+                            rateLimitId = original.rateLimitId,
+                            authRequired = original.authRequired,
+                            allowedConsumers = original.allowedConsumers
                         )
                         routeRepository.save(cloned)
                     }
@@ -495,6 +502,9 @@ class RouteService(
                                 "upstreamUrl" to savedRoute.upstreamUrl,
                                 "methods" to savedRoute.methods,
                                 "description" to savedRoute.description,
+                                "rateLimitId" to savedRoute.rateLimitId,
+                                "authRequired" to savedRoute.authRequired,
+                                "allowedConsumers" to savedRoute.allowedConsumers,
                                 "clonedFrom" to routeId.toString()
                             )
                         ).thenReturn(savedRoute)
@@ -765,6 +775,23 @@ class RouteService(
      * @property isInvalid true если createdBy указан, но невалиден
      */
     private data class CreatedByParseResult(val uuid: UUID?, val isInvalid: Boolean)
+
+    /**
+     * Санитизирует список allowedConsumers.
+     *
+     * Убирает пустые и whitespace-only строки.
+     * Возвращает null если результат пустой (Story 12.7).
+     *
+     * @param consumers исходный список или null
+     * @return отфильтрованный список или null если пустой
+     */
+    private fun sanitizeAllowedConsumers(consumers: List<String>?): List<String>? {
+        if (consumers == null) return null
+        val filtered = consumers
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        return if (filtered.isEmpty()) null else filtered
+    }
 
     /**
      * Парсит createdBy параметр в UUID.
