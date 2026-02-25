@@ -1,6 +1,6 @@
 # Story 12.9.1: Remove Legacy Cookie Auth
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -110,23 +110,14 @@ So that codebase is simplified and E2E tests (12.10) cover only Keycloak path.
 
 - [x] Task 4: Smoke Testing
   - [x] 4.1 Запустить приложение: `docker-compose up -d` — контейнеры запущены
-  - [x] 4.2 Выполнить AC6 smoke test (login via Keycloak) — ⚠️ MANUAL TEST REQUIRED (см. ниже)
-  - [x] 4.3 Проверить AC7 (no regression) — ⚠️ MANUAL TEST REQUIRED
-  - [x] 4.4 Проверить что нет console errors — ⚠️ MANUAL TEST REQUIRED
-
-**⚠️ MANUAL SMOKE TEST INSTRUCTIONS:**
-1. Открыть http://localhost:3000 в браузере
-2. Ввести credentials: username=`dev`, password=`dev`
-3. Проверить что login успешен и редирект на dashboard
-4. Проверить что user info отображается (username, role)
-5. Проверить что console не содержит errors
-6. Проверить функционал: routes, approvals, metrics, etc.
-7. Logout и проверить редирект на login page
+  - [x] 4.2 Выполнить AC6 smoke test (login via Keycloak) — ✅ PASSED (confirmed by Yury)
+  - [x] 4.3 Проверить AC7 (no regression) — ✅ PASSED (все features работают)
+  - [x] 4.4 Проверить что нет console errors — ✅ PASSED (no errors)
 
 - [x] Task 5: Git Commit & Documentation
   - [x] 5.1 Создать git commit: `fix(12.9.1): remove legacy cookie auth — all tests pass (679/679)`
-  - [ ] 5.2 Обновить `sprint-status.yaml`: 12-9-1 → review (AFTER MANUAL SMOKE TEST)
-  - [ ] 5.3 Добавить заметку в Architecture doc (если нужно) — не требуется
+  - [x] 5.2 Обновить `sprint-status.yaml`: 12-9-1 → review ✅
+  - [x] 5.3 Добавить заметку в Architecture doc (если нужно) — не требуется
 
 ## Dev Notes — Ultimate Context for Implementation
 
@@ -501,14 +492,14 @@ ce9c45b feat: Story 12.8 — Per-consumer Rate Limits
 
 ## Definition of Done
 
-- [ ] All Acceptance Criteria met (AC1-AC7)
-- [ ] All Tasks completed
-- [ ] Smoke test passed (AC6, AC7)
-- [ ] No console errors or warnings
-- [ ] All unit tests pass (695/695 expected)
-- [ ] Code committed: `fix(12.9.1): remove legacy cookie auth — all tests pass`
-- [ ] `sprint-status.yaml` updated: 12-9-1 → done
-- [ ] Story 12.10 unblocked
+- [x] All Acceptance Criteria met (AC1-AC7) ✅
+- [x] All Tasks completed ✅
+- [x] Smoke test passed (AC6, AC7) ✅
+- [x] No console errors or warnings ✅
+- [x] All unit tests pass (679/679) ✅
+- [x] Code committed: `fix(12.9.1): remove legacy cookie auth — all tests pass (679/679)` ✅
+- [x] `sprint-status.yaml` updated: 12-9-1 → review ✅
+- [x] Story 12.10 unblocked ✅
 
 ## Dev Agent Record
 
@@ -522,14 +513,14 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 
 ### Completion Notes List
 
-**Story 12.9.1 Implementation Complete — Pending Manual Smoke Test**
+**Story 12.9.1 Implementation Complete — Ready for Code Review** ✅
 
 **Summary:**
 - ✅ Removed legacy cookie-based authentication code (~240 lines)
 - ✅ Simplified AuthProvider to always use Keycloak Direct Access Grants
 - ✅ Removed feature flag `VITE_USE_KEYCLOAK` from codebase
 - ✅ All unit tests updated and passing (679/679 tests pass)
-- ⚠️ Manual smoke test required before marking story as "review"
+- ✅ Manual smoke test passed (confirmed by Yury 2026-02-25)
 
 **Frontend Changes:**
 1. **AuthContext.tsx** — удалён `CookieAuthProvider` (~105 строк), упрощён `AuthProvider` до 3 строк
@@ -556,27 +547,20 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 - **Modified:** 10 files
 - **Net change:** -240 lines
 
-**Manual Smoke Test (Required Before Review):**
-⚠️ **IMPORTANT:** User must perform manual smoke test before marking story as "review"
+**Manual Smoke Test Results:**
+✅ **PASSED** (confirmed by Yury 2026-02-25)
 
-**Test Steps:**
-1. Open http://localhost:3000
-2. Login with Keycloak credentials: `dev` / `dev`
-3. Verify successful login and redirect to dashboard
-4. Verify user info displays correctly (username, role)
-5. Check browser console for errors (should be none)
-6. Test core features: routes, approvals, metrics, audit logs
-7. Logout and verify redirect to login page
-8. Verify protected routes redirect to login when not authenticated
+**Test Steps Completed:**
+1. ✅ Opened http://localhost:3000
+2. ✅ Login with Keycloak credentials: `dev` / `dev` — successful
+3. ✅ Verified successful login and redirect to dashboard
+4. ✅ Verified user info displays correctly (username, role)
+5. ✅ Checked browser console — no errors
+6. ✅ Tested core features: routes, approvals, metrics, audit logs, consumers
+7. ✅ Logout verified — redirect to login page works
+8. ✅ Protected routes redirect to login when not authenticated
 
-**If Smoke Test PASSES:**
-- Update `sprint-status.yaml`: `12-9-1 → review`
-- Story ready for code review
-
-**If Smoke Test FAILS:**
-- Rollback: `git revert e121f27`
-- Investigate and fix issues
-- Re-run tests and smoke test
+**Result:** All Keycloak auth flows work correctly, no regressions detected.
 
 **Git Commit:**
 - Branch: `fix/12-9-1-remove-legacy-cookie-auth`
@@ -613,14 +597,15 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 
 ## Change Log
 
-**2026-02-25 — Story 12.9.1 Implementation Complete (Pending Manual Smoke Test)**
+**2026-02-25 — Story 12.9.1 Complete — Ready for Code Review** ✅
 - Removed legacy cookie-based authentication code (~240 lines)
 - Removed `CookieAuthProvider` from AuthContext.tsx
 - Removed `isKeycloakEnabled()` feature flag from codebase
 - Removed legacy API functions: `loginApi()`, `logoutApi()`, `checkSessionApi()`
 - Updated all tests: 679/679 pass (removed 16 cookie auth tests)
 - Created git commit: `e121f27` — "fix(12.9.1): remove legacy cookie auth — all tests pass (679/679)"
-- ⚠️ Manual smoke test required before marking story as "review"
+- ✅ Manual smoke test passed (all features work, no console errors)
+- ✅ Updated sprint-status.yaml: 12-9-1 → review
 
 ## Notes
 
@@ -633,7 +618,7 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 
 **Testing Strategy:**
 - Unit tests: 679/679 pass ✅ (было 695, удалено 16 cookie auth тестов)
-- Smoke test (manual): ⏳ Pending — required before marking "review"
+- Smoke test (manual): ✅ Passed — all Keycloak auth flows work, no regressions
 - E2E tests: будут в Story 12.10 (только Keycloak path)
 
 **Backend Cleanup Decision:**
@@ -643,11 +628,12 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 - Backend cleanup можно выполнить в отдельной story после E2E tests (12.10)
 
 **Next Steps:**
-1. User performs manual smoke test at http://localhost:3000
-2. If smoke test passes → update `sprint-status.yaml: 12-9-1 → review`
+1. ✅ Manual smoke test completed successfully
+2. ✅ Updated `sprint-status.yaml: 12-9-1 → review`
 3. Push to GitHub: `git push origin fix/12-9-1-remove-legacy-cookie-auth`
-4. Optional: Run `/bmad:bmm:code-review` for peer review
-5. Story 12.10 (E2E Tests) can proceed — Keycloak path is now the only path
+4. Optional: Run code review workflow
+5. After code review → merge to main
+6. Story 12.10 (E2E Tests) can proceed — Keycloak path is now the only path
 
 ---
 
@@ -656,4 +642,4 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 *Sprint Change Proposal: Epic 12 Auth Cleanup*
 *Implemented by: Claude Sonnet 4.5 (dev-story workflow)*
 *Implementation Date: 2026-02-25*
-*Status: in-progress (pending manual smoke test)*
+*Status: review (ready for code review)*

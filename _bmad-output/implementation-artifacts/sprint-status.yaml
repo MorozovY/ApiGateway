@@ -176,5 +176,6 @@ development_status:
   12-7-route-authentication-configuration: done  # 2026-02-24: Backend + Frontend, all tests pass
   12-8-per-consumer-rate-limits: done  # 2026-02-24: Code review fixes — V12 migration, integration tests, Caffeine simplification
   12-9-consumer-management-ui: done  # Code Review Session 2: 8 issues fixed (audit logging, server-side pagination, retry logic, timezone, File List) ✅ ALL ACs IMPLEMENTED
+  12-9-1-remove-legacy-cookie-auth: review  # 2026-02-25: Legacy cookie auth удалён, 679/679 tests pass, smoke test passed ✅
   12-10-e2e-playwright-tests: backlog
   epic-12-retrospective: optional
