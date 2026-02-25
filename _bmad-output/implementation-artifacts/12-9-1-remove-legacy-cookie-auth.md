@@ -123,10 +123,10 @@ So that codebase is simplified and E2E tests (12.10) cover only Keycloak path.
 6. Проверить функционал: routes, approvals, metrics, etc.
 7. Logout и проверить редирект на login page
 
-- [ ] Task 5: Git Commit & Documentation
-  - [ ] 5.1 Создать git commit: `fix(12.9.1): remove legacy cookie auth`
-  - [ ] 5.2 Обновить `sprint-status.yaml`: 12-9-1 → done
-  - [ ] 5.3 Добавить заметку в Architecture doc (если нужно)
+- [x] Task 5: Git Commit & Documentation
+  - [x] 5.1 Создать git commit: `fix(12.9.1): remove legacy cookie auth — all tests pass (679/679)`
+  - [ ] 5.2 Обновить `sprint-status.yaml`: 12-9-1 → review (AFTER MANUAL SMOKE TEST)
+  - [ ] 5.3 Добавить заметку в Architecture doc (если нужно) — не требуется
 
 ## Dev Notes — Ultimate Context for Implementation
 
@@ -522,57 +522,138 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 
 ### Completion Notes List
 
-<!-- Will be filled during implementation -->
+**Story 12.9.1 Implementation Complete — Pending Manual Smoke Test**
+
+**Summary:**
+- ✅ Removed legacy cookie-based authentication code (~240 lines)
+- ✅ Simplified AuthProvider to always use Keycloak Direct Access Grants
+- ✅ Removed feature flag `VITE_USE_KEYCLOAK` from codebase
+- ✅ All unit tests updated and passing (679/679 tests pass)
+- ⚠️ Manual smoke test required before marking story as "review"
+
+**Frontend Changes:**
+1. **AuthContext.tsx** — удалён `CookieAuthProvider` (~105 строк), упрощён `AuthProvider` до 3 строк
+2. **oidcConfig.ts** — удалена функция `isKeycloakEnabled()`
+3. **authApi.ts** — удалены `loginApi()`, `logoutApi()`, `checkSessionApi()`, `SessionCheckResult`
+4. **keycloakApi.ts** — удалены проверки `isKeycloakEnabled()` из всех функций
+5. **axios.ts** — `withCredentials: false`, удалена feature flag logic
+6. **.env.example** — удалена documentation для `VITE_USE_KEYCLOAK`
+
+**Test Updates:**
+1. **AuthContext.test.tsx** — переписан для Keycloak provider (было 17 cookie auth тестов → 3 Keycloak теста)
+2. **keycloakApi.test.ts** — удалён тест "keycloakLogin выбрасывает ошибку если Keycloak disabled"
+3. **oidcConfig.test.ts** — удалён тест `isKeycloakEnabled`
+4. **Итог:** 679/679 tests pass (было 695, удалено 16 cookie auth тестов)
+
+**Backend Decision:**
+- Backend endpoints (`/api/v1/auth/login`, `/api/v1/auth/logout`) **НЕ удалены**
+- Причина: PA-08 (Non-Breaking Changes) + PA-10 (Dangerous Operations)
+- Решение: фокус на frontend cleanup only
+- Backend cleanup можно выполнить в отдельной story после E2E tests (12.10)
+
+**Code Impact:**
+- **Removed:** ~240 lines (CookieAuthProvider, feature flag, legacy API)
+- **Modified:** 10 files
+- **Net change:** -240 lines
+
+**Manual Smoke Test (Required Before Review):**
+⚠️ **IMPORTANT:** User must perform manual smoke test before marking story as "review"
+
+**Test Steps:**
+1. Open http://localhost:3000
+2. Login with Keycloak credentials: `dev` / `dev`
+3. Verify successful login and redirect to dashboard
+4. Verify user info displays correctly (username, role)
+5. Check browser console for errors (should be none)
+6. Test core features: routes, approvals, metrics, audit logs
+7. Logout and verify redirect to login page
+8. Verify protected routes redirect to login when not authenticated
+
+**If Smoke Test PASSES:**
+- Update `sprint-status.yaml`: `12-9-1 → review`
+- Story ready for code review
+
+**If Smoke Test FAILS:**
+- Rollback: `git revert e121f27`
+- Investigate and fix issues
+- Re-run tests and smoke test
+
+**Git Commit:**
+- Branch: `fix/12-9-1-remove-legacy-cookie-auth`
+- Commit: `e121f27` — "fix(12.9.1): remove legacy cookie auth — all tests pass (679/679)"
+- Push: ⏳ Pending (after smoke test confirmation)
 
 ### File List
 
 **Frontend (TypeScript/React) — Modified:**
-- `frontend/admin-ui/src/features/auth/context/AuthContext.tsx` — удалить CookieAuthProvider, упростить AuthProvider
-- `frontend/admin-ui/src/features/auth/config/oidcConfig.ts` — удалить isKeycloakEnabled function
-- `frontend/admin-ui/src/features/auth/api/authApi.ts` — удалить loginApi, logoutApi, checkSessionApi
-- `frontend/admin-ui/.env.example` — удалить VITE_USE_KEYCLOAK documentation
+- `frontend/admin-ui/src/features/auth/context/AuthContext.tsx` — удалён CookieAuthProvider (~105 lines), упрощён AuthProvider
+- `frontend/admin-ui/src/features/auth/config/oidcConfig.ts` — удалена функция isKeycloakEnabled()
+- `frontend/admin-ui/src/features/auth/api/authApi.ts` — удалены loginApi, logoutApi, checkSessionApi, SessionCheckResult
+- `frontend/admin-ui/src/features/auth/api/keycloakApi.ts` — удалены проверки isKeycloakEnabled() из всех функций
+- `frontend/admin-ui/src/shared/utils/axios.ts` — withCredentials=false, удалена feature flag logic
+- `frontend/admin-ui/.env.example` — удалена VITE_USE_KEYCLOAK documentation
 
-**Frontend (Tests) — Modified (if needed):**
-- `frontend/admin-ui/src/features/auth/context/AuthContext.test.tsx` — обновить тесты (удалить cookie auth тесты)
-- `frontend/admin-ui/src/features/auth/config/oidcConfig.test.ts` — обновить тесты
-- `frontend/admin-ui/src/features/auth/api/keycloakApi.test.ts` — проверить нет ли зависимостей на isKeycloakEnabled
-- `frontend/admin-ui/src/shared/utils/axios.ts` — проверить импорты isKeycloakEnabled
+**Frontend (Tests) — Modified:**
+- `frontend/admin-ui/src/features/auth/context/AuthContext.test.tsx` — переписан для Keycloak (3 новых теста вместо 17 cookie auth тестов)
+- `frontend/admin-ui/src/features/auth/config/oidcConfig.test.ts` — удалён тест isKeycloakEnabled
+- `frontend/admin-ui/src/features/auth/api/keycloakApi.test.ts` — удалён тест "Keycloak disabled"
 
-**Backend (Kotlin) — Investigation Only (NO CHANGES in this story):**
-- `backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/controller/AuthController.kt` — проанализировать, но НЕ ИЗМЕНЯТЬ в этой story
+**Backend (Kotlin) — NO CHANGES:**
+- Backend endpoints остаются без изменений (PA-08, PA-10)
 
 **Documentation:**
-- `_bmad-output/implementation-artifacts/12-9-1-remove-legacy-cookie-auth.md` — эта story (обновлена с dev notes)
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — обновить статус 12-9-1 → done
-- `_bmad-output/planning-artifacts/architecture.md` — опционально добавить заметку об удалении legacy auth
+- `_bmad-output/implementation-artifacts/12-9-1-remove-legacy-cookie-auth.md` — эта story (Dev Agent Record обновлён)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — будет обновлено после manual smoke test
 
-**Estimated Files Count:**
-- Modified: 4-6 файлов (frontend only)
-- Deleted sections: ~240 lines
-- Added/updated: ~10 lines (comments, simplified code)
+**Actual Files Count:**
+- Modified: 10 files
+- Code removed: ~240 lines
+- Code added: ~50 lines (new tests, comments)
+- Net: -190 lines
+
+## Change Log
+
+**2026-02-25 — Story 12.9.1 Implementation Complete (Pending Manual Smoke Test)**
+- Removed legacy cookie-based authentication code (~240 lines)
+- Removed `CookieAuthProvider` from AuthContext.tsx
+- Removed `isKeycloakEnabled()` feature flag from codebase
+- Removed legacy API functions: `loginApi()`, `logoutApi()`, `checkSessionApi()`
+- Updated all tests: 679/679 pass (removed 16 cookie auth tests)
+- Created git commit: `e121f27` — "fix(12.9.1): remove legacy cookie auth — all tests pass (679/679)"
+- ⚠️ Manual smoke test required before marking story as "review"
 
 ## Notes
 
-**Incident Reference:** Story 12.2 incident (2026-02-23) — причина создания feature flag. Теперь feature flag больше не нужен, т.к. Keycloak полностью работает.
+**Incident Reference:** Story 12.2 incident (2026-02-23) — причина создания feature flag. Теперь feature flag больше не нужен, т.к. Keycloak полностью работает и протестирован (Stories 12.1-12.9 done).
 
 **Code Impact:**
 - **Removed:** ~240 lines (CookieAuthProvider, feature flag, legacy API)
-- **Added:** ~5 lines (simplified AuthProvider, comments)
-- **Net:** -235 lines
+- **Added:** ~50 lines (new Keycloak tests, comments)
+- **Net:** -190 lines
 
 **Testing Strategy:**
-- Smoke test (manual) — обязателен
-- Unit tests — update если есть cookie auth тесты
-- E2E tests — будут в Story 12.10 (только Keycloak path)
+- Unit tests: 679/679 pass ✅ (было 695, удалено 16 cookie auth тестов)
+- Smoke test (manual): ⏳ Pending — required before marking "review"
+- E2E tests: будут в Story 12.10 (только Keycloak path)
 
 **Backend Cleanup Decision:**
 - Backend endpoints (`/api/v1/auth/login`, `/api/v1/auth/logout`) остаются без изменений в этой story
 - Причина: PA-08 (Non-Breaking Changes) + PA-10 (Dangerous Operations)
-- Backend cleanup можно выполнить в отдельной story после 12.10
+- Frontend уже не использует эти endpoints — Keycloak auth работает напрямую с Keycloak API
+- Backend cleanup можно выполнить в отдельной story после E2E tests (12.10)
+
+**Next Steps:**
+1. User performs manual smoke test at http://localhost:3000
+2. If smoke test passes → update `sprint-status.yaml: 12-9-1 → review`
+3. Push to GitHub: `git push origin fix/12-9-1-remove-legacy-cookie-auth`
+4. Optional: Run `/bmad:bmm:code-review` for peer review
+5. Story 12.10 (E2E Tests) can proceed — Keycloak path is now the only path
 
 ---
 
 *Story created by: Claude Sonnet 4.5 (workflow execution)*
 *Date: 2026-02-25*
 *Sprint Change Proposal: Epic 12 Auth Cleanup*
-*Status: ready-for-dev*
+*Implemented by: Claude Sonnet 4.5 (dev-story workflow)*
+*Implementation Date: 2026-02-25*
+*Status: in-progress (pending manual smoke test)*
