@@ -1,13 +1,13 @@
-// Контекст аутентификации с поддержкой cookie-auth и Keycloak Direct Access Grants
+// Контекст аутентификации — Keycloak Direct Access Grants
 // Story 12.2: Admin UI — Keycloak Auth Migration
+// Story 12.9.1: Legacy cookie auth удалён
 
 import { createContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Spin } from 'antd'
-import { loginApi, logoutApi, checkSessionApi } from '../api/authApi'
 import { keycloakLogin, keycloakLogout, keycloakRefreshToken, type KeycloakTokenResponse } from '../api/keycloakApi'
 import { authEvents, setTokenGetter } from '@shared/utils/axios'
-import { isKeycloakEnabled, mapKeycloakRoles, extractKeycloakRoles, decodeJwtPayload } from '../config/oidcConfig'
+import { mapKeycloakRoles, extractKeycloakRoles, decodeJwtPayload } from '../config/oidcConfig'
 import type { User, AuthContextType } from '../types/auth.types'
 
 // Storage keys для токенов Keycloak
@@ -31,115 +31,8 @@ interface AuthProviderProps {
 }
 
 // ========================================
-// COOKIE-BASED AUTH PROVIDER (Legacy)
-// ========================================
-
-/**
- * Cookie-based AuthProvider (Legacy).
- * Используется когда VITE_USE_KEYCLOAK=false.
- */
-function CookieAuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isInitializing, setIsInitializing] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  // Проверка сессии при инициализации
-  useEffect(() => {
-    const initSession = async () => {
-      try {
-        const result = await checkSessionApi()
-        if (result.user) {
-          setUser(result.user)
-        } else if (result.networkError) {
-          setError('Ошибка сети. Проверьте подключение к интернету')
-        }
-      } finally {
-        setIsInitializing(false)
-      }
-    }
-    initSession()
-  }, [])
-
-  // Выполнить вход
-  const login = useCallback(
-    async (username: string, password: string) => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const userData = await loginApi(username, password)
-        setUser(userData)
-        const state = location.state as { returnUrl?: string } | null
-        const returnUrl = state?.returnUrl || '/dashboard'
-        navigate(returnUrl, { replace: true })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Login failed'
-        setError(message)
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [navigate, location.state]
-  )
-
-  // Выполнить выход
-  const logout = useCallback(async () => {
-    try {
-      await logoutApi()
-    } catch {
-      // Игнорируем ошибки API при logout
-    } finally {
-      setUser(null)
-      navigate('/login', { replace: true })
-    }
-  }, [navigate])
-
-  // Обработка 401 ошибок
-  const handleSessionExpired = useCallback(() => {
-    setUser(null)
-    setError('Сессия истекла, войдите снова')
-    navigate('/login', { replace: true })
-  }, [navigate])
-
-  const handleSessionExpiredRef = useRef(handleSessionExpired)
-  handleSessionExpiredRef.current = handleSessionExpired
-
-  useEffect(() => {
-    authEvents.onUnauthorized = () => handleSessionExpiredRef.current()
-    return () => {
-      authEvents.onUnauthorized = () => {}
-    }
-  }, [])
-
-  const clearError = useCallback(() => {
-    setError(null)
-  }, [])
-
-  const value: AuthContextType = {
-    user,
-    isAuthenticated: user !== null,
-    isLoading,
-    error,
-    login,
-    logout,
-    clearError,
-  }
-
-  if (isInitializing) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-// ========================================
 // KEYCLOAK DIRECT ACCESS GRANTS PROVIDER
+// Story 12.9.1: Legacy cookie auth удалён
 // ========================================
 
 /**
@@ -394,20 +287,13 @@ function KeycloakDirectGrantsProvider({ children }: AuthProviderProps) {
 }
 
 // ========================================
-// MAIN AUTH PROVIDER WITH FEATURE FLAG
+// MAIN AUTH PROVIDER
 // ========================================
 
 /**
- * AuthProvider с feature flag для переключения между cookie-auth и Keycloak.
- *
- * Feature flag: VITE_USE_KEYCLOAK
- * - false (default): Cookie-based authentication (backend API)
- * - true: Keycloak Direct Access Grants (Keycloak API, наша форма логина)
+ * AuthProvider — Keycloak Direct Access Grants.
+ * Story 12.9.1: Legacy cookie auth удалён.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  if (isKeycloakEnabled()) {
-    return <KeycloakDirectGrantsProvider>{children}</KeycloakDirectGrantsProvider>
-  }
-
-  return <CookieAuthProvider>{children}</CookieAuthProvider>
+  return <KeycloakDirectGrantsProvider>{children}</KeycloakDirectGrantsProvider>
 }

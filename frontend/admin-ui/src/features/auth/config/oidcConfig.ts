@@ -1,15 +1,8 @@
 // Конфигурация OIDC для Keycloak
 // Story 12.2: Admin UI — Keycloak Auth Migration
+// Story 12.9.1: Legacy cookie auth и feature flag удалены
 
 import type { UserManagerSettings } from 'oidc-client-ts'
-
-/**
- * Проверяет включён ли Keycloak OIDC режим.
- * Feature flag для безопасного переключения между cookie-auth и Keycloak.
- */
-export const isKeycloakEnabled = (): boolean => {
-  return import.meta.env.VITE_USE_KEYCLOAK === 'true'
-}
 
 /**
  * Настройки OIDC для Keycloak.

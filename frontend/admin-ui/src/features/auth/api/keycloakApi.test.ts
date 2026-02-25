@@ -1,13 +1,9 @@
 // Тесты для Keycloak Direct Access Grants API
 // Story 12.2: Admin UI — Keycloak Auth Migration
+// Story 12.9.1: Legacy cookie auth удалён
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { keycloakLogin, keycloakRefreshToken, keycloakLogout } from './keycloakApi'
-
-// Мокаем isKeycloakEnabled
-vi.mock('../config/oidcConfig', () => ({
-  isKeycloakEnabled: vi.fn(() => true),
-}))
 
 // Мокаем environment variables
 vi.stubEnv('VITE_KEYCLOAK_URL', 'http://localhost:8180')
@@ -196,23 +192,5 @@ describe('keycloakApi', () => {
       // Не должен выбросить ошибку (catch в .catch())
       await expect(keycloakLogout('token')).resolves.toBeUndefined()
     })
-  })
-})
-
-describe('keycloakApi с выключенным Keycloak', () => {
-  beforeEach(() => {
-    vi.resetModules()
-  })
-
-  it('keycloakLogin выбрасывает ошибку если Keycloak disabled', async () => {
-    // Переопределяем мок для этого теста
-    vi.doMock('../config/oidcConfig', () => ({
-      isKeycloakEnabled: vi.fn(() => false),
-    }))
-
-    // Динамический импорт с новым моком
-    const { keycloakLogin: loginDisabled } = await import('./keycloakApi')
-
-    await expect(loginDisabled('user', 'pass')).rejects.toThrow('Keycloak is not enabled')
   })
 })

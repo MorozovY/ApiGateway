@@ -1,8 +1,7 @@
 // Keycloak Direct Access Grants API
 // Story 12.2: Admin UI — Keycloak Auth Migration
+// Story 12.9.1: Legacy cookie auth удалён — Keycloak всегда enabled
 // Позволяет аутентифицироваться через Keycloak API без редиректа на Keycloak UI
-
-import { isKeycloakEnabled } from '../config/oidcConfig'
 
 const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL
 const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM
@@ -41,10 +40,6 @@ export async function keycloakLogin(
   username: string,
   password: string
 ): Promise<KeycloakTokenResponse> {
-  if (!isKeycloakEnabled()) {
-    throw new Error('Keycloak is not enabled')
-  }
-
   const tokenUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`
 
   const params = new URLSearchParams({
@@ -91,10 +86,6 @@ export async function keycloakLogin(
 export async function keycloakRefreshToken(
   refreshToken: string
 ): Promise<KeycloakTokenResponse> {
-  if (!isKeycloakEnabled()) {
-    throw new Error('Keycloak is not enabled')
-  }
-
   const tokenUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`
 
   const params = new URLSearchParams({
@@ -124,10 +115,6 @@ export async function keycloakRefreshToken(
  * @param refreshToken - Refresh token для инвалидации
  */
 export async function keycloakLogout(refreshToken: string): Promise<void> {
-  if (!isKeycloakEnabled()) {
-    return
-  }
-
   const logoutUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout`
 
   const params = new URLSearchParams({

@@ -1,29 +1,38 @@
-// Тесты для AuthContext
+// Тесты для AuthContext — Keycloak Direct Access Grants
+// Story 12.2: Admin UI — Keycloak Auth Migration
+// Story 12.9.1: Legacy cookie auth tests удалены — новые тесты для Keycloak
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor, act } from '@testing-library/react'
 import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider } from 'antd'
 import { AuthProvider } from './AuthContext'
 import { useAuth } from '../hooks/useAuth'
-import * as authApi from '../api/authApi'
 import { authEvents } from '@shared/utils/axios'
 
-// Мок API модуля
-vi.mock('../api/authApi', () => ({
-  loginApi: vi.fn(),
-  logoutApi: vi.fn(),
-  checkSessionApi: vi.fn(),
+// Мок Keycloak API
+vi.mock('../api/keycloakApi', () => ({
+  keycloakLogin: vi.fn(),
+  keycloakLogout: vi.fn(),
+  keycloakRefreshToken: vi.fn(),
 }))
 
-// Мок oidcConfig — принудительно используем CookieAuthProvider для тестов
+// Мок oidcConfig
 vi.mock('../config/oidcConfig', () => ({
-  isKeycloakEnabled: vi.fn(() => false),
-  mapKeycloakRoles: vi.fn(),
-  extractKeycloakRoles: vi.fn(),
-  decodeJwtPayload: vi.fn(),
+  mapKeycloakRoles: vi.fn((roles: string[]) => {
+    if (roles.includes('admin-ui:admin')) return 'admin'
+    if (roles.includes('admin-ui:security')) return 'security'
+    return 'developer'
+  }),
+  extractKeycloakRoles: vi.fn(() => ['admin-ui:developer']),
+  decodeJwtPayload: vi.fn(() => ({
+    sub: 'user-123',
+    preferred_username: 'testuser',
+    email: 'test@example.com',
+  })),
 }))
 
 // Мок axios authEvents
@@ -41,7 +50,6 @@ vi.mock('@shared/utils/axios', () => ({
 // Компонент для тестирования AuthContext
 function TestConsumer() {
   const { user, isAuthenticated, isLoading, error, login, logout, clearError } = useAuth()
-  const location = useLocation()
 
   return (
     <div>
@@ -50,442 +58,105 @@ function TestConsumer() {
       <div data-testid="error">{error ?? 'null'}</div>
       <div data-testid="username">{user?.username ?? 'null'}</div>
       <div data-testid="role">{user?.role ?? 'null'}</div>
-      <div data-testid="location">{location.pathname}</div>
-      <button data-testid="login-btn" onClick={() => login('testuser', 'password')}>
-        Login
-      </button>
-      <button data-testid="logout-btn" onClick={() => logout()}>
-        Logout
-      </button>
-      <button data-testid="clear-error-btn" onClick={clearError}>
-        Clear Error
-      </button>
+      <button onClick={() => login('testuser', 'password')}>Login</button>
+      <button onClick={logout}>Logout</button>
+      <button onClick={clearError}>Clear Error</button>
     </div>
   )
 }
 
-// Тип для начальной записи с state
-interface InitialEntry {
-  pathname: string
-  state?: Record<string, unknown>
-}
-
-// Хелпер для рендеринга с провайдерами
-function renderWithProviders(initialEntries: (string | InitialEntry)[] = ['/']) {
+describe('AuthContext', () => {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false },
+    },
   })
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <ConfigProvider>
-        <MemoryRouter initialEntries={initialEntries}>
-          <AuthProvider>
-            <Routes>
-              <Route path="*" element={<TestConsumer />} />
-            </Routes>
-          </AuthProvider>
-        </MemoryRouter>
-      </ConfigProvider>
-    </QueryClientProvider>
-  )
-}
-
-describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // По умолчанию checkSessionApi возвращает { user: null, networkError: false } (не залогинен)
-    vi.mocked(authApi.checkSessionApi).mockResolvedValue({ user: null, networkError: false })
+    sessionStorage.clear()
   })
+
+  function renderWithProviders() {
+    return render(
+      <ConfigProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/']}>
+            <AuthProvider>
+              <Routes>
+                <Route path="/" element={<TestConsumer />} />
+                <Route path="/login" element={<div>Login Page</div>} />
+                <Route path="/dashboard" element={<div>Dashboard</div>} />
+              </Routes>
+            </AuthProvider>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </ConfigProvider>
+    )
+  }
 
   it('инициализируется с пустым состоянием', async () => {
     renderWithProviders()
 
-    // Ждём пока инициализация завершится (checkSessionApi резолвится)
     await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toBeInTheDocument()
+      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
     })
 
-    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
     expect(screen.getByTestId('is-loading')).toHaveTextContent('false')
     expect(screen.getByTestId('error')).toHaveTextContent('null')
     expect(screen.getByTestId('username')).toHaveTextContent('null')
   })
 
   it('устанавливает user при успешном login', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
+    const { keycloakLogin } = await import('../api/keycloakApi')
+    const mockTokens = {
+      access_token: 'mock-access-token',
+      refresh_token: 'mock-refresh-token',
+      expires_in: 300,
+      refresh_expires_in: 1800,
+      token_type: 'Bearer',
+      scope: 'openid profile email',
+    }
+
+    vi.mocked(keycloakLogin).mockResolvedValueOnce(mockTokens)
 
     renderWithProviders()
 
-    // Ждём пока инициализация завершится
     await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
+      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
     })
 
-    const user = userEvent.setup()
-    await user.click(screen.getByTestId('login-btn'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
-    })
-    expect(screen.getByTestId('username')).toHaveTextContent('testuser')
-    expect(screen.getByTestId('role')).toHaveTextContent('developer')
-  })
-
-  it('устанавливает isLoading в true во время login', async () => {
-    // Создаём промис, который мы можем контролировать
-    let resolveLogin: (value: any) => void
-    const loginPromise = new Promise((resolve) => {
-      resolveLogin = resolve
-    })
-    vi.mocked(authApi.loginApi).mockReturnValueOnce(loginPromise as any)
-
-    renderWithProviders()
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    // Начинаем логин (используем act для синхронизации)
+    const loginButton = screen.getByText('Login')
     await act(async () => {
-      screen.getByTestId('login-btn').click()
+      await userEvent.click(loginButton)
     })
 
-    // Проверяем loading state
-    expect(screen.getByTestId('is-loading')).toHaveTextContent('true')
-
-    // Завершаем логин
-    await act(async () => {
-      resolveLogin!({ userId: '1', username: 'test', role: 'developer' })
-    })
-
+    // После успешного login происходит редирект на /dashboard
+    // Проверяем что keycloakLogin был вызван
     await waitFor(() => {
-      expect(screen.getByTestId('is-loading')).toHaveTextContent('false')
+      expect(keycloakLogin).toHaveBeenCalledWith('testuser', 'password')
     })
   })
 
   it('устанавливает error при неудачном login', async () => {
-    vi.mocked(authApi.loginApi).mockRejectedValueOnce(new Error('Invalid credentials'))
+    const { keycloakLogin } = await import('../api/keycloakApi')
+    vi.mocked(keycloakLogin).mockRejectedValueOnce(new Error('Неверные учётные данные'))
 
     renderWithProviders()
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-    await user.click(screen.getByTestId('login-btn'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('Invalid credentials')
-    })
-    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
-  })
-
-  it('очищает error через clearError', async () => {
-    vi.mocked(authApi.loginApi).mockRejectedValueOnce(new Error('Invalid credentials'))
-
-    renderWithProviders()
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-
-    // Сначала вызываем ошибку
-    await user.click(screen.getByTestId('login-btn'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('Invalid credentials')
-    })
-
-    // Очищаем ошибку
-    await user.click(screen.getByTestId('clear-error-btn'))
-
-    expect(screen.getByTestId('error')).toHaveTextContent('null')
-  })
-
-  it('очищает user при logout', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
-    vi.mocked(authApi.logoutApi).mockResolvedValueOnce(undefined)
-
-    renderWithProviders()
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-
-    // Сначала логинимся
-    await user.click(screen.getByTestId('login-btn'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
-    })
-
-    // Выполняем logout
-    await user.click(screen.getByTestId('logout-btn'))
 
     await waitFor(() => {
       expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
     })
-    expect(screen.getByTestId('username')).toHaveTextContent('null')
-  })
 
-  it('редиректит на /dashboard после успешного login', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
-
-    renderWithProviders(['/login'])
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-    await user.click(screen.getByTestId('login-btn'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/dashboard')
-    })
-  })
-
-  it('редиректит на returnUrl после успешного login (AC5)', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
-
-    // Симулируем ситуацию: пользователь был перенаправлен на /login с /routes
-    renderWithProviders([{ pathname: '/login', state: { returnUrl: '/routes' } }])
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-    await user.click(screen.getByTestId('login-btn'))
-
-    // После логина должен быть редирект на /routes (изначально запрошенный route)
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/routes')
-    })
-  })
-
-  it('редиректит на /login после logout', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
-    vi.mocked(authApi.logoutApi).mockResolvedValueOnce(undefined)
-
-    renderWithProviders(['/dashboard'])
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-
-    // Логинимся
-    await user.click(screen.getByTestId('login-btn'))
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
-    })
-
-    // Логаут
-    await user.click(screen.getByTestId('logout-btn'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/login')
-    })
-  })
-
-  it('очищает user при logout даже если API вернул ошибку', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.loginApi).mockResolvedValueOnce(mockUser)
-    // Создаём rejected promise, который будет перехвачен в try/finally
-    const logoutError = new Error('Server error')
-    vi.mocked(authApi.logoutApi).mockImplementationOnce(() => Promise.reject(logoutError))
-
-    renderWithProviders(['/dashboard'])
-
-    // Ждём пока инициализация завершится
-    await waitFor(() => {
-      expect(screen.getByTestId('login-btn')).toBeInTheDocument()
-    })
-
-    const user = userEvent.setup()
-
-    // Логинимся
-    await user.click(screen.getByTestId('login-btn'))
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
-    })
-
-    // Логаут (API вернёт ошибку, но user должен очиститься благодаря try/finally)
+    const loginButton = screen.getByText('Login')
     await act(async () => {
-      await user.click(screen.getByTestId('logout-btn'))
+      await userEvent.click(loginButton)
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
-    })
-    expect(screen.getByTestId('username')).toHaveTextContent('null')
-    expect(screen.getByTestId('location')).toHaveTextContent('/login')
-  })
-
-  // ============================================
-  // Story 9.1: Восстановление сессии и 401 handling
-  // ============================================
-
-  it('Story 9.1 AC1 - вызывает checkSessionApi при mount', async () => {
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: null, networkError: false })
-
-    renderWithProviders()
-
-    await waitFor(() => {
-      expect(authApi.checkSessionApi).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  it('Story 9.1 AC1 - восстанавливает сессию если checkSessionApi возвращает user', async () => {
-    const mockUser = { userId: '1', username: 'sessionuser', role: 'admin' as const }
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: mockUser, networkError: false })
-
-    renderWithProviders()
-
-    // Ждём пока checkSessionApi завершится и user установится
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
-    })
-    expect(screen.getByTestId('username')).toHaveTextContent('sessionuser')
-    expect(screen.getByTestId('role')).toHaveTextContent('admin')
-  })
-
-  it('Story 9.1 AC1 - не устанавливает user если checkSessionApi возвращает user: null', async () => {
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: null, networkError: false })
-
-    renderWithProviders()
-
-    // Ждём пока checkSessionApi завершится
-    await waitFor(() => {
-      expect(authApi.checkSessionApi).toHaveBeenCalled()
-    })
-
-    // Даём время на обновление state
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(screen.getByTestId('error')).toHaveTextContent('Неверные учётные данные')
     })
 
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
-    expect(screen.getByTestId('username')).toHaveTextContent('null')
-  })
-
-  it('Story 9.1 AC2 - authEvents.onUnauthorized вызывает logout и показывает сообщение', async () => {
-    const mockUser = { userId: '1', username: 'testuser', role: 'developer' as const }
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: mockUser, networkError: false })
-
-    renderWithProviders(['/dashboard'])
-
-    // Ждём восстановления сессии
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
-    })
-
-    // Вызываем onUnauthorized (симулируем 401 от API)
-    await act(async () => {
-      authEvents.onUnauthorized()
-    })
-
-    // Проверяем что пользователь вышел
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
-    })
-    expect(screen.getByTestId('location')).toHaveTextContent('/login')
-    // Проверяем сообщение об истёкшей сессии
-    expect(screen.getByTestId('error')).toHaveTextContent('Сессия истекла, войдите снова')
-  })
-
-  it('Story 9.1 AC4 - не устанавливает user если checkSessionApi возвращает networkError', async () => {
-    vi.mocked(authApi.checkSessionApi).mockResolvedValueOnce({ user: null, networkError: true })
-
-    renderWithProviders()
-
-    // Ждём пока checkSessionApi завершится
-    await waitFor(() => {
-      expect(authApi.checkSessionApi).toHaveBeenCalled()
-    })
-
-    // Даём время на обновление state
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50))
-    })
-
-    // Пользователь не должен быть залогинен
-    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
-    expect(screen.getByTestId('username')).toHaveTextContent('null')
-    // AC4: показывается сообщение об ошибке сети
-    expect(screen.getByTestId('error')).toHaveTextContent('Ошибка сети')
-  })
-
-  it('Story 9.1 AC3 - показывает loading spinner во время инициализации', async () => {
-    // Создаём промис, который мы контролируем
-    let resolveCheckSession: (value: authApi.SessionCheckResult) => void
-    const checkSessionPromise = new Promise<authApi.SessionCheckResult>((resolve) => {
-      resolveCheckSession = resolve
-    })
-    vi.mocked(authApi.checkSessionApi).mockReturnValueOnce(checkSessionPromise)
-
-    const { container } = renderWithProviders()
-
-    // Пока checkSessionApi не завершился, должен показываться Spin компонент
-    // Ant Design Spin имеет класс ant-spin
-    expect(container.querySelector('.ant-spin')).toBeInTheDocument()
-
-    // TestConsumer не должен быть в DOM (показывается только после инициализации)
-    expect(screen.queryByTestId('is-authenticated')).not.toBeInTheDocument()
-
-    // Завершаем checkSessionApi
-    await act(async () => {
-      resolveCheckSession!({ user: null, networkError: false })
-    })
-
-    // После инициализации Spin исчезает и появляется контент
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toBeInTheDocument()
-    })
-    expect(container.querySelector('.ant-spin')).not.toBeInTheDocument()
-  })
-
-  it('Story 9.1 PA-06 - очищает authEvents.onUnauthorized при unmount', async () => {
-    vi.mocked(authApi.checkSessionApi).mockResolvedValue({ user: null, networkError: false })
-
-    const { unmount } = renderWithProviders()
-
-    // Ждём инициализации
-    await waitFor(() => {
-      expect(screen.getByTestId('is-authenticated')).toBeInTheDocument()
-    })
-
-    // Сохраняем ссылку на текущий callback
-    const callbackBeforeUnmount = authEvents.onUnauthorized
-
-    // Проверяем что callback установлен (не пустая функция)
-    expect(callbackBeforeUnmount).toBeDefined()
-
-    // Unmount компонента
-    unmount()
-
-    // После unmount callback должен быть заменён на пустую функцию
-    // Это предотвращает memory leaks и вызовы на unmounted компонентах
-    expect(authEvents.onUnauthorized).not.toBe(callbackBeforeUnmount)
   })
 })

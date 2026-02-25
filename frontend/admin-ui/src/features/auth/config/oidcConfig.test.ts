@@ -1,8 +1,9 @@
 // Тесты для oidcConfig — маппинг ролей Keycloak и декодирование JWT
 // Story 12.2: Admin UI — Keycloak Auth Migration
+// Story 12.9.1: Legacy cookie auth удалён
 
 import { describe, it, expect } from 'vitest'
-import { mapKeycloakRoles, extractKeycloakRoles, decodeJwtPayload, isKeycloakEnabled } from './oidcConfig'
+import { mapKeycloakRoles, extractKeycloakRoles, decodeJwtPayload } from './oidcConfig'
 
 describe('oidcConfig', () => {
   describe('mapKeycloakRoles', () => {
@@ -125,13 +126,6 @@ describe('oidcConfig', () => {
 
     it('возвращает пустой массив для невалидного JWT', () => {
       expect(extractKeycloakRoles('invalid-jwt')).toEqual([])
-    })
-  })
-
-  describe('isKeycloakEnabled', () => {
-    it('возвращает boolean значение', () => {
-      const result = isKeycloakEnabled()
-      expect(typeof result).toBe('boolean')
     })
   })
 })
