@@ -217,23 +217,45 @@ class KeycloakAdminService(
     /**
      * Получение списка API consumers (clients с serviceAccountsEnabled=true).
      *
+     * @param first смещение для пагинации (опционально)
+     * @param max лимит записей (опционально)
      * @return список Keycloak clients
      */
-    fun listConsumers(): Mono<List<KeycloakClient>> {
+    fun listConsumers(first: Int? = null, max: Int? = null): Mono<List<KeycloakClient>> {
         val clientsUrl = "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients"
 
         return getAdminToken()
             .flatMapMany { token ->
+                // Построение URI с опциональными параметрами пагинации
+                val uriBuilder = StringBuilder(clientsUrl)
+                if (first != null || max != null) {
+                    uriBuilder.append("?")
+                    val params = mutableListOf<String>()
+                    if (first != null) params.add("first=$first")
+                    if (max != null) params.add("max=$max")
+                    uriBuilder.append(params.joinToString("&"))
+                }
+
                 webClient.get()
-                    .uri(clientsUrl)
+                    .uri(uriBuilder.toString())
                     .header("Authorization", "Bearer $token")
                     .retrieve()
                     .bodyToFlux(KeycloakClient::class.java)
             }
             .filter { it.serviceAccountsEnabled == true }
             .collectList()
+            .onErrorResume { error ->
+                // Retry при 401 Unauthorized (token expired) — очистить кеш и повторить
+                if (error.message?.contains("401") == true) {
+                    logger.warn("401 Unauthorized при listConsumers, очищаем token cache и повторяем")
+                    cachedTokenMono = null
+                    listConsumers(first, max)
+                } else {
+                    Mono.error(error)
+                }
+            }
             .doOnSuccess { clients ->
-                logger.debug("Найдено {} API consumers в Keycloak", clients.size)
+                logger.debug("Найдено {} API consumers в Keycloak (first={}, max={})", clients.size, first, max)
             }
     }
 

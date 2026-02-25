@@ -109,7 +109,15 @@ function ConsumersTable({ search }: ConsumersTableProps) {
           <strong>Description:</strong> {consumer.description || '—'}
         </p>
         <p>
-          <strong>Created:</strong> {new Date(consumer.createdTimestamp).toLocaleString()}
+          <strong>Created:</strong>{' '}
+          {new Date(consumer.createdTimestamp).toLocaleString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/Moscow',
+          })}
         </p>
         <p>
           <Button

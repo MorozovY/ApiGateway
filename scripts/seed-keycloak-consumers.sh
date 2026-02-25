@@ -100,3 +100,12 @@ if [ ! -z "$GAMMA_ID" ] && [ "$GAMMA_ID" != "null" ]; then
 fi
 
 echo "🎉 Seed завершён! Создано 3 тестовых consumers."
+echo ""
+echo "📌 ПРИМЕЧАНИЕ: Для полноценного E2E тестирования AC8 (Set Rate Limit)"
+echo "   можно добавить rate limits через Admin UI или API:"
+echo ""
+echo "   curl -X PUT http://localhost:8081/api/v1/consumers/test-consumer-alpha/rate-limit \\"
+echo "     -H 'Content-Type: application/json' \\"
+echo "     -H 'Authorization: Bearer <ADMIN_JWT>' \\"
+echo "     -d '{\"requestsPerSecond\": 100, \"burstSize\": 150}'"
+echo ""

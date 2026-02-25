@@ -38,31 +38,49 @@ class ConsumerService(
      * @return пагинированный список consumers
      */
     fun listConsumers(offset: Int, limit: Int, search: String?): Mono<ConsumerListResponse> {
-        return keycloakAdminService.listConsumers()
-            .flatMap { clients ->
-                // Фильтрация по search (игнорируем пустые строки и whitespace)
-                val filteredClients = if (!search.isNullOrBlank() && search.trim().isNotEmpty()) {
-                    clients.filter { it.clientId.startsWith(search.trim(), ignoreCase = true) }
-                } else {
-                    clients
+        // Валидация search параметра (только допустимые символы для client ID)
+        val sanitizedSearch = search?.trim()?.takeIf {
+            it.isNotEmpty() && it.matches(Regex("^[a-z0-9-]*$"))
+        }
+
+        // Оптимизация: server-side pagination если search пустой
+        return if (sanitizedSearch.isNullOrEmpty()) {
+            // Server-side pagination для производительности (Story 12.9, Issue H2 fix)
+            keycloakAdminService.listConsumers(first = offset, max = limit)
+                .flatMap { clients ->
+                    // Получаем total count отдельным запросом (без пагинации)
+                    keycloakAdminService.listConsumers()
+                        .flatMap { allClients ->
+                            val total = allClients.size
+                            enrichWithRateLimits(clients)
+                                .map { consumers ->
+                                    ConsumerListResponse(items = consumers, total = total)
+                                }
+                        }
                 }
-
-                val total = filteredClients.size
-
-                // Пагинация
-                val paginatedClients = filteredClients
-                    .drop(offset)
-                    .take(limit)
-
-                // Обогащение данными о rate limits
-                enrichWithRateLimits(paginatedClients)
-                    .map { consumers ->
-                        ConsumerListResponse(items = consumers, total = total)
+        } else {
+            // Client-side фильтрация если search присутствует (Keycloak API не поддерживает server-side search)
+            keycloakAdminService.listConsumers()
+                .flatMap { clients ->
+                    val filteredClients = clients.filter {
+                        it.clientId.startsWith(sanitizedSearch, ignoreCase = true)
                     }
-            }
-            .doOnSuccess { response ->
-                logger.debug("Список consumers получен: total={}, returned={}", response.total, response.items.size)
-            }
+
+                    val total = filteredClients.size
+
+                    // Client-side пагинация
+                    val paginatedClients = filteredClients
+                        .drop(offset)
+                        .take(limit)
+
+                    enrichWithRateLimits(paginatedClients)
+                        .map { consumers ->
+                            ConsumerListResponse(items = consumers, total = total)
+                        }
+                }
+        }.doOnSuccess { response ->
+            logger.debug("Список consumers получен: total={}, returned={}, search={}", response.total, response.items.size, sanitizedSearch ?: "none")
+        }
     }
 
     /**
@@ -157,9 +175,23 @@ class ConsumerService(
      * @param clientId client ID
      */
     fun disableConsumer(clientId: String): Mono<Void> {
-        return keycloakAdminService.disableConsumer(clientId)
-            .doOnSuccess {
-                logger.info("Consumer деактивирован: clientId={}", clientId)
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                keycloakAdminService.disableConsumer(clientId)
+                    .doOnSuccess {
+                        // Audit logging для security compliance (FR21-FR24)
+                        auditService.logAsync(
+                            entityType = "consumer",
+                            entityId = clientId,
+                            action = "consumer_disabled",
+                            userId = user.userId,
+                            username = user.username,
+                            changes = mapOf(
+                                "action" to "Consumer disabled (authentication blocked)"
+                            )
+                        )
+                        logger.info("Consumer деактивирован: clientId={}", clientId)
+                    }
             }
     }
 
@@ -169,9 +201,23 @@ class ConsumerService(
      * @param clientId client ID
      */
     fun enableConsumer(clientId: String): Mono<Void> {
-        return keycloakAdminService.enableConsumer(clientId)
-            .doOnSuccess {
-                logger.info("Consumer активирован: clientId={}", clientId)
+        return SecurityContextUtils.currentUser()
+            .flatMap { user ->
+                keycloakAdminService.enableConsumer(clientId)
+                    .doOnSuccess {
+                        // Audit logging для security compliance (FR21-FR24)
+                        auditService.logAsync(
+                            entityType = "consumer",
+                            entityId = clientId,
+                            action = "consumer_enabled",
+                            userId = user.userId,
+                            username = user.username,
+                            changes = mapOf(
+                                "action" to "Consumer enabled (authentication allowed)"
+                            )
+                        )
+                        logger.info("Consumer активирован: clientId={}", clientId)
+                    }
             }
     }
 
