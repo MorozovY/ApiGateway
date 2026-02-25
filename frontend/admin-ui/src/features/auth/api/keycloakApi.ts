@@ -7,6 +7,14 @@ const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL
 const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID
 
+// Валидация обязательных environment variables (Code Review Fix: H1)
+if (!KEYCLOAK_URL || !KEYCLOAK_REALM || !KEYCLOAK_CLIENT_ID) {
+  throw new Error(
+    'Keycloak configuration error: Missing required environment variables. ' +
+    'Please ensure VITE_KEYCLOAK_URL, VITE_KEYCLOAK_REALM, and VITE_KEYCLOAK_CLIENT_ID are set.'
+  )
+}
+
 /**
  * Ответ от Keycloak token endpoint
  */
@@ -103,7 +111,17 @@ export async function keycloakRefreshToken(
   })
 
   if (!response.ok) {
-    throw new Error('Не удалось обновить токен')
+    // Code Review Fix: M5 - улучшенная обработка ошибок token refresh
+    const error: KeycloakError = await response.json().catch(() => ({
+      error: 'unknown_error',
+      error_description: 'Не удалось обновить токен',
+    }))
+
+    // Различаем expired vs revoked tokens
+    if (error.error === 'invalid_grant') {
+      throw new Error('Сессия истекла или токен отозван. Пожалуйста, войдите снова')
+    }
+    throw new Error(error.error_description || 'Не удалось обновить токен')
   }
 
   return response.json()

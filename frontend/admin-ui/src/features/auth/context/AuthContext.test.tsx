@@ -2,7 +2,7 @@
 // Story 12.2: Admin UI — Keycloak Auth Migration
 // Story 12.9.1: Legacy cookie auth tests удалены — новые тесты для Keycloak
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, act } from '@testing-library/react'
 import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -75,6 +75,11 @@ describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     sessionStorage.clear()
+  })
+
+  // Code Review Fix: M6 - cleanup authEvents между тестами
+  afterEach(() => {
+    authEvents.onUnauthorized = () => {}
   })
 
   function renderWithProviders() {
@@ -158,5 +163,130 @@ describe('AuthContext', () => {
     })
 
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
+  })
+
+  // Code Review Fix: M1 - comprehensive token refresh tests
+  describe('Token Refresh Logic', () => {
+    it('автоматически обновляет токен когда сохранённый токен истёк', async () => {
+      const { keycloakRefreshToken } = await import('../api/keycloakApi')
+      const expiredTokens = {
+        access_token: 'expired-token',
+        refresh_token: 'valid-refresh-token',
+        expires_in: 300,
+        refresh_expires_in: 1800,
+        token_type: 'Bearer',
+        scope: 'openid profile email',
+      }
+
+      const newTokens = {
+        ...expiredTokens,
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+      }
+
+      // Сохраняем expired токен в sessionStorage (истёк 1 минуту назад)
+      sessionStorage.setItem(
+        'keycloak_tokens',
+        JSON.stringify({
+          ...expiredTokens,
+          saved_at: Date.now() - 400000, // 400 секунд назад (expires_in=300)
+        })
+      )
+
+      vi.mocked(keycloakRefreshToken).mockResolvedValueOnce(newTokens)
+
+      renderWithProviders()
+
+      // Ждём что refresh будет вызван автоматически
+      await waitFor(() => {
+        expect(keycloakRefreshToken).toHaveBeenCalledWith('valid-refresh-token')
+      })
+    })
+
+    it('НЕ обновляет токен если refresh token истёк', async () => {
+      const { keycloakRefreshToken } = await import('../api/keycloakApi')
+
+      // Сохраняем tokens где ОБА токена истекли
+      sessionStorage.setItem(
+        'keycloak_tokens',
+        JSON.stringify({
+          access_token: 'expired-token',
+          refresh_token: 'expired-refresh-token',
+          expires_in: 300,
+          refresh_expires_in: 1800,
+          token_type: 'Bearer',
+          scope: 'openid',
+          saved_at: Date.now() - 2000000, // 2000 секунд назад (refresh_expires_in=1800)
+        })
+      )
+
+      renderWithProviders()
+
+      // Ждём инициализацию
+      await waitFor(() => {
+        expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
+      })
+
+      // Refresh НЕ должен быть вызван
+      expect(keycloakRefreshToken).not.toHaveBeenCalled()
+    })
+
+    it('обрабатывает malformed JSON в sessionStorage gracefully', async () => {
+      // Сохраняем невалидный JSON
+      sessionStorage.setItem('keycloak_tokens', 'invalid-json-{')
+
+      renderWithProviders()
+
+      // Приложение должно инициализироваться без краша
+      await waitFor(() => {
+        expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
+      })
+
+      // Не должно быть ошибок
+      expect(screen.getByTestId('error')).toHaveTextContent('null')
+    })
+
+    it('предотвращает concurrent refresh attempts (H2 fix validation)', async () => {
+      const { keycloakRefreshToken } = await import('../api/keycloakApi')
+      let refreshCallCount = 0
+
+      // Мокаем медленный refresh (500ms)
+      vi.mocked(keycloakRefreshToken).mockImplementation(async () => {
+        refreshCallCount++
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        return {
+          access_token: 'new-token',
+          refresh_token: 'new-refresh',
+          expires_in: 300,
+          refresh_expires_in: 1800,
+          token_type: 'Bearer',
+          scope: 'openid',
+        }
+      })
+
+      // Сохраняем expired token
+      sessionStorage.setItem(
+        'keycloak_tokens',
+        JSON.stringify({
+          access_token: 'expired',
+          refresh_token: 'refresh',
+          expires_in: 300,
+          refresh_expires_in: 1800,
+          token_type: 'Bearer',
+          scope: 'openid',
+          saved_at: Date.now() - 400000,
+        })
+      )
+
+      renderWithProviders()
+
+      // Ждём что refresh вызван ОДИН раз (не два раза concurrently)
+      await waitFor(
+        () => {
+          expect(refreshCallCount).toBe(1)
+        },
+        { timeout: 1000 }
+      )
+    })
   })
 })

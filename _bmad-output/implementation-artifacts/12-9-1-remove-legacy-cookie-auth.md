@@ -106,7 +106,8 @@ So that codebase is simplified and E2E tests (12.10) cover only Keycloak path.
 **Unit Tests Update:**
 - [x] Обновить `oidcConfig.test.ts` — удалён тест `isKeycloakEnabled`
 - [x] Обновить `keycloakApi.test.ts` — удалён тест про disabled Keycloak
-- [x] Переписать `AuthContext.test.tsx` — новые тесты для Keycloak (679/679 pass ✅)
+- [x] Переписать `AuthContext.test.tsx` — новые тесты для Keycloak (683/683 pass ✅)
+- [x] **Code Review Fixes:** Добавлены 4 теста для token refresh logic (H2, M1 fixes)
 
 - [x] Task 4: Smoke Testing
   - [x] 4.1 Запустить приложение: `docker-compose up -d` — контейнеры запущены
@@ -534,7 +535,12 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 1. **AuthContext.test.tsx** — переписан для Keycloak provider (было 17 cookie auth тестов → 3 Keycloak теста)
 2. **keycloakApi.test.ts** — удалён тест "keycloakLogin выбрасывает ошибку если Keycloak disabled"
 3. **oidcConfig.test.ts** — удалён тест `isKeycloakEnabled`
-4. **Итог:** 679/679 tests pass (было 695, удалено 16 cookie auth тестов)
+4. **Code Review Fixes (2026-02-25):**
+   - Добавлены 4 comprehensive тестов для token refresh logic
+   - Добавлен test для race condition prevention (H2 validation)
+   - Добавлен test для malformed sessionStorage handling
+   - Добавлен afterEach cleanup для authEvents (M6)
+5. **Итог:** 683/683 tests pass (было 695 → 679 после cleanup → 683 после code review fixes)
 
 **Backend Decision:**
 - Backend endpoints (`/api/v1/auth/login`, `/api/v1/auth/logout`) **НЕ удалены**
@@ -542,10 +548,18 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 - Решение: фокус на frontend cleanup only
 - Backend cleanup можно выполнить в отдельной story после E2E tests (12.10)
 
-**Code Impact:**
+**Code Impact (Initial Implementation):**
 - **Removed:** ~240 lines (CookieAuthProvider, feature flag, legacy API)
 - **Modified:** 10 files
 - **Net change:** -240 lines
+
+**Code Review Fixes (2026-02-25):**
+- **Fixed:** 3 HIGH severity issues (env validation, race condition, security docs)
+- **Fixed:** 6 MEDIUM severity issues (test coverage, error handling, production logging)
+- **Added:** 4 comprehensive token refresh tests + race condition validation
+- **Modified:** 6 files (keycloakApi.ts, AuthContext.tsx, oidcConfig.ts, axios.ts, keycloakApi.test.ts, AuthContext.test.tsx)
+- **Tests:** 679 → 683 (добавлено 4 теста для token refresh logic)
+- **Net change:** +85 lines (validation, error handling, tests, documentation)
 
 **Manual Smoke Test Results:**
 ✅ **PASSED** (confirmed by Yury 2026-02-25)

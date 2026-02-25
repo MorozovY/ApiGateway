@@ -156,9 +156,16 @@ describe('keycloakApi', () => {
     it('выбрасывает ошибку при неудачном refresh', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
+        json: async () => ({
+          error: 'invalid_grant',
+          error_description: 'Token expired',
+        }),
       })
 
-      await expect(keycloakRefreshToken('expired-token')).rejects.toThrow('Не удалось обновить токен')
+      // Code Review Fix: M5 - обновлённое error message для revoked tokens
+      await expect(keycloakRefreshToken('expired-token')).rejects.toThrow(
+        'Сессия истекла или токен отозван'
+      )
     })
   })
 

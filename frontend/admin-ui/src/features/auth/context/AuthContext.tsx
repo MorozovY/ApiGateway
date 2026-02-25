@@ -11,6 +11,13 @@ import { mapKeycloakRoles, extractKeycloakRoles, decodeJwtPayload } from '../con
 import type { User, AuthContextType } from '../types/auth.types'
 
 // Storage keys для токенов Keycloak
+// Code Review Fix: H3 - Security Trade-off Documentation
+// Токены хранятся в sessionStorage (не в httpOnly cookies) для упрощения архитектуры.
+// SECURITY CONSIDERATION: sessionStorage доступен через JavaScript (видим в DevTools).
+// - Плюсы: простая архитектура, не требуется backend proxy для токенов
+// - Минусы: уязвим к XSS атакам и malicious browser extensions
+// - Mitigation: sessionStorage очищается при закрытии вкладки (короткоживущие сессии)
+// Для production рассмотреть: httpOnly cookie proxy pattern или token encryption
 const TOKEN_STORAGE_KEY = 'keycloak_tokens'
 
 // Начальное состояние контекста
@@ -95,6 +102,7 @@ function KeycloakDirectGrantsProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const refreshTimerRef = useRef<number | null>(null)
+  const refreshInProgressRef = useRef<Promise<boolean> | null>(null) // Code Review Fix: H2 - prevent race condition
 
   /**
    * Извлекает User из access_token.
@@ -136,20 +144,37 @@ function KeycloakDirectGrantsProvider({ children }: AuthProviderProps) {
 
   /**
    * Обновляет токены.
+   * Code Review Fix: H2 - предотвращает concurrent refresh attempts через promise caching.
    */
   const refreshTokens = useCallback(async (): Promise<boolean> => {
+    // Если refresh уже в процессе, возвращаем существующий promise
+    if (refreshInProgressRef.current) {
+      return refreshInProgressRef.current
+    }
+
     const stored = loadTokens()
     if (!stored || isRefreshTokenExpired(stored)) {
       return false
     }
 
-    try {
-      const newTokens = await keycloakRefreshToken(stored.refresh_token)
-      setAuthState(newTokens)
-      return true
-    } catch {
-      return false
-    }
+    // Создаём promise и сохраняем в ref
+    const refreshPromise = (async () => {
+      try {
+        const newTokens = await keycloakRefreshToken(stored.refresh_token)
+        setAuthState(newTokens)
+        return true
+      } catch (error) {
+        // Code Review Fix: M2 - логируем ошибки refresh
+        console.error('Token refresh failed:', error)
+        return false
+      } finally {
+        // Очищаем ref после завершения
+        refreshInProgressRef.current = null
+      }
+    })()
+
+    refreshInProgressRef.current = refreshPromise
+    return refreshPromise
   }, [setAuthState])
 
   /**

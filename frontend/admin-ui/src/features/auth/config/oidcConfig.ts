@@ -89,8 +89,11 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
         .join('')
     )
     return JSON.parse(jsonPayload)
-  } catch {
-    console.error('Failed to decode JWT payload')
+  } catch (error) {
+    // Code Review Fix: M3 - production-safe error logging
+    if (import.meta.env.DEV) {
+      console.error('Failed to decode JWT payload:', error)
+    }
     return {}
   }
 }

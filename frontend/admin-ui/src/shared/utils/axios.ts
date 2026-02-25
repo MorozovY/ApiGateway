@@ -56,9 +56,13 @@ instance.interceptors.response.use(
 
     if (error.response.status === 401) {
       // Исключаем auth endpoints из автоматического logout
+      // Code Review Fix: M4 - защита от infinite loop при Keycloak token refresh failure
       const url = error.config?.url || ''
       const isAuthEndpoint =
-        url.endsWith('/auth/login') || url.endsWith('/auth/me') || url.includes('/callback')
+        url.endsWith('/auth/login') ||
+        url.endsWith('/auth/me') ||
+        url.includes('/callback') ||
+        url.includes('/protocol/openid-connect/token') // Keycloak token endpoint
 
       if (!isAuthEndpoint) {
         authEvents.onUnauthorized()
