@@ -96,7 +96,7 @@ grafana:
 nginx:
   url: ${NGINX_URL:http://localhost:80}
 
-# Keycloak конфигурация (Story 12.1, Story 12.3)
+# Keycloak конфигурация (Story 12.1, Story 12.3, Story 12.9)
 # Identity Provider для SSO аутентификации
 # ВАЖНО: Feature flag ВЫКЛЮЧЕН по умолчанию для безопасного rollout
 keycloak:
@@ -104,7 +104,7 @@ keycloak:
   url: ${KEYCLOAK_URL:http://localhost:8180}
   realm: api-gateway
   client-id: gateway-admin-ui
-  # Admin credentials для Keycloak Admin API (сброс паролей)
+  # Admin credentials для Keycloak Admin API (сброс паролей, consumer management)
   admin-username: ${KEYCLOAK_ADMIN_USERNAME:admin}
   admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
 

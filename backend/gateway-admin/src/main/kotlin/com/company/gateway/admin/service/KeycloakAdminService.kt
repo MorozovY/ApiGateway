@@ -26,17 +26,31 @@ class KeycloakAdminService(
     private val logger = LoggerFactory.getLogger(KeycloakAdminService::class.java)
     private val webClient = WebClient.builder().build()
 
+    // Кеш для admin токена (TTL = 50 секунд, expires_in обычно 60 секунд)
+    @Volatile
+    private var cachedTokenMono: Mono<String>? = null
+
     /**
-     * Получение admin токена через password grant.
+     * Получение admin токена через password grant с кешированием.
+     *
+     * Токен кешируется на 50 секунд для уменьшения нагрузки на Keycloak.
+     * Keycloak access_token обычно имеет expires_in = 60 секунд.
      *
      * @return access_token для Admin API
      */
     fun getAdminToken(): Mono<String> {
+        // Если токен уже закеширован, возвращаем его
+        val cached = cachedTokenMono
+        if (cached != null) {
+            return cached
+        }
+
+        // Иначе запрашиваем новый токен
         val tokenUrl = "${keycloakProperties.url}/realms/master/protocol/openid-connect/token"
 
-        logger.debug("Получение admin токена от Keycloak: {}", tokenUrl)
+        logger.debug("Получение нового admin токена от Keycloak: {}", tokenUrl)
 
-        return webClient.post()
+        val tokenMono = webClient.post()
             .uri(tokenUrl)
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
             .body(
@@ -48,8 +62,15 @@ class KeycloakAdminService(
             .retrieve()
             .bodyToMono(TokenResponse::class.java)
             .map { it.access_token }
-            .doOnSuccess { logger.debug("Admin токен получен") }
-            .doOnError { e -> logger.error("Ошибка получения admin токена: {}", e.message) }
+            .doOnSuccess { logger.debug("Admin токен получен и закеширован") }
+            .doOnError { e ->
+                logger.error("Ошибка получения admin токена: {}", e.message)
+                cachedTokenMono = null // Очистить кеш при ошибке
+            }
+            .cache(java.time.Duration.ofSeconds(50)) // Кеш на 50 секунд
+
+        cachedTokenMono = tokenMono
+        return tokenMono
     }
 
     /**
@@ -189,5 +210,251 @@ class KeycloakAdminService(
         val type: String,
         val value: String,
         val temporary: Boolean
+    )
+
+    // ============ Consumer Management (Story 12.9) ============
+
+    /**
+     * Получение списка API consumers (clients с serviceAccountsEnabled=true).
+     *
+     * @return список Keycloak clients
+     */
+    fun listConsumers(): Mono<List<KeycloakClient>> {
+        val clientsUrl = "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients"
+
+        return getAdminToken()
+            .flatMapMany { token ->
+                webClient.get()
+                    .uri(clientsUrl)
+                    .header("Authorization", "Bearer $token")
+                    .retrieve()
+                    .bodyToFlux(KeycloakClient::class.java)
+            }
+            .filter { it.serviceAccountsEnabled == true }
+            .collectList()
+            .doOnSuccess { clients ->
+                logger.debug("Найдено {} API consumers в Keycloak", clients.size)
+            }
+    }
+
+    /**
+     * Получение данных одного consumer по client ID.
+     *
+     * @param clientId client ID в Keycloak
+     * @return client данные или empty если не найден
+     */
+    fun getConsumer(clientId: String): Mono<KeycloakClient> {
+        val clientsUrl = "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients"
+
+        return getAdminToken()
+            .flatMapMany { token ->
+                webClient.get()
+                    .uri("$clientsUrl?clientId=$clientId")
+                    .header("Authorization", "Bearer $token")
+                    .retrieve()
+                    .bodyToFlux(KeycloakClient::class.java)
+            }
+            .next()
+            .doOnSuccess { client ->
+                if (client != null) {
+                    logger.debug("Найден consumer в Keycloak: clientId={}, id={}", clientId, client.id)
+                } else {
+                    logger.debug("Consumer не найден в Keycloak: clientId={}", clientId)
+                }
+            }
+    }
+
+    /**
+     * Создание нового consumer (service account client).
+     *
+     * @param clientId client ID
+     * @param description описание consumer
+     * @return созданный client с secret
+     */
+    fun createConsumer(clientId: String, description: String?): Mono<KeycloakClientWithSecret> {
+        val clientsUrl = "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients"
+
+        val clientRepresentation = mapOf(
+            "clientId" to clientId,
+            "description" to (description ?: ""),
+            "enabled" to true,
+            "serviceAccountsEnabled" to true,
+            "standardFlowEnabled" to false,
+            "implicitFlowEnabled" to false,
+            "directAccessGrantsEnabled" to false,
+            "publicClient" to false,
+            "protocol" to "openid-connect"
+        )
+
+        return getAdminToken()
+            .flatMap { token ->
+                // Создать client в Keycloak
+                webClient.post()
+                    .uri(clientsUrl)
+                    .header("Authorization", "Bearer $token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(clientRepresentation)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .flatMap {
+                        // Получить созданный client для извлечения ID
+                        getConsumer(clientId)
+                            .flatMap { client ->
+                                // Получить client secret
+                                getClientSecret(client.id, token)
+                                    .map { secret ->
+                                        KeycloakClientWithSecret(
+                                            id = client.id,
+                                            clientId = client.clientId,
+                                            description = client.description,
+                                            enabled = client.enabled,
+                                            serviceAccountsEnabled = client.serviceAccountsEnabled,
+                                            createdTimestamp = client.createdTimestamp,
+                                            secret = secret
+                                        )
+                                    }
+                            }
+                    }
+            }
+            .doOnSuccess { client ->
+                logger.info("Consumer создан в Keycloak: clientId={}", client.clientId)
+            }
+            .doOnError { e ->
+                logger.error("Ошибка создания consumer в Keycloak clientId={}: {}", clientId, e.message)
+            }
+    }
+
+    /**
+     * Ротация client secret.
+     *
+     * @param clientId client ID
+     * @return новый secret
+     */
+    fun rotateSecret(clientId: String): Mono<String> {
+        return getConsumer(clientId)
+            .flatMap { client ->
+                getAdminToken()
+                    .flatMap { token ->
+                        val secretUrl =
+                            "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients/${client.id}/client-secret"
+
+                        // Regenerate secret
+                        webClient.post()
+                            .uri(secretUrl)
+                            .header("Authorization", "Bearer $token")
+                            .retrieve()
+                            .bodyToMono(KeycloakCredential::class.java)
+                            .map { it.value }
+                    }
+            }
+            .doOnSuccess {
+                logger.info("Secret ротирован для consumer: clientId={}", clientId)
+            }
+    }
+
+    /**
+     * Деактивация consumer (enabled=false).
+     *
+     * @param clientId client ID
+     * @return Mono<Void>
+     */
+    fun disableConsumer(clientId: String): Mono<Void> {
+        return updateConsumerStatus(clientId, false)
+            .doOnSuccess {
+                logger.info("Consumer деактивирован: clientId={}", clientId)
+            }
+    }
+
+    /**
+     * Активация consumer (enabled=true).
+     *
+     * @param clientId client ID
+     * @return Mono<Void>
+     */
+    fun enableConsumer(clientId: String): Mono<Void> {
+        return updateConsumerStatus(clientId, true)
+            .doOnSuccess {
+                logger.info("Consumer активирован: clientId={}", clientId)
+            }
+    }
+
+    /**
+     * Обновление статуса consumer (enabled field).
+     *
+     * @param clientId client ID
+     * @param enabled true = activate, false = disable
+     * @return Mono<Void>
+     */
+    private fun updateConsumerStatus(clientId: String, enabled: Boolean): Mono<Void> {
+        return getConsumer(clientId)
+            .flatMap { client ->
+                getAdminToken()
+                    .flatMap { token ->
+                        val clientUrl =
+                            "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients/${client.id}"
+
+                        val update = mapOf("enabled" to enabled)
+
+                        webClient.put()
+                            .uri(clientUrl)
+                            .header("Authorization", "Bearer $token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .bodyValue(update)
+                            .retrieve()
+                            .bodyToMono(Void::class.java)
+                    }
+            }
+    }
+
+    /**
+     * Получение client secret по internal ID.
+     *
+     * @param internalClientId Keycloak internal client ID (UUID)
+     * @param token admin access token
+     * @return client secret
+     */
+    private fun getClientSecret(internalClientId: String, token: String): Mono<String> {
+        val secretUrl =
+            "${keycloakProperties.url}/admin/realms/${keycloakProperties.realm}/clients/$internalClientId/client-secret"
+
+        return webClient.get()
+            .uri(secretUrl)
+            .header("Authorization", "Bearer $token")
+            .retrieve()
+            .bodyToMono(KeycloakCredential::class.java)
+            .map { it.value }
+    }
+
+    /**
+     * Keycloak client representation.
+     */
+    data class KeycloakClient(
+        val id: String,                         // Internal UUID
+        val clientId: String,                   // Publicly visible client_id
+        val description: String? = null,
+        val enabled: Boolean = true,
+        val serviceAccountsEnabled: Boolean? = false,
+        val createdTimestamp: Long = 0
+    )
+
+    /**
+     * Keycloak client с secret (после создания или ротации).
+     */
+    data class KeycloakClientWithSecret(
+        val id: String,
+        val clientId: String,
+        val description: String?,
+        val enabled: Boolean,
+        val serviceAccountsEnabled: Boolean?,
+        val createdTimestamp: Long,
+        val secret: String
+    )
+
+    /**
+     * Keycloak credential response.
+     */
+    private data class KeycloakCredential(
+        val type: String = "secret",
+        val value: String
     )
 }

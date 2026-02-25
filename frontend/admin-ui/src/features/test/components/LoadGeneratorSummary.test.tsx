@@ -77,8 +77,8 @@ describe('LoadGeneratorSummary', () => {
     render(<LoadGeneratorSummary summary={summary} onReset={mockOnReset} />)
 
     const statElement = screen.getByTestId('summary-success-rate')
-    const valueElement = statElement.querySelector('.ant-statistic-content-value')
-    expect(valueElement).toHaveStyle({ color: '#52c41a' })
+    const contentElement = statElement.querySelector('.ant-statistic-content') as HTMLElement
+    expect(contentElement.style.color).toBe('rgb(82, 196, 26)')
   })
 
   it('применяет жёлтый цвет для success rate 80-95%', () => {
@@ -90,8 +90,8 @@ describe('LoadGeneratorSummary', () => {
     render(<LoadGeneratorSummary summary={summary} onReset={mockOnReset} />)
 
     const statElement = screen.getByTestId('summary-success-rate')
-    const valueElement = statElement.querySelector('.ant-statistic-content-value')
-    expect(valueElement).toHaveStyle({ color: '#faad14' })
+    const contentElement = statElement.querySelector('.ant-statistic-content') as HTMLElement
+    expect(contentElement.style.color).toBe('rgb(250, 173, 20)')
   })
 
   it('применяет красный цвет для success rate < 80%', () => {
@@ -103,8 +103,8 @@ describe('LoadGeneratorSummary', () => {
     render(<LoadGeneratorSummary summary={summary} onReset={mockOnReset} />)
 
     const statElement = screen.getByTestId('summary-success-rate')
-    const valueElement = statElement.querySelector('.ant-statistic-content-value')
-    expect(valueElement).toHaveStyle({ color: '#ff4d4f' })
+    const contentElement = statElement.querySelector('.ant-statistic-content') as HTMLElement
+    expect(contentElement.style.color).toBe('rgb(255, 77, 79)')
   })
 
   it('отображает Average Response time', () => {

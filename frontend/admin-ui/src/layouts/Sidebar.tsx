@@ -33,6 +33,7 @@ const ROLE_MENU_ACCESS: Record<User['role'], string[]> = {
   admin: [
     '/dashboard',
     '/users',
+    '/consumers',
     '/routes',
     '/rate-limits',
     '/approvals',
@@ -61,6 +62,11 @@ const allMenuItems: ItemType[] = [
     key: '/users',
     icon: <TeamOutlined />,
     label: 'Users',
+  },
+  {
+    key: '/consumers',
+    icon: <ApiOutlined />,
+    label: 'Consumers',
   },
   {
     key: '/routes',

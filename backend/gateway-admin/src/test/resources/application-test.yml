@@ -1,4 +1,10 @@
 # Test profile configuration for gateway-admin
+
+# JWT configuration for tests
+jwt:
+  secret: test-secret-key-for-jwt-token-generation-in-tests-must-be-at-least-256-bits-long
+  expiration: 3600000 # 1 hour
+
 management:
   endpoints:
     web:

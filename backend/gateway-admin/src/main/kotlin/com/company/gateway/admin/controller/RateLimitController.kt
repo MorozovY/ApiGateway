@@ -49,7 +49,7 @@ class RateLimitController(
         return rateLimitService.findAll(offset, limit)
     }
 
-    /**
+    /**ник
      * Получение политики rate limiting по ID.
      *
      * Доступно всем аутентифицированным пользователям.

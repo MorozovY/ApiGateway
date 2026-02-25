@@ -74,11 +74,13 @@ class KeycloakSecurityConfig(
             .build()
 
         // Разрешаем несколько issuer для Docker/localhost совместимости
+        // Добавляем keycloakProperties.issuerUri для поддержки тестов с MockWebServer
         val allowedIssuers = listOf(
+            keycloakProperties.issuerUri,  // Из конфигурации (для тестов и кастомных URL)
             "http://localhost:8180/realms/${keycloakProperties.realm}",
             "http://host.docker.internal:8180/realms/${keycloakProperties.realm}",
             "http://keycloak:8080/realms/${keycloakProperties.realm}"
-        )
+        ).distinct()  // distinct для удаления дубликатов если issuerUri == localhost
         log.info("Allowed JWT issuers: $allowedIssuers")
 
         val issuerValidator = MultiIssuerValidator(allowedIssuers)

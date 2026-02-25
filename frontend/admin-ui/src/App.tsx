@@ -11,6 +11,7 @@ import { RateLimitsPage } from '@features/rate-limits'
 import { MetricsPage } from '@features/metrics'
 import { AuditPage, IntegrationsPage } from '@features/audit'
 import { TestPage } from '@features/test'
+import { ConsumersPage } from '@features/consumers'
 
 function App() {
   return (
@@ -43,6 +44,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Consumer Management (Story 12.9) — только для admin */}
+        <Route
+          path="/consumers"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <ConsumersPage />
             </ProtectedRoute>
           }
         />

@@ -70,6 +70,15 @@ globalThis.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+// Мок для window.getComputedStyle (требуется для Ant Design Modal)
+Object.defineProperty(window, 'getComputedStyle', {
+  value: () => ({
+    getPropertyValue: () => '',
+    width: '0',
+    height: '0',
+  }),
+})
+
 // Подавление предупреждений о CSS в тестах
 const originalError = console.error
 console.error = (...args) => {
