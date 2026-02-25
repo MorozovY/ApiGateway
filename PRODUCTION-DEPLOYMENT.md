@@ -4,13 +4,21 @@
 
 После Story 12.9.1 legacy cookie auth удалён, Keycloak теперь **ОБЯЗАТЕЛЕН** для работы Admin UI.
 
+### Архитектура: Nginx Reverse Proxy
+
+Keycloak доступен через Nginx reverse proxy на пути `/keycloak/`:
+- **Внешний доступ:** `http://gateway.ymorozov.ru/keycloak`
+- **Внутри Docker:** `http://keycloak:8080`
+
+Nginx проксирует `/keycloak/` → `keycloak:8080` (см. `docker/nginx/nginx.conf`).
+
 ### Требуемые Environment Variables
 
 При сборке frontend для production **ОБЯЗАТЕЛЬНО** установите следующие переменные:
 
 ```bash
-# Keycloak Server URL (без /realms/...)
-export VITE_KEYCLOAK_URL=https://keycloak.ymorozov.ru  # или ваш Keycloak URL
+# Keycloak Server URL через Nginx proxy (без /realms/...)
+export VITE_KEYCLOAK_URL=http://gateway.ymorozov.ru/keycloak
 
 # Keycloak Realm name
 export VITE_KEYCLOAK_REALM=api-gateway
@@ -19,11 +27,13 @@ export VITE_KEYCLOAK_REALM=api-gateway
 export VITE_KEYCLOAK_CLIENT_ID=gateway-admin-ui
 ```
 
+⚠️ **ВАЖНО:** Используйте путь `/keycloak` через Nginx proxy, а НЕ прямой порт `:8180`!
+
 ### Build команда для production
 
 ```bash
 # Set environment variables ПЕРЕД build
-export VITE_KEYCLOAK_URL=https://keycloak.ymorozov.ru
+export VITE_KEYCLOAK_URL=http://gateway.ymorozov.ru/keycloak
 export VITE_KEYCLOAK_REALM=api-gateway
 export VITE_KEYCLOAK_CLIENT_ID=gateway-admin-ui
 
@@ -33,7 +43,7 @@ npm run build
 
 # Или через Docker
 docker build -f docker/Dockerfile.admin-ui \
-  --build-arg VITE_KEYCLOAK_URL=https://keycloak.ymorozov.ru \
+  --build-arg VITE_KEYCLOAK_URL=http://gateway.ymorozov.ru/keycloak \
   --build-arg VITE_KEYCLOAK_REALM=api-gateway \
   --build-arg VITE_KEYCLOAK_CLIENT_ID=gateway-admin-ui \
   -t admin-ui:production .
@@ -83,14 +93,42 @@ grep -r "VITE_KEYCLOAK_URL" frontend/admin-ui/dist/assets/*.js
 1. Пересобрать frontend с правильными env vars (см. выше)
 2. Перезапустить production сервер
 
-### Проблема: "Keycloak configuration error" при логине
+### Проблема: "Failed to fetch" при логине
 
-**Причина:** Keycloak URL недоступен или неправильный.
+**Причина:** Keycloak недоступен через Nginx proxy или CORS.
 
 **Решение:**
-1. Проверить что Keycloak доступен: `curl https://keycloak.ymorozov.ru`
-2. Проверить что realm существует: `curl https://keycloak.ymorozov.ru/realms/api-gateway`
-3. Проверить что client настроен в Keycloak Admin Console
+1. Проверить что Nginx проксирует Keycloak:
+   ```bash
+   curl http://gateway.ymorozov.ru/keycloak/realms/api-gateway
+   # Должен вернуть JSON с realm metadata
+   ```
+
+2. Проверить Nginx конфигурацию:
+   ```bash
+   docker exec gateway-nginx cat /etc/nginx/conf.d/default.conf | grep -A 15 "location /keycloak/"
+   # Должна быть секция с proxy_pass http://keycloak/
+   ```
+
+3. Проверить что Keycloak контейнер запущен:
+   ```bash
+   docker-compose ps keycloak
+   # STATUS должен быть Up (healthy)
+   ```
+
+4. Тестовая страница для диагностики:
+   ```
+   http://gateway.ymorozov.ru/test-keycloak.html
+   ```
+   Откройте в браузере и нажмите кнопку "Test Login". Покажет точную ошибку.
+
+### Проблема: "Invalid token issuer"
+
+**Причина:** Старые токены с неправильным issuer URL в sessionStorage.
+
+**Решение:**
+1. Очистить sessionStorage в браузере: F12 → Application → Session Storage → Clear
+2. Обновить страницу (F5)
 
 ---
 
