@@ -1,6 +1,6 @@
 # Story 12.9.1: Remove Legacy Cookie Auth
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -656,4 +656,5 @@ No critical issues expected. This is a cleanup story with well-defined scope.
 *Sprint Change Proposal: Epic 12 Auth Cleanup*
 *Implemented by: Claude Sonnet 4.5 (dev-story workflow)*
 *Implementation Date: 2026-02-25*
-*Status: review (ready for code review)*
+*Code Review: Claude Sonnet 4.5 (adversarial review — 3 HIGH + 6 MEDIUM issues fixed)*
+*Status: done (ready for merge)*
