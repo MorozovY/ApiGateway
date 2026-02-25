@@ -135,6 +135,7 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
                 max={10000}
                 style={{ width: '100%' }}
                 placeholder="Лимит запросов в секунду"
+                data-testid="rate-limit-rps-input"
               />
             </Form.Item>
 
@@ -152,6 +153,7 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
                 max={50000}
                 style={{ width: '100%' }}
                 placeholder="Максимальный burst"
+                data-testid="rate-limit-burst-input"
               />
             </Form.Item>
           </Form>

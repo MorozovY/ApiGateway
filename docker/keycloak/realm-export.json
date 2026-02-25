@@ -169,6 +169,56 @@
         "email"
       ],
       "optionalClientScopes": []
+    },
+    {
+      "clientId": "company-b",
+      "name": "Company B API Consumer",
+      "description": "Тестовый API consumer для E2E тестов (premium tier)",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "protocol": "openid-connect",
+      "secret": "company-b-secret-change-in-production",
+      "attributes": {
+        "use.refresh.tokens": "false"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "company-c",
+      "name": "Company C API Consumer",
+      "description": "Тестовый API consumer для E2E rate limit тестов (low tier)",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "protocol": "openid-connect",
+      "secret": "company-c-secret-change-in-production",
+      "attributes": {
+        "use.refresh.tokens": "false"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "users": [

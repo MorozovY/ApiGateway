@@ -123,6 +123,45 @@ BEGIN
     ON CONFLICT (path) DO NOTHING;
 
     -- ==========================================
+    -- Consumer Rate Limits (для E2E тестов)
+    -- ==========================================
+    -- Test consumers из Keycloak realm-export.json
+    -- Используются в E2E тестах для multi-tenant scenarios
+
+    -- company-a: Standard rate limit (10 req/s, burst 20)
+    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_at, updated_at)
+    VALUES (
+        'company-a',
+        10,
+        20,
+        NOW() - INTERVAL '7 days',
+        NOW() - INTERVAL '7 days'
+    )
+    ON CONFLICT (consumer_id) DO NOTHING;
+
+    -- company-b: Premium rate limit (50 req/s, burst 100)
+    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_at, updated_at)
+    VALUES (
+        'company-b',
+        50,
+        100,
+        NOW() - INTERVAL '5 days',
+        NOW() - INTERVAL '5 days'
+    )
+    ON CONFLICT (consumer_id) DO NOTHING;
+
+    -- company-c: Low rate limit (5 req/s, burst 10) для rate limit тестов
+    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_at, updated_at)
+    VALUES (
+        'company-c',
+        5,
+        10,
+        NOW() - INTERVAL '3 days',
+        NOW() - INTERVAL '3 days'
+    )
+    ON CONFLICT (consumer_id) DO NOTHING;
+
+    -- ==========================================
     -- Audit Logs (история изменений)
     -- ==========================================
 
@@ -225,6 +264,7 @@ BEGIN
     RAISE NOTICE 'Демо-данные успешно созданы!';
     RAISE NOTICE 'Rate Limits: 3 политики';
     RAISE NOTICE 'Routes: 8 маршрутов (3 published, 2 pending, 2 draft, 1 rejected)';
+    RAISE NOTICE 'Consumer Rate Limits: 3 consumers (company-a, company-b, company-c)';
     RAISE NOTICE 'Audit Logs: созданы для всех сущностей';
 END $$;
 
@@ -240,5 +280,7 @@ UNION ALL
 SELECT 'Draft:', COUNT(*) FROM routes WHERE status = 'draft'
 UNION ALL
 SELECT 'Rejected:', COUNT(*) FROM routes WHERE status = 'rejected'
+UNION ALL
+SELECT 'Consumer Rate Limits:', COUNT(*) FROM consumer_rate_limits
 UNION ALL
 SELECT 'Audit Logs:', COUNT(*) FROM audit_logs;

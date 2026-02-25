@@ -174,44 +174,44 @@ async function globalSetup(): Promise<void> {
   }
 
   const apiBase = 'http://localhost:8081'
+  const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
+  const keycloakRealm = process.env.KEYCLOAK_REALM || 'api-gateway'
+  const keycloakClientId = process.env.KEYCLOAK_CLIENT_ID || 'gateway-admin-ui'
 
-  // Шаг 1: Аутентификация под admin
-  console.log(`[E2E Setup] Вход под пользователем ${adminUsername}...`)
+  // Шаг 1: Аутентификация через Keycloak Direct Access Grants
+  console.log(`[E2E Setup] Вход под пользователем ${adminUsername} через Keycloak...`)
 
-  const loginResponse = await fetch(`${apiBase}/api/v1/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: adminUsername, password: adminPassword }),
-    credentials: 'include',
-  })
+  const tokenResponse = await fetch(
+    `${keycloakUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'password',
+        client_id: keycloakClientId,
+        username: adminUsername,
+        password: adminPassword,
+      }),
+    }
+  )
 
-  if (!loginResponse.ok) {
-    const body = await loginResponse.text()
+  if (!tokenResponse.ok) {
+    const body = await tokenResponse.text()
     throw new Error(
-      `[E2E Setup] Не удалось войти под ${adminUsername}: ${loginResponse.status}\n${body}`
+      `[E2E Setup] Не удалось получить токен для ${adminUsername}: ${tokenResponse.status}\n${body}`
     )
   }
 
-  // Извлекаем auth cookie из заголовка Set-Cookie
-  const setCookieHeader = loginResponse.headers.get('set-cookie')
-  if (!setCookieHeader) {
-    throw new Error('[E2E Setup] Сервер не вернул cookie после логина')
-  }
+  const tokenData = await tokenResponse.json() as { access_token: string }
+  const bearerToken = tokenData.access_token
 
-  // Парсим auth_token из set-cookie заголовка
-  const cookieMatch = setCookieHeader.match(/auth_token=([^;]+)/)
-  if (!cookieMatch) {
-    throw new Error('[E2E Setup] Не найден auth_token в set-cookie заголовке')
-  }
-  const authCookie = `auth_token=${cookieMatch[1]}`
-
-  console.log('[E2E Setup] Вход выполнен успешно.')
+  console.log('[E2E Setup] Вход выполнен успешно (Keycloak token получен).')
 
   // Шаг 2: Получение списка существующих пользователей
   const usersResponse = await fetch(`${apiBase}/api/v1/users`, {
     headers: {
       'Content-Type': 'application/json',
-      'Cookie': authCookie,
+      'Authorization': `Bearer ${bearerToken}`,
     },
   })
 
@@ -235,7 +235,7 @@ async function globalSetup(): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': authCookie,
+        'Authorization': `Bearer ${bearerToken}`,
       },
       body: JSON.stringify(testUser),
     })
@@ -252,6 +252,30 @@ async function globalSetup(): Promise<void> {
     } else {
       console.log(`[E2E Setup] Пользователь ${testUser.username} создан.`)
     }
+  }
+
+  // Шаг 4: Создание Keycloak пользователей в БД (для audit_logs FK constraint)
+  console.log('[E2E Setup] Создаём Keycloak пользователей в БД для audit_logs...')
+  const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
+  const pool = new Pool({ connectionString: databaseUrl })
+
+  try {
+    // Создаём пользователей из realm-export с Keycloak UUID
+    // ВАЖНО: username != email (username: admin, email: admin@example.com)
+    // UUID должны совпадать с jwt.subject из Keycloak для audit_logs FK constraint
+    await pool.query(`
+      INSERT INTO users (id, username, password_hash, email, role, created_at, updated_at)
+      VALUES
+        ('f6de7d8b-0737-4c7e-8442-3ae00be29e91', 'admin', '$2a$10$dummy', 'admin@example.com', 'admin', NOW(), NOW()),
+        ('4b32f41d-fafb-483d-9a5c-706494035fd6', 'developer', '$2a$10$dummy', 'dev@example.com', 'developer', NOW(), NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        username = EXCLUDED.username,
+        updated_at = NOW()
+    `)
+    console.log('[E2E Setup] Keycloak пользователи созданы в БД.')
+  } finally {
+    await pool.end()
   }
 
   console.log('[E2E Setup] Подготовка завершена.')

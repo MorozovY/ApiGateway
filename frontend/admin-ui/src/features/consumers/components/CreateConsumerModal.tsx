@@ -87,7 +87,7 @@ function CreateConsumerModal({ open, onClose }: CreateConsumerModalProps) {
               },
             ]}
           >
-            <Input placeholder="company-a, partner-api, mobile-app-v2" />
+            <Input placeholder="company-a, partner-api, mobile-app-v2" data-testid="consumer-client-id-input" />
           </Form.Item>
 
           <Form.Item
@@ -100,7 +100,7 @@ function CreateConsumerModal({ open, onClose }: CreateConsumerModalProps) {
               },
             ]}
           >
-            <Input.TextArea rows={3} placeholder="Описание consumer (опционально)" />
+            <Input.TextArea rows={3} placeholder="Описание consumer (опционально)" data-testid="consumer-description-input" />
           </Form.Item>
         </Form>
       </Modal>

@@ -37,7 +37,7 @@ function ConsumersPage() {
         <Title level={3} style={{ margin: 0 }}>
           Consumers
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} data-testid="create-consumer-button">
           Create Consumer
         </Button>
       </div>
@@ -50,6 +50,7 @@ function ConsumersPage() {
           onChange={(e) => setSearchInput(e.target.value)}
           allowClear
           style={{ width: 300 }}
+          data-testid="consumer-search-input"
         />
       </div>
 

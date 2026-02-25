@@ -112,7 +112,7 @@ function MainLayout() {
             <ThemeSwitcher />
             {/* AC1: Dropdown при клике на username (Subtask 4.3) */}
             <Dropdown menu={{ items: userMenuItems }} trigger={['click']}>
-              <Button type="text" loading={isLoading}>
+              <Button type="text" loading={isLoading} data-testid="user-menu-button">
                 <Space>
                   <UserOutlined />
                   <Text>{user?.username}</Text>
