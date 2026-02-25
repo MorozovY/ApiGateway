@@ -116,11 +116,13 @@ grep -r "VITE_KEYCLOAK_URL" frontend/admin-ui/dist/assets/*.js
    # STATUS должен быть Up (healthy)
    ```
 
-4. Тестовая страница для диагностики:
+4. Проверить что login endpoint отвечает:
+   ```bash
+   curl -X POST http://gateway.ymorozov.ru/keycloak/realms/api-gateway/protocol/openid-connect/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "grant_type=password&client_id=gateway-admin-ui&username=admin&password=admin123"
+   # Должен вернуть JSON с access_token
    ```
-   http://gateway.ymorozov.ru/test-keycloak.html
-   ```
-   Откройте в браузере и нажмите кнопку "Test Login". Покажет точную ошибку.
 
 ### Проблема: "Invalid token issuer"
 
