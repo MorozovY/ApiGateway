@@ -18,6 +18,12 @@ export default defineConfig({
     host: true, // Доступ снаружи контейнера (для Docker)
     // Разрешаем доступ с внешнего домена и внутренней сети
     allowedHosts: ['gateway.ymorozov.ru', 'localhost', '192.168.0.168'],
+    // HMR через Nginx reverse proxy для внешнего доступа (Story 12.9.1 Hotfix)
+    hmr: {
+      // При доступе через gateway.ymorozov.ru используем порт 80 (Nginx)
+      // При локальном доступе localhost:3000 работает напрямую
+      clientPort: process.env.VITE_HMR_PORT ? parseInt(process.env.VITE_HMR_PORT) : 3000,
+    },
     proxy: {
       '/api': {
         // В Docker используем имя сервиса, локально — localhost
