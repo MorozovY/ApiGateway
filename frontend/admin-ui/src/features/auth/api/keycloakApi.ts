@@ -7,12 +7,21 @@ const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL
 const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID
 
-// Валидация обязательных environment variables (Code Review Fix: H1)
-if (!KEYCLOAK_URL || !KEYCLOAK_REALM || !KEYCLOAK_CLIENT_ID) {
-  throw new Error(
-    'Keycloak configuration error: Missing required environment variables. ' +
-    'Please ensure VITE_KEYCLOAK_URL, VITE_KEYCLOAK_REALM, and VITE_KEYCLOAK_CLIENT_ID are set.'
-  )
+// Валидация обязательных environment variables (Code Review Fix: H1 — Production Hotfix)
+// ВАЖНО: Validation делается lazy (при вызове функций), не при загрузке модуля
+// Это предотвращает crash если production build был сделан без env vars
+function validateKeycloakConfig(): void {
+  if (!KEYCLOAK_URL || !KEYCLOAK_REALM || !KEYCLOAK_CLIENT_ID) {
+    const missing = []
+    if (!KEYCLOAK_URL) missing.push('VITE_KEYCLOAK_URL')
+    if (!KEYCLOAK_REALM) missing.push('VITE_KEYCLOAK_REALM')
+    if (!KEYCLOAK_CLIENT_ID) missing.push('VITE_KEYCLOAK_CLIENT_ID')
+
+    throw new Error(
+      `Keycloak configuration error: Missing required environment variables: ${missing.join(', ')}. ` +
+      'Please contact your system administrator to configure Keycloak integration.'
+    )
+  }
 }
 
 /**
@@ -48,6 +57,8 @@ export async function keycloakLogin(
   username: string,
   password: string
 ): Promise<KeycloakTokenResponse> {
+  validateKeycloakConfig() // Production Hotfix: lazy validation
+
   const tokenUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`
 
   const params = new URLSearchParams({
@@ -94,6 +105,8 @@ export async function keycloakLogin(
 export async function keycloakRefreshToken(
   refreshToken: string
 ): Promise<KeycloakTokenResponse> {
+  validateKeycloakConfig() // Production Hotfix: lazy validation
+
   const tokenUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`
 
   const params = new URLSearchParams({
@@ -133,6 +146,8 @@ export async function keycloakRefreshToken(
  * @param refreshToken - Refresh token для инвалидации
  */
 export async function keycloakLogout(refreshToken: string): Promise<void> {
+  validateKeycloakConfig() // Production Hotfix: lazy validation
+
   const logoutUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout`
 
   const params = new URLSearchParams({
