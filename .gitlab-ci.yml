@@ -12,12 +12,13 @@ stages:
 # =============================================================================
 
 # Gradle cache template для backend jobs
+# ВАЖНО: Кэшируем только wrapper и dependencies, не build outputs
 .gradle-cache:
   cache:
-    key: gradle-${CI_COMMIT_REF_SLUG}
+    key: gradle-deps-v1
     paths:
-      - backend/.gradle/
-      - backend/**/build/
+      - backend/.gradle/wrapper/
+      - backend/.gradle/caches/
     policy: pull-push
 
 # NPM cache template для frontend jobs
@@ -40,7 +41,8 @@ backend-build:
   script:
     - chmod +x backend/gradlew
     - cd backend
-    - ./gradlew build -x test
+    # --no-build-cache для избежания проблем с испорченным cache
+    - ./gradlew build -x test --no-build-cache
   artifacts:
     paths:
       - backend/**/build/libs/*.jar
