@@ -2,6 +2,18 @@
 -- Демо-данные для разработки и тестирования
 -- Запуск: docker exec -i gateway-postgres psql -U gateway -d gateway < scripts/seed-demo-data.sql
 
+-- ==========================================
+-- Создание пользователей (developer, security)
+-- ==========================================
+-- Миграция V3_1 создаёт только admin, добавляем остальных
+-- Пароли: placeholder (не используются при Keycloak auth)
+
+INSERT INTO users (username, email, password_hash, role, is_active)
+VALUES
+    ('developer', 'developer@gateway.local', '$2a$10$placeholder.developer.hash.not.used.with.keycloak', 'developer', true),
+    ('security', 'security@gateway.local', '$2a$10$placeholder.security.hash.not.used.with.keycloak', 'security', true)
+ON CONFLICT (username) DO NOTHING;
+
 -- Получаем UUID пользователей
 DO $$
 DECLARE
@@ -80,46 +92,112 @@ BEGIN
     -- ==========================================
     -- Routes (маршруты)
     -- ==========================================
+    -- Группировка по интеграциям (upstream сервисам)
+    -- auth_required: true = требуется JWT, false = публичный доступ
+    -- allowed_consumers: NULL = все consumers, ARRAY['id1','id2'] = whitelist
 
-    -- Published routes (опубликованные)
-    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, approved_by, approved_at, rate_limit_id)
+    -- ==========================================
+    -- ИНТЕГРАЦИЯ 1: JSONPlaceholder Users API (published, 3 маршрута)
+    -- Upstream: https://jsonplaceholder.typicode.com
+    -- Статус: полностью опубликовано, защищено JWT
+    -- ==========================================
+    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, approved_by, approved_at, rate_limit_id, auth_required, allowed_consumers)
     VALUES
         ('/api/users', 'https://jsonplaceholder.typicode.com/users', ARRAY['GET', 'POST'], 'published',
-         'API пользователей (JSONPlaceholder)', developer_id, security_id, NOW() - INTERVAL '5 days', rate_limit_standard_id),
+         'Users API — список пользователей', developer_id, security_id, NOW() - INTERVAL '10 days',
+         rate_limit_standard_id, true, NULL),
 
-        ('/api/posts', 'https://jsonplaceholder.typicode.com/posts', ARRAY['GET', 'POST', 'PUT', 'DELETE'], 'published',
-         'API постов (JSONPlaceholder)', developer_id, security_id, NOW() - INTERVAL '3 days', rate_limit_standard_id),
+        ('/api/users/{id}', 'https://jsonplaceholder.typicode.com/users', ARRAY['GET', 'PUT', 'DELETE'], 'published',
+         'Users API — операции с пользователем по ID', developer_id, security_id, NOW() - INTERVAL '10 days',
+         rate_limit_standard_id, true, NULL),
 
-        ('/api/comments', 'https://jsonplaceholder.typicode.com/comments', ARRAY['GET'], 'published',
-         'API комментариев (только чтение)', developer_id, admin_id, NOW() - INTERVAL '2 days', rate_limit_premium_id)
+        ('/api/users/{id}/posts', 'https://jsonplaceholder.typicode.com/users', ARRAY['GET'], 'published',
+         'Users API — посты конкретного пользователя', developer_id, security_id, NOW() - INTERVAL '9 days',
+         rate_limit_standard_id, true, NULL)
     ON CONFLICT (path) DO NOTHING;
 
-    -- Pending routes (ожидают одобрения)
-    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, submitted_at)
+    -- ==========================================
+    -- ИНТЕГРАЦИЯ 2: JSONPlaceholder Posts API (published, 3 маршрута)
+    -- Upstream: https://jsonplaceholder.typicode.com
+    -- Статус: опубликовано, whitelist для company-a и company-b
+    -- ==========================================
+    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, approved_by, approved_at, rate_limit_id, auth_required, allowed_consumers)
+    VALUES
+        ('/api/posts', 'https://jsonplaceholder.typicode.com/posts', ARRAY['GET', 'POST'], 'published',
+         'Posts API — список постов (только company-a, company-b)', developer_id, security_id, NOW() - INTERVAL '7 days',
+         rate_limit_premium_id, true, ARRAY['company-a', 'company-b']),
+
+        ('/api/posts/{id}', 'https://jsonplaceholder.typicode.com/posts', ARRAY['GET', 'PUT', 'PATCH', 'DELETE'], 'published',
+         'Posts API — операции с постом по ID', developer_id, security_id, NOW() - INTERVAL '7 days',
+         rate_limit_premium_id, true, ARRAY['company-a', 'company-b']),
+
+        ('/api/posts/{id}/comments', 'https://jsonplaceholder.typicode.com/posts', ARRAY['GET', 'POST'], 'published',
+         'Posts API — комментарии к посту', developer_id, admin_id, NOW() - INTERVAL '6 days',
+         rate_limit_premium_id, true, ARRAY['company-a', 'company-b'])
+    ON CONFLICT (path) DO NOTHING;
+
+    -- ==========================================
+    -- ИНТЕГРАЦИЯ 3: JSONPlaceholder Albums API (pending, 3 маршрута)
+    -- Upstream: https://jsonplaceholder.typicode.com
+    -- Статус: ожидает одобрения security team
+    -- ==========================================
+    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, submitted_at, auth_required, allowed_consumers)
     VALUES
         ('/api/albums', 'https://jsonplaceholder.typicode.com/albums', ARRAY['GET', 'POST'], 'pending',
-         'API альбомов — ожидает проверки', developer_id, NOW() - INTERVAL '1 day'),
+         'Albums API — список альбомов (ожидает проверки)', developer_id, NOW() - INTERVAL '2 days',
+         true, NULL),
 
-        ('/api/photos', 'https://jsonplaceholder.typicode.com/photos', ARRAY['GET'], 'pending',
-         'API фотографий — только чтение', developer_id, NOW() - INTERVAL '12 hours')
+        ('/api/albums/{id}', 'https://jsonplaceholder.typicode.com/albums', ARRAY['GET', 'PUT', 'DELETE'], 'pending',
+         'Albums API — операции с альбомом по ID', developer_id, NOW() - INTERVAL '2 days',
+         true, NULL),
+
+        ('/api/albums/{id}/photos', 'https://jsonplaceholder.typicode.com/albums', ARRAY['GET'], 'pending',
+         'Albums API — фотографии альбома', developer_id, NOW() - INTERVAL '1 day',
+         true, ARRAY['company-c'])
     ON CONFLICT (path) DO NOTHING;
 
-    -- Draft routes (черновики)
-    INSERT INTO routes (path, upstream_url, methods, status, description, created_by)
+    -- ==========================================
+    -- ИНТЕГРАЦИЯ 4: Todo Service (draft, 2 маршрута)
+    -- Upstream: https://jsonplaceholder.typicode.com
+    -- Статус: в разработке
+    -- ==========================================
+    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, auth_required, allowed_consumers)
     VALUES
-        ('/api/todos', 'https://jsonplaceholder.typicode.com/todos', ARRAY['GET', 'POST', 'PATCH', 'DELETE'], 'draft',
-         'API задач — в разработке', developer_id),
+        ('/api/todos', 'https://jsonplaceholder.typicode.com/todos', ARRAY['GET', 'POST'], 'draft',
+         'Todo API — список задач (в разработке)', developer_id, true, NULL),
 
-        ('/api/weather', 'https://api.openweathermap.org/data/2.5/weather', ARRAY['GET'], 'draft',
-         'API погоды (требуется API ключ)', admin_id)
+        ('/api/todos/{id}', 'https://jsonplaceholder.typicode.com/todos', ARRAY['GET', 'PUT', 'PATCH', 'DELETE'], 'draft',
+         'Todo API — операции с задачей по ID', developer_id, true, NULL)
     ON CONFLICT (path) DO NOTHING;
 
-    -- Rejected route (отклонённый)
-    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, submitted_at, rejected_by, rejected_at, rejection_reason)
+    -- ==========================================
+    -- ИНТЕГРАЦИЯ 5: Weather Service (draft, 2 маршрута)
+    -- Upstream: https://api.openweathermap.org
+    -- Статус: в разработке, публичный доступ (без JWT)
+    -- ==========================================
+    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, auth_required, allowed_consumers)
     VALUES
-        ('/api/internal', 'http://internal-service:8080/api', ARRAY['GET', 'POST'], 'rejected',
-         'Внутренний сервис', developer_id, NOW() - INTERVAL '4 days', security_id, NOW() - INTERVAL '3 days',
-         'Внутренние сервисы не должны быть доступны через публичный gateway')
+        ('/api/weather/current', 'https://api.openweathermap.org/data/2.5/weather', ARRAY['GET'], 'draft',
+         'Weather API — текущая погода (публичный)', admin_id, false, NULL),
+
+        ('/api/weather/forecast', 'https://api.openweathermap.org/data/2.5/forecast', ARRAY['GET'], 'draft',
+         'Weather API — прогноз погоды (публичный)', admin_id, false, NULL)
+    ON CONFLICT (path) DO NOTHING;
+
+    -- ==========================================
+    -- ИНТЕГРАЦИЯ 6: Internal Service (rejected, 2 маршрута)
+    -- Upstream: http://internal-service:8080
+    -- Статус: отклонено — внутренние сервисы не публикуются
+    -- ==========================================
+    INSERT INTO routes (path, upstream_url, methods, status, description, created_by, submitted_at, rejected_by, rejected_at, rejection_reason, auth_required, allowed_consumers)
+    VALUES
+        ('/api/internal/health', 'http://internal-service:8080/health', ARRAY['GET'], 'rejected',
+         'Internal API — health check', developer_id, NOW() - INTERVAL '5 days', security_id, NOW() - INTERVAL '4 days',
+         'Внутренние endpoints не должны быть доступны через публичный gateway. Используйте internal load balancer.', true, NULL),
+
+        ('/api/internal/metrics', 'http://internal-service:8080/metrics', ARRAY['GET'], 'rejected',
+         'Internal API — метрики Prometheus', developer_id, NOW() - INTERVAL '5 days', security_id, NOW() - INTERVAL '4 days',
+         'Метрики содержат sensitive данные. Доступ только через internal network.', true, NULL)
     ON CONFLICT (path) DO NOTHING;
 
     -- ==========================================
@@ -129,33 +207,36 @@ BEGIN
     -- Используются в E2E тестах для multi-tenant scenarios
 
     -- company-a: Standard rate limit (10 req/s, burst 20)
-    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_at, updated_at)
+    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_by, created_at, updated_at)
     VALUES (
         'company-a',
         10,
         20,
+        admin_id,
         NOW() - INTERVAL '7 days',
         NOW() - INTERVAL '7 days'
     )
     ON CONFLICT (consumer_id) DO NOTHING;
 
     -- company-b: Premium rate limit (50 req/s, burst 100)
-    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_at, updated_at)
+    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_by, created_at, updated_at)
     VALUES (
         'company-b',
         50,
         100,
+        admin_id,
         NOW() - INTERVAL '5 days',
         NOW() - INTERVAL '5 days'
     )
     ON CONFLICT (consumer_id) DO NOTHING;
 
     -- company-c: Low rate limit (5 req/s, burst 10) для rate limit тестов
-    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_at, updated_at)
+    INSERT INTO consumer_rate_limits (consumer_id, requests_per_second, burst_size, created_by, created_at, updated_at)
     VALUES (
         'company-c',
         5,
         10,
+        admin_id,
         NOW() - INTERVAL '3 days',
         NOW() - INTERVAL '3 days'
     )
@@ -164,6 +245,25 @@ BEGIN
     -- ==========================================
     -- Audit Logs (история изменений)
     -- ==========================================
+
+    -- Audit logs для создания пользователей developer и security
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'user',
+        id::text,
+        'created',
+        admin_id,
+        'admin',
+        json_build_object('username', username, 'email', email, 'role', role)::text,
+        created_at
+    FROM users
+    WHERE username IN ('developer', 'security')
+    AND NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'user'
+        AND al.entity_id = users.id::text
+        AND al.action = 'created'
+    );
 
     -- Audit logs для rate limits
     INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
@@ -191,7 +291,14 @@ BEGIN
         'created',
         created_by,
         (SELECT username FROM users WHERE id = routes.created_by),
-        json_build_object('path', path, 'upstreamUrl', upstream_url, 'methods', methods, 'status', 'draft')::text,
+        json_build_object(
+            'path', path,
+            'upstreamUrl', upstream_url,
+            'methods', methods,
+            'status', 'draft',
+            'authRequired', auth_required,
+            'allowedConsumers', allowed_consumers
+        )::text,
         created_at
     FROM routes
     WHERE NOT EXISTS (
@@ -201,7 +308,7 @@ BEGIN
         AND al.action = 'created'
     );
 
-    -- Audit logs для routes (submitted) — pending routes
+    -- Audit logs для routes (submitted) — pending и rejected routes
     INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
     SELECT
         'route',
@@ -261,15 +368,42 @@ BEGIN
         AND al.action = 'rejected'
     );
 
+    -- Audit logs для consumer rate limits
+    INSERT INTO audit_logs (entity_type, entity_id, action, user_id, username, changes, created_at)
+    SELECT
+        'consumer_rate_limit',
+        id::text,
+        'created',
+        admin_id,
+        'admin',
+        json_build_object('consumerId', consumer_id, 'requestsPerSecond', requests_per_second, 'burstSize', burst_size)::text,
+        created_at
+    FROM consumer_rate_limits
+    WHERE NOT EXISTS (
+        SELECT 1 FROM audit_logs al
+        WHERE al.entity_type = 'consumer_rate_limit'
+        AND al.entity_id = consumer_rate_limits.id::text
+        AND al.action = 'created'
+    );
+
     RAISE NOTICE 'Демо-данные успешно созданы!';
-    RAISE NOTICE 'Rate Limits: 3 политики';
-    RAISE NOTICE 'Routes: 8 маршрутов (3 published, 2 pending, 2 draft, 1 rejected)';
+    RAISE NOTICE 'Users: 2 пользователя (developer, security)';
+    RAISE NOTICE 'Rate Limits: 3 политики (Standard, Premium, Burst)';
+    RAISE NOTICE 'Routes: 15 маршрутов в 6 интеграциях';
+    RAISE NOTICE '  - Users API: 3 published';
+    RAISE NOTICE '  - Posts API: 3 published';
+    RAISE NOTICE '  - Albums API: 3 pending';
+    RAISE NOTICE '  - Todo API: 2 draft';
+    RAISE NOTICE '  - Weather API: 2 draft';
+    RAISE NOTICE '  - Internal API: 2 rejected';
     RAISE NOTICE 'Consumer Rate Limits: 3 consumers (company-a, company-b, company-c)';
     RAISE NOTICE 'Audit Logs: созданы для всех сущностей';
 END $$;
 
 -- Вывод результатов
-SELECT 'Rate Limits:' AS info, COUNT(*) AS count FROM rate_limits
+SELECT 'Users:' AS info, COUNT(*) AS count FROM users
+UNION ALL
+SELECT 'Rate Limits:', COUNT(*) FROM rate_limits
 UNION ALL
 SELECT 'Routes:', COUNT(*) FROM routes
 UNION ALL
@@ -284,3 +418,20 @@ UNION ALL
 SELECT 'Consumer Rate Limits:', COUNT(*) FROM consumer_rate_limits
 UNION ALL
 SELECT 'Audit Logs:', COUNT(*) FROM audit_logs;
+
+-- Группировка по интеграциям (upstream)
+SELECT
+    CASE
+        WHEN upstream_url LIKE '%jsonplaceholder%/users%' THEN 'Users API'
+        WHEN upstream_url LIKE '%jsonplaceholder%/posts%' THEN 'Posts API'
+        WHEN upstream_url LIKE '%jsonplaceholder%/albums%' THEN 'Albums API'
+        WHEN upstream_url LIKE '%jsonplaceholder%/todos%' THEN 'Todo API'
+        WHEN upstream_url LIKE '%openweathermap%' THEN 'Weather API'
+        WHEN upstream_url LIKE '%internal-service%' THEN 'Internal API'
+        ELSE 'Other'
+    END AS integration,
+    status,
+    COUNT(*) AS routes_count
+FROM routes
+GROUP BY integration, status
+ORDER BY integration, status;
