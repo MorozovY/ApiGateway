@@ -43,8 +43,7 @@ backend-build:
     - ./gradlew build -x test
   artifacts:
     paths:
-      - backend/**/build/libs/
-      - backend/**/build/classes/
+      - backend/**/build/libs/*.jar
     expire_in: 1 hour
   tags:
     - docker
@@ -93,10 +92,11 @@ backend-test:
       junit:
         - backend/**/build/test-results/test/*.xml
     paths:
-      - backend/**/build/reports/tests/
-      - backend/**/build/reports/jacoco/
+      - backend/**/build/reports/tests/test/
+      - backend/**/build/reports/jacoco/test/
   needs:
-    - backend-build
+    - job: backend-build
+      optional: true
   tags:
     - docker
 
