@@ -13,13 +13,17 @@ stages:
 # =============================================================================
 
 # Gradle cache template для backend jobs
-# ВАЖНО: Кэшируем только wrapper и dependencies, не build outputs
+# ВАЖНО: Кэшируем wrapper, dependencies и build outputs
 .gradle-cache:
   cache:
-    key: gradle-deps-v1
+    key: gradle-deps-v2
     paths:
-      - backend/.gradle/wrapper/
+      - backend/gradle/wrapper/
       - backend/.gradle/caches/
+      - backend/.gradle/wrapper/
+      - backend/gateway-admin/build/
+      - backend/gateway-core/build/
+      - backend/gateway-common/build/
     policy: pull-push
 
 # NPM cache template для frontend jobs
@@ -39,56 +43,83 @@ backend-build:
   image: eclipse-temurin:21-jdk
   extends: .gradle-cache
   timeout: 15 minutes
+  variables:
+    # Nexus proxy для ускорения downloads (опционально)
+    NEXUS_URL: "http://nexus:8081"
   script:
     - chmod +x backend/gradlew
     - cd backend
-    # --no-build-cache для избежания проблем с испорченным cache
-    - ./gradlew build -x test --no-build-cache
-  # Artifacts не сохраняем - test job сам компилирует код
-  tags:
-    - docker
+    # Используем Nexus init script если доступен
+    - |
+      if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
+        echo "Using Nexus proxy: $NEXUS_URL"
+        ./gradlew build -x test --init-script ../docker/gitlab/gradle-init.gradle.kts
+      else
+        echo "Nexus not available, using default repositories"
+        ./gradlew build -x test
+      fi
 
 frontend-build:
   stage: build
   image: node:20-alpine
   extends: .npm-cache
   timeout: 10 minutes
+  variables:
+    # Nexus proxy для npm (опционально)
+    NEXUS_URL: "http://nexus:8081"
   script:
     - cd frontend/admin-ui
+    # Проверяем доступность Nexus и используем как proxy
+    - |
+      if wget -q --spider "$NEXUS_URL/service/rest/v1/status" 2>/dev/null; then
+        echo "Using Nexus npm proxy: $NEXUS_URL"
+        npm config set registry "$NEXUS_URL/repository/npm-proxy/"
+        npm config set strict-ssl false
+      else
+        echo "Nexus not available, using default npm registry"
+      fi
     - npm ci
     - npm run build
   artifacts:
     paths:
       - frontend/admin-ui/dist/
     expire_in: 1 hour
-  tags:
-    - docker
 
 # =============================================================================
 # TEST STAGE
 # =============================================================================
 
+# Backend tests с Testcontainers (Docker socket)
+# Runners монтируют Docker socket, Testcontainers работают через него
 backend-test:
   stage: test
   image: eclipse-temurin:21-jdk
   extends: .gradle-cache
-  timeout: 20 minutes
-  # ПРИМЕЧАНИЕ: Для Testcontainers требуется Runner с privileged mode
-  # Тесты с Testcontainers будут пропущены если DinD недоступен
-  allow_failure: true
-  services:
-    - name: docker:dind
-      alias: docker
+  timeout: 25 minutes
   variables:
-    # Docker-in-Docker для Testcontainers
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    # Отключаем Ryuk для CI (он не нужен в ephemeral environments)
+    # Nexus proxy (опционально)
+    NEXUS_URL: "http://nexus:8081"
+    # Docker socket для Testcontainers (без DinD)
+    DOCKER_HOST: unix:///var/run/docker.sock
+    TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+    # Отключаем Ryuk (не нужен в CI, контейнеры удаляются с job)
     TESTCONTAINERS_RYUK_DISABLED: "true"
+    # Testcontainers будут использовать host networking
+    TESTCONTAINERS_HOST_OVERRIDE: docker
   script:
     - chmod +x backend/gradlew
     - cd backend
-    - ./gradlew test --parallel jacocoTestReport
+    # Проверяем доступность Docker
+    - docker info || echo "Docker not available, tests may fail"
+    # Используем Nexus init script если доступен
+    - |
+      if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
+        echo "Using Nexus proxy: $NEXUS_URL"
+        ./gradlew test --parallel jacocoTestReport --init-script ../docker/gitlab/gradle-init.gradle.kts
+      else
+        echo "Nexus not available, using default repositories"
+        ./gradlew test --parallel jacocoTestReport
+      fi
   artifacts:
     when: always
     reports:
@@ -100,8 +131,6 @@ backend-test:
   needs:
     - job: backend-build
       optional: true
-  tags:
-    - docker
 
 frontend-test:
   stage: test
@@ -109,18 +138,27 @@ frontend-test:
   extends: .npm-cache
   timeout: 10 minutes
   variables:
+    # Nexus proxy (опционально)
+    NEXUS_URL: "http://nexus:8081"
     # Keycloak env vars для тестов (валидация конфигурации)
     VITE_KEYCLOAK_URL: "http://localhost:8180"
     VITE_KEYCLOAK_REALM: "api-gateway"
     VITE_KEYCLOAK_CLIENT_ID: "gateway-admin-ui"
   script:
     - cd frontend/admin-ui
+    # Проверяем доступность Nexus и используем как proxy
+    - |
+      if wget -q --spider "$NEXUS_URL/service/rest/v1/status" 2>/dev/null; then
+        echo "Using Nexus npm proxy: $NEXUS_URL"
+        npm config set registry "$NEXUS_URL/repository/npm-proxy/"
+        npm config set strict-ssl false
+      else
+        echo "Nexus not available, using default npm registry"
+      fi
     - npm ci
     - npm run test:run
   needs:
     - frontend-build
-  tags:
-    - docker
 
 # =============================================================================
 # E2E TESTS (Optional — требует запущенного стека)
@@ -172,5 +210,3 @@ sync-to-github:
     - git fetch --unshallow || true
     - git push github HEAD:master --force
     - git push github --tags --force
-  tags:
-    - docker
