@@ -1,0 +1,20 @@
+# npm configuration for CI with Nexus proxy
+# Copy to ~/.npmrc or set NPM_CONFIG_REGISTRY env var
+#
+# Usage in CI:
+#   cp npmrc-ci ~/.npmrc
+#   npm ci
+#
+# Or via environment variable:
+#   NPM_CONFIG_REGISTRY=http://nexus:8081/repository/npm-proxy/
+#   npm ci
+
+# Nexus npm proxy (fallback to npmjs.org if not available)
+registry=http://nexus:8081/repository/npm-proxy/
+
+# Allow HTTP for local Nexus
+strict-ssl=false
+
+# Cache settings
+cache=/cache/npm
+prefer-offline=true

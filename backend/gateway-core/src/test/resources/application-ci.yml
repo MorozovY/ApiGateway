@@ -1,0 +1,21 @@
+# CI profile configuration for gateway-core
+# Используется в GitLab CI с PostgreSQL/Redis как GitLab services
+
+spring:
+  r2dbc:
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://postgres:5432/gateway_test}
+    username: ${SPRING_R2DBC_USERNAME:gateway}
+    password: ${SPRING_R2DBC_PASSWORD:gateway}
+
+  flyway:
+    enabled: true
+    url: ${SPRING_FLYWAY_URL:jdbc:postgresql://postgres:5432/gateway_test}
+    user: ${SPRING_FLYWAY_USER:gateway}
+    password: ${SPRING_FLYWAY_PASSWORD:gateway}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}

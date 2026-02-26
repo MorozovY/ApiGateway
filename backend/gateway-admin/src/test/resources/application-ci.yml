@@ -1,0 +1,56 @@
+# CI profile configuration for gateway-admin
+# Используется в GitLab CI с PostgreSQL/Redis как GitLab services
+# Отключает Testcontainers и использует фиксированные connection strings
+
+spring:
+  r2dbc:
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://postgres:5432/gateway_test}
+    username: ${SPRING_R2DBC_USERNAME:gateway}
+    password: ${SPRING_R2DBC_PASSWORD:gateway}
+
+  flyway:
+    url: ${SPRING_FLYWAY_URL:jdbc:postgresql://postgres:5432/gateway_test}
+    user: ${SPRING_FLYWAY_USER:gateway}
+    password: ${SPRING_FLYWAY_PASSWORD:gateway}
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+# JWT configuration for tests
+jwt:
+  secret: test-secret-key-for-jwt-token-generation-in-tests-must-be-at-least-256-bits-long
+  expiration: 3600000
+
+# Keycloak configuration (mock в CI)
+keycloak:
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8180}
+  realm: ${KEYCLOAK_REALM:api-gateway}
+
+# Health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: r2dbc,redis
+        liveness:
+          include: ping
+    prometheus:
+      enabled: true
+  health:
+    redis:
+      enabled: true
+    r2dbc:
+      enabled: true
