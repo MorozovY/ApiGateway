@@ -108,11 +108,7 @@ frontend-test:
   script:
     - cd frontend/admin-ui
     - npm ci
-    - npm run test:coverage
-  artifacts:
-    when: always
-    paths:
-      - frontend/admin-ui/coverage/
+    - npm run test:run
   needs:
     - frontend-build
   tags:
