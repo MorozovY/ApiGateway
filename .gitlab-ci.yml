@@ -1,9 +1,150 @@
 # GitLab CI/CD Pipeline для ApiGateway
 # Story 13.1: GitHub Mirror sync
-# Story 13.2+: Build, test, deploy stages будут добавлены позже
+# Story 13.2: Build, test stages
 
 stages:
+  - build
+  - test
   - sync
+
+# =============================================================================
+# CACHE TEMPLATES
+# =============================================================================
+
+# Gradle cache template для backend jobs
+.gradle-cache:
+  cache:
+    key: gradle-${CI_COMMIT_REF_SLUG}
+    paths:
+      - backend/.gradle/
+      - backend/**/build/
+    policy: pull-push
+
+# NPM cache template для frontend jobs
+.npm-cache:
+  cache:
+    key: npm-${CI_COMMIT_REF_SLUG}
+    paths:
+      - frontend/admin-ui/node_modules/
+    policy: pull-push
+
+# =============================================================================
+# BUILD STAGE
+# =============================================================================
+
+backend-build:
+  stage: build
+  image: eclipse-temurin:21-jdk
+  extends: .gradle-cache
+  timeout: 15 minutes
+  script:
+    - chmod +x backend/gradlew
+    - cd backend
+    - ./gradlew build -x test
+  artifacts:
+    paths:
+      - backend/**/build/libs/
+      - backend/**/build/classes/
+    expire_in: 1 hour
+  tags:
+    - docker
+
+frontend-build:
+  stage: build
+  image: node:20-alpine
+  extends: .npm-cache
+  timeout: 10 minutes
+  script:
+    - cd frontend/admin-ui
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/admin-ui/dist/
+    expire_in: 1 hour
+  tags:
+    - docker
+
+# =============================================================================
+# TEST STAGE
+# =============================================================================
+
+backend-test:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  extends: .gradle-cache
+  timeout: 20 minutes
+  services:
+    - name: docker:dind
+      alias: docker
+  variables:
+    # Docker-in-Docker для Testcontainers
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    # Отключаем Ryuk для CI (он не нужен в ephemeral environments)
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  script:
+    - chmod +x backend/gradlew
+    - cd backend
+    - ./gradlew test --parallel jacocoTestReport
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/**/build/test-results/test/*.xml
+    paths:
+      - backend/**/build/reports/tests/
+      - backend/**/build/reports/jacoco/
+  needs:
+    - backend-build
+  tags:
+    - docker
+
+frontend-test:
+  stage: test
+  image: node:20-alpine
+  extends: .npm-cache
+  timeout: 10 minutes
+  script:
+    - cd frontend/admin-ui
+    - npm ci
+    - npm run test:coverage
+  artifacts:
+    when: always
+    paths:
+      - frontend/admin-ui/coverage/
+  needs:
+    - frontend-build
+  tags:
+    - docker
+
+# =============================================================================
+# E2E TESTS (Optional — требует запущенного стека)
+# =============================================================================
+
+# e2e-test:
+#   stage: test
+#   image: mcr.microsoft.com/playwright:v1.42.0-jammy
+#   timeout: 15 minutes
+#   when: manual
+#   allow_failure: true
+#   script:
+#     - cd frontend/admin-ui
+#     - npm ci
+#     - npx playwright test
+#   artifacts:
+#     when: always
+#     paths:
+#       - frontend/admin-ui/playwright-report/
+#       - frontend/admin-ui/test-results/
+#   needs:
+#     - frontend-build
+#   tags:
+#     - docker
+
+# =============================================================================
+# SYNC STAGE (from Story 13.1)
+# =============================================================================
 
 # Синхронизация в GitHub (manual trigger)
 # Запускается только вручную после merge в main

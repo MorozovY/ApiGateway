@@ -29,9 +29,9 @@ function escapeCsvValue(value: string | null | undefined): string {
  */
 export function downloadAuditCsv(
   data: AuditLogEntry[],
+  messageApi: MessageInstance,
   dateFrom?: string,
-  dateTo?: string,
-  messageApi: MessageInstance
+  dateTo?: string
 ): void {
   // Проверка на превышение лимита (AC4)
   if (data.length >= MAX_CSV_EXPORT_ROWS) {

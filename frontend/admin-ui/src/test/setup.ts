@@ -11,11 +11,11 @@ import { vi } from 'vitest'
 // Для тестов, которым нужно проверить реальное поведение модального окна,
 // следует создать отдельный мок в конкретном тест-файле.
 vi.mock('antd', async () => {
-  const actual = await vi.importActual('antd')
+  const actual = await vi.importActual<typeof import('antd')>('antd')
   return {
     ...actual,
     App: {
-      ...actual.App,
+      ...(actual.App || {}),
       useApp: () => ({
         message: {
           success: vi.fn(),

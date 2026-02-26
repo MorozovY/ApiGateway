@@ -13,6 +13,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   rejected: 'Отклонено',
   submitted: 'Отправлено',
   published: 'Опубликовано',
+  'route.rolledback': 'Откачено',
 }
 
 /**
@@ -30,6 +31,7 @@ export const AUDIT_ACTION_COLORS: Record<AuditAction, string> = {
   rejected: 'orange',
   submitted: 'purple',
   published: 'cyan',
+  'route.rolledback': 'volcano',
 }
 
 /**

@@ -275,14 +275,14 @@ describe('AuditPage', () => {
 
       await waitFor(() => {
         expect(fetchAllAuditLogsForExport).toHaveBeenCalled()
-        // Story 10.9: downloadAuditCsv теперь принимает messageApi 4-м аргументом
+        // Story 13.2: downloadAuditCsv принимает messageApi 2-м аргументом
         expect(downloadAuditCsv).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({ id: 'audit-1', action: 'created' })
           ]),
+          expect.objectContaining({ success: expect.any(Function) }), // messageApi
           undefined, // dateFrom
-          undefined, // dateTo
-          expect.objectContaining({ success: expect.any(Function) }) // messageApi
+          undefined  // dateTo
         )
       })
     })
