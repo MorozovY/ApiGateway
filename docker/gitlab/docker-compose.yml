@@ -1,0 +1,94 @@
+# GitLab CE + Runner для локальной CI/CD инфраструктуры
+# Документация: README.md в этой же директории
+#
+# Требования:
+#   - RAM: 4GB минимум для GitLab CE
+#   - Disk: 10GB+ для данных
+#   - Ports: 8929, 8922, 5050 должны быть свободны
+#
+# Запуск: docker-compose up -d
+# Первый запуск занимает 3-5 минут для инициализации GitLab
+
+services:
+  gitlab:
+    # Зафиксированная версия для стабильности (обновлять вручную)
+    image: gitlab/gitlab-ce:17.8.1-ce.0
+    container_name: gitlab
+    hostname: gitlab.local
+    restart: unless-stopped
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        # Основной URL для GitLab Web UI
+        external_url 'http://localhost:8929'
+
+        # SSH порт для git clone/push
+        gitlab_rails['gitlab_shell_ssh_port'] = 8922
+
+        # Container Registry
+        registry_external_url 'http://localhost:5050'
+        registry['enable'] = true
+
+        # Отключаем неиспользуемые сервисы для экономии ресурсов
+        prometheus_monitoring['enable'] = false
+        alertmanager['enable'] = false
+
+        # Настройки производительности для локальной разработки
+        puma['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 10
+    ports:
+      # HTTP (Web UI и API)
+      - "8929:8929"
+      # SSH (git clone/push по SSH)
+      - "8922:22"
+      # Container Registry
+      - "5050:5050"
+    volumes:
+      # Конфигурация GitLab
+      - gitlab_config:/etc/gitlab
+      # Логи
+      - gitlab_logs:/var/log/gitlab
+      # Данные (репозитории, база данных, uploads)
+      - gitlab_data:/var/opt/gitlab
+    # Увеличиваем shared memory для PostgreSQL
+    shm_size: '256m'
+    # Healthcheck для мониторинга готовности
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8929/-/readiness"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  gitlab-runner:
+    # Зафиксированная версия для стабильности (обновлять вручную)
+    image: gitlab/gitlab-runner:v17.8.1
+    container_name: gitlab-runner
+    restart: unless-stopped
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    volumes:
+      # Конфигурация runner
+      - runner_config:/etc/gitlab-runner
+      # Docker socket для запуска контейнеров из CI jobs
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Сетевой режим host для доступа к GitLab по localhost
+    # Это важно для Windows/Mac где Docker Desktop работает в VM
+    extra_hosts:
+      - "gitlab.local:host-gateway"
+
+volumes:
+  # Именованные volumes для персистентности данных
+  # Данные сохраняются между docker-compose down/up
+  gitlab_config:
+    name: gitlab_config
+  gitlab_logs:
+    name: gitlab_logs
+  gitlab_data:
+    name: gitlab_data
+  runner_config:
+    name: gitlab_runner_config
+
+networks:
+  default:
+    name: gitlab_network
