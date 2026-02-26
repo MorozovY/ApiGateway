@@ -1,6 +1,7 @@
 # GitLab CI/CD Pipeline для ApiGateway
 # Story 13.1: GitHub Mirror sync
 # Story 13.2: Build, test stages
+# Test: Pipeline validation run (2026-02-26)
 
 stages:
   - build
