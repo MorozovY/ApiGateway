@@ -1,181 +1,90 @@
+# Sprint Status
+# =============
+# Последние 5 эпиков. Архив завершённых (1-8): sprint-status-archive.yaml
+#
 # STATUS DEFINITIONS:
-# ==================
-# Epic Status:
-#   - backlog: Epic not yet started
-#   - in-progress: Epic actively being worked on
-#   - done: All stories in epic completed
+# Epic Status: backlog → in-progress → done
+# Story Status: backlog → ready-for-dev → in-progress → review → done
 #
-# Epic Status Transitions:
-#   - backlog → in-progress: Automatically when first story is created (via create-story)
-#   - in-progress → done: Manually when all stories reach 'done' status
-#
-# Story Status:
-#   - backlog: Story only exists in epic file
-#   - ready-for-dev: Story file created in stories folder
-#   - in-progress: Developer actively working on implementation
-#   - review: Ready for code review (via Dev's code-review workflow)
-#   - done: Story completed
-#
-# Retrospective Status:
-#   - optional: Can be completed but not required
-#   - done: Retrospective has been completed
+# STORY POINTS (Fibonacci):
+#   SP:1  — XS, тривиальное, <1 час (удалить виджет, поправить текст)
+#   SP:2  — S, простое, 1-2 часа (добавить поле, простой UI)
+#   SP:3  — M, среднее, полдня (новый endpoint, форма)
+#   SP:5  — L, комплексное, 1 день (feature backend+frontend)
+#   SP:8  — XL, большое, 1-2 дня (новый модуль, интеграция)
+#   SP:13 — XXL, огромное, требует разбиения
 #
 # WORKFLOW NOTES:
-# ===============
-# - Epic transitions to 'in-progress' automatically when first story is created
-# - Stories can be worked in parallel if team capacity allows
-# - SM typically creates next story after previous one is 'done' to incorporate learnings
-# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Epic transitions to 'in-progress' when first story is created
+# - SM creates next story after previous one is 'done'
+# - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
+updated: 2026-02-26
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
 story_location: "G:\\Projects\\ApiGateway\\_bmad-output\\implementation-artifacts"
 
+# Архив завершённых эпиков 1-8: sprint-status-archive.yaml
+
 development_status:
-  # Epic 1: Project Foundation & Gateway Core
-  epic-1: done
-  1-1-project-scaffolding-monorepo-setup: done
-  1-2-database-setup-initial-migrations: done
-  1-3-basic-gateway-routing: done
-  1-4-error-handling-upstream-failures: done
-  1-5-configuration-hot-reload: done
-  1-6-request-logging-correlation-ids: done
-  1-7-health-checks-docker-compose: done
-  epic-1-retrospective: done
-
-  # Epic 2: User Authentication & Access Control
-  epic-2: done
-  2-1-user-entity-database-schema: done
-  2-2-jwt-authentication-service: done
-  2-3-authentication-middleware: done
-  2-4-role-based-access-control: done
-  2-5-admin-ui-login-page: done
-  2-6-user-management-admin: done
-  epic-2-retrospective: done
-
-  # Epic 3: Route Management (Self-Service)
-  epic-3: done
-  3-1-route-crud-api: done
-  3-2-route-list-api-filtering-search: done
-  3-3-route-details-clone-api: done
-  3-4-routes-list-ui: done
-  3-5-route-create-edit-form-ui: done
-  3-6-route-details-view-clone-ui: done
-  epic-3-retrospective: done
-
-  # Epic 4: Approval Workflow
-  epic-4: done
-  4-1-submit-approval-api: done
-  4-2-approval-rejection-api: done
-  4-3-pending-approvals-list-api: done
-  4-4-route-status-tracking: done
-  4-5-submit-approval-ui: done
-  4-6-pending-approvals-ui-inline-actions: done
-  epic-4-retrospective: done
-
-  # Epic 5: Rate Limiting
-  epic-5: done
-  5-1-rate-limit-policy-crud-api: done
-  5-2-assign-rate-limit-route-api: done
-  5-3-rate-limiting-filter-implementation: done
-  5-4-rate-limit-policies-management-ui: done
-  5-5-assign-rate-limit-route-ui: done
-  5-6-e2e-playwright-happy-path: done  # All 4 E2E tests pass (AC4 unblocked by 5-9)
-  5-7-e2e-infrastructure-improvements: done  # DB cleanup, filters, dev commands docs
-  5-8-fix-e2e-gateway-cache-sync: done  # Redis pub/sub, cache sync, E2E AC3 проходит
-  5-9-fix-e2e-rate-limits-table-refetch: done  # Fix AC4: UI table refetch after mutations
-  5-10-fix-gateway-routing-path: done  # RewritePath filter (OrderedGatewayFilter order=10001)
-  epic-5-retrospective: done
-
-  # Epic 6: Monitoring & Observability
-  epic-6: done
-  6-0-theme-switcher-ui: done  # Mini-story: dark/light theme toggle
-  6-1-metrics-collection-micrometer: done
-  6-2-per-route-metrics: done
-  6-3-metrics-summary-api: done
-  6-4-prometheus-grafana-setup: done
-  6-5-basic-metrics-view-admin-ui: done  # All ACs complete, sparkline charts, code review fixes
-  6-5-1-metrics-api-role-filtering: done  # Hotfix: role-based filtering for top-routes
-  6-6-e2e-playwright-happy-path: done  # Code review fixes: AC3 auto-refresh, constants, test isolation
-  epic-6-retrospective: done  # 2026-02-20: Team retro completed, 12 action items, retro-actions.yaml created
-
-  # Epic 7: Audit & Compliance
-  epic-7: done  # 2026-02-21: All 11 stories completed (100%)
-  7-0-metrics-service-prometheus-api: done  # CRITICAL: Fixed empty metrics in Admin UI (Prometheus HTTP API)
-  7-1-audit-log-entity-event-recording: done
-  7-2-audit-log-api-filtering: done
-  7-3-route-change-history-api: done
-  7-4-routes-upstream-filter: done
-  7-5-audit-log-ui: done
-  7-6-route-history-upstream-report-ui: done
-  7-7-e2e-playwright-happy-path: done  # Code review complete: 6 issues fixed, all tests pass
-  # Hotfixes for 7.7 (UI bugs found during E2E testing)
-  7-7-1-fix-routes-actions-not-found: done  # Not reproducible — код работает корректно
-  7-7-2-fix-integration-tab-400-error: done  # Integration tab — баг не воспроизводится, E2E passed
-  7-7-3-fix-audit-logs-search: done  # Fixed: multi-select action filter, edge case tests added
-  epic-7-retrospective: done  # 2026-02-21: Team retro + Tech Sprint (all action items closed)
-
-  # Epic 8: UX Improvements & Testing Tools
-  epic-8: done  # 2026-02-21: All 10 stories completed (100%)
-  8-1-health-check-metrics-page: done  # Code review: 6 issues fixed, tests pass
-  8-2-remove-dashboard-metrics-widget: done
-  8-3-users-search-username-email: done
-  8-4-routes-author-rate-limit-display: done  # Code review: 5 issues found, all fixed
-  8-5-routes-search-path-upstream: done  # Search filters by path OR upstream_url
-  8-6-audit-logs-user-combobox-fix: done  # New endpoint /api/v1/users/options for dropdown
-  8-7-approvals-search-upstream: done  # Search filters by path OR upstream_url
-  8-8-unified-table-filters: done  # Code review: 6 issues fixed (AuditFilterBar layout, marginBottom, tests)
-  8-9-test-page-load-generator: done  # Code review: memory leak fix, CORS config, missing tests added
-  8-10-e2e-playwright-tests: done
-  epic-8-retrospective: done  # 2026-02-21: Team retro completed, Epic 9 planned for stabilization
-
   # Epic 9: Stabilization & Polish
-  epic-9: done  # 2026-02-22: All 6 stories completed (100%), retrospective done
-  9-1-auth-session-expires-investigation: done  # Code review: 7 issues fixed
-  9-2-load-generator-fixes: done  # Code review: 8 issues fixed, 447 tests pass
-  9-3-role-based-sidebar-visibility: done  # FR-NEW-01: Role-based menu filtering (code review: 4 issues fixed)
-  9-4-self-service-password-change: done  # FR-NEW-02: Self-service password change (code review: 6 issues fixed)
-  9-5-demo-credentials-login-page: done  # Demo credentials table on login page (code review: 4 issues fixed)
-  9-6-architecture-documentation-update: done  # DOC-01: Architecture update (nginx, gateway.ymorozov.ru) — code review passed
-  epic-9-retrospective: done  # 2026-02-22: Team retro completed, Epic 10 planned
+  epic-9: done  # 2026-02-22: All 6 stories completed
+  9-1-auth-session-expires-investigation: done
+  9-2-load-generator-fixes: done
+  9-3-role-based-sidebar-visibility: done
+  9-4-self-service-password-change: done
+  9-5-demo-credentials-login-page: done
+  9-6-architecture-documentation-update: done
+  epic-9-retrospective: done
 
   # Epic 10: Maintenance & Bug Fixes
-  epic-10: in-progress  # 2026-02-22: Created from Epic 9 retrospective
-  10-1-rate-limit-not-working: done  # BUG-04: CRITICAL — fixed math.floor token loss in Lua script + code review fixes
-  10-2-approvals-realtime-updates: done  # BUG-03: MEDIUM — polling works, manual validation passed
-  10-3-security-route-rollback: done  # FR-01: Security can rollback published route to draft (code review: 6 issues fixed)
-  10-4-author-draft-deletion: done  # FR-04: Author can delete own draft route
-  10-5-nginx-health-check: done  # FR-02: Add Nginx to health check on Metrics page
-  10-6-swagger-link-login-page: done  # FR-03: Add Swagger links on login page (code review: 2 issues fixed)
-  10-7-quick-start-guide: done  # DOC: Quick Start Guide for new users — code review fixes applied
-  10-8-fix-audit-changes-viewer: done  # BUG: Audit log changes показывают "null" — code review fixes applied
-  10-9-fix-theme-modals-messages: done  # BUG: Modals/messages не поддерживают тёмную тему — code review fixes applied
-  10-10-fix-top-routes-time-range: done  # BUG: Top Routes не реагирует на time range
-  epic-10-retrospective: done  # 2026-02-23: Team retro completed, Epic 11 planned
+  epic-10: done  # 2026-02-23: All 10 stories completed
+  10-1-rate-limit-not-working: done
+  10-2-approvals-realtime-updates: done
+  10-3-security-route-rollback: done
+  10-4-author-draft-deletion: done
+  10-5-nginx-health-check: done
+  10-6-swagger-link-login-page: done
+  10-7-quick-start-guide: done
+  10-8-fix-audit-changes-viewer: done
+  10-9-fix-theme-modals-messages: done
+  10-10-fix-top-routes-time-range: done
+  epic-10-retrospective: done
 
   # Epic 11: UX Improvements & Documentation
-  epic-11: done  # 2026-02-23: All 6 stories completed (100%), retrospective done
-  11-1-integrations-expandable-routes: done  # FR-01: Показывать маршруты в expandable row (code review: 3 issues fixed)
-  11-2-system-theme-default: done  # FR-02: prefers-color-scheme при первом запуске (code review: 3 issues fixed)
-  11-3-lua-redis-documentation: done  # DOC-01: Token bucket алгоритм, Redis структура (code review: 3 issues fixed)
-  11-4-redis-pubsub-documentation: done  # DOC-02: Route cache sync между сервисами (code review: 6 issues fixed)
-  11-5-webflux-patterns-documentation: done  # DOC-03: Reactive паттерны (code review: 4 issues fixed)
-  11-6-role-check-refactoring: done  # PI-01: Централизованные хелперы canRollback(), canDelete(), isDeveloper() — code review fixes applied
-  epic-11-retrospective: done  # 2026-02-23: Team retro completed, all action items from Epic 10 closed
+  epic-11: done  # 2026-02-23: All 6 stories completed
+  11-1-integrations-expandable-routes: done
+  11-2-system-theme-default: done
+  11-3-lua-redis-documentation: done
+  11-4-redis-pubsub-documentation: done
+  11-5-webflux-patterns-documentation: done
+  11-6-role-check-refactoring: done
+  epic-11-retrospective: done
 
-  # Epic 12: Keycloak Integration & Multi-tenant Metrics
-  epic-12: in-progress  # 2026-02-23: Phase 2 — Keycloak SSO + Consumer tracking
-  12-1-keycloak-setup-configuration: done  # Code review: 6 issues fixed, health check integration documented
-  12-2-admin-ui-keycloak-auth-migration: done  # 2026-02-23: Code review passed, 31 tests added, feature flag OFF по умолчанию
-  12-3-gateway-admin-keycloak-jwt-validation: done  # 2026-02-24: Code review + smoke tests passed
-  12-4-gateway-core-jwt-authentication-filter: done  # 2026-02-24: Code review — 4 теста добавлены, RFC 7807 fix
-  12-5-gateway-core-consumer-identity-filter: done  # 2026-02-24: Code review — H1 constant duplication, M3 header validation fixes
-  12-6-multi-tenant-metrics: done  # 2026-02-24: Code review — 2 integration tests added
-  12-7-route-authentication-configuration: done  # 2026-02-24: Backend + Frontend, all tests pass
-  12-8-per-consumer-rate-limits: done  # 2026-02-24: Code review fixes — V12 migration, integration tests, Caffeine simplification
-  12-9-consumer-management-ui: done  # Code Review Session 2: 8 issues fixed (audit logging, server-side pagination, retry logic, timezone, File List) ✅ ALL ACs IMPLEMENTED
-  12-9-1-remove-legacy-cookie-auth: done  # 2026-02-25: Code review complete — 3 HIGH + 6 MEDIUM issues fixed, 683/683 tests pass ✅
-  12-10-e2e-playwright-tests: backlog
-  epic-12-retrospective: optional
+  # Epic 12: Keycloak Integration & Multi-tenant Metrics (Total: ~58 SP)
+  epic-12: done  # 2026-02-26: All 11 stories completed
+  12-1-keycloak-setup-configuration: done              # SP:5 — docker, realm config, test users
+  12-2-admin-ui-keycloak-auth-migration: done          # SP:13 — большая миграция, инцидент
+  12-3-gateway-admin-keycloak-jwt-validation: done     # SP:5 — Spring Security OAuth2
+  12-4-gateway-core-jwt-authentication-filter: done    # SP:5 — WebFlux filter, JWKS
+  12-5-gateway-core-consumer-identity-filter: done     # SP:3 — извлечение consumer_id
+  12-6-multi-tenant-metrics: done                      # SP:5 — Micrometer labels
+  12-7-route-authentication-configuration: done        # SP:5 — backend + frontend
+  12-8-per-consumer-rate-limits: done                  # SP:8 — Caffeine + Redis, сложная логика
+  12-9-consumer-management-ui: done                    # SP:8 — CRUD UI, Keycloak API
+  12-9-1-remove-legacy-cookie-auth: done               # SP:3 — cleanup, удаление кода
+  12-10-e2e-playwright-tests: done                     # SP:5 — 25 E2E тестов
+  epic-12-retrospective: done
+
+  # Epic 13: GitLab CI/CD & Secrets Management (Total: ~34 SP)
+  epic-13: backlog  # 2026-02-26: Created, 7 stories planned
+  13-1-gitlab-repository-setup-github-mirror: backlog  # SP:3 — импорт repo, настройка mirror
+  13-2-ci-pipeline-build-test: backlog                 # SP:8 — .gitlab-ci.yml, build/test stages
+  13-3-docker-image-build-registry: backlog            # SP:5 — docker build, registry push
+  13-4-secrets-management-gitlab-variables: backlog    # SP:3 — настройка CI/CD variables
+  13-5-deployment-pipeline-dev-test: backlog           # SP:8 — SSH deploy, health checks, smoke tests
+  13-6-production-deployment-approval: backlog         # SP:5 — manual approval, rollback
+  13-7-security-scanning-sast-dependencies: backlog    # SP:2 — включить GitLab SAST templates
+  epic-13-retrospective: optional

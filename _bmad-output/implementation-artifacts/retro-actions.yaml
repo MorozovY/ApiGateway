@@ -17,20 +17,74 @@
 #     notes: дополнительные заметки
 
 generated: 2026-02-20
-last_updated: 2026-02-23  # Epic 11 Retrospective completed
+last_updated: 2026-02-26  # Epic 12 Retrospective completed
 
 # =================================
 # ACTIVE ACTION ITEMS
 # =================================
 
 action_items:
+  # --- Epic 12 Action Items (2026-02-26) ---
+
+  - id: E12-AI01
+    description: "Интегрировать PA-09 (Migration Pre-flight Checklist) в story template для всех миграционных stories"
+    owner: "SM (Bob)"
+    priority: high
+    status: open
+    source: epic-12-retro
+    deadline: Sprint 13
+    created: 2026-02-26
+    notes: "PA-09 создан после Story 12.2 инцидента, нужно формализовать в шаблоне"
+
+  - id: E12-AI02
+    description: "Создать документ 'Reactive Patterns Cookbook' — Mono.defer, switchIfEmpty, cache nullability, error handling"
+    owner: "Tech Lead (Charlie)"
+    priority: medium
+    status: open
+    source: epic-12-retro
+    deadline: Sprint 14
+    created: 2026-02-26
+    notes: "Story 12.8 выявила проблемы с Caffeine null values и Mono.defer паттерном"
+
+  - id: E12-AI03
+    description: "E2E тесты добавлять раньше в epic — не откладывать на последнюю story"
+    owner: "PO + Dev"
+    priority: medium
+    status: open
+    source: epic-12-retro
+    deadline: Ongoing
+    created: 2026-02-26
+    notes: "В Epic 12 E2E тесты были только в Story 12.10 (последняя)"
+
+  - id: E12-AI04
+    description: "Настроить lint rules для автоматической проверки комментариев на русском языке"
+    owner: "Dev"
+    priority: low
+    status: open
+    source: epic-12-retro
+    deadline: Sprint 15
+    created: 2026-02-26
+    notes: "Много code review issues были про комментарии на английском вместо русского"
+
+  - id: E12-AI05
+    description: "Создать post-mortem template на основе Story 12.2 инцидента"
+    owner: "SM (Bob)"
+    priority: low
+    status: open
+    source: epic-12-retro
+    deadline: Sprint 14
+    created: 2026-02-26
+    notes: "Стандартизировать формат документирования инцидентов"
+
+  # --- Epic 11 Action Items (carried over) ---
+
   - id: E11-TD01
     description: "Fix pre-existing TypeScript errors in RouteDetailsCard.test.tsx — literal types вместо UserRole"
     owner: "Charlie"
     priority: low
     status: open
     source: epic-11-retro
-    deadline: Epic 12 (если будет)
+    deadline: Epic 13
     created: 2026-02-23
     notes: "Ошибки существовали до Story 11.6, стали заметнее после рефакторинга"
 
@@ -40,7 +94,7 @@ action_items:
     priority: low
     status: open
     source: epic-11-retro
-    deadline: Epic 12 (если будет)
+    deadline: Epic 13
     created: 2026-02-23
     notes: "MdcContextConfig.kt использует @PostConstruct, но это допустимо для @Configuration классов"
 
@@ -83,6 +137,31 @@ process_agreements:
     description: "useEffect Cleanup — для setInterval/setTimeout/subscriptions обязателен cleanup в return"
     source: epic-8-retro
     created: 2026-02-21
+    status: active
+
+  - id: PA-07
+    description: "Docker Data Protection — запрещено docker-compose down -v без явного подтверждения пользователя"
+    source: epic-12-retro (Story 12.2 incident)
+    created: 2026-02-23
+    status: active
+
+  - id: PA-08
+    description: "Non-Breaking Changes (рекомендация) — предложить подход и дождаться подтверждения пользователя"
+    source: epic-12-retro (Story 12.2 incident)
+    created: 2026-02-23
+    updated: 2026-02-26
+    status: active
+
+  - id: PA-09
+    description: "Migration Pre-flight Checklist — перед миграцией auth/API/DB проверить работоспособность, feature flag, rollback plan"
+    source: epic-12-retro (Story 12.2 incident)
+    created: 2026-02-23
+    status: active
+
+  - id: PA-10
+    description: "Dangerous Operations Confirmation — спрашивать явное подтверждение перед удалением production кода, изменением auth"
+    source: epic-12-retro (Story 12.2 incident)
+    created: 2026-02-23
     status: active
 
 # =================================

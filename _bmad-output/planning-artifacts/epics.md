@@ -12,6 +12,11 @@ revisions:
     description: 'Phase 2: Epic 12 — Keycloak Integration & Multi-tenant Metrics'
     stories_added: 10
     frs_covered: 'FR32-FR59'
+  - date: '2026-02-26'
+    author: 'Yury'
+    description: 'Phase 3: Epic 13 — GitLab CI/CD & Secrets Management'
+    stories_added: 7
+    frs_covered: 'FR60-FR72'
 ---
 
 # ApiGateway - Epic Breakdown
@@ -190,6 +195,20 @@ This document provides the complete epic and story breakdown for ApiGateway, dec
 | FR57 | Epic 12 | Admin может ротировать secret consumer |
 | FR58 | Epic 12 | System синхронизирует с Keycloak Admin API |
 | FR59 | Epic 12 | Admin может просматривать метрики consumer |
+| **Phase 3 — GitLab CI/CD & Secrets** | | |
+| FR60 | Epic 13 | DevOps может запустить CI pipeline в GitLab |
+| FR61 | Epic 13 | System автоматически запускает тесты при push |
+| FR62 | Epic 13 | System собирает Docker images для backend и frontend |
+| FR63 | Epic 13 | System публикует images в GitLab Container Registry |
+| FR64 | Epic 13 | DevOps может настроить секреты через GitLab CI/CD Variables |
+| FR65 | Epic 13 | System использует секреты в pipeline без их раскрытия в логах |
+| FR66 | Epic 13 | DevOps может деплоить на dev environment |
+| FR67 | Epic 13 | DevOps может деплоить на test environment |
+| FR68 | Epic 13 | DevOps может деплоить на prod environment с approval |
+| FR69 | Epic 13 | System синхронизирует репозиторий с GitHub mirror |
+| FR70 | Epic 13 | System запускает SAST сканирование кода |
+| FR71 | Epic 13 | System запускает dependency vulnerability scan |
+| FR72 | Epic 13 | DevOps может откатить deployment на предыдущую версию |
 
 ## Epic List
 
@@ -253,6 +272,15 @@ Security может просматривать полный аудит-лог, �
 **FRs covered:** FR21, FR22, FR23, FR24
 **NFRs addressed:** NFR15, NFR19
 **Additional:** Event-based audit trail, upstream filtering, change history
+
+---
+
+### Epic 13: GitLab CI/CD & Secrets Management
+DevOps может автоматизировать build/test/deploy через GitLab CI/CD. Секреты хранятся в GitLab Variables, не в коде. Три окружения: dev, test, prod. GitHub остаётся как mirror.
+
+**FRs covered:** FR60, FR61, FR62, FR63, FR64, FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72
+**NFRs addressed:** NFR8, NFR16, NFR17
+**Additional:** Docker Compose deployment на VM, SAST/dependency scanning, rollback capability
 
 ---
 
@@ -3264,5 +3292,306 @@ So that critical flows are verified in a real browser environment.
 - Consumer can authenticate with credentials
 - Admin disables consumer
 - Consumer authentication fails
+
+---
+
+## Epic 13: GitLab CI/CD & Secrets Management
+
+**Goal:** Автоматизация build/test/deploy через GitLab CI/CD с безопасным хранением секретов. Три окружения (dev/test/prod), Docker Compose deployment на VM.
+
+**Source:** Phase 3 (2026-02-26) — FR60-FR72
+
+**Stories:** 7
+
+**Key Capabilities:**
+- GitLab как основной репозиторий, GitHub mirror
+- CI pipeline: build, test, security scan
+- CD pipeline: deploy на dev/test/prod
+- Секреты в GitLab CI/CD Variables
+- SAST и dependency vulnerability scanning
+- Rollback на предыдущую версию
+
+---
+
+### Story 13.1: GitLab Repository Setup & GitHub Mirror
+
+As a **DevOps Engineer**,
+I want GitLab configured as the primary repository with GitHub as a mirror,
+So that we have centralized CI/CD while maintaining GitHub presence (FR69).
+
+**Acceptance Criteria:**
+
+**Given** existing GitHub repository
+**When** GitLab project is created
+**Then** repository is imported with full history
+**And** all branches and tags are preserved
+
+**Given** GitLab repository exists
+**When** push mirror to GitHub is configured
+**Then** manual trigger syncs changes to GitHub
+**And** sync can be triggered via CI job or UI
+
+**Given** GitLab project settings
+**When** default branch protection is configured
+**Then** main branch requires merge request
+**And** pipeline must pass before merge
+
+**Given** team members
+**When** access is configured
+**Then** roles match existing GitHub permissions
+**And** SSH keys or access tokens are configured
+
+---
+
+### Story 13.2: CI Pipeline — Build & Test
+
+As a **DevOps Engineer**,
+I want automated build and test pipeline,
+So that every push is validated before merge (FR60, FR61).
+
+**Acceptance Criteria:**
+
+**Given** `.gitlab-ci.yml` in repository root
+**When** push to any branch occurs
+**Then** pipeline starts automatically
+**And** stages execute in order: build → test → analyze
+
+**Given** build stage
+**When** backend build job runs
+**Then** `./gradlew build -x test` succeeds
+**And** artifacts are cached for subsequent stages
+
+**Given** build stage
+**When** frontend build job runs
+**Then** `npm ci && npm run build` succeeds
+**And** node_modules are cached
+
+**Given** test stage
+**When** backend test job runs
+**Then** `./gradlew test` executes all tests
+**And** JUnit reports are collected
+**And** coverage report is generated
+
+**Given** test stage
+**When** frontend test job runs
+**Then** `npm run test:run` executes all tests
+**And** coverage report is generated
+
+**Given** test stage
+**When** E2E test job runs
+**Then** Playwright tests execute against test environment
+**And** screenshots/videos saved on failure
+
+**Given** pipeline completes
+**When** results are displayed
+**Then** test counts and coverage visible in MR
+**And** failed tests block merge
+
+---
+
+### Story 13.3: Docker Image Build & Registry
+
+As a **DevOps Engineer**,
+I want Docker images built and pushed to GitLab Container Registry,
+So that deployments use versioned, immutable images (FR62, FR63).
+
+**Acceptance Criteria:**
+
+**Given** successful build stage
+**When** docker build job runs for gateway-admin
+**Then** image is built with tag `$CI_COMMIT_SHA`
+**And** image is pushed to `registry.gitlab.com/$PROJECT/gateway-admin`
+
+**Given** successful build stage
+**When** docker build job runs for gateway-core
+**Then** image is built with tag `$CI_COMMIT_SHA`
+**And** image is pushed to `registry.gitlab.com/$PROJECT/gateway-core`
+
+**Given** successful build stage
+**When** docker build job runs for admin-ui
+**Then** image is built with tag `$CI_COMMIT_SHA`
+**And** image is pushed to `registry.gitlab.com/$PROJECT/admin-ui`
+
+**Given** merge to main branch
+**When** release job runs
+**Then** images are also tagged with `latest`
+**And** semantic version tag if present (v1.2.3)
+
+**Given** old images in registry
+**When** cleanup policy is configured
+**Then** images older than 30 days are removed
+**And** tagged releases are preserved
+
+---
+
+### Story 13.4: Secrets Management via GitLab Variables
+
+As a **DevOps Engineer**,
+I want all secrets stored in GitLab CI/CD Variables,
+So that credentials are not in code and can be rotated safely (FR64, FR65).
+
+**Acceptance Criteria:**
+
+**Given** GitLab project settings
+**When** CI/CD Variables are configured
+**Then** the following secrets exist:
+- `POSTGRES_PASSWORD` — database password
+- `REDIS_PASSWORD` — Redis password (if used)
+- `KEYCLOAK_ADMIN_PASSWORD` — Keycloak admin
+- `KEYCLOAK_CLIENT_SECRET` — client credentials
+- `REGISTRY_TOKEN` — Docker registry access
+- `SSH_PRIVATE_KEY` — deployment key for VMs
+- `GITHUB_TOKEN` — for GitHub mirror push
+
+**Given** secrets are defined
+**When** they are configured
+**Then** all secrets are marked as "Masked"
+**And** sensitive secrets are marked as "Protected"
+**And** environment-specific secrets use scopes (dev/test/prod)
+
+**Given** pipeline runs
+**When** job accesses secret
+**Then** value is available as environment variable
+**And** value is NOT printed in logs (masked)
+
+**Given** `.env.example` in repository
+**When** developer reviews it
+**Then** all required variables are listed
+**And** no actual secrets are present
+
+**Given** secret rotation needed
+**When** variable is updated in GitLab
+**Then** next pipeline uses new value
+**And** no code change required
+
+---
+
+### Story 13.5: Deployment Pipeline — Dev & Test Environments
+
+As a **DevOps Engineer**,
+I want automated deployment to dev and test environments,
+So that changes are validated in real environments before production (FR66, FR67).
+
+**Acceptance Criteria:**
+
+**Given** successful docker build stage
+**When** deploy to dev job runs
+**Then** SSH connection to dev VM is established
+**And** `docker-compose pull && docker-compose up -d` executes
+**And** health check confirms services are running
+
+**Given** deployment to dev succeeds
+**When** smoke tests run
+**Then** API health endpoint returns 200
+**And** Admin UI loads successfully
+**And** Keycloak login works
+
+**Given** merge request to main
+**When** pipeline completes successfully
+**Then** deploy to test is triggered automatically
+**And** test environment uses same images as dev
+
+**Given** test deployment
+**When** integration tests run
+**Then** E2E Playwright suite executes
+**And** results reported back to MR
+
+**Given** deployment configuration
+**When** docker-compose.yml is used
+**Then** environment-specific variables from GitLab Variables
+**And** `docker-compose.${ENV}.yml` override if needed
+
+**Given** deployment fails
+**When** health check fails
+**Then** previous version is restored (auto-rollback)
+**And** notification sent (Slack/email if configured)
+
+---
+
+### Story 13.6: Production Deployment with Approval
+
+As a **DevOps Engineer**,
+I want production deployment with manual approval gate,
+So that releases are controlled and auditable (FR68, FR72).
+
+**Acceptance Criteria:**
+
+**Given** successful test deployment
+**When** production deploy job is defined
+**Then** job requires manual trigger (when: manual)
+**And** only users with Maintainer+ role can trigger
+
+**Given** production deployment triggered
+**When** approval is given
+**Then** deployment proceeds with same images as test
+**And** zero-downtime deployment using rolling update
+
+**Given** production docker-compose
+**When** deployment runs
+**Then** services are updated one at a time
+**And** health checks gate each service
+**And** rollback triggered if health check fails
+
+**Given** successful production deployment
+**When** deployment completes
+**Then** Git tag is created (e.g., `prod-2026-02-26-1`)
+**And** deployment recorded in GitLab Environments
+**And** notification sent with release notes
+
+**Given** production issue discovered
+**When** rollback is needed
+**Then** previous deployment can be re-deployed from Environments
+**And** rollback completes within 5 minutes
+**And** incident is logged
+
+**Given** production environment
+**When** deployment history is viewed
+**Then** all deployments are listed with timestamps
+**And** who triggered each deployment is recorded
+**And** which commit/image was deployed is shown
+
+---
+
+### Story 13.7: Security Scanning (SAST & Dependencies)
+
+As a **Security Engineer**,
+I want automated security scanning in pipeline,
+So that vulnerabilities are caught before deployment (FR70, FR71).
+
+**Acceptance Criteria:**
+
+**Given** analyze stage in pipeline
+**When** SAST job runs
+**Then** GitLab SAST template is included
+**And** Kotlin/Java code is scanned
+**And** TypeScript/JavaScript code is scanned
+
+**Given** SAST scan completes
+**When** vulnerabilities found
+**Then** report is generated in GitLab format
+**And** vulnerabilities appear in Security Dashboard
+**And** Critical/High block merge (configurable)
+
+**Given** dependency scanning job
+**When** backend dependencies scanned
+**Then** Gradle dependencies checked against CVE database
+**And** known vulnerabilities reported
+
+**Given** dependency scanning job
+**When** frontend dependencies scanned
+**Then** npm audit runs
+**And** vulnerabilities reported with severity
+
+**Given** scan results
+**When** viewed in merge request
+**Then** new vulnerabilities highlighted
+**And** comparison with target branch shown
+**And** remediation suggestions provided
+
+**Given** security policy
+**When** configured in `.gitlab-ci.yml`
+**Then** Critical vulnerabilities block pipeline
+**And** High vulnerabilities generate warning
+**And** exceptions can be added to `.vulnerability-allowlist.yml`
 
 ---
