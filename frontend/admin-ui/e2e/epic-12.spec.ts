@@ -7,18 +7,19 @@ import { keycloakLogin, keycloakLogout, navigateToMenu } from './helpers/keycloa
 import { apiRequest } from './helpers/auth'
 
 // ============================================================================
-// Helper Functions (M-10: Избегаем дублирования кода)
+// Helper Functions (FIX H-3: Generic consumer token helper, устраняет дублирование)
 // ============================================================================
 
 /**
- * Получает JWT токен для company-a consumer через Keycloak Admin API.
+ * Получает JWT токен для любого consumer через Keycloak Admin API.
  *
- * FIX M-10: Извлекаем повторяющуюся логику из 3 тестов в одну функцию.
- * FIX M-3: Используем env vars для Keycloak admin credentials.
+ * FIX H-3: Заменяет дублирующиеся getCompanyAToken/getCompanyBToken
+ * единой generic функцией.
+ *
+ * @param page - Playwright page object
+ * @param clientId - Keycloak client ID (e.g., 'company-a', 'company-b')
  */
-async function getCompanyAToken(page: Page): Promise<string> {
-  console.log('[E2E Helper] Получение токена для company-a...')
-
+async function getConsumerTokenByClientId(page: Page, clientId: string): Promise<string> {
   const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
   const adminUser = process.env.KEYCLOAK_ADMIN_USER || 'admin'
   const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin'
@@ -39,17 +40,15 @@ async function getCompanyAToken(page: Page): Promise<string> {
 
   if (!adminTokenResponse.ok()) {
     const errorText = await adminTokenResponse.text()
-    console.error(`[E2E Helper] Failed to get Keycloak admin token: ${adminTokenResponse.status()}`)
-    console.error(`[E2E Helper] Error: ${errorText}`)
-    throw new Error(`Failed to get Keycloak admin token: ${adminTokenResponse.status()} - Check KEYCLOAK_ADMIN_USER/PASSWORD env vars`)
+    throw new Error(`Failed to get Keycloak admin token: ${adminTokenResponse.status()} - ${errorText}`)
   }
 
   const adminTokenData = await adminTokenResponse.json()
   const adminToken = adminTokenData.access_token
 
-  // Получаем secret для company-a client
+  // Получаем secret для client
   const clientResponse = await page.request.get(
-    `${keycloakUrl}/admin/realms/api-gateway/clients?clientId=company-a`,
+    `${keycloakUrl}/admin/realms/api-gateway/clients?clientId=${clientId}`,
     {
       headers: { 'Authorization': `Bearer ${adminToken}` },
       failOnStatusCode: false
@@ -57,17 +56,15 @@ async function getCompanyAToken(page: Page): Promise<string> {
   )
 
   if (!clientResponse.ok()) {
-    throw new Error(`Failed to get company-a client from Keycloak: ${clientResponse.status()}`)
+    throw new Error(`Failed to get ${clientId} client from Keycloak: ${clientResponse.status()}`)
   }
 
   const clients = await clientResponse.json()
   if (!clients || clients.length === 0) {
-    throw new Error('company-a client not found in Keycloak realm api-gateway')
+    throw new Error(`${clientId} client not found in Keycloak realm api-gateway`)
   }
 
-  const companyASecret = clients[0].secret
-
-  console.log('[E2E Helper] company-a secret получен, запрашиваем consumer token...')
+  const clientSecret = clients[0].secret
 
   // Получаем consumer token через Client Credentials flow
   const tokenResponse = await page.request.post(
@@ -75,8 +72,8 @@ async function getCompanyAToken(page: Page): Promise<string> {
     {
       form: {
         grant_type: 'client_credentials',
-        client_id: 'company-a',
-        client_secret: companyASecret,
+        client_id: clientId,
+        client_secret: clientSecret,
       },
       failOnStatusCode: false
     }
@@ -84,94 +81,16 @@ async function getCompanyAToken(page: Page): Promise<string> {
 
   if (!tokenResponse.ok()) {
     const errorText = await tokenResponse.text()
-    console.error(`[E2E Helper] Failed to get company-a token: ${tokenResponse.status()}`)
-    console.error(`[E2E Helper] Error: ${errorText}`)
-    throw new Error(`Failed to get company-a token: ${tokenResponse.status()}`)
+    throw new Error(`Failed to get ${clientId} token: ${tokenResponse.status()} - ${errorText}`)
   }
 
   const tokenData = await tokenResponse.json()
-  console.log('[E2E Helper] company-a token получен успешно')
-
   return tokenData.access_token
 }
 
-/**
- * Получает JWT токен для company-b consumer через Keycloak Admin API.
- * Аналогично getCompanyAToken, но для company-b.
- */
-async function getCompanyBToken(page: Page): Promise<string> {
-  console.log('[E2E Helper] Получение токена для company-b...')
-
-  const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
-  const adminUser = process.env.KEYCLOAK_ADMIN_USER || 'admin'
-  const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin'
-
-  // Получаем admin token для Keycloak Admin API
-  const adminTokenResponse = await page.request.post(
-    `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
-    {
-      form: {
-        grant_type: 'password',
-        client_id: 'admin-cli',
-        username: adminUser,
-        password: adminPassword,
-      },
-      failOnStatusCode: false
-    }
-  )
-
-  if (!adminTokenResponse.ok()) {
-    throw new Error(`Failed to get Keycloak admin token: ${adminTokenResponse.status()}`)
-  }
-
-  const adminTokenData = await adminTokenResponse.json()
-  const adminToken = adminTokenData.access_token
-
-  // Получаем secret для company-b client
-  const clientResponse = await page.request.get(
-    `${keycloakUrl}/admin/realms/api-gateway/clients?clientId=company-b`,
-    {
-      headers: { 'Authorization': `Bearer ${adminToken}` },
-      failOnStatusCode: false
-    }
-  )
-
-  if (!clientResponse.ok()) {
-    throw new Error(`Failed to get company-b client from Keycloak: ${clientResponse.status()}`)
-  }
-
-  const clients = await clientResponse.json()
-  if (!clients || clients.length === 0) {
-    throw new Error('company-b client not found in Keycloak realm api-gateway')
-  }
-
-  const companyBSecret = clients[0].secret
-
-  // Получаем consumer token через Client Credentials flow
-  const tokenResponse = await page.request.post(
-    `${keycloakUrl}/realms/api-gateway/protocol/openid-connect/token`,
-    {
-      form: {
-        grant_type: 'client_credentials',
-        client_id: 'company-b',
-        client_secret: companyBSecret,
-      },
-      failOnStatusCode: false
-    }
-  )
-
-  if (!tokenResponse.ok()) {
-    const errorText = await tokenResponse.text()
-    console.error(`[E2E Helper] Failed to get company-b token: ${tokenResponse.status()}`)
-    console.error(`[E2E Helper] Error: ${errorText}`)
-    throw new Error(`Failed to get company-b token: ${tokenResponse.status()}`)
-  }
-
-  const tokenData = await tokenResponse.json()
-  console.log('[E2E Helper] company-b token получен успешно')
-
-  return tokenData.access_token
-}
+// Convenience wrappers для backward compatibility
+const getCompanyAToken = (page: Page) => getConsumerTokenByClientId(page, 'company-a')
+const getCompanyBToken = (page: Page) => getConsumerTokenByClientId(page, 'company-b')
 
 /**
  * Test Resources для изоляции тестов (H-4).
@@ -200,11 +119,59 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
   })
 
   test.afterEach(async ({ page }) => {
-    console.log('[E2E Cleanup] Очистка тестовых ресурсов...')
+    // FIX M-3: Cleanup созданных consumers через Keycloak Admin API
+    if (resources.consumerIds.length > 0) {
+      const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
+      const adminUser = process.env.KEYCLOAK_ADMIN_USER || 'admin'
+      const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin'
 
-    // NOTE: Consumer cleanup пока не реализован в global-setup (M-2)
-    // Consumers используются shared (company-a, company-b, company-c)
-    // TODO: После реализации dynamic consumer creation — добавить cleanup здесь
+      try {
+        // Получаем admin token
+        const adminTokenResponse = await page.request.post(
+          `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
+          {
+            form: {
+              grant_type: 'password',
+              client_id: 'admin-cli',
+              username: adminUser,
+              password: adminPassword,
+            },
+            failOnStatusCode: false
+          }
+        )
+
+        if (adminTokenResponse.ok()) {
+          const adminTokenData = await adminTokenResponse.json()
+          const adminToken = adminTokenData.access_token
+
+          for (const clientId of resources.consumerIds) {
+            // Получаем internal ID клиента по clientId
+            const clientsResponse = await page.request.get(
+              `${keycloakUrl}/admin/realms/api-gateway/clients?clientId=${clientId}`,
+              {
+                headers: { 'Authorization': `Bearer ${adminToken}` },
+                failOnStatusCode: false
+              }
+            )
+
+            if (clientsResponse.ok()) {
+              const clients = await clientsResponse.json()
+              if (clients && clients.length > 0) {
+                await page.request.delete(
+                  `${keycloakUrl}/admin/realms/api-gateway/clients/${clients[0].id}`,
+                  {
+                    headers: { 'Authorization': `Bearer ${adminToken}` },
+                    failOnStatusCode: false
+                  }
+                )
+              }
+            }
+          }
+        }
+      } catch {
+        // Игнорируем ошибки cleanup — не должны ломать тесты
+      }
+    }
 
     // Cleanup routes (если создавали)
     for (const routeId of resources.routeIds) {
@@ -212,15 +179,13 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
         await page.request.delete(`http://localhost:8081/api/v1/routes/${routeId}`, {
           failOnStatusCode: false
         })
-        console.log(`[E2E Cleanup] Route ${routeId} удалён`)
-      } catch (error) {
-        console.warn(`[E2E Cleanup] Failed to delete route ${routeId}:`, error)
+      } catch {
+        // Игнорируем ошибки cleanup
       }
     }
 
     resources.consumerIds = []
     resources.routeIds = []
-    console.log('[E2E Cleanup] Очистка завершена')
   })
 
   // ============================================================================
@@ -619,8 +584,8 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
 
       console.log('[E2E] Rate limit установлен: 5 req/s, burst 10')
 
-      // Ждём синхронизации Gateway с новым rate limit (Redis pub/sub + cache update)
-      console.log('[E2E] Ожидание синхронизации Gateway с новым rate limit...')
+      // FIX H-2: waitForTimeout здесь INTENTIONAL — Gateway sync через Redis pub/sub
+      // не имеет API endpoint для polling, поэтому ожидание фиксированное
       await page.waitForTimeout(5000)
 
       // Получаем consumer token
@@ -650,7 +615,8 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       const first429 = rateLimitedResponses[0]
       const headers = first429.headers()
 
-      // FIXME: Если backend возвращает x-ratelimit-type header — раскомментировать
+      // NOTE: x-ratelimit-type header опционален — зависит от backend implementation
+      // Если backend возвращает этот header, можно добавить проверку:
       // expect(headers['x-ratelimit-type']).toBe('consumer')
 
       console.log('[E2E] Rate limit enforcement test passed ✓')
@@ -733,6 +699,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
         methods: ['GET'],
         authRequired: false, // Public route - доступен без токена
       })
+
       expect(createResponse.ok()).toBeTruthy()
       const route = (await createResponse.json()) as { id: string }
       resources.routeIds.push(route.id)
@@ -743,7 +710,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       const approveResponse = await apiRequest(page, 'POST', `/api/v1/routes/${route.id}/approve`)
       expect(approveResponse.ok()).toBeTruthy()
 
-      // Ждём синхронизации с Gateway
+      // FIX H-2: waitForTimeout INTENTIONAL — Gateway route sync не имеет polling API
       await page.waitForTimeout(3000)
 
       // Делаем запрос к Gateway БЕЗ JWT токена (не используем apiRequest, используем прямой page.request)
@@ -783,7 +750,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       const approveResponse = await apiRequest(page, 'POST', `/api/v1/routes/${route.id}/approve`)
       expect(approveResponse.ok()).toBeTruthy()
 
-      // Ждём синхронизации с Gateway
+      // FIX H-2: waitForTimeout INTENTIONAL — Gateway route sync не имеет polling API
       await page.waitForTimeout(3000)
 
       // Получаем токен для company-b (НЕ в whitelist)

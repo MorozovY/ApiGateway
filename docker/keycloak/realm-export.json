@@ -280,6 +280,63 @@
       ]
     },
     {
+      "username": "test-developer",
+      "email": "test-developer@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "Developer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin-ui:developer",
+        "default-roles-api-gateway"
+      ]
+    },
+    {
+      "username": "test-security",
+      "email": "test-security@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "Security",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin-ui:security",
+        "default-roles-api-gateway"
+      ]
+    },
+    {
+      "username": "test-admin",
+      "email": "test-admin@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin-ui:admin",
+        "default-roles-api-gateway"
+      ]
+    },
+    {
       "username": "service-account-company-a",
       "enabled": true,
       "serviceAccountClientId": "company-a",
