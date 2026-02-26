@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { login } from './helpers/auth'
+import { login, apiRequest } from './helpers/auth'
 
 /**
  * Уникальный суффикс для изоляции маршрутов между тест-ранами.
@@ -48,6 +48,9 @@ test.describe('Epic 3: Route Management', () => {
     // Переходим на /routes через returnUrl механизм
     await login(page, 'test-developer', 'Test1234!', '/routes')
     await expect(page.locator('h2:has-text("Routes")')).toBeVisible()
+
+    // Ждём инициализации AuthContext — user menu button появляется после setTokenGetter
+    await expect(page.locator('[data-testid="user-menu-button"]')).toBeVisible({ timeout: 5000 })
   })
 
   test('Developer создаёт маршрут (draft) через форму', async ({ page }) => {
@@ -117,12 +120,10 @@ test.describe('Epic 3: Route Management', () => {
     const routePath = `e2e-delete-${TIMESTAMP}`
 
     // Создаём маршрут через API (более надёжно чем UI)
-    const createResponse = await page.request.post('http://localhost:3000/api/v1/routes', {
-      data: {
-        path: `/${routePath}`,
-        upstreamUrl: 'http://delete-me.local:8002',
-        methods: ['GET', 'POST'],
-      },
+    const createResponse = await apiRequest(page, 'POST', '/api/v1/routes', {
+      path: `/${routePath}`,
+      upstreamUrl: 'http://delete-me.local:8002',
+      methods: ['GET', 'POST'],
     })
     expect(createResponse.ok()).toBeTruthy()
 

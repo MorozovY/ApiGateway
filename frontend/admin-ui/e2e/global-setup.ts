@@ -39,14 +39,97 @@ function loadEnvFile(): void {
 }
 
 /**
- * Конфигурация тестовых пользователей.
- * Создаются в global setup, используются во всех E2E тестах.
+ * Конфигурация тестовых пользователей для создания через Admin API.
+ *
+ * NOTE: test-* users НЕ создаются через Admin API, так как они создаются
+ * напрямую в Keycloak (шаг 4) и в БД с Keycloak UUIDs (шаг 5).
+ * Это необходимо для audit_logs FK constraint (user_id должен совпадать с Keycloak sub).
  */
 const TEST_USERS = [
-  { username: 'test-developer', password: 'Test1234!', email: 'test-developer@example.com', role: 'developer' },
-  { username: 'test-security',  password: 'Test1234!', email: 'test-security@example.com',  role: 'security'  },
-  { username: 'test-admin',     password: 'Test1234!', email: 'test-admin@example.com',     role: 'admin'     },
+  // test-* users создаются отдельно через Keycloak, не через Admin API
 ]
+
+/**
+ * FIX M-2: Очистка E2E consumers из Keycloak.
+ *
+ * Удаляет всех clients с clientId LIKE 'e2e-%' через Keycloak Admin API.
+ * Не удаляет pre-seeded consumers: company-a, company-b, company-c.
+ */
+async function cleanupKeycloakConsumers(): Promise<void> {
+  const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
+  const adminUser = process.env.KEYCLOAK_ADMIN_USER || 'admin'
+  const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin'
+
+  try {
+    console.log('[E2E Cleanup] Очистка E2E consumers из Keycloak...')
+
+    // Получаем admin token для Keycloak Admin API
+    const adminTokenResponse = await fetch(
+      `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: 'admin-cli',
+          username: adminUser,
+          password: adminPassword,
+        }),
+      }
+    )
+
+    if (!adminTokenResponse.ok) {
+      console.warn('[E2E Cleanup] Не удалось получить Keycloak admin token, пропускаем cleanup consumers')
+      return
+    }
+
+    const adminTokenData = await adminTokenResponse.json() as { access_token: string }
+    const adminToken = adminTokenData.access_token
+
+    // Получаем список всех clients в realm api-gateway
+    const clientsResponse = await fetch(
+      `${keycloakUrl}/admin/realms/api-gateway/clients`,
+      {
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }
+    )
+
+    if (!clientsResponse.ok) {
+      console.warn('[E2E Cleanup] Не удалось получить список clients из Keycloak')
+      return
+    }
+
+    const clients = await clientsResponse.json() as Array<{ id: string; clientId: string }>
+
+    // Фильтруем E2E consumers (clientId начинается с 'e2e-')
+    const e2eConsumers = clients.filter(c => c.clientId.startsWith('e2e-'))
+
+    console.log(`[E2E Cleanup] Найдено ${e2eConsumers.length} E2E consumers для удаления`)
+
+    // Удаляем каждый E2E consumer
+    let deletedCount = 0
+    for (const consumer of e2eConsumers) {
+      const deleteResponse = await fetch(
+        `${keycloakUrl}/admin/realms/api-gateway/clients/${consumer.id}`,
+        {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${adminToken}` },
+        }
+      )
+
+      if (deleteResponse.ok || deleteResponse.status === 404) {
+        deletedCount++
+        console.log(`[E2E Cleanup] Consumer ${consumer.clientId} удалён`)
+      } else {
+        console.warn(`[E2E Cleanup] Не удалось удалить consumer ${consumer.clientId}: ${deleteResponse.status}`)
+      }
+    }
+
+    console.log(`[E2E Cleanup] Удалено consumers: ${deletedCount}`)
+  } catch (error) {
+    console.warn('[E2E Cleanup] Ошибка при очистке Keycloak consumers:', error)
+  }
+}
 
 /**
  * Очистка тестовых данных в БД перед прогоном E2E тестов.
@@ -55,6 +138,7 @@ const TEST_USERS = [
  * - routes: path LIKE '/e2e-%'
  * - rate_limits: name LIKE 'e2e-%'
  * - users: username LIKE 'e2e-%'
+ * - consumers: clientId LIKE 'e2e-%' (в Keycloak)
  *
  * Порядок удаления учитывает FK constraints:
  * 1. audit_logs → users (ON DELETE RESTRICT)
@@ -64,6 +148,7 @@ const TEST_USERS = [
  *
  * Не удаляет:
  * - test-developer, test-security, test-admin (системные тестовые пользователи)
+ * - company-a, company-b, company-c (pre-seeded consumers для тестов)
  */
 async function cleanupTestData(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
@@ -139,6 +224,26 @@ async function cleanupTestData(): Promise<void> {
     const usersResult = await pool.query(`DELETE FROM users WHERE username LIKE 'e2e-%'`)
     console.log(`[E2E Cleanup] Удалено пользователей: ${usersResult.rowCount ?? 0}`)
 
+    // Шаг 5: Удаляем test-* пользователей (будут пересозданы с Keycloak UUIDs)
+    // Сначала удаляем их FK ссылки
+    const testUserIds = await pool.query(`
+      SELECT id FROM users WHERE username IN ('test-developer', 'test-security', 'test-admin')
+    `)
+
+    if (testUserIds.rows.length > 0) {
+      const ids = testUserIds.rows.map(r => r.id)
+
+      // Удаляем FK ссылки в правильном порядке
+      await pool.query(`UPDATE routes SET rate_limit_id = NULL WHERE rate_limit_id IN (SELECT id FROM rate_limits WHERE created_by = ANY($1))`, [ids]).catch(() => {})
+      await pool.query(`DELETE FROM rate_limits WHERE created_by = ANY($1)`, [ids]).catch(() => {})
+      await pool.query(`DELETE FROM audit_logs WHERE user_id = ANY($1)`, [ids]).catch(() => {})
+      await pool.query(`UPDATE routes SET approved_by = NULL WHERE approved_by = ANY($1)`, [ids]).catch(() => {})
+      await pool.query(`UPDATE routes SET rejected_by = NULL WHERE rejected_by = ANY($1)`, [ids]).catch(() => {})
+      await pool.query(`DELETE FROM users WHERE id = ANY($1)`, [ids])
+
+      console.log(`[E2E Cleanup] Удалены test-* пользователи для пересоздания с Keycloak UUIDs`)
+    }
+
     console.log('[E2E Cleanup] Очистка завершена.')
   } finally {
     await pool.end()
@@ -157,6 +262,9 @@ async function globalSetup(): Promise<void> {
 
   // Шаг 0: Очистка тестовых данных от предыдущих прогонов
   await cleanupTestData()
+
+  // FIX M-2: Очистка E2E consumers из Keycloak
+  await cleanupKeycloakConsumers()
 
   const adminUsername = process.env.E2E_ADMIN_USERNAME
   const adminPassword = process.env.E2E_ADMIN_PASSWORD
@@ -254,7 +362,154 @@ async function globalSetup(): Promise<void> {
     }
   }
 
-  // Шаг 4: Создание Keycloak пользователей в БД (для audit_logs FK constraint)
+  // Шаг 4: Создание test-* пользователей в Keycloak (для Epic 2-8 backward compatibility)
+  console.log('[E2E Setup] Создаём test-* пользователей в Keycloak...')
+
+  const keycloakAdminUser = process.env.KEYCLOAK_ADMIN_USER || 'admin'
+  const keycloakAdminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin'
+
+  // Получаем Keycloak admin token
+  const kcAdminTokenResponse = await fetch(
+    `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'password',
+        client_id: 'admin-cli',
+        username: keycloakAdminUser,
+        password: keycloakAdminPassword,
+      }),
+    }
+  )
+
+  if (!kcAdminTokenResponse.ok) {
+    console.warn('[E2E Setup] Не удалось получить Keycloak admin token, пропускаем создание test-* пользователей')
+  } else {
+    const kcAdminTokenData = await kcAdminTokenResponse.json() as { access_token: string }
+    const kcAdminToken = kcAdminTokenData.access_token
+
+    // Создаём test-* пользователей в Keycloak
+    const testKeycloakUsers = [
+      {
+        username: 'test-developer',
+        email: 'test-developer@example.com',
+        firstName: 'Test',
+        lastName: 'Developer',
+        enabled: true,
+        emailVerified: true,
+        credentials: [{ type: 'password', value: 'Test1234!', temporary: false }],
+        realmRoles: ['admin-ui:developer']
+      },
+      {
+        username: 'test-security',
+        email: 'test-security@example.com',
+        firstName: 'Test',
+        lastName: 'Security',
+        enabled: true,
+        emailVerified: true,
+        credentials: [{ type: 'password', value: 'Test1234!', temporary: false }],
+        realmRoles: ['admin-ui:security']
+      },
+      {
+        username: 'test-admin',
+        email: 'test-admin@example.com',
+        firstName: 'Test',
+        lastName: 'Admin',
+        enabled: true,
+        emailVerified: true,
+        credentials: [{ type: 'password', value: 'Test1234!', temporary: false }],
+        realmRoles: ['admin-ui:admin']
+      }
+    ]
+
+    for (const testUser of testKeycloakUsers) {
+      // Проверяем существует ли пользователь
+      const checkResponse = await fetch(
+        `${keycloakUrl}/admin/realms/${keycloakRealm}/users?username=${testUser.username}`,
+        {
+          headers: { 'Authorization': `Bearer ${kcAdminToken}` },
+        }
+      )
+
+      if (checkResponse.ok) {
+        const existingUsers = await checkResponse.json() as Array<{ id: string; username: string }>
+        if (existingUsers.length > 0) {
+          console.log(`[E2E Setup] Keycloak пользователь ${testUser.username} уже существует — пропускаем`)
+          continue
+        }
+      }
+
+      // Создаём пользователя
+      const createResponse = await fetch(
+        `${keycloakUrl}/admin/realms/${keycloakRealm}/users`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${kcAdminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: testUser.username,
+            email: testUser.email,
+            firstName: testUser.firstName,
+            lastName: testUser.lastName,
+            enabled: testUser.enabled,
+            emailVerified: testUser.emailVerified,
+            credentials: testUser.credentials
+          })
+        }
+      )
+
+      if (createResponse.ok || createResponse.status === 409) {
+        console.log(`[E2E Setup] Keycloak пользователь ${testUser.username} создан`)
+
+        // Назначаем роли (если пользователь создан)
+        if (createResponse.ok) {
+          // Получаем ID созданного пользователя из Location header
+          const location = createResponse.headers.get('Location')
+          if (location) {
+            const userId = location.split('/').pop()
+
+            // Получаем роль по имени
+            for (const roleName of testUser.realmRoles) {
+              const roleResponse = await fetch(
+                `${keycloakUrl}/admin/realms/${keycloakRealm}/roles/${roleName}`,
+                {
+                  headers: { 'Authorization': `Bearer ${kcAdminToken}` },
+                }
+              )
+
+              if (roleResponse.ok) {
+                const roleData = await roleResponse.json() as { id: string; name: string }
+
+                // Назначаем роль пользователю
+                await fetch(
+                  `${keycloakUrl}/admin/realms/${keycloakRealm}/users/${userId}/role-mappings/realm`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${kcAdminToken}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify([roleData])
+                  }
+                )
+
+                console.log(`[E2E Setup] Назначена роль ${roleName} для ${testUser.username}`)
+              }
+            }
+          }
+        }
+      } else {
+        console.warn(`[E2E Setup] Не удалось создать Keycloak пользователя ${testUser.username}: ${createResponse.status}`)
+      }
+    }
+
+    console.log('[E2E Setup] Test-* пользователи созданы в Keycloak')
+  }
+
+  // Шаг 5: Создание Keycloak пользователей в БД (для audit_logs FK constraint)
   console.log('[E2E Setup] Создаём Keycloak пользователей в БД для audit_logs...')
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
   const pool = new Pool({ connectionString: databaseUrl })
@@ -273,6 +528,64 @@ async function globalSetup(): Promise<void> {
         username = EXCLUDED.username,
         updated_at = NOW()
     `)
+
+    // Шаг 5.1: Добавить test-* пользователей в БД с их Keycloak UUIDs
+    // Получаем admin token еще раз (может истечь после предыдущих операций)
+    const kcAdminTokenResponse2 = await fetch(
+      `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: 'admin-cli',
+          username: process.env.KEYCLOAK_ADMIN_USER || 'admin',
+          password: process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin',
+        }),
+      }
+    )
+
+    if (kcAdminTokenResponse2.ok) {
+      const kcAdminTokenData2 = await kcAdminTokenResponse2.json() as { access_token: string }
+      const kcAdminToken2 = kcAdminTokenData2.access_token
+
+      // Получаем UUIDs для test-* пользователей из Keycloak
+      const testUsersMapping = [
+        { username: 'test-developer', email: 'test-developer@example.com', role: 'developer' },
+        { username: 'test-security', email: 'test-security@example.com', role: 'security' },
+        { username: 'test-admin', email: 'test-admin@example.com', role: 'admin' }
+      ]
+
+      for (const user of testUsersMapping) {
+        // Получаем user ID из Keycloak
+        const searchResponse = await fetch(
+          `${keycloakUrl}/admin/realms/${keycloakRealm}/users?username=${user.username}&exact=true`,
+          {
+            headers: { 'Authorization': `Bearer ${kcAdminToken2}` },
+          }
+        )
+
+        if (searchResponse.ok) {
+          const users = await searchResponse.json() as Array<{ id: string; username: string }>
+          if (users.length > 0) {
+            const keycloakUserId = users[0].id
+
+            // Создаем user с Keycloak UUID (ON CONFLICT — пропускаем если уже существует)
+            await pool.query(`
+              INSERT INTO users (id, username, password_hash, email, role, created_at, updated_at)
+              VALUES ($1, $2, '$2a$10$dummy', $3, $4, NOW(), NOW())
+              ON CONFLICT (id) DO UPDATE SET
+                email = EXCLUDED.email,
+                role = EXCLUDED.role,
+                updated_at = NOW()
+            `, [keycloakUserId, user.username, user.email, user.role])
+
+            console.log(`[E2E Setup] Добавлен ${user.username} в БД с Keycloak ID ${keycloakUserId}`)
+          }
+        }
+      }
+    }
+
     console.log('[E2E Setup] Keycloak пользователи созданы в БД.')
   } finally {
     await pool.end()

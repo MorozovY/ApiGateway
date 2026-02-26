@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
-  // Последовательно — тесты делят состояние БД
-  fullyParallel: false,
+  // FIX M-4: Включаем parallel execution после добавления test isolation (TIMESTAMP + resources cleanup)
+  fullyParallel: true,
   retries: 1,
   reporter: 'html',
   globalSetup: './e2e/global-setup.ts',

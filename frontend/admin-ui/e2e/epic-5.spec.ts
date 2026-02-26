@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { login } from './helpers/auth'
+import { login, apiRequest } from './helpers/auth'
 import { filterTableByName } from './helpers/table'
 
 /**
@@ -32,13 +32,11 @@ async function createRateLimitPolicy(
   requestsPerSecond: number,
   burstSize: number
 ): Promise<string> {
-  const response = await page.request.post('/api/v1/rate-limits', {
-    data: {
-      name,
-      description: 'E2E тестовая политика',
-      requestsPerSecond,
-      burstSize,
-    },
+  const response = await apiRequest(page, 'POST', '/api/v1/rate-limits', {
+    name,
+    description: 'E2E тестовая политика',
+    requestsPerSecond,
+    burstSize,
   })
   expect(response.ok()).toBeTruthy()
   const policy = (await response.json()) as { id: string }
@@ -57,13 +55,12 @@ async function createRouteWithRateLimit(
   rateLimitId: string
 ): Promise<string> {
   // Используем /anything/* — httpbin возвращает 200 для любого пути после /anything
-  const response = await page.request.post('/api/v1/routes', {
-    data: {
-      path: `/e2e-rl-${pathSuffix}`,
-      upstreamUrl: 'http://httpbin.org/anything',
-      methods: ['GET'],
-      rateLimitId,
-    },
+  const response = await apiRequest(page, 'POST', '/api/v1/routes', {
+    path: `/e2e-rl-${pathSuffix}`,
+    upstreamUrl: 'http://httpbin.org/anything',
+    methods: ['GET'],
+    rateLimitId,
+    authRequired: false, // Public route для Gateway testing
   })
   expect(response.ok()).toBeTruthy()
   const route = (await response.json()) as { id: string }
@@ -85,11 +82,11 @@ async function createPublishedRouteWithRateLimit(
   const routeId = await createRouteWithRateLimit(page, pathSuffix, rateLimitId)
 
   // Submit на согласование
-  const submitResponse = await page.request.post(`/api/v1/routes/${routeId}/submit`)
+  const submitResponse = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/submit`)
   expect(submitResponse.ok()).toBeTruthy()
 
   // Approve (admin или security роль)
-  const approveResponse = await page.request.post(`/api/v1/routes/${routeId}/approve`)
+  const approveResponse = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/approve`)
   expect(approveResponse.ok()).toBeTruthy()
 
   return routeId
@@ -100,7 +97,7 @@ async function createPublishedRouteWithRateLimit(
  * Идемпотентная операция — не падает на 404.
  */
 async function deleteRateLimitPolicy(page: Page, policyId: string): Promise<void> {
-  const response = await page.request.delete(`/api/v1/rate-limits/${policyId}`)
+  const response = await apiRequest(page, 'DELETE', `/api/v1/rate-limits/${policyId}`)
   // 200, 204 — успех; 404 — уже удалено; 409 — используется (игнорируем при cleanup)
   expect([200, 204, 404, 409].includes(response.status())).toBeTruthy()
 }
@@ -110,7 +107,7 @@ async function deleteRateLimitPolicy(page: Page, policyId: string): Promise<void
  * Идемпотентная операция — не падает на 404.
  */
 async function deleteRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.delete(`/api/v1/routes/${routeId}`)
+  const response = await apiRequest(page, 'DELETE', `/api/v1/routes/${routeId}`)
   // 200, 204 — успех; 404 — уже удалён
   expect([200, 204, 404].includes(response.status())).toBeTruthy()
 }

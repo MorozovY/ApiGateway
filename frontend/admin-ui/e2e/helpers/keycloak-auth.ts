@@ -12,10 +12,23 @@ export async function keycloakLogin(
   password: string,
   landingUrl = '/dashboard'
 ): Promise<void> {
-  console.log(`[E2E] Keycloak login attempt: ${username}`)
+  console.log(`[E2E] Keycloak login attempt: ${username}, landingUrl: ${landingUrl}`)
 
-  // Navigate to login page
-  await page.goto('/')
+  // Navigate to desired landing page
+  // Frontend will redirect to /login with returnUrl if not authenticated
+  await page.goto(landingUrl)
+
+  // Check if we're on login page (could already be authenticated)
+  const currentUrl = page.url()
+  if (!currentUrl.includes('/login')) {
+    console.log(`[E2E] Already authenticated, skipping login form`)
+    // Still need to verify tokens exist
+    const tokensStr = await page.evaluate(() => sessionStorage.getItem('keycloak_tokens'))
+    if (tokensStr) {
+      console.log(`[E2E] Tokens found in sessionStorage, reusing session`)
+      return
+    }
+  }
 
   // Fill login form (Direct Access Grants custom form)
   // Note: Используем data-testid вместо name attribute (Ant Design Form)
@@ -23,8 +36,13 @@ export async function keycloakLogin(
   await page.locator('[data-testid="password-input"]').fill(password)
   await page.locator('[data-testid="login-button"]').click()
 
-  // Wait for redirect to landing page
-  await page.waitForURL(landingUrl, { timeout: 10_000 })
+  // Wait for redirect away from login
+  // После login может быть redirect на /dashboard вместо landingUrl если role не соответствует
+  await page.waitForURL((url) => {
+    const path = url.pathname
+    // Успех если мы НЕ на /login
+    return !path.includes('/login')
+  }, { timeout: 10_000 })
 
   // Verify token in sessionStorage (stored as keycloak_tokens JSON object)
   const tokensStr = await page.evaluate(() => sessionStorage.getItem('keycloak_tokens'))
@@ -61,12 +79,16 @@ export async function keycloakLogin(
 /**
  * Генерирует Keycloak access token через Client Credentials flow
  * (используется для API consumers в Gateway requests)
+ *
+ * FIX M-5: Добавлен verbose logging для debugging.
  */
 export async function getConsumerToken(
   page: Page,
   clientId: string,
   clientSecret: string
 ): Promise<string> {
+  console.log(`[E2E Helper] Запрос consumer token для clientId: ${clientId}`)
+
   const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
   const realm = process.env.KEYCLOAK_REALM || 'api-gateway'
 
@@ -82,17 +104,26 @@ export async function getConsumerToken(
   )
 
   if (!response.ok()) {
-    throw new Error(`Failed to get consumer token: ${response.status()}`)
+    console.error(`[E2E Helper] Failed to get consumer token for ${clientId}: ${response.status()}`)
+    const errorText = await response.text()
+    console.error(`[E2E Helper] Error response:`, errorText)
+    throw new Error(`Failed to get consumer token for ${clientId}: ${response.status()}`)
   }
 
   const data = await response.json()
+  console.log(`[E2E Helper] Consumer token получен для ${clientId}`)
+
   return data.access_token
 }
 
 /**
  * Logout из Keycloak (очистка sessionStorage)
+ *
+ * FIX M-5: Добавлен verbose logging для debugging.
  */
 export async function keycloakLogout(page: Page): Promise<void> {
+  console.log('[E2E] Выполняем logout из Keycloak...')
+
   // Click user menu button to open dropdown
   await page.locator('[data-testid="user-menu-button"]').click()
 
@@ -105,8 +136,11 @@ export async function keycloakLogout(page: Page): Promise<void> {
   // Verify tokens cleared from sessionStorage
   const tokensStr = await page.evaluate(() => sessionStorage.getItem('keycloak_tokens'))
   if (tokensStr !== null) {
+    console.error('[E2E] Tokens не были удалены из sessionStorage после logout!')
     throw new Error('Tokens were not cleared from sessionStorage after logout')
   }
+
+  console.log('[E2E] Logout выполнен успешно')
 }
 
 /**

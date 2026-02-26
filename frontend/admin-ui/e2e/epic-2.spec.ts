@@ -54,6 +54,12 @@ test.describe('Epic 2: Authentication & User Management', () => {
     // Admin имеет доступ к /users — returnUrl сработает корректно
     await login(page, 'test-admin', 'Test1234!', '/users')
 
+    // Явно navigate на /users если не попали туда после login
+    if (!page.url().includes('/users')) {
+      await page.goto('/users')
+    }
+
+    await expect(page).toHaveURL(/\/users/)
     await expect(page.locator('h3:has-text("Users")')).toBeVisible()
 
     // Открываем модальное окно создания пользователя

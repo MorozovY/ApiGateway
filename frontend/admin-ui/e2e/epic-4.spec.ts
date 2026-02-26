@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { login } from './helpers/auth'
+import { login, apiRequest } from './helpers/auth'
 
 /**
  * Уникальный суффикс для изоляции маршрутов между тест-ранами.
@@ -14,21 +14,17 @@ const TIMESTAMP = Date.now()
  * Возвращает ID созданного маршрута.
  */
 async function createAndSubmitRoute(page: Page, pathSuffix: string): Promise<string> {
-  // Создаём маршрут через proxy (cookie текущего пользователя включены автоматически)
-  const createResponse = await page.request.post('http://localhost:3000/api/v1/routes', {
-    data: {
-      path: `/e2e-approval-${pathSuffix}`,
-      upstreamUrl: 'http://approval-test.local:8000',
-      methods: ['GET'],
-    },
+  // Создаём маршрут через API с JWT token (apiRequest автоматически добавляет Authorization header)
+  const createResponse = await apiRequest(page, 'POST', '/api/v1/routes', {
+    path: `/e2e-approval-${pathSuffix}`,
+    upstreamUrl: 'http://approval-test.local:8000',
+    methods: ['GET'],
   })
   expect(createResponse.ok()).toBeTruthy()
   const createdRoute = await createResponse.json() as { id: string }
 
   // Отправляем маршрут на согласование
-  const submitResponse = await page.request.post(
-    `http://localhost:3000/api/v1/routes/${createdRoute.id}/submit`
-  )
+  const submitResponse = await apiRequest(page, 'POST', `/api/v1/routes/${createdRoute.id}/submit`)
   expect(submitResponse.ok()).toBeTruthy()
 
   return createdRoute.id
@@ -112,7 +108,7 @@ test.describe('Epic 4: Approval Workflow', () => {
     await expect(routeRow).not.toBeVisible({ timeout: 10_000 })
 
     // Проверяем статус через API
-    const routeResponse = await page.request.get(`http://localhost:3000/api/v1/routes/${routeId}`)
+    const routeResponse = await apiRequest(page, 'GET', `/api/v1/routes/${routeId}`)
     const route = await routeResponse.json() as { status: string }
     expect(route.status).toBe('published')
   })
@@ -145,7 +141,7 @@ test.describe('Epic 4: Approval Workflow', () => {
     await expect(routeRow).not.toBeVisible({ timeout: 10_000 })
 
     // Проверяем статус и причину через API
-    const routeResponse = await page.request.get(`http://localhost:3000/api/v1/routes/${routeId}`)
+    const routeResponse = await apiRequest(page, 'GET', `/api/v1/routes/${routeId}`)
     const route = await routeResponse.json() as { status: string; rejectionReason: string }
     expect(route.status).toBe('rejected')
     expect(route.rejectionReason).toBe(rejectReason)

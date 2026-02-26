@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { login, logout } from './helpers/auth'
+import { login, logout, apiRequest } from './helpers/auth'
 
 // =============================================================================
 // Константы для timeouts
@@ -61,12 +61,11 @@ async function createRoute(
   resources: TestResources,
   upstreamUrl = 'http://httpbin.org/anything'
 ): Promise<string> {
-  const response = await page.request.post('/api/v1/routes', {
-    data: {
-      path: `/e2e-audit-${pathSuffix}`,
-      upstreamUrl,
-      methods: ['GET'],
-    },
+  const response = await apiRequest(page, 'POST', '/api/v1/routes', {
+    path: `/e2e-audit-${pathSuffix}`,
+    upstreamUrl,
+    methods: ['GET'],
+    authRequired: false, // Public route для Gateway testing
   })
   expect(response.ok(), `Не удалось создать маршрут: ${await response.text()}`).toBeTruthy()
   const route = (await response.json()) as { id: string }
@@ -88,9 +87,7 @@ async function updateRoute(
   updates: { description?: string; upstreamUrl?: string }
 ): Promise<void> {
   // Backend использует PUT метод для обновления (не PATCH)
-  const response = await page.request.put(`/api/v1/routes/${routeId}`, {
-    data: updates,
-  })
+  const response = await apiRequest(page, 'PUT', `/api/v1/routes/${routeId}`, updates)
   expect(response.ok(), `Не удалось обновить маршрут: ${await response.text()}`).toBeTruthy()
 }
 
@@ -101,7 +98,7 @@ async function updateRoute(
  * @param routeId - ID маршрута
  */
 async function submitRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.post(`/api/v1/routes/${routeId}/submit`)
+  const response = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/submit`)
   expect(response.ok(), `Не удалось отправить маршрут на согласование: ${await response.text()}`).toBeTruthy()
 }
 
@@ -112,7 +109,7 @@ async function submitRoute(page: Page, routeId: string): Promise<void> {
  * @param routeId - ID маршрута
  */
 async function approveRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.post(`/api/v1/routes/${routeId}/approve`)
+  const response = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/approve`)
   expect(response.ok(), `Не удалось одобрить маршрут: ${await response.text()}`).toBeTruthy()
 }
 
@@ -124,9 +121,7 @@ async function approveRoute(page: Page, routeId: string): Promise<void> {
  * @param reason - Причина отклонения
  */
 async function rejectRoute(page: Page, routeId: string, reason: string): Promise<void> {
-  const response = await page.request.post(`/api/v1/routes/${routeId}/reject`, {
-    data: { reason },
-  })
+  const response = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/reject`, { reason })
   expect(response.ok(), `Не удалось отклонить маршрут: ${await response.text()}`).toBeTruthy()
 }
 
@@ -138,7 +133,7 @@ async function rejectRoute(page: Page, routeId: string, reason: string): Promise
  * @param routeId - ID маршрута
  */
 async function deleteRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.delete(`/api/v1/routes/${routeId}`)
+  const response = await apiRequest(page, 'DELETE', `/api/v1/routes/${routeId}`)
   // 200, 204 — успех; 404 — уже удалён
   expect([200, 204, 404].includes(response.status())).toBeTruthy()
 }
@@ -227,7 +222,7 @@ test.describe('Epic 7: Audit & Compliance', () => {
 
     // Шаг 5: Проверяем audit через основной API (фильтр по entityType=route)
     // Используем общий audit API, а не route-specific history
-    const auditResponse = await page.request.get('/api/v1/audit?entityType=route&limit=100')
+    const auditResponse = await apiRequest(page, 'GET', '/api/v1/audit?entityType=route&limit=100')
     expect(
       auditResponse.ok(),
       `Audit API error: status=${auditResponse.status()}`
@@ -493,7 +488,7 @@ test.describe('Epic 7: Audit & Compliance', () => {
     }
 
     // Также проверяем API для полноты (regression test)
-    const historyResponse = await page.request.get(`/api/v1/routes/${routeId}/history`)
+    const historyResponse = await apiRequest(page, 'GET', `/api/v1/routes/${routeId}/history`)
     expect(historyResponse.ok()).toBeTruthy()
 
     const historyData = (await historyResponse.json()) as {
@@ -617,14 +612,14 @@ test.describe('Epic 7: Audit & Compliance', () => {
     expect(page.url()).not.toContain('/audit')
 
     // API test: GET /api/v1/audit должен вернуть 403
-    const auditApiResponse = await page.request.get('/api/v1/audit')
+    const auditApiResponse = await apiRequest(page, 'GET', '/api/v1/audit')
     expect(auditApiResponse.status()).toBe(403)
 
     // API test: проверяем /api/v1/routes/upstreams
     // Developer МОЖЕТ получить доступ к upstreams (это минимальная роль для эндпоинта)
     // Иерархия ролей: ADMIN > SECURITY > DEVELOPER
     // @RequireRole(Role.DEVELOPER) означает что developer имеет доступ
-    const upstreamsApiResponse = await page.request.get('/api/v1/routes/upstreams')
+    const upstreamsApiResponse = await apiRequest(page, 'GET', '/api/v1/routes/upstreams')
     // Developer имеет доступ к upstreams API (это минимальная роль)
     expect(upstreamsApiResponse.ok()).toBeTruthy()
   })

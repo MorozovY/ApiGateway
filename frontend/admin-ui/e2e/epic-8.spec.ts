@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { login, logout } from './helpers/auth'
+import { login, logout, apiRequest } from './helpers/auth'
 
 // =============================================================================
 // Константы для timeouts
@@ -64,12 +64,11 @@ async function createRoute(
   resources: TestResources,
   upstreamUrl = 'http://httpbin.org/anything'
 ): Promise<string> {
-  const response = await page.request.post('/api/v1/routes', {
-    data: {
+  const response = await apiRequest(page, 'POST', '/api/v1/routes', {
       path: `/e2e-epic8-${pathSuffix}`,
       upstreamUrl,
       methods: ['GET'],
-    },
+      authRequired: false, // Public route для Gateway testing
   })
   expect(response.ok(), `Не удалось создать маршрут: ${await response.text()}`).toBeTruthy()
   const route = (await response.json()) as { id: string }
@@ -84,7 +83,7 @@ async function createRoute(
  * @param routeId - ID маршрута
  */
 async function submitRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.post(`/api/v1/routes/${routeId}/submit`)
+  const response = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/submit`)
   expect(response.ok(), `Не удалось отправить маршрут на согласование: ${await response.text()}`).toBeTruthy()
 }
 
@@ -95,7 +94,7 @@ async function submitRoute(page: Page, routeId: string): Promise<void> {
  * @param routeId - ID маршрута
  */
 async function approveRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.post(`/api/v1/routes/${routeId}/approve`)
+  const response = await apiRequest(page, 'POST', `/api/v1/routes/${routeId}/approve`)
   expect(response.ok(), `Не удалось одобрить маршрут: ${await response.text()}`).toBeTruthy()
 }
 
@@ -110,7 +109,7 @@ async function approveRoute(page: Page, routeId: string): Promise<void> {
  * @param routeId - ID маршрута
  */
 async function deleteRoute(page: Page, routeId: string): Promise<void> {
-  const response = await page.request.delete(`/api/v1/routes/${routeId}`)
+  const response = await apiRequest(page, 'DELETE', `/api/v1/routes/${routeId}`)
   // 200, 204 — успех; 404 — уже удалён; 409 — published маршрут (нельзя удалить, cleanup в global-setup)
   expect([200, 204, 404, 409].includes(response.status())).toBeTruthy()
 }
