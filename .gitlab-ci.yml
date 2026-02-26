@@ -43,10 +43,7 @@ backend-build:
     - cd backend
     # --no-build-cache для избежания проблем с испорченным cache
     - ./gradlew build -x test --no-build-cache
-  artifacts:
-    paths:
-      - backend/**/build/libs/*.jar
-    expire_in: 1 hour
+  # Artifacts не сохраняем - test job сам компилирует код
   tags:
     - docker
 
