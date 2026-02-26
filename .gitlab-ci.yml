@@ -9,12 +9,13 @@ stages:
 # Запускается только вручную после merge в main
 sync-to-github:
   stage: sync
-  image: alpine/git:latest
+  image: alpine:latest
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: manual
       allow_failure: true
   script:
+    - apk add --no-cache git
     - git config --global user.email "ci@localhost"
     - git config --global user.name "GitLab CI"
     - git remote add github https://oauth2:${GITHUB_TOKEN}@github.com/MorozovY/ApiGateway.git || true
