@@ -111,7 +111,7 @@ frontend-test:
     # Keycloak env vars для тестов (валидация конфигурации)
     VITE_KEYCLOAK_URL: "http://localhost:8180"
     VITE_KEYCLOAK_REALM: "api-gateway"
-    VITE_KEYCLOAK_CLIENT_ID: "admin-ui"
+    VITE_KEYCLOAK_CLIENT_ID: "gateway-admin-ui"
   script:
     - cd frontend/admin-ui
     - npm ci
