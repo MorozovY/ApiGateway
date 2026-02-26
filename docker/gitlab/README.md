@@ -223,6 +223,50 @@ docker exec -it gitlab gitlab-rake "gitlab:password:reset[root]"
 2. **Runner → Registry:** Runner должен push/pull образы на `localhost:5050`
 3. **Build jobs → external:** Jobs могут требовать доступ в интернет для скачивания dependencies
 
+## ApiGateway Repository
+
+### Настройка после установки GitLab
+
+После запуска GitLab и регистрации runner, репозиторий ApiGateway настраивается следующим образом:
+
+```bash
+# Добавить GitLab как remote (из корня проекта)
+git remote add gitlab http://localhost:8929/root/api-gateway.git
+
+# Push всех веток и тегов
+git push gitlab --all
+git push gitlab --tags
+
+# Проверка remotes
+git remote -v
+# origin  https://github.com/MorozovY/ApiGateway.git (fetch/push)
+# gitlab  http://localhost:8929/root/api-gateway.git (fetch/push)
+```
+
+### CI/CD Pipeline
+
+Репозиторий содержит `.gitlab-ci.yml` со следующими возможностями:
+
+- **sync-to-github** — ручная синхронизация в GitHub (main branch)
+- Build/test stages будут добавлены в Story 13.2+
+
+### GitHub Mirror
+
+GitLab настроен как primary repository, GitHub как mirror:
+
+1. Основная разработка → push в GitLab
+2. CI pipeline запускается автоматически
+3. После merge в master → manual trigger sync to GitHub
+4. GitHub всегда синхронизируется вручную
+
+### Переменные CI/CD
+
+В GitLab → Settings → CI/CD → Variables настроены:
+
+| Variable | Описание |
+|----------|----------|
+| `GITHUB_TOKEN` | Personal Access Token для sync в GitHub (masked) |
+
 ## Дополнительная документация
 
 - [GitLab CE Documentation](https://docs.gitlab.com/ee/)

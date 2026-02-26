@@ -2,6 +2,25 @@
 
 Self-service API Gateway с административной панелью управления маршрутами.
 
+## Git Repositories
+
+Проект использует два remote:
+
+| Remote | URL | Назначение |
+|--------|-----|------------|
+| `gitlab` | http://localhost:8929/root/api-gateway.git | Primary (CI/CD) |
+| `origin` | https://github.com/MorozovY/ApiGateway.git | Mirror (public) |
+
+```bash
+# Clone (GitHub)
+git clone https://github.com/MorozovY/ApiGateway.git
+
+# Добавить локальный GitLab (после установки)
+git remote add gitlab http://localhost:8929/root/api-gateway.git
+```
+
+Для настройки локального GitLab см. [docker/gitlab/README.md](docker/gitlab/README.md).
+
 ## Требования
 
 - **Java 21+** (JDK)

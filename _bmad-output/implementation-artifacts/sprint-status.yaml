@@ -82,7 +82,7 @@ development_status:
   # Changed: Local GitLab in Docker (Sprint Change Proposal 2026-02-26)
   epic-13: in-progress  # 2026-02-26: Started
   13-0-local-gitlab-infrastructure: done                     # SP:5 — NEW: локальный GitLab в Docker
-  13-1-gitlab-repository-setup-github-mirror: backlog        # SP:2 — push repo, настройка mirror (depends: 13.0)
+  13-1-gitlab-repository-setup-github-mirror: review          # SP:2 — push repo, настройка mirror (depends: 13.0)
   13-2-ci-pipeline-build-test: backlog                 # SP:8 — .gitlab-ci.yml, build/test stages
   13-3-docker-image-build-registry: backlog            # SP:5 — docker build, registry push
   13-4-secrets-management-gitlab-variables: backlog    # SP:3 — настройка CI/CD variables
