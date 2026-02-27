@@ -13,6 +13,9 @@ spring:
     password: gateway
     locations: classpath:db/migration
     baseline-on-migrate: true
+    # CI: очищаем базу при несовпадении checksum миграций
+    clean-on-validation-error: true
+    clean-disabled: false
   data:
     redis:
       host: redis
