@@ -59,24 +59,29 @@ import java.util.UUID
 class ConsumerControllerSecurityTest {
 
     companion object {
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
+
         // Генерируем RSA ключ для подписи JWT (до инициализации MockWebServer)
         private val rsaKey: RSAKey = RSAKeyGenerator(2048)
             .keyID("test-key-id")
             .generate()
 
-        // PostgreSQL контейнер — запускаем СРАЗУ в статическом блоке
-        // ВАЖНО: без @Container/@Testcontainers, иначе порядок инициализации ломается
-        @JvmStatic
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("gateway")
-            .withPassword("gateway")
-            .apply { start() }
+        // Контейнеры — запускаются только локально
+        private var postgres: PostgreSQLContainer<*>? = null
+        private var redis: RedisContainer? = null
 
-        // Redis контейнер — запускаем СРАЗУ в статическом блоке
-        @JvmStatic
-        val redis: RedisContainer = RedisContainer("redis:7-alpine")
-            .apply { start() }
+        init {
+            if (!isTestcontainersDisabled) {
+                postgres = PostgreSQLContainer("postgres:16-alpine")
+                    .withDatabaseName("testdb")
+                    .withUsername("gateway")
+                    .withPassword("gateway")
+                    .apply { start() }
+
+                redis = RedisContainer("redis:7-alpine")
+                    .apply { start() }
+            }
+        }
 
         // MockWebServer инициализируется СРАЗУ в companion object с Dispatcher
         // ВАЖНО: это СТАТИЧЕСКАЯ инициализация которая происходит ДО DynamicPropertySource
@@ -101,21 +106,41 @@ class ConsumerControllerSecurityTest {
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
-            // PostgreSQL R2DBC
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgres.host}:${postgres.getMappedPort(5432)}/${postgres.databaseName}"
+            if (isTestcontainersDisabled) {
+                // CI режим — используем GitLab Services
+                val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+                val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
+                val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
+                val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
+                val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
+                val redisHost = System.getenv("REDIS_HOST") ?: "localhost"
+                val redisPort = System.getenv("REDIS_PORT") ?: "6379"
+
+                registry.add("spring.r2dbc.url") { "r2dbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.r2dbc.username") { pgUser }
+                registry.add("spring.r2dbc.password") { pgPass }
+                registry.add("spring.flyway.url") { "jdbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.flyway.user") { pgUser }
+                registry.add("spring.flyway.password") { pgPass }
+                registry.add("spring.data.redis.host") { redisHost }
+                registry.add("spring.data.redis.port") { redisPort.toInt() }
+            } else {
+                // Локальный режим — Testcontainers
+                postgres?.let { pg ->
+                    registry.add("spring.r2dbc.url") {
+                        "r2dbc:postgresql://${pg.host}:${pg.getMappedPort(5432)}/${pg.databaseName}"
+                    }
+                    registry.add("spring.r2dbc.username") { pg.username }
+                    registry.add("spring.r2dbc.password") { pg.password }
+                    registry.add("spring.flyway.url") { pg.jdbcUrl }
+                    registry.add("spring.flyway.user") { pg.username }
+                    registry.add("spring.flyway.password") { pg.password }
+                }
+                redis?.let { rd ->
+                    registry.add("spring.data.redis.host") { rd.host }
+                    registry.add("spring.data.redis.port") { rd.getMappedPort(6379) }
+                }
             }
-            registry.add("spring.r2dbc.username") { postgres.username }
-            registry.add("spring.r2dbc.password") { postgres.password }
-
-            // Flyway (JDBC) — важно для миграций
-            registry.add("spring.flyway.url") { postgres.jdbcUrl }
-            registry.add("spring.flyway.user") { postgres.username }
-            registry.add("spring.flyway.password") { postgres.password }
-
-            // Redis
-            registry.add("spring.data.redis.host") { redis.host }
-            registry.add("spring.data.redis.port") { redis.getMappedPort(6379) }
 
             // Keycloak - MockWebServer уже запущен
             registry.add("keycloak.url") { mockWebServer.url("/").toString().removeSuffix("/") }
