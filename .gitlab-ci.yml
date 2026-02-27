@@ -103,10 +103,15 @@ backend-test:
     - name: redis:7-alpine
       alias: redis
   variables:
-    # PostgreSQL service configuration
+    # PostgreSQL service configuration (для инициализации контейнера)
     POSTGRES_DB: gateway_test
     POSTGRES_USER: gateway
     POSTGRES_PASSWORD: gateway
+    # Connection variables для BaseIntegrationTest (передаются в test JVM)
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
     # Отключаем Testcontainers — используем GitLab Services
     TESTCONTAINERS_DISABLED: "true"
     # Активируем CI профиль Spring Boot (application-ci.yml)

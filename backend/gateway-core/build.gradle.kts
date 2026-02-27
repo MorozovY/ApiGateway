@@ -79,6 +79,13 @@ java {
 
 tasks.test {
     useJUnitPlatform()
+
+    // Выводим stdout/stderr тестов для диагностики в CI
+    testLogging {
+        showStandardStreams = true
+        events("passed", "skipped", "failed")
+    }
+
     // Testcontainers config (из -P или env)
     val tcDisabled = findProperty("testcontainersDisabled")?.toString()
         ?: System.getenv("TESTCONTAINERS_DISABLED")

@@ -25,13 +25,24 @@ class EnvVarTest {
         println("SPRING_DATA_REDIS_HOST = ${System.getenv("SPRING_DATA_REDIS_HOST")}")
         println("============================")
 
-        // Проверяем DNS resolution для postgres
-        val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+        // Проверяем DNS resolution для postgres (hardcoded hostname из application-ci.yml)
+        listOf("postgres", "redis", "localhost").forEach { host ->
+            try {
+                val addr = InetAddress.getByName(host)
+                println("DNS OK: $host -> ${addr.hostAddress}")
+            } catch (e: Exception) {
+                println("DNS FAILED: $host -> ${e.message}")
+            }
+        }
+
+        // Проверяем TCP connection к postgres:5432
         try {
-            val addr = InetAddress.getByName(pgHost)
-            println("DNS: $pgHost -> ${addr.hostAddress}")
+            java.net.Socket().use { socket ->
+                socket.connect(java.net.InetSocketAddress("postgres", 5432), 5000)
+                println("TCP OK: postgres:5432")
+            }
         } catch (e: Exception) {
-            println("DNS FAILED: $pgHost -> ${e.message}")
+            println("TCP FAILED: postgres:5432 -> ${e.message}")
         }
 
         // Проверяем что TESTCONTAINERS_DISABLED передан если установлен в shell
