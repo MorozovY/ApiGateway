@@ -89,28 +89,42 @@ frontend-build:
 # TEST STAGE
 # =============================================================================
 
-# Backend tests с Testcontainers (Docker socket)
-# Runners монтируют Docker socket, Testcontainers работают через него
+# Backend tests с GitLab Services (PostgreSQL + Redis)
+# Используем CI profile с фиксированными connection strings
 backend-test:
   stage: test
   image: eclipse-temurin:21-jdk
   extends: .gradle-cache
   timeout: 25 minutes
+  services:
+    - name: postgres:16
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
   variables:
+    # PostgreSQL service configuration
+    POSTGRES_DB: gateway_test
+    POSTGRES_USER: gateway
+    POSTGRES_PASSWORD: gateway
+    # Отключаем Testcontainers — используем GitLab Services
+    TESTCONTAINERS_DISABLED: "true"
+    # Активируем CI profile
+    SPRING_PROFILES_ACTIVE: ci
     # Nexus proxy (опционально)
     NEXUS_URL: "http://nexus:8081"
-    # Docker socket для Testcontainers (без DinD)
-    DOCKER_HOST: unix:///var/run/docker.sock
-    TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
-    # Отключаем Ryuk (не нужен в CI, контейнеры удаляются с job)
-    TESTCONTAINERS_RYUK_DISABLED: "true"
-    # Testcontainers будут использовать host networking
-    TESTCONTAINERS_HOST_OVERRIDE: docker
   script:
     - chmod +x backend/gradlew
     - cd backend
-    # Проверяем доступность Docker
-    - docker info || echo "Docker not available, tests may fail"
+    # Ожидаем готовности PostgreSQL
+    - |
+      echo "Waiting for PostgreSQL..."
+      for i in $(seq 1 30); do
+        if pg_isready -h postgres -U gateway 2>/dev/null; then
+          echo "PostgreSQL is ready"
+          break
+        fi
+        sleep 2
+      done
     # Используем Nexus init script если доступен
     - |
       if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
