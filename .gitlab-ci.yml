@@ -132,8 +132,8 @@ backend-test:
         fi
         sleep 1
       done
-    # Запуск тестов (env переменные читаются в BaseIntegrationTest.configureProperties)
-    - gradle test --parallel jacocoTestReport --no-daemon
+    # Запуск тестов с явным отключением Testcontainers
+    - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:
     when: always
     reports:

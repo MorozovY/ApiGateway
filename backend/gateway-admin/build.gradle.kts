@@ -78,18 +78,16 @@ java {
 
 tasks.test {
     useJUnitPlatform()
-    // Передача project properties (-P) из командной строки в test JVM как system properties
-    // Gradle: -PdbUrl=... -> test JVM: -Dspring.r2dbc.url=...
-    findProperty("dbUrl")?.let { systemProperty("spring.r2dbc.url", it) }
-    findProperty("dbUser")?.let { systemProperty("spring.r2dbc.username", it) }
-    findProperty("dbPass")?.let { systemProperty("spring.r2dbc.password", it) }
-    findProperty("flywayUrl")?.let { systemProperty("spring.flyway.url", it) }
-    findProperty("flywayUser")?.let { systemProperty("spring.flyway.user", it) }
-    findProperty("flywayPass")?.let { systemProperty("spring.flyway.password", it) }
-    findProperty("redisHost")?.let { systemProperty("spring.data.redis.host", it) }
-    findProperty("redisPort")?.let { systemProperty("spring.data.redis.port", it) }
+    // Testcontainers config (из -P или env)
+    val tcDisabled = findProperty("testcontainersDisabled")?.toString()
+        ?: System.getenv("TESTCONTAINERS_DISABLED")
+        ?: "false"
+    environment("TESTCONTAINERS_DISABLED", tcDisabled)
+    environment("TESTCONTAINERS_RYUK_DISABLED", tcDisabled)
 
-    // Testcontainers env
-    environment("TESTCONTAINERS_DISABLED", System.getenv("TESTCONTAINERS_DISABLED") ?: "false")
-    environment("TESTCONTAINERS_RYUK_DISABLED", System.getenv("TESTCONTAINERS_RYUK_DISABLED") ?: "false")
+    // Passthrough database env vars
+    listOf("POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD",
+           "REDIS_HOST", "REDIS_PORT").forEach { key ->
+        System.getenv(key)?.let { environment(key, it) }
+    }
 }
