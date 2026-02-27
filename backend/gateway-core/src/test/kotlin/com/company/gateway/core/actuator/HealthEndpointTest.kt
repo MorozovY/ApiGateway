@@ -27,25 +27,50 @@ import org.testcontainers.junit.jupiter.Testcontainers
 class HealthEndpointTest {
 
     companion object {
+        // Проверяем запущены ли мы в CI
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
+
+        // PostgreSQL контейнер (null в CI)
         @Container
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16")
-            .withDatabaseName("gateway")
-            .withUsername("gateway")
-            .withPassword("gateway")
+        val postgres: PostgreSQLContainer<*>? = if (!isTestcontainersDisabled) {
+            PostgreSQLContainer("postgres:16")
+                .withDatabaseName("gateway")
+                .withUsername("gateway")
+                .withPassword("gateway")
+        } else null
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+            if (isTestcontainersDisabled) {
+                // В CI читаем из env переменных (GitLab Services)
+                val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+                val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
+                val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
+                val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
+                val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
+
+                registry.add("spring.r2dbc.url") { "r2dbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.r2dbc.username") { pgUser }
+                registry.add("spring.r2dbc.password") { pgPass }
+                registry.add("spring.flyway.url") { "jdbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.flyway.user") { pgUser }
+                registry.add("spring.flyway.password") { pgPass }
+            } else {
+                // Локально настраиваем Testcontainers
+                postgres?.let { pg ->
+                    registry.add("spring.r2dbc.url") {
+                        "r2dbc:postgresql://${pg.host}:${pg.firstMappedPort}/${pg.databaseName}"
+                    }
+                    registry.add("spring.r2dbc.username", pg::getUsername)
+                    registry.add("spring.r2dbc.password", pg::getPassword)
+                    registry.add("spring.flyway.url", pg::getJdbcUrl)
+                    registry.add("spring.flyway.user", pg::getUsername)
+                    registry.add("spring.flyway.password", pg::getPassword)
+                }
             }
-            registry.add("spring.r2dbc.username", postgres::getUsername)
-            registry.add("spring.r2dbc.password", postgres::getPassword)
-            registry.add("spring.flyway.url", postgres::getJdbcUrl)
-            registry.add("spring.flyway.user", postgres::getUsername)
-            registry.add("spring.flyway.password", postgres::getPassword)
-            // Redis unavailable - use invalid port
+            // Redis unavailable - use invalid port (для тестирования поведения при недоступном Redis)
             registry.add("spring.data.redis.host") { "localhost" }
             registry.add("spring.data.redis.port") { 59999 }
             registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }

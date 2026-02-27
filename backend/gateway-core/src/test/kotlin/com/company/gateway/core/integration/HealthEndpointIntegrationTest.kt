@@ -23,30 +23,64 @@ import org.testcontainers.junit.jupiter.Testcontainers
 class HealthEndpointIntegrationTest {
 
     companion object {
-        @Container
-        @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16")
-            .withDatabaseName("gateway")
-            .withUsername("gateway")
-            .withPassword("gateway")
+        // Проверяем запущены ли мы в CI
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
+        // PostgreSQL контейнер (null в CI)
         @Container
         @JvmStatic
-        val redis = RedisContainer("redis:7")
+        val postgres: PostgreSQLContainer<*>? = if (!isTestcontainersDisabled) {
+            PostgreSQLContainer("postgres:16")
+                .withDatabaseName("gateway")
+                .withUsername("gateway")
+                .withPassword("gateway")
+        } else null
+
+        // Redis контейнер (null в CI)
+        @Container
+        @JvmStatic
+        val redis: RedisContainer? = if (!isTestcontainersDisabled) {
+            RedisContainer("redis:7")
+        } else null
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+            if (isTestcontainersDisabled) {
+                // В CI читаем из env переменных (GitLab Services)
+                val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+                val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
+                val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
+                val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
+                val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
+                val redisHost = System.getenv("REDIS_HOST") ?: "localhost"
+                val redisPort = System.getenv("REDIS_PORT") ?: "6379"
+
+                registry.add("spring.r2dbc.url") { "r2dbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.r2dbc.username") { pgUser }
+                registry.add("spring.r2dbc.password") { pgPass }
+                registry.add("spring.flyway.url") { "jdbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.flyway.user") { pgUser }
+                registry.add("spring.flyway.password") { pgPass }
+                registry.add("spring.data.redis.host") { redisHost }
+                registry.add("spring.data.redis.port") { redisPort.toInt() }
+            } else {
+                // Локально настраиваем Testcontainers
+                postgres?.let { pg ->
+                    registry.add("spring.r2dbc.url") {
+                        "r2dbc:postgresql://${pg.host}:${pg.firstMappedPort}/${pg.databaseName}"
+                    }
+                    registry.add("spring.r2dbc.username", pg::getUsername)
+                    registry.add("spring.r2dbc.password", pg::getPassword)
+                    registry.add("spring.flyway.url", pg::getJdbcUrl)
+                    registry.add("spring.flyway.user", pg::getUsername)
+                    registry.add("spring.flyway.password", pg::getPassword)
+                }
+                redis?.let { rd ->
+                    registry.add("spring.data.redis.host", rd::getHost)
+                    registry.add("spring.data.redis.port") { rd.firstMappedPort }
+                }
             }
-            registry.add("spring.r2dbc.username", postgres::getUsername)
-            registry.add("spring.r2dbc.password", postgres::getPassword)
-            registry.add("spring.flyway.url", postgres::getJdbcUrl)
-            registry.add("spring.flyway.user", postgres::getUsername)
-            registry.add("spring.flyway.password", postgres::getPassword)
-            registry.add("spring.data.redis.host", redis::getHost)
-            registry.add("spring.data.redis.port") { redis.firstMappedPort }
             registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }
