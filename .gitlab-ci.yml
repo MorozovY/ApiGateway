@@ -133,7 +133,14 @@ backend-test:
     - cd backend
     - echo "Shell env POSTGRES_HOST=$POSTGRES_HOST SPRING_R2DBC_URL=$SPRING_R2DBC_URL"
     - for i in 1 2 3 4 5; do timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null && echo "PostgreSQL ready" && break; sleep 1; done
-    - echo "Postgres IP:" && getent hosts postgres || echo "DNS lookup failed"
+    - export POSTGRES_IP=$(getent hosts postgres | awk '{print $1}')
+    - export REDIS_IP=$(getent hosts redis | awk '{print $1}')
+    - echo "Resolved IPs POSTGRES=$POSTGRES_IP REDIS=$REDIS_IP"
+    - export SPRING_R2DBC_URL="r2dbc:postgresql://$POSTGRES_IP:5432/gateway_test"
+    - export SPRING_FLYWAY_URL="jdbc:postgresql://$POSTGRES_IP:5432/gateway_test"
+    - export SPRING_DATA_REDIS_HOST=$REDIS_IP
+    - export POSTGRES_HOST=$POSTGRES_IP
+    - export REDIS_HOST=$REDIS_IP
     - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:
     when: always
