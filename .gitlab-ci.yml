@@ -38,17 +38,6 @@ stages:
 # BUILD STAGE
 # =============================================================================
 
-# Простой тест для диагностики CI
-test-basic:
-  stage: build
-  image: alpine:latest
-  script:
-    - echo "=== Basic CI test ==="
-    - echo "Hostname:" && hostname
-    - echo "Working directory:" && pwd
-    - echo "Files:" && ls -la
-    - echo "SUCCESS - Basic test passed"
-
 backend-build:
   stage: build
   image: eclipse-temurin:21-jdk
@@ -58,11 +47,6 @@ backend-build:
     # Nexus proxy для ускорения downloads (опционально)
     NEXUS_URL: "http://nexus:8081"
   script:
-    # Диагностика
-    - echo "=== Diagnostic info ==="
-    - pwd
-    - ls -la
-    - ls -la backend/ || echo "backend/ not found"
     - chmod +x backend/gradlew
     - cd backend
     # Используем Nexus init script если доступен
@@ -84,11 +68,6 @@ frontend-build:
     # Nexus proxy для npm (опционально)
     NEXUS_URL: "http://nexus:8081"
   script:
-    # Диагностика
-    - echo "=== Diagnostic info ==="
-    - pwd
-    - ls -la
-    - ls -la frontend/ || echo "frontend/ not found"
     - cd frontend/admin-ui
     # Проверяем доступность Nexus и используем как proxy
     - |

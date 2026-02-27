@@ -70,6 +70,7 @@ function Register-Runner {
         return
     }
 
+    # Регистрируем runner (GitLab 18+ не поддерживает --tag-list с auth токенами)
     docker exec $RunnerName gitlab-runner register `
         --non-interactive `
         --url $GITLAB_URL `
@@ -77,16 +78,19 @@ function Register-Runner {
         --executor "docker" `
         --docker-image "alpine:latest" `
         --description "runner-$RunnerNum" `
-        --tag-list "docker" `
         --docker-privileged `
         --docker-volumes "/var/run/docker.sock:/var/run/docker.sock" `
         --docker-volumes "gitlab_gradle_cache:/cache/gradle" `
         --docker-volumes "gitlab_npm_cache:/cache/npm" `
-        --docker-extra-hosts "nexus:host-gateway" `
-        --docker-extra-hosts "gitlab.local:host-gateway"
+        --docker-extra-hosts "gitlab:host-gateway" `
+        --docker-extra-hosts "nexus:host-gateway"
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "$RunnerName зарегистрирован успешно" -ForegroundColor Green
+
+        # Добавляем clone_url в конфигурацию (требуется для правильного клонирования)
+        Write-Host "Настраиваю clone_url для $RunnerName..."
+        docker exec $RunnerName sed -i 's/url = "http:\/\/gitlab:8929"/url = "http:\/\/gitlab:8929"\n  clone_url = "http:\/\/gitlab:8929"/' /etc/gitlab-runner/config.toml
     } else {
         Write-Host "$RunnerName: ошибка регистрации" -ForegroundColor Red
     }
