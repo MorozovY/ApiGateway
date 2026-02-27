@@ -114,6 +114,9 @@ backend-test:
     TESTCONTAINERS_HOST_OVERRIDE: docker
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
+  before_script:
+    # Устанавливаем Docker CLI
+    - apt-get update && apt-get install -y docker.io
   script:
     - cd backend
     # Ждем пока Docker daemon станет доступен
