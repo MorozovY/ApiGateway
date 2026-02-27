@@ -76,3 +76,17 @@ java {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
+
+tasks.test {
+    useJUnitPlatform()
+    // Передаём env переменные в JVM тестов для CI
+    environment("POSTGRES_HOST", System.getenv("POSTGRES_HOST") ?: "localhost")
+    environment("POSTGRES_PORT", System.getenv("POSTGRES_PORT") ?: "5432")
+    environment("POSTGRES_DB", System.getenv("POSTGRES_DB") ?: "gateway")
+    environment("POSTGRES_USER", System.getenv("POSTGRES_USER") ?: "gateway")
+    environment("POSTGRES_PASSWORD", System.getenv("POSTGRES_PASSWORD") ?: "gateway")
+    environment("REDIS_HOST", System.getenv("REDIS_HOST") ?: "localhost")
+    environment("REDIS_PORT", System.getenv("REDIS_PORT") ?: "6379")
+    environment("TESTCONTAINERS_DISABLED", System.getenv("TESTCONTAINERS_DISABLED") ?: "false")
+    environment("TESTCONTAINERS_RYUK_DISABLED", System.getenv("TESTCONTAINERS_RYUK_DISABLED") ?: "false")
+}
