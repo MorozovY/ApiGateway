@@ -94,24 +94,16 @@ frontend-build:
 # Используем CI profile с фиксированными connection strings
 backend-test:
   stage: test
-  # Используем Docker-in-Docker для запуска тестов с Testcontainers
+  # Используем host Docker через socket mount (настроен в runner config)
   image: gradle:8.5-jdk21
   extends: .gradle-cache
   timeout: 25 minutes
-  services:
-    - name: docker:24-dind
-      alias: docker
-      command: ["--tls=false"]
+  # Не используем services - Testcontainers будут использовать host Docker
   variables:
-    # Docker-in-Docker configuration
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
-    # НЕ отключаем Testcontainers - пусть они сами запускают PostgreSQL/Redis
-    TESTCONTAINERS_DISABLED: "false"
-    TESTCONTAINERS_RYUK_DISABLED: "false"
-    # Testcontainers конфигурация для DinD
-    TESTCONTAINERS_HOST_OVERRIDE: docker
+    # Testcontainers будет использовать Docker socket который mount'ится runner'ом
+    DOCKER_HOST: unix:///var/run/docker.sock
+    # Disable Ryuk (resource reaper) - не нужен в CI
+    TESTCONTAINERS_RYUK_DISABLED: "true"
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
   before_script:
@@ -119,10 +111,10 @@ backend-test:
     - apt-get update && apt-get install -y docker.io
   script:
     - cd backend
-    # Ждем пока Docker daemon станет доступен
-    - for i in 1 2 3 4 5 6 7 8 9 10; do docker info && break || sleep 3; done
-    - docker info
-    # Запускаем тесты - Testcontainers сами поднимут PostgreSQL и Redis
+    # Проверяем что Docker socket доступен
+    - ls -la /var/run/docker.sock || echo "Docker socket not found"
+    - docker info || echo "Docker not available"
+    # Запускаем тесты - Testcontainers используют host Docker
     - gradle test --parallel jacocoTestReport --no-daemon
   artifacts:
     when: always
