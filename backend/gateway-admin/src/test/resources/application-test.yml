@@ -6,6 +6,11 @@ spring:
     url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_ADMIN:gateway_admin_test}
     username: ${POSTGRES_USER:gateway}
     password: ${POSTGRES_PASSWORD:gateway}
+    pool:
+      # Ограничиваем пул для CI (предотвращает "too many clients")
+      initial-size: 2
+      max-size: 5
+      max-idle-time: 30s
   flyway:
     enabled: true
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_ADMIN:gateway_admin_test}
