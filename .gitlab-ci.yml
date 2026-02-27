@@ -131,17 +131,8 @@ backend-test:
     GRADLE_USER_HOME: /cache/gradle
   script:
     - cd backend
-    # Диагностика env переменных в shell
-    - echo "Shell env: POSTGRES_HOST=$POSTGRES_HOST, SPRING_R2DBC_URL=$SPRING_R2DBC_URL"
-    # Ожидаем готовности PostgreSQL
-    - |
-      for i in $(seq 1 10); do
-        if timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; then
-          echo "PostgreSQL ready"; break
-        fi
-        sleep 1
-      done
-    # Запуск тестов с явным отключением Testcontainers
+    - echo "Shell env POSTGRES_HOST=$POSTGRES_HOST SPRING_R2DBC_URL=$SPRING_R2DBC_URL"
+    - for i in 1 2 3 4 5; do timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null && echo "PostgreSQL ready" && break; sleep 1; done
     - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:
     when: always
