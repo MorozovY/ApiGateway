@@ -38,6 +38,17 @@ stages:
 # BUILD STAGE
 # =============================================================================
 
+# Простой тест для диагностики CI
+test-basic:
+  stage: build
+  image: alpine:latest
+  script:
+    - echo "=== Basic CI test ==="
+    - echo "Hostname:" && hostname
+    - echo "Working directory:" && pwd
+    - echo "Files:" && ls -la
+    - echo "SUCCESS - Basic test passed"
+
 backend-build:
   stage: build
   image: eclipse-temurin:21-jdk
