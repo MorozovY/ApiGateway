@@ -132,9 +132,11 @@ backend-test:
         echo "Waiting for PostgreSQL... ($i)"
         sleep 2
       done
-    # Пересоздаём базу данных для чистого состояния Flyway
-    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_test;"
-    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_test;"
+    # Пересоздаём базы данных для чистого состояния Flyway (отдельная БД для каждого модуля)
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_admin_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_admin_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_core_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_core_test;"
     # Запуск тестов с CI профилем
     - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:

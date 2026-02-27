@@ -3,12 +3,12 @@
 
 spring:
   r2dbc:
-    url: r2dbc:postgresql://postgres:5432/gateway_test
+    url: r2dbc:postgresql://postgres:5432/gateway_admin_test
     username: gateway
     password: gateway
   flyway:
     enabled: true
-    url: jdbc:postgresql://postgres:5432/gateway_test
+    url: jdbc:postgresql://postgres:5432/gateway_admin_test
     user: gateway
     password: gateway
     locations: classpath:db/migration
