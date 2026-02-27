@@ -109,6 +109,8 @@ backend-test:
     POSTGRES_PASSWORD: gateway
     # Отключаем Testcontainers — используем GitLab Services
     TESTCONTAINERS_DISABLED: "true"
+    # Отключаем Ryuk (cleanup container) — не нужен в CI
+    TESTCONTAINERS_RYUK_DISABLED: "true"
     # Активируем CI profile
     SPRING_PROFILES_ACTIVE: ci
     # Nexus proxy (опционально)
