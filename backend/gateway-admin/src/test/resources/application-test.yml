@@ -1,6 +1,10 @@
 # Test profile configuration for gateway-admin
+# Включаем CI профиль когда установлена переменная CI_PROFILE
+# В GitLab CI: CI_PROFILE=ci -> загружается application-ci.yml поверх test
 
 spring:
+  profiles:
+    include: ${CI_PROFILE:}
   r2dbc:
     url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway_test}
     username: ${POSTGRES_USER:gateway}

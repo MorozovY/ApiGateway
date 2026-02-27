@@ -115,7 +115,8 @@ backend-test:
     # Отключаем Testcontainers — используем GitLab Services
     TESTCONTAINERS_DISABLED: "true"
     # Активируем CI профиль Spring Boot (application-ci.yml)
-    SPRING_PROFILES_ACTIVE: "test,ci"
+    # CI_PROFILE включается через spring.profiles.include в application-test.yml
+    CI_PROFILE: "ci"
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
   script:
