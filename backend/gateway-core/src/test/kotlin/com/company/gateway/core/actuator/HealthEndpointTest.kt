@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -19,10 +20,15 @@ import org.testcontainers.containers.PostgreSQLContainer
  * AC2: Given gateway-core запускается, но database/redis не готов
  *      When делается запрос к /actuator/health/readiness
  *      Then ответ возвращает HTTP 503 со статусом "DOWN"
+ *
+ * ВАЖНО: @DirtiesContext нужен потому что этот тест использует невалидный Redis порт (59999)
+ * для тестирования DOWN сценария. Без него контекст кэшируется и другие тесты
+ * (например HealthEndpointIntegrationTest) получают контекст с неправильным Redis.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class HealthEndpointTest {
 
     companion object {
