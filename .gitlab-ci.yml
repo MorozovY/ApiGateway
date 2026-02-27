@@ -107,35 +107,38 @@ backend-test:
     POSTGRES_DB: gateway_test
     POSTGRES_USER: gateway
     POSTGRES_PASSWORD: gateway
-    # Application env vars
-    POSTGRES_HOST: postgres
+    # Application env vars - используем 127.0.0.1 для localhost fallback
+    POSTGRES_HOST: "127.0.0.1"
     POSTGRES_PORT: "5432"
-    REDIS_HOST: redis
+    REDIS_HOST: "127.0.0.1"
     REDIS_PORT: "6379"
-    # Spring Boot env vars (SCREAMING_SNAKE_CASE -> spring.property.name)
-    # R2DBC connection
-    SPRING_R2DBC_URL: "r2dbc:postgresql://postgres:5432/gateway_test"
+    # Spring Boot env vars
+    SPRING_R2DBC_URL: "r2dbc:postgresql://127.0.0.1:5432/gateway_test"
     SPRING_R2DBC_USERNAME: gateway
     SPRING_R2DBC_PASSWORD: gateway
-    # Flyway JDBC connection
-    SPRING_FLYWAY_URL: "jdbc:postgresql://postgres:5432/gateway_test"
+    SPRING_FLYWAY_URL: "jdbc:postgresql://127.0.0.1:5432/gateway_test"
     SPRING_FLYWAY_USER: gateway
     SPRING_FLYWAY_PASSWORD: gateway
-    # Redis connection
-    SPRING_DATA_REDIS_HOST: redis
+    SPRING_DATA_REDIS_HOST: "127.0.0.1"
     SPRING_DATA_REDIS_PORT: "6379"
-    # Отключаем Testcontainers — используем GitLab Services
+    # Отключаем Testcontainers
     TESTCONTAINERS_DISABLED: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
+    # GitLab Runner Docker config
+    FF_NETWORK_PER_BUILD: "true"
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
   script:
     - cd backend
-    - echo "Shell env POSTGRES_HOST=$POSTGRES_HOST SPRING_R2DBC_URL=$SPRING_R2DBC_URL"
-    - for i in 1 2 3 4 5; do timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null && echo "PostgreSQL ready" && break; sleep 1; done
-    - export POSTGRES_IP=$(getent hosts postgres | awk '{print $1}')
-    - export REDIS_IP=$(getent hosts redis | awk '{print $1}')
-    - echo "Resolved IPs POSTGRES=$POSTGRES_IP REDIS=$REDIS_IP"
+    # Проверяем что services доступны по alias (добавлены в /etc/hosts)
+    - cat /etc/hosts | grep -E "postgres|redis" || echo "No postgres/redis in hosts"
+    # Пробуем подключиться по alias
+    - nc -zv postgres 5432 && echo "postgres:5432 OK" || echo "postgres:5432 FAIL"
+    - nc -zv redis 6379 && echo "redis:6379 OK" || echo "redis:6379 FAIL"
+    # Получаем IP и переопределяем env vars
+    - export POSTGRES_IP=$(getent hosts postgres | awk '{print $1}' || echo "127.0.0.1")
+    - export REDIS_IP=$(getent hosts redis | awk '{print $1}' || echo "127.0.0.1")
+    - echo "Using POSTGRES_IP=$POSTGRES_IP REDIS_IP=$REDIS_IP"
     - export SPRING_R2DBC_URL="r2dbc:postgresql://$POSTGRES_IP:5432/gateway_test"
     - export SPRING_FLYWAY_URL="jdbc:postgresql://$POSTGRES_IP:5432/gateway_test"
     - export SPRING_DATA_REDIS_HOST=$REDIS_IP
