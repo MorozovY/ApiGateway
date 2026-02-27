@@ -79,6 +79,9 @@ java {
 tasks.test {
     useJUnitPlatform()
 
+    // Отключаем parallel execution чтобы избежать FK constraint конфликтов
+    systemProperty("junit.jupiter.execution.parallel.enabled", "false")
+
     // Выводим stdout/stderr тестов для диагностики в CI
     testLogging {
         showStandardStreams = true

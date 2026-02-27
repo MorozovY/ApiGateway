@@ -143,8 +143,8 @@ backend-test:
     - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_admin_test;"
     - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_core_test;"
     - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_core_test;"
-    # Запуск тестов параллельно
-    - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
+    # Запуск тестов последовательно (--parallel вызывает Spring context pollution между модулями)
+    - gradle test jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:
     when: always
     reports:
