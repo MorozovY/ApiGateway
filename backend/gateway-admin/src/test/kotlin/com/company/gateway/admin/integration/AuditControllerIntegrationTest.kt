@@ -135,6 +135,11 @@ class AuditControllerIntegrationTest {
 
     @BeforeEach
     fun setUp() {
+        // Очищаем routes ПЕРЕД users (FK constraint: routes.approved_by -> users.id)
+        StepVerifier.create(
+            databaseClient.sql("DELETE FROM routes").fetch().rowsUpdated()
+        ).expectNextCount(1).verifyComplete()
+
         // Очищаем audit_logs
         StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 

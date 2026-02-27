@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
+import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -108,8 +109,16 @@ class AuthControllerIntegrationTest {
     @Autowired
     private lateinit var passwordService: PasswordService
 
+    @Autowired
+    private lateinit var databaseClient: DatabaseClient
+
     @BeforeEach
     fun setUp() {
+        // Очищаем routes ПЕРЕД users (FK constraint: routes.approved_by -> users.id)
+        StepVerifier.create(
+            databaseClient.sql("DELETE FROM routes").fetch().rowsUpdated()
+        ).expectNextCount(1).verifyComplete()
+
         // Очищаем audit_logs перед пользователями (FK RESTRICT, V5_1 миграция)
         StepVerifier.create(auditLogRepository.deleteAll()).verifyComplete()
 

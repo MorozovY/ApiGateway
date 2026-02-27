@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
+import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -122,10 +123,18 @@ class HealthControllerIntegrationTest {
     @Autowired
     private lateinit var jwtService: JwtService
 
+    @Autowired
+    private lateinit var databaseClient: DatabaseClient
+
     private lateinit var developerToken: String
 
     @BeforeEach
     fun setUp() {
+        // Очищаем routes ПЕРЕД users (FK constraint: routes.approved_by -> users.id)
+        StepVerifier.create(
+            databaseClient.sql("DELETE FROM routes").fetch().rowsUpdated()
+        ).expectNextCount(1).verifyComplete()
+
         // Очищаем тестовых пользователей (кроме admin из миграции)
         StepVerifier.create(
             userRepository.findAll()
