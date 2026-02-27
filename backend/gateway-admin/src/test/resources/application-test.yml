@@ -1,5 +1,22 @@
 # Test profile configuration for gateway-admin
 
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway_test}
+    username: ${POSTGRES_USER:gateway}
+    password: ${POSTGRES_PASSWORD:gateway}
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway_test}
+    user: ${POSTGRES_USER:gateway}
+    password: ${POSTGRES_PASSWORD:gateway}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
 # JWT configuration for tests
 jwt:
   secret: test-secret-key-for-jwt-token-generation-in-tests-must-be-at-least-256-bits-long
