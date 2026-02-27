@@ -94,57 +94,33 @@ frontend-build:
 # Используем CI profile с фиксированными connection strings
 backend-test:
   stage: test
+  # Используем Docker-in-Docker для запуска тестов с Testcontainers
   image: gradle:8.5-jdk21
   extends: .gradle-cache
   timeout: 25 minutes
   services:
-    - name: postgres:16
-      alias: postgres
-    - name: redis:7-alpine
-      alias: redis
+    - name: docker:24-dind
+      alias: docker
+      command: ["--tls=false"]
   variables:
-    # PostgreSQL service configuration
-    POSTGRES_DB: gateway_test
-    POSTGRES_USER: gateway
-    POSTGRES_PASSWORD: gateway
-    # Application env vars - используем 127.0.0.1 для localhost fallback
-    POSTGRES_HOST: "127.0.0.1"
-    POSTGRES_PORT: "5432"
-    REDIS_HOST: "127.0.0.1"
-    REDIS_PORT: "6379"
-    # Spring Boot env vars
-    SPRING_R2DBC_URL: "r2dbc:postgresql://127.0.0.1:5432/gateway_test"
-    SPRING_R2DBC_USERNAME: gateway
-    SPRING_R2DBC_PASSWORD: gateway
-    SPRING_FLYWAY_URL: "jdbc:postgresql://127.0.0.1:5432/gateway_test"
-    SPRING_FLYWAY_USER: gateway
-    SPRING_FLYWAY_PASSWORD: gateway
-    SPRING_DATA_REDIS_HOST: "127.0.0.1"
-    SPRING_DATA_REDIS_PORT: "6379"
-    # Отключаем Testcontainers
-    TESTCONTAINERS_DISABLED: "true"
-    TESTCONTAINERS_RYUK_DISABLED: "true"
-    # GitLab Runner Docker config
-    FF_NETWORK_PER_BUILD: "true"
+    # Docker-in-Docker configuration
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    # НЕ отключаем Testcontainers - пусть они сами запускают PostgreSQL/Redis
+    TESTCONTAINERS_DISABLED: "false"
+    TESTCONTAINERS_RYUK_DISABLED: "false"
+    # Testcontainers конфигурация для DinD
+    TESTCONTAINERS_HOST_OVERRIDE: docker
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
   script:
     - cd backend
-    # Проверяем что services доступны по alias (добавлены в /etc/hosts)
-    - cat /etc/hosts | grep -E "postgres|redis" || echo "No postgres/redis in hosts"
-    # Пробуем подключиться по alias
-    - nc -zv postgres 5432 && echo "postgres:5432 OK" || echo "postgres:5432 FAIL"
-    - nc -zv redis 6379 && echo "redis:6379 OK" || echo "redis:6379 FAIL"
-    # Получаем IP и переопределяем env vars
-    - export POSTGRES_IP=$(getent hosts postgres | awk '{print $1}' || echo "127.0.0.1")
-    - export REDIS_IP=$(getent hosts redis | awk '{print $1}' || echo "127.0.0.1")
-    - echo "Using POSTGRES_IP=$POSTGRES_IP REDIS_IP=$REDIS_IP"
-    - export SPRING_R2DBC_URL="r2dbc:postgresql://$POSTGRES_IP:5432/gateway_test"
-    - export SPRING_FLYWAY_URL="jdbc:postgresql://$POSTGRES_IP:5432/gateway_test"
-    - export SPRING_DATA_REDIS_HOST=$REDIS_IP
-    - export POSTGRES_HOST=$POSTGRES_IP
-    - export REDIS_HOST=$REDIS_IP
-    - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
+    # Ждем пока Docker daemon станет доступен
+    - for i in 1 2 3 4 5 6 7 8 9 10; do docker info && break || sleep 3; done
+    - docker info
+    # Запускаем тесты - Testcontainers сами поднимут PostgreSQL и Redis
+    - gradle test --parallel jacocoTestReport --no-daemon
   artifacts:
     when: always
     reports:
