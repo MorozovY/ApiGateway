@@ -131,8 +131,8 @@ backend-test:
     GRADLE_USER_HOME: /cache/gradle
   script:
     - cd backend
-    # Диагностика env переменных
-    - echo "POSTGRES_HOST=$POSTGRES_HOST, REDIS_HOST=$REDIS_HOST"
+    # Диагностика env переменных в shell
+    - echo "Shell env: POSTGRES_HOST=$POSTGRES_HOST, SPRING_R2DBC_URL=$SPRING_R2DBC_URL"
     # Ожидаем готовности PostgreSQL
     - |
       for i in $(seq 1 10); do

@@ -167,3 +167,27 @@ curl -X POST "http://localhost:8180/realms/api-gateway/protocol/openid-connect/t
 - Ant Design
 - React Query
 - React Router v6
+
+## CI/CD Pipeline
+
+Проект использует GitLab CI для автоматизации build и test процессов.
+
+### Pipeline Stages
+
+**Build:**
+- Backend: Gradle build (JDK 21)
+- Frontend: npm ci + build (Node 20)
+
+**Test:**
+- Backend: Gradle tests с Testcontainers (Docker-in-Docker)
+- Frontend: Vitest unit tests
+- E2E: Playwright tests (закомментировано, требует запущенного стека)
+
+**Sync:**
+- Ручная синхронизация master ветки в GitHub mirror
+
+### Локальный GitLab
+
+Для настройки локального GitLab и CI/CD pipeline см. [docker/gitlab/README.md](docker/gitlab/README.md).
+
+Pipeline автоматически запускается при каждом push в GitLab remote. Test results и coverage reports доступны в GitLab UI.
