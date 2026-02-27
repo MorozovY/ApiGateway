@@ -126,26 +126,18 @@ backend-test:
     GRADLE_USER_HOME: /cache/gradle
   script:
     - cd backend
-    # Ожидаем готовности PostgreSQL (pg_isready может быть недоступен, используем timeout)
+    # Диагностика env переменных
+    - echo "POSTGRES_HOST=$POSTGRES_HOST, REDIS_HOST=$REDIS_HOST"
+    # Ожидаем готовности PostgreSQL
     - |
-      echo "Waiting for PostgreSQL..."
-      for i in $(seq 1 30); do
+      for i in $(seq 1 10); do
         if timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; then
-          echo "PostgreSQL is ready"
-          break
+          echo "PostgreSQL ready"; break
         fi
-        echo "Waiting... ($i/30)"
-        sleep 2
+        sleep 1
       done
-    # Используем Nexus init script если доступен
-    - |
-      if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
-        echo "Using Nexus proxy: $NEXUS_URL"
-        gradle test --parallel jacocoTestReport --init-script ../docker/gitlab/gradle-init.gradle.kts
-      else
-        echo "Nexus not available, using default repositories"
-        gradle test --parallel jacocoTestReport
-      fi
+    # Запуск тестов с явным профилем
+    - gradle test --parallel jacocoTestReport -Dspring.profiles.active=test
   artifacts:
     when: always
     reports:

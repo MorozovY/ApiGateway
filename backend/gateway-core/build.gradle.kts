@@ -80,13 +80,25 @@ java {
 tasks.test {
     useJUnitPlatform()
     // Передаём env переменные в JVM тестов для CI
-    environment("POSTGRES_HOST", System.getenv("POSTGRES_HOST") ?: "localhost")
-    environment("POSTGRES_PORT", System.getenv("POSTGRES_PORT") ?: "5432")
-    environment("POSTGRES_DB", System.getenv("POSTGRES_DB") ?: "gateway")
-    environment("POSTGRES_USER", System.getenv("POSTGRES_USER") ?: "gateway")
-    environment("POSTGRES_PASSWORD", System.getenv("POSTGRES_PASSWORD") ?: "gateway")
-    environment("REDIS_HOST", System.getenv("REDIS_HOST") ?: "localhost")
-    environment("REDIS_PORT", System.getenv("REDIS_PORT") ?: "6379")
+    val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+    val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
+    val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
+    val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
+    val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
+    val redisHost = System.getenv("REDIS_HOST") ?: "localhost"
+    val redisPort = System.getenv("REDIS_PORT") ?: "6379"
+
+    // Environment для Testcontainers
     environment("TESTCONTAINERS_DISABLED", System.getenv("TESTCONTAINERS_DISABLED") ?: "false")
     environment("TESTCONTAINERS_RYUK_DISABLED", System.getenv("TESTCONTAINERS_RYUK_DISABLED") ?: "false")
+
+    // System properties для Spring Boot
+    systemProperty("spring.r2dbc.url", "r2dbc:postgresql://$pgHost:$pgPort/$pgDb")
+    systemProperty("spring.r2dbc.username", pgUser)
+    systemProperty("spring.r2dbc.password", pgPass)
+    systemProperty("spring.flyway.url", "jdbc:postgresql://$pgHost:$pgPort/$pgDb")
+    systemProperty("spring.flyway.user", pgUser)
+    systemProperty("spring.flyway.password", pgPass)
+    systemProperty("spring.data.redis.host", redisHost)
+    systemProperty("spring.data.redis.port", redisPort)
 }
