@@ -1,10 +1,6 @@
 # Test profile configuration for gateway-admin
-# Включаем CI профиль когда установлена переменная CI_PROFILE
-# В GitLab CI: CI_PROFILE=ci -> загружается application-ci.yml поверх test
 
 spring:
-  profiles:
-    include: ${CI_PROFILE:}
   r2dbc:
     url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway_test}
     username: ${POSTGRES_USER:gateway}
@@ -16,6 +12,9 @@ spring:
     password: ${POSTGRES_PASSWORD:gateway}
     locations: classpath:db/migration
     baseline-on-migrate: true
+    # CI: очищаем базу при несовпадении checksum миграций (env переменные из .gitlab-ci.yml)
+    clean-on-validation-error: ${FLYWAY_CLEAN_ON_VALIDATION_ERROR:false}
+    clean-disabled: ${FLYWAY_CLEAN_DISABLED:true}
   data:
     redis:
       host: ${REDIS_HOST:localhost}

@@ -114,9 +114,9 @@ backend-test:
     REDIS_PORT: "6379"
     # Отключаем Testcontainers — используем GitLab Services
     TESTCONTAINERS_DISABLED: "true"
-    # Активируем CI профиль Spring Boot (application-ci.yml)
-    # CI_PROFILE включается через spring.profiles.include в application-test.yml
-    CI_PROFILE: "ci"
+    # Flyway: очищаем базу при несовпадении миграций (решает проблему stale DB state)
+    FLYWAY_CLEAN_ON_VALIDATION_ERROR: "true"
+    FLYWAY_CLEAN_DISABLED: "false"
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
   script:
