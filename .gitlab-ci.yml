@@ -132,14 +132,8 @@ backend-test:
         fi
         sleep 1
       done
-    # Запуск тестов с project properties (-P) которые конвертируются в systemProperty
-    - |
-      gradle test --parallel jacocoTestReport --no-daemon \
-        -PdbUrl=r2dbc:postgresql://postgres:5432/gateway_test \
-        -PdbUser=gateway -PdbPass=gateway \
-        -PflywayUrl=jdbc:postgresql://postgres:5432/gateway_test \
-        -PflywayUser=gateway -PflywayPass=gateway \
-        -PredisHost=redis -PredisPort=6379
+    # Запуск тестов (env переменные читаются в BaseIntegrationTest.configureProperties)
+    - gradle test --parallel jacocoTestReport --no-daemon
   artifacts:
     when: always
     reports:
