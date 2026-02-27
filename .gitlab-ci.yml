@@ -132,8 +132,8 @@ backend-test:
         fi
         sleep 1
       done
-    # Запуск тестов с явным профилем
-    - gradle test --parallel jacocoTestReport -Dspring.profiles.active=test
+    # Запуск тестов: --no-daemon чтобы не использовать кэшированный daemon с другими env
+    - gradle test --parallel jacocoTestReport --no-daemon
   artifacts:
     when: always
     reports:
