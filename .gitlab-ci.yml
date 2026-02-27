@@ -133,12 +133,13 @@ backend-test:
         echo "Waiting for PostgreSQL... ($i)"
         sleep 2
       done
-    # Пересоздаём базу данных для чистого состояния Flyway
-    # ВАЖНО: используем gateway_test (из POSTGRES_DB) — модули используют одну БД
-    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_test;"
-    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_test;"
-    # Запуск тестов последовательно (избегаем конфликтов миграций при parallel)
-    - gradle test jacocoTestReport --no-daemon -PtestcontainersDisabled=true
+    # Пересоздаём БД для каждого модуля (раздельные БД предотвращают deadlock)
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_admin_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_admin_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_core_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_core_test;"
+    # Запуск тестов параллельно (теперь безопасно - модули используют разные БД)
+    - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:
     when: always
     reports:

@@ -2,12 +2,13 @@
 
 spring:
   r2dbc:
-    url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway_test}
+    # ВАЖНО: gateway-admin использует gateway_admin_test (отдельная от gateway-core)
+    url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_ADMIN:gateway_admin_test}
     username: ${POSTGRES_USER:gateway}
     password: ${POSTGRES_PASSWORD:gateway}
   flyway:
     enabled: true
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:gateway_test}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_ADMIN:gateway_admin_test}
     user: ${POSTGRES_USER:gateway}
     password: ${POSTGRES_PASSWORD:gateway}
     locations: classpath:db/migration
