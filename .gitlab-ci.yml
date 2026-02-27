@@ -40,23 +40,24 @@ stages:
 
 backend-build:
   stage: build
-  image: eclipse-temurin:21-jdk
+  image: gradle:8.5-jdk21
   extends: .gradle-cache
   timeout: 15 minutes
   variables:
     # Nexus proxy для ускорения downloads (опционально)
     NEXUS_URL: "http://nexus:8081"
+    # Используем системный Gradle вместо wrapper
+    GRADLE_USER_HOME: /cache/gradle
   script:
-    - chmod +x backend/gradlew
     - cd backend
     # Используем Nexus init script если доступен
     - |
       if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
         echo "Using Nexus proxy: $NEXUS_URL"
-        ./gradlew build -x test --init-script ../docker/gitlab/gradle-init.gradle.kts
+        gradle build -x test --init-script ../docker/gitlab/gradle-init.gradle.kts
       else
         echo "Nexus not available, using default repositories"
-        ./gradlew build -x test
+        gradle build -x test
       fi
 
 frontend-build:
@@ -93,7 +94,7 @@ frontend-build:
 # Используем CI profile с фиксированными connection strings
 backend-test:
   stage: test
-  image: eclipse-temurin:21-jdk
+  image: gradle:8.5-jdk21
   extends: .gradle-cache
   timeout: 25 minutes
   services:
@@ -112,27 +113,29 @@ backend-test:
     SPRING_PROFILES_ACTIVE: ci
     # Nexus proxy (опционально)
     NEXUS_URL: "http://nexus:8081"
+    # Используем системный Gradle
+    GRADLE_USER_HOME: /cache/gradle
   script:
-    - chmod +x backend/gradlew
     - cd backend
-    # Ожидаем готовности PostgreSQL
+    # Ожидаем готовности PostgreSQL (pg_isready может быть недоступен, используем timeout)
     - |
       echo "Waiting for PostgreSQL..."
       for i in $(seq 1 30); do
-        if pg_isready -h postgres -U gateway 2>/dev/null; then
+        if timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; then
           echo "PostgreSQL is ready"
           break
         fi
+        echo "Waiting... ($i/30)"
         sleep 2
       done
     # Используем Nexus init script если доступен
     - |
       if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
         echo "Using Nexus proxy: $NEXUS_URL"
-        ./gradlew test --parallel jacocoTestReport --init-script ../docker/gitlab/gradle-init.gradle.kts
+        gradle test --parallel jacocoTestReport --init-script ../docker/gitlab/gradle-init.gradle.kts
       else
         echo "Nexus not available, using default repositories"
-        ./gradlew test --parallel jacocoTestReport
+        gradle test --parallel jacocoTestReport
       fi
   artifacts:
     when: always
