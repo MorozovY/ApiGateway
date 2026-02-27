@@ -107,22 +107,18 @@ backend-test:
     POSTGRES_DB: gateway_test
     POSTGRES_USER: gateway
     POSTGRES_PASSWORD: gateway
-    # Application env vars (используются в application.yml)
+    # Application env vars
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
     REDIS_HOST: redis
     REDIS_PORT: "6379"
-    # Flyway (если не использует application.yml)
+    # Spring Boot env vars (SCREAMING_SNAKE_CASE -> spring.property.name)
+    SPRING_R2DBC_URL: "r2dbc:postgresql://postgres:5432/gateway_test"
     SPRING_FLYWAY_URL: "jdbc:postgresql://postgres:5432/gateway_test"
-    SPRING_FLYWAY_USER: gateway
-    SPRING_FLYWAY_PASSWORD: gateway
     # Отключаем Testcontainers — используем GitLab Services
     TESTCONTAINERS_DISABLED: "true"
-    # Отключаем Ryuk (cleanup container) — не нужен в CI
     TESTCONTAINERS_RYUK_DISABLED: "true"
-    # Nexus proxy (опционально)
-    NEXUS_URL: "http://nexus:8081"
-    # Используем системный Gradle
+    # Gradle config
     GRADLE_USER_HOME: /cache/gradle
   script:
     - cd backend

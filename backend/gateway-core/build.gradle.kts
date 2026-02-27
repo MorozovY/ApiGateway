@@ -79,27 +79,14 @@ java {
 
 tasks.test {
     useJUnitPlatform()
-    // Передаём конфигурацию через environment с Spring Boot naming convention
-    // Spring Boot автоматически конвертирует SPRING_R2DBC_URL -> spring.r2dbc.url
-    val pgHost = providers.environmentVariable("POSTGRES_HOST").getOrElse("localhost")
-    val pgPort = providers.environmentVariable("POSTGRES_PORT").getOrElse("5432")
-    val pgDb = providers.environmentVariable("POSTGRES_DB").getOrElse("gateway_test")
-    val pgUser = providers.environmentVariable("POSTGRES_USER").getOrElse("gateway")
-    val pgPass = providers.environmentVariable("POSTGRES_PASSWORD").getOrElse("gateway")
-    val redisHost = providers.environmentVariable("REDIS_HOST").getOrElse("localhost")
-    val redisPort = providers.environmentVariable("REDIS_PORT").getOrElse("6379")
-
-    // Environment для Spring Boot (relaxed binding: SPRING_R2DBC_URL -> spring.r2dbc.url)
-    environment("SPRING_R2DBC_URL", "r2dbc:postgresql://$pgHost:$pgPort/$pgDb")
-    environment("SPRING_R2DBC_USERNAME", pgUser)
-    environment("SPRING_R2DBC_PASSWORD", pgPass)
-    environment("SPRING_FLYWAY_URL", "jdbc:postgresql://$pgHost:$pgPort/$pgDb")
-    environment("SPRING_FLYWAY_USER", pgUser)
-    environment("SPRING_FLYWAY_PASSWORD", pgPass)
-    environment("SPRING_DATA_REDIS_HOST", redisHost)
-    environment("SPRING_DATA_REDIS_PORT", redisPort)
-
-    // Testcontainers config
-    environment("TESTCONTAINERS_DISABLED", providers.environmentVariable("TESTCONTAINERS_DISABLED").getOrElse("false"))
-    environment("TESTCONTAINERS_RYUK_DISABLED", providers.environmentVariable("TESTCONTAINERS_RYUK_DISABLED").getOrElse("false"))
+    // Passthrough всех env переменных из CI в тестовую JVM
+    // Gradle по умолчанию не передаёт env parent процесса
+    listOf(
+        "POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD",
+        "REDIS_HOST", "REDIS_PORT",
+        "SPRING_R2DBC_URL", "SPRING_FLYWAY_URL",
+        "TESTCONTAINERS_DISABLED", "TESTCONTAINERS_RYUK_DISABLED"
+    ).forEach { key ->
+        System.getenv(key)?.let { environment(key, it) }
+    }
 }
