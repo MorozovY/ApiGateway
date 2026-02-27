@@ -56,7 +56,8 @@ class HealthEndpointIntegrationTest {
                 // В CI читаем из env переменных
                 val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
                 val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
-                val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
+                // gateway-admin использует POSTGRES_DB_ADMIN (отдельная БД от gateway-core)
+                val pgDb = System.getenv("POSTGRES_DB_ADMIN") ?: System.getenv("POSTGRES_DB") ?: "gateway_admin_test"
                 val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
                 val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
                 val redisHost = System.getenv("REDIS_HOST") ?: "localhost"

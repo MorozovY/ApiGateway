@@ -110,6 +110,11 @@ backend-test:
     # Connection variables для BaseIntegrationTest (передаются в test JVM)
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
+    # Отдельные БД для каждого модуля (предотвращает deadlock при parallel)
+    POSTGRES_DB_ADMIN: gateway_admin_test
+    POSTGRES_DB_CORE: gateway_core_test
+    # Legacy POSTGRES_DB для тестов с DynamicPropertySource которые его читают
+    POSTGRES_DB: gateway_admin_test
     REDIS_HOST: redis
     REDIS_PORT: "6379"
     # Отключаем Testcontainers — используем GitLab Services
