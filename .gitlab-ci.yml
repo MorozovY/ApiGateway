@@ -132,8 +132,17 @@ backend-test:
         fi
         sleep 1
       done
-    # Запуск тестов: --no-daemon чтобы не использовать кэшированный daemon с другими env
-    - gradle test --parallel jacocoTestReport --no-daemon
+    # Запуск тестов с явной передачей connection strings через -D
+    - |
+      gradle test --parallel jacocoTestReport --no-daemon \
+        -Dspring.r2dbc.url=r2dbc:postgresql://postgres:5432/gateway_test \
+        -Dspring.r2dbc.username=gateway \
+        -Dspring.r2dbc.password=gateway \
+        -Dspring.flyway.url=jdbc:postgresql://postgres:5432/gateway_test \
+        -Dspring.flyway.user=gateway \
+        -Dspring.flyway.password=gateway \
+        -Dspring.data.redis.host=redis \
+        -Dspring.data.redis.port=6379
   artifacts:
     when: always
     reports:
