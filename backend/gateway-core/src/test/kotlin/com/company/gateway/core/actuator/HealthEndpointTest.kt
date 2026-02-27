@@ -54,21 +54,7 @@ class HealthEndpointTest {
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            if (isTestcontainersDisabled) {
-                // В CI читаем из env переменных (GitLab Services)
-                val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
-                val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
-                val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
-                val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
-                val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
-
-                registry.add("spring.r2dbc.url") { "r2dbc:postgresql://$pgHost:$pgPort/$pgDb" }
-                registry.add("spring.r2dbc.username") { pgUser }
-                registry.add("spring.r2dbc.password") { pgPass }
-                registry.add("spring.flyway.url") { "jdbc:postgresql://$pgHost:$pgPort/$pgDb" }
-                registry.add("spring.flyway.user") { pgUser }
-                registry.add("spring.flyway.password") { pgPass }
-            } else {
+            if (!isTestcontainersDisabled) {
                 // Локально настраиваем Testcontainers
                 postgres?.let { pg ->
                     registry.add("spring.r2dbc.url") {
@@ -81,6 +67,8 @@ class HealthEndpointTest {
                     registry.add("spring.flyway.password", pg::getPassword)
                 }
             }
+            // В CI для PostgreSQL используется application-ci.yml
+
             // Redis unavailable - use invalid port (для тестирования поведения при недоступном Redis)
             registry.add("spring.data.redis.host") { "localhost" }
             registry.add("spring.data.redis.port") { 59999 }
