@@ -1,5 +1,7 @@
 package com.company.gateway.core.actuator
 
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient
@@ -10,8 +12,6 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
  * Integration тесты для Prometheus endpoint (Story 6.1, 6.2)
@@ -26,7 +26,6 @@ import org.testcontainers.junit.jupiter.Testcontainers
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-@Testcontainers
 @ActiveProfiles("test")
 class PrometheusEndpointTest {
 
@@ -34,15 +33,27 @@ class PrometheusEndpointTest {
         // Проверяем запущены ли мы в CI
         private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
-        // PostgreSQL контейнер (null в CI)
-        @Container
+        // Контейнер — управляем lifecycle вручную (без @Container/@Testcontainers)
+        private var postgres: PostgreSQLContainer<*>? = null
+
+        @BeforeAll
         @JvmStatic
-        val postgres: PostgreSQLContainer<*>? = if (!isTestcontainersDisabled) {
-            PostgreSQLContainer("postgres:16")
-                .withDatabaseName("gateway")
-                .withUsername("gateway")
-                .withPassword("gateway")
-        } else null
+        fun startContainers() {
+            // Запускаем контейнер только локально
+            if (!isTestcontainersDisabled) {
+                postgres = PostgreSQLContainer("postgres:16")
+                    .withDatabaseName("gateway")
+                    .withUsername("gateway")
+                    .withPassword("gateway")
+                postgres?.start()
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            postgres?.stop()
+        }
 
         @DynamicPropertySource
         @JvmStatic

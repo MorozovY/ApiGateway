@@ -1,6 +1,8 @@
 package com.company.gateway.core.integration
 
 import com.redis.testcontainers.RedisContainer
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -9,8 +11,6 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
  * Integration тесты для health check endpoints (Story 1.7).
@@ -18,7 +18,6 @@ import org.testcontainers.junit.jupiter.Testcontainers
  * Тестирование AC1, AC2, AC3, AC5, AC6 - Health endpoints с работающими зависимостями.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 @ActiveProfiles("test")
 class HealthEndpointIntegrationTest {
 
@@ -26,22 +25,32 @@ class HealthEndpointIntegrationTest {
         // Проверяем запущены ли мы в CI
         private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
-        // PostgreSQL контейнер (null в CI)
-        @Container
-        @JvmStatic
-        val postgres: PostgreSQLContainer<*>? = if (!isTestcontainersDisabled) {
-            PostgreSQLContainer("postgres:16")
-                .withDatabaseName("gateway")
-                .withUsername("gateway")
-                .withPassword("gateway")
-        } else null
+        // Контейнеры — управляем lifecycle вручную (без @Container/@Testcontainers)
+        private var postgres: PostgreSQLContainer<*>? = null
+        private var redis: RedisContainer? = null
 
-        // Redis контейнер (null в CI)
-        @Container
+        @BeforeAll
         @JvmStatic
-        val redis: RedisContainer? = if (!isTestcontainersDisabled) {
-            RedisContainer("redis:7")
-        } else null
+        fun startContainers() {
+            // Запускаем контейнеры только локально
+            if (!isTestcontainersDisabled) {
+                postgres = PostgreSQLContainer("postgres:16")
+                    .withDatabaseName("gateway")
+                    .withUsername("gateway")
+                    .withPassword("gateway")
+                postgres?.start()
+
+                redis = RedisContainer("redis:7")
+                redis?.start()
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            postgres?.stop()
+            redis?.stop()
+        }
 
         @DynamicPropertySource
         @JvmStatic

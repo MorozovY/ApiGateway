@@ -20,12 +20,9 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 @ActiveProfiles("test")
 class GatewayRoutingIntegrationTest {
 
@@ -33,36 +30,36 @@ class GatewayRoutingIntegrationTest {
         // Проверяем запущены ли мы в CI
         private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
-        // PostgreSQL контейнер (null в CI)
-        @Container
-        @JvmStatic
-        val postgres: PostgreSQLContainer<*>? = if (!isTestcontainersDisabled) {
-            PostgreSQLContainer("postgres:16")
-                .withDatabaseName("gateway")
-                .withUsername("gateway")
-                .withPassword("gateway")
-        } else null
-
-        // Redis контейнер (null в CI)
-        @Container
-        @JvmStatic
-        val redis: RedisContainer? = if (!isTestcontainersDisabled) {
-            RedisContainer("redis:7")
-        } else null
-
-        lateinit var wireMock: WireMockServer
+        // Контейнеры — управляем lifecycle вручную (без @Container/@Testcontainers)
+        private var postgres: PostgreSQLContainer<*>? = null
+        private var redis: RedisContainer? = null
+        private lateinit var wireMock: WireMockServer
 
         @BeforeAll
         @JvmStatic
-        fun startWireMock() {
+        fun startContainers() {
+            // Запускаем контейнеры только локально
+            if (!isTestcontainersDisabled) {
+                postgres = PostgreSQLContainer("postgres:16")
+                    .withDatabaseName("gateway")
+                    .withUsername("gateway")
+                    .withPassword("gateway")
+                postgres?.start()
+
+                redis = RedisContainer("redis:7")
+                redis?.start()
+            }
+            // WireMock нужен всегда
             wireMock = WireMockServer(WireMockConfiguration.options().dynamicPort())
             wireMock.start()
         }
 
         @AfterAll
         @JvmStatic
-        fun stopWireMock() {
+        fun stopContainers() {
             wireMock.stop()
+            postgres?.stop()
+            redis?.stop()
         }
 
         @DynamicPropertySource

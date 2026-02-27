@@ -1,11 +1,11 @@
 package com.company.gateway.admin.test
 
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
 
 /**
@@ -22,7 +22,6 @@ import org.testcontainers.utility.DockerImageName
  * }
  * ```
  */
-@Testcontainers
 abstract class BaseIntegrationTest {
 
     companion object {
@@ -30,22 +29,34 @@ abstract class BaseIntegrationTest {
         private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
         // PostgreSQL контейнер (null в CI)
-        @Container
+        private var postgres: PostgreSQLContainer<*>? = null
+
+        // Redis контейнер (null в CI)
+        private var redis: GenericContainer<*>? = null
+
+        @BeforeAll
         @JvmStatic
-        val postgres: PostgreSQLContainer<*>? = if (!isTestcontainersDisabled) {
-            PostgreSQLContainer(DockerImageName.parse("postgres:16"))
+        fun startContainers() {
+            if (isTestcontainersDisabled) {
+                return
+            }
+            postgres = PostgreSQLContainer(DockerImageName.parse("postgres:16"))
                 .withDatabaseName("gateway_test")
                 .withUsername("gateway")
                 .withPassword("gateway")
-        } else null
+            postgres!!.start()
 
-        // Redis контейнер (null в CI)
-        @Container
-        @JvmStatic
-        val redis: GenericContainer<*>? = if (!isTestcontainersDisabled) {
-            GenericContainer(DockerImageName.parse("redis:7-alpine"))
+            redis = GenericContainer(DockerImageName.parse("redis:7-alpine"))
                 .withExposedPorts(6379)
-        } else null
+            redis!!.start()
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            postgres?.stop()
+            redis?.stop()
+        }
 
         @DynamicPropertySource
         @JvmStatic
