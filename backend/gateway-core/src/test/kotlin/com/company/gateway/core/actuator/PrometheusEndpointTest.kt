@@ -58,10 +58,7 @@ class PrometheusEndpointTest {
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            if (isTestcontainersDisabled) {
-                // В CI используем application-ci.yml — не переопределяем свойства
-                return
-            } else {
+            if (!isTestcontainersDisabled) {
                 // Локально настраиваем Testcontainers
                 postgres?.let { pg ->
                     registry.add("spring.r2dbc.url") {
@@ -73,10 +70,11 @@ class PrometheusEndpointTest {
                     registry.add("spring.flyway.user", pg::getUsername)
                     registry.add("spring.flyway.password", pg::getPassword)
                 }
+                // Redis unavailable локально - use invalid port (не блокирует тест)
+                registry.add("spring.data.redis.host") { "localhost" }
+                registry.add("spring.data.redis.port") { 59999 }
             }
-            // Redis unavailable - use invalid port (не блокирует тест)
-            registry.add("spring.data.redis.host") { "localhost" }
-            registry.add("spring.data.redis.port") { 59999 }
+            // Cache configuration (нужно всегда)
             registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }

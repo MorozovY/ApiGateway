@@ -13,9 +13,11 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.PostgreSQLContainer
+import org.springframework.test.context.ActiveProfiles
 import reactor.test.StepVerifier
 
 @SpringBootTest
+@ActiveProfiles("test")
 class UserRepositoryTest {
 
     companion object {
@@ -47,10 +49,10 @@ class UserRepositoryTest {
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
             if (isTestcontainersDisabled) {
-                // В CI читаем из env переменных
+                // В CI читаем из env переменных (gateway-admin использует POSTGRES_DB_ADMIN)
                 val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
                 val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
-                val pgDb = System.getenv("POSTGRES_DB") ?: "gateway_test"
+                val pgDb = System.getenv("POSTGRES_DB_ADMIN") ?: System.getenv("POSTGRES_DB") ?: "gateway_admin_test"
                 val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
                 val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
 

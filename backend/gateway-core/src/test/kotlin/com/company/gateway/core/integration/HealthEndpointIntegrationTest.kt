@@ -55,10 +55,7 @@ class HealthEndpointIntegrationTest {
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            if (isTestcontainersDisabled) {
-                // В CI используем application-ci.yml — не переопределяем свойства
-                return
-            } else {
+            if (!isTestcontainersDisabled) {
                 // Локально настраиваем Testcontainers
                 postgres?.let { pg ->
                     registry.add("spring.r2dbc.url") {
@@ -75,6 +72,7 @@ class HealthEndpointIntegrationTest {
                     registry.add("spring.data.redis.port") { rd.firstMappedPort }
                 }
             }
+            // Свойства, которые нужны всегда (и в CI, и локально)
             registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }
