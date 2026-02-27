@@ -179,8 +179,8 @@ curl -X POST "http://localhost:8180/realms/api-gateway/protocol/openid-connect/t
 - Frontend: npm ci + build (Node 20)
 
 **Test:**
-- Backend: Gradle tests с Testcontainers (Docker-in-Docker)
-- Frontend: Vitest unit tests
+- Backend: Gradle tests с GitLab Services (PostgreSQL + Redis)
+- Frontend: Vitest unit tests с coverage
 - E2E: Playwright tests (закомментировано, требует запущенного стека)
 
 **Sync:**

@@ -181,7 +181,7 @@ frontend-test:
         echo "Nexus not available, using default npm registry"
       fi
     - npm ci
-    - npm run test:run
+    - npm run test:coverage
   needs:
     - frontend-build
 

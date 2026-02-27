@@ -1,6 +1,6 @@
 # Story 13.2: CI Pipeline — Build & Test
 
-Status: review
+Status: done
 Story Points: 8
 
 ## Story
@@ -24,7 +24,7 @@ So that every push is validated before merge (FR60, FR61).
 **Given** `.gitlab-ci.yml` in repository root
 **When** push to any branch occurs
 **Then** pipeline starts automatically
-**And** stages execute in order: build → test → analyze
+**And** stages execute in order: build → test → sync
 
 ### AC2: Backend Build
 **Given** build stage
@@ -75,11 +75,11 @@ So that every push is validated before merge (FR60, FR61).
   - [x] 1.6 Timeouts: backend 15min, frontend 10min
 
 - [x] Task 2: Backend Test Job (AC: #4)
-  - [x] 2.1 Job: `./gradlew test --parallel` с JUnit reports
-  - [x] 2.2 Docker-in-Docker service для Testcontainers
+  - [x] 2.1 Job: `./gradlew test` с JUnit reports (parallel отключён для стабильности)
+  - [x] 2.2 GitLab Services (PostgreSQL + Redis) вместо Testcontainers в CI
   - [x] 2.3 JaCoCo plugin добавить в build.gradle.kts
   - [x] 2.4 Artifacts: JUnit XML + coverage HTML
-  - [x] 2.5 Timeout: 20 minutes
+  - [x] 2.5 Timeout: 25 minutes
 
 - [x] Task 3: Frontend Test Job (AC: #5)
   - [x] 3.1 Job: `npm run test:coverage` с coverage
@@ -102,6 +102,10 @@ So that every push is validated before merge (FR60, FR61).
   - [x] 6.1 Push test commit, verify pipeline runs — коммиты уже в GitLab
   - [x] 6.2 Verify failed test blocks merge — MANUAL (требует создание MR для проверки)
   - [x] 6.3 Update documentation — README.md и docker/gitlab/README.md обновлены
+
+### Review Follow-ups (AI)
+
+- [ ] [AI-Review][MEDIUM] Рефакторить интеграционные тесты — наследовать BaseIntegrationTest вместо copy-paste DynamicPropertySource (20+ файлов)
 
 ## API Dependencies Checklist
 
@@ -176,34 +180,16 @@ cache:
     policy: pull-push
 ```
 
-### Backend Test Services — Testcontainers vs GitLab Services
+### Backend Test Services — GitLab Services (финальная реализация)
 
-**ВАЖНО:** Backend тесты используют **Testcontainers** (см. `testImplementation("org.testcontainers:postgresql:1.19.5")`).
+**ИТОГ:** После тестирования DinD и Docker socket, выбран **GitLab Services** как наиболее стабильный подход.
 
-Testcontainers автоматически запускают PostgreSQL/Redis контейнеры во время тестов. Это означает:
+Backend тесты в CI используют:
+- PostgreSQL и Redis как GitLab Services
+- `TESTCONTAINERS_DISABLED=true` отключает Testcontainers
+- `application-ci.yml` с hardcoded connection strings
+- Раздельные БД для модулей (gateway_admin_test, gateway_core_test)
 
-1. **GitLab services НЕ нужны** для backend тестов
-2. Но нужен **Docker-in-Docker (DinD)** или **Docker socket** для Testcontainers
-
-**Вариант 1: Docker-in-Docker (рекомендуется для GitLab CI)**
-```yaml
-backend-test:
-  stage: test
-  image: eclipse-temurin:21-jdk
-  services:
-    - docker:dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    TESTCONTAINERS_RYUK_DISABLED: "true"
-  script:
-    - chmod +x ./gradlew
-    - cd backend
-    - ./gradlew test --parallel
-  timeout: 20 minutes
-```
-
-**Вариант 2: GitLab Services (если DinD недоступен)**
 ```yaml
 backend-test:
   stage: test
@@ -213,18 +199,14 @@ backend-test:
     - name: redis:7-alpine
       alias: redis
   variables:
-    POSTGRES_DB: gateway_test
-    POSTGRES_USER: test
-    POSTGRES_PASSWORD: test
-    SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/gateway_test
-    SPRING_R2DBC_USERNAME: test
-    SPRING_R2DBC_PASSWORD: test
-    SPRING_DATA_REDIS_HOST: redis
-    # Отключить Testcontainers — использовать GitLab services
-    SPRING_PROFILES_ACTIVE: ci
+    TESTCONTAINERS_DISABLED: "true"
+    POSTGRES_DB_ADMIN: gateway_admin_test
+    POSTGRES_DB_CORE: gateway_core_test
+  script:
+    - gradle test jacocoTestReport --no-daemon
 ```
 
-**Рекомендация:** Начать с Вариант 1 (DinD + Testcontainers). Если runner не поддерживает DinD, переключиться на Вариант 2.
+**Локально:** Testcontainers работают как обычно (автоматический запуск контейнеров).
 
 ### JUnit & Coverage Reports
 
@@ -532,8 +514,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 | File | Change |
 |------|--------|
-| `.gitlab-ci.yml` | MODIFIED — добавлены build/test stages, cache templates |
+| `.gitlab-ci.yml` | MODIFIED — добавлены build/test stages, cache templates, GitLab Services |
 | `backend/build.gradle.kts` | MODIFIED — добавлен JaCoCo plugin в subprojects |
+| `backend/gateway-admin/build.gradle.kts` | MODIFIED — testLogging, env passthrough для CI |
 | `frontend/admin-ui/tsconfig.json` | MODIFIED — исключены test файлы из build |
 | `frontend/admin-ui/src/features/audit/config/auditConfig.ts` | MODIFIED — добавлен route.rolledback |
 | `frontend/admin-ui/src/features/audit/components/AuditFilterBar.tsx` | MODIFIED — удалён unused useMemo |
@@ -545,6 +528,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | `frontend/admin-ui/src/test/setup.ts` | MODIFIED — fixed spread type error |
 | `frontend/admin-ui/src/features/audit/components/AuditPage.test.tsx` | MODIFIED — updated test expectations |
 | `frontend/admin-ui/src/features/test/components/LoadGeneratorForm.test.tsx` | MODIFIED — updated mock data |
+| `frontend/admin-ui/src/features/consumers/components/ConsumerRateLimitModal.test.tsx` | MODIFIED — увеличен timeout для async теста |
 | `docker/gitlab/README.md` | MODIFIED — обновлена секция CI/CD Pipeline с описанием stages |
 | `README.md` | MODIFIED — добавлен раздел CI/CD Pipeline |
 | `docker/gitlab/docker-compose.yml` | MODIFIED — добавлены 4 runners, Nexus, shared caches |
@@ -555,8 +539,15 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | `docker/gitlab/npmrc-ci` | NEW — npm config для CI с Nexus proxy |
 | `backend/gateway-admin/src/test/resources/application-ci.yml` | NEW — Spring profile для CI |
 | `backend/gateway-core/src/test/resources/application-ci.yml` | NEW — Spring profile для CI |
+| `backend/gateway-admin/src/test/resources/application-test.yml` | MODIFIED — R2DBC pool size limit |
+| `backend/gateway-core/src/test/resources/application-test.yml` | MODIFIED — R2DBC pool size limit |
+| `backend/gateway-admin/src/test/resources/junit-platform.properties` | NEW — отключение parallel execution |
+| `backend/gateway-core/src/test/resources/junit-platform.properties` | NEW — отключение parallel execution |
 | `backend/gateway-admin/src/test/kotlin/.../test/BaseIntegrationTest.kt` | NEW — базовый класс для интеграционных тестов |
 | `backend/gateway-core/src/test/kotlin/.../test/BaseIntegrationTest.kt` | NEW — базовый класс для интеграционных тестов |
+| `backend/gateway-admin/src/test/kotlin/.../test/EnvVarTest.kt` | NEW — тест для CI env variables |
+| `backend/gateway-admin/src/main/resources/db/migration/V13__fix_rate_limits_fk_cascade.sql` | NEW — FK cascade fix для user deletion |
+| **Integration Tests (20+ files)** | MODIFIED — DynamicPropertySource pattern для CI/local dual mode |
 
 ## Change Log
 
@@ -565,3 +556,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2026-02-26 | SM | Story created from Epic 13 with full dev context |
 | 2026-02-26 | Claude | Task 1-4: CI pipeline build/test stages implemented |
 | 2026-02-26 | Claude | Pipeline optimization: +3 runners, Nexus proxy, shared caches |
+| 2026-02-27 | Claude | Code Review: исправлены HIGH/MEDIUM issues (AC1, Task 2.1-2.2, File List, frontend coverage) |
