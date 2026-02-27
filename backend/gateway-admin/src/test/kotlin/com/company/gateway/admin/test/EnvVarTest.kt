@@ -2,12 +2,15 @@ package com.company.gateway.admin.test
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import java.net.InetAddress
 
 /**
  * Диагностический тест для проверки передачи env vars и сети в test JVM.
  * Используется для отладки CI pipeline.
+ * Запускается ТОЛЬКО в CI (когда TESTCONTAINERS_DISABLED=true).
  */
+@EnabledIfEnvironmentVariable(named = "TESTCONTAINERS_DISABLED", matches = "true")
 class EnvVarTest {
 
     @Test
