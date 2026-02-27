@@ -113,8 +113,17 @@ backend-test:
     REDIS_HOST: redis
     REDIS_PORT: "6379"
     # Spring Boot env vars (SCREAMING_SNAKE_CASE -> spring.property.name)
+    # R2DBC connection
     SPRING_R2DBC_URL: "r2dbc:postgresql://postgres:5432/gateway_test"
+    SPRING_R2DBC_USERNAME: gateway
+    SPRING_R2DBC_PASSWORD: gateway
+    # Flyway JDBC connection
     SPRING_FLYWAY_URL: "jdbc:postgresql://postgres:5432/gateway_test"
+    SPRING_FLYWAY_USER: gateway
+    SPRING_FLYWAY_PASSWORD: gateway
+    # Redis connection
+    SPRING_DATA_REDIS_HOST: redis
+    SPRING_DATA_REDIS_PORT: "6379"
     # Отключаем Testcontainers — используем GitLab Services
     TESTCONTAINERS_DISABLED: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
