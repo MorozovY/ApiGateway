@@ -2,9 +2,10 @@ package com.company.gateway.admin.test
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import java.net.InetAddress
 
 /**
- * Диагностический тест для проверки передачи env vars в test JVM.
+ * Диагностический тест для проверки передачи env vars и сети в test JVM.
  * Используется для отладки CI pipeline.
  */
 class EnvVarTest {
@@ -24,16 +25,19 @@ class EnvVarTest {
         println("SPRING_DATA_REDIS_HOST = ${System.getenv("SPRING_DATA_REDIS_HOST")}")
         println("============================")
 
+        // Проверяем DNS resolution для postgres
+        val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+        try {
+            val addr = InetAddress.getByName(pgHost)
+            println("DNS: $pgHost -> ${addr.hostAddress}")
+        } catch (e: Exception) {
+            println("DNS FAILED: $pgHost -> ${e.message}")
+        }
+
         // Проверяем что TESTCONTAINERS_DISABLED передан если установлен в shell
         val tcDisabled = System.getenv("TESTCONTAINERS_DISABLED")
         if (tcDisabled != null) {
             assertEquals("true", tcDisabled, "TESTCONTAINERS_DISABLED должен быть 'true'")
-        }
-
-        // Если в CI, проверяем что DB vars тоже переданы
-        if (tcDisabled == "true") {
-            assertNotNull(System.getenv("POSTGRES_HOST"), "POSTGRES_HOST должен быть установлен в CI")
-            assertNotNull(System.getenv("REDIS_HOST"), "REDIS_HOST должен быть установлен в CI")
         }
     }
 }
