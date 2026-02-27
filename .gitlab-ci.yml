@@ -94,28 +94,39 @@ frontend-build:
 # Используем CI profile с фиксированными connection strings
 backend-test:
   stage: test
-  # Используем host Docker через socket mount (настроен в runner config)
   image: gradle:8.5-jdk21
   extends: .gradle-cache
   timeout: 25 minutes
-  # Не используем services - Testcontainers будут использовать host Docker
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
   variables:
-    # Testcontainers будет использовать Docker socket который mount'ится runner'ом
-    DOCKER_HOST: unix:///var/run/docker.sock
-    # Disable Ryuk (resource reaper) - не нужен в CI
-    TESTCONTAINERS_RYUK_DISABLED: "true"
+    # PostgreSQL service configuration
+    POSTGRES_DB: gateway_test
+    POSTGRES_USER: gateway
+    POSTGRES_PASSWORD: gateway
+    # Отключаем Testcontainers — используем GitLab Services
+    TESTCONTAINERS_DISABLED: "true"
+    # Активируем CI профиль Spring Boot (application-ci.yml)
+    SPRING_PROFILES_ACTIVE: "test,ci"
     # Gradle config
     GRADLE_USER_HOME: /cache/gradle
-  before_script:
-    # Устанавливаем Docker CLI
-    - apt-get update && apt-get install -y docker.io
   script:
     - cd backend
-    # Проверяем что Docker socket доступен
-    - ls -la /var/run/docker.sock || echo "Docker socket not found"
-    - docker info || echo "Docker not available"
-    # Запускаем тесты - Testcontainers используют host Docker
-    - gradle test --parallel jacocoTestReport --no-daemon
+    # Ждем готовности PostgreSQL
+    - |
+      for i in 1 2 3 4 5 6 7 8 9 10; do
+        if timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; then
+          echo "PostgreSQL ready"
+          break
+        fi
+        echo "Waiting for PostgreSQL... ($i)"
+        sleep 2
+      done
+    # Запуск тестов с CI профилем
+    - gradle test --parallel jacocoTestReport --no-daemon -PtestcontainersDisabled=true
   artifacts:
     when: always
     reports:
