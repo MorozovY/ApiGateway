@@ -23,6 +23,8 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 ENVIRONMENT="${1:-dev}"
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/apigateway}"
 COMPOSE_PROJECT="apigateway-${ENVIRONMENT}"
+# CI использует /tmp для compose файлов, локально — DEPLOY_PATH
+COMPOSE_FILE="${COMPOSE_FILE:-/tmp/docker-compose.${ENVIRONMENT}.yml}"
 PREVIOUS_IMAGES_FILE="/tmp/previous_images_${ENVIRONMENT}.txt"
 ROLLBACK_TAG="${ROLLBACK_TAG:-latest}"
 
@@ -32,8 +34,6 @@ ROLLBACK_TIMEOUT=120
 rollback_to_previous() {
     log_info "Attempting rollback to previous version..."
 
-    cd "$DEPLOY_PATH"
-
     # Проверяем наличие файла с предыдущими images
     if [ -f "$PREVIOUS_IMAGES_FILE" ] && [ -s "$PREVIOUS_IMAGES_FILE" ]; then
         log_info "Found previous images file"
@@ -42,15 +42,16 @@ rollback_to_previous() {
         # Файл содержит image tags, нужно извлечь и использовать
 
         # Останавливаем текущие контейнеры
-        docker-compose -p "$COMPOSE_PROJECT" down --timeout 30 || true
+        if [ -f "$COMPOSE_FILE" ]; then
+            docker-compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" down --timeout 30 || true
+        else
+            # Fallback: остановить контейнеры по имени
+            log_warn "Compose file not found at $COMPOSE_FILE, stopping containers by name"
+            docker rm -f "gateway-admin-${ENVIRONMENT}" "gateway-core-${ENVIRONMENT}" "admin-ui-${ENVIRONMENT}" 2>/dev/null || true
+        fi
 
-        # Удаляем CI override чтобы использовать оригинальные images
-        rm -f "${DEPLOY_PATH}/docker-compose.ci.yml"
-
-        # Запускаем с оригинальным compose (без override)
-        docker-compose -p "$COMPOSE_PROJECT" up -d
-
-        log_info "Rollback to previous deployment completed"
+        log_info "Rollback to previous deployment completed (containers stopped)"
+        log_warn "Manual restart with previous images may be required"
         return 0
     else
         log_warn "No previous images file found, rolling back to :latest"
@@ -61,34 +62,85 @@ rollback_to_previous() {
 rollback_to_latest() {
     log_info "Rolling back to :latest tag..."
 
-    cd "$DEPLOY_PATH"
+    local rollback_compose="/tmp/docker-compose.rollback.${ENVIRONMENT}.yml"
 
-    # Создаём override с :latest tags
-    cat > "${DEPLOY_PATH}/docker-compose.ci.yml" << EOF
-# Rollback override - using :latest tags
+    # Определяем порты в зависимости от environment
+    local admin_port core_port ui_port
+    case "$ENVIRONMENT" in
+        dev)
+            admin_port="28081"
+            core_port="28080"
+            ui_port="23000"
+            ;;
+        test)
+            admin_port="18081"
+            core_port="18080"
+            ui_port="13000"
+            ;;
+        *)
+            admin_port="8081"
+            core_port="8080"
+            ui_port="3000"
+            ;;
+    esac
+
+    local registry_image="${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}"
+
+    # Создаём compose файл с :latest tags
+    cat > "$rollback_compose" << EOF
+# Rollback compose - using :latest tags
 # Generated: $(date -Iseconds)
-
-version: '3.8'
+# Environment: ${ENVIRONMENT}
 
 services:
   gateway-admin:
-    image: ${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}/gateway-admin:${ROLLBACK_TAG}
+    image: ${registry_image}/gateway-admin:${ROLLBACK_TAG}
+    container_name: gateway-admin-${ENVIRONMENT}
+    ports:
+      - "${admin_port}:8081"
+    networks:
+      - gateway-${ENVIRONMENT}
+      - postgres-net
+      - redis-net
+    restart: unless-stopped
 
   gateway-core:
-    image: ${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}/gateway-core:${ROLLBACK_TAG}
+    image: ${registry_image}/gateway-core:${ROLLBACK_TAG}
+    container_name: gateway-core-${ENVIRONMENT}
+    ports:
+      - "${core_port}:8080"
+    networks:
+      - gateway-${ENVIRONMENT}
+      - postgres-net
+      - redis-net
+    restart: unless-stopped
 
   admin-ui:
-    image: ${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}/admin-ui:${ROLLBACK_TAG}
+    image: ${registry_image}/admin-ui:${ROLLBACK_TAG}
+    container_name: admin-ui-${ENVIRONMENT}
+    ports:
+      - "${ui_port}:80"
+    networks:
+      - gateway-${ENVIRONMENT}
+    restart: unless-stopped
+
+networks:
+  gateway-${ENVIRONMENT}:
+    driver: bridge
+  postgres-net:
+    external: true
+  redis-net:
+    external: true
 EOF
 
     # Pull latest images
-    docker-compose -p "$COMPOSE_PROJECT" -f docker-compose.yml -f docker-compose.ci.yml pull || true
+    docker-compose -p "$COMPOSE_PROJECT" -f "$rollback_compose" pull || true
 
     # Останавливаем текущие контейнеры
-    docker-compose -p "$COMPOSE_PROJECT" down --timeout 30 || true
+    docker rm -f "gateway-admin-${ENVIRONMENT}" "gateway-core-${ENVIRONMENT}" "admin-ui-${ENVIRONMENT}" 2>/dev/null || true
 
     # Запускаем с latest
-    docker-compose -p "$COMPOSE_PROJECT" -f docker-compose.yml -f docker-compose.ci.yml up -d
+    docker-compose -p "$COMPOSE_PROJECT" -f "$rollback_compose" up -d
 
     log_info "Rollback to :$ROLLBACK_TAG completed"
 }
@@ -96,13 +148,16 @@ EOF
 verify_rollback() {
     log_info "Verifying rollback..."
 
-    cd "$DEPLOY_PATH"
-
     local start_time=$(date +%s)
 
-    # Простая проверка что контейнеры запустились
+    # Простая проверка что контейнеры запустились (по имени)
     for i in $(seq 1 10); do
-        local running=$(docker-compose -p "$COMPOSE_PROJECT" ps --filter "status=running" -q 2>/dev/null | wc -l)
+        local running=0
+
+        # Проверяем каждый контейнер по имени
+        docker ps --filter "name=gateway-admin-${ENVIRONMENT}" --filter "status=running" -q | grep -q . && running=$((running + 1))
+        docker ps --filter "name=gateway-core-${ENVIRONMENT}" --filter "status=running" -q | grep -q . && running=$((running + 1))
+        docker ps --filter "name=admin-ui-${ENVIRONMENT}" --filter "status=running" -q | grep -q . && running=$((running + 1))
 
         if [ "$running" -ge 3 ]; then
             log_info "All containers are running after rollback"
