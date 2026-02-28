@@ -368,8 +368,10 @@ deploy-dev:
     - chmod +x docker/gitlab/generate-compose.sh
     - ./docker/gitlab/generate-compose.sh dev /tmp/docker-compose.ci.yml
     - cat /tmp/docker-compose.ci.yml
-    - echo "Deploying containers..."
+    - echo "Stopping and removing old containers..."
+    - docker rm -f gateway-admin-dev gateway-core-dev admin-ui-dev 2>/dev/null || true
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.ci.yml down --remove-orphans || true
+    - echo "Deploying containers..."
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.ci.yml up -d
     - echo "Running health checks..."
     - sleep 30
@@ -428,6 +430,8 @@ deploy-test:
     - chmod +x docker/gitlab/generate-compose.sh
     - ./docker/gitlab/generate-compose.sh test /tmp/docker-compose.test.yml
     - cat /tmp/docker-compose.test.yml
+    - echo "Stopping and removing old containers..."
+    - docker rm -f gateway-admin-test gateway-core-test admin-ui-test 2>/dev/null || true
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.test.yml down --remove-orphans || true
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.test.yml up -d
     - sleep 30
