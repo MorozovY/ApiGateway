@@ -1,6 +1,6 @@
 # Story 13.3: Docker Image Build & Registry
 
-Status: review
+Status: done
 Story Points: 5
 
 ## Story
