@@ -489,9 +489,153 @@ GitLab настроен как primary repository, GitHub как mirror:
 
 В GitLab → Settings → CI/CD → Variables настроены:
 
-| Variable | Описание |
-|----------|----------|
-| `GITHUB_TOKEN` | Personal Access Token для sync в GitHub (masked) |
+| Variable | Описание | Тип |
+|----------|----------|-----|
+| `GITHUB_TOKEN` | Personal Access Token для sync в GitHub | masked |
+| `VAULT_ADDR` | Vault server URL (например: http://vault:8200) | variable |
+| `VAULT_ROLE_ID` | AppRole Role ID для Vault | masked |
+| `VAULT_SECRET_ID` | AppRole Secret ID для Vault | masked, protected |
+
+## Vault Integration (Story 13.4)
+
+### Архитектура Secrets Management
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HashiCorp Vault                          │
+│              (централизованное хранилище)                    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  secret/apigateway/                                  │   │
+│  │    ├── database    (POSTGRES_USER, POSTGRES_PASSWORD)│   │
+│  │    ├── redis       (REDIS_HOST, REDIS_PORT)         │   │
+│  │    └── keycloak    (KEYCLOAK_ADMIN_PASSWORD)        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                   │
+│                    AppRole Auth                              │
+│            (apigateway-ci role, read-only)                  │
+└─────────────────────────────────────────────────────────────┘
+                           │
+           ┌───────────────┴───────────────┐
+           │                               │
+    ┌──────▼──────┐               ┌────────▼────────┐
+    │  GitLab CI  │               │  Local Dev      │
+    │   Pipeline  │               │  (fallback)     │
+    │             │               │                 │
+    │ vault-      │               │ .env file       │
+    │ secrets.sh  │               │ or Vault token  │
+    └─────────────┘               └─────────────────┘
+```
+
+### Vault Secrets Structure
+
+| Path | Keys | Описание |
+|------|------|----------|
+| `secret/apigateway/database` | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL` | PostgreSQL credentials |
+| `secret/apigateway/redis` | `REDIS_HOST`, `REDIS_PORT`, `REDIS_URL` | Redis connection |
+| `secret/apigateway/keycloak` | `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin |
+
+### AppRole Configuration
+
+Для CI/CD pipeline настроен AppRole:
+
+- **Role:** `apigateway-ci`
+- **Policy:** `apigateway-read` (read-only access to `secret/data/apigateway/*`)
+- **Token TTL:** 1 hour
+- **Secret ID:** без ограничений (можно переиспользовать)
+
+### Настройка Vault Integration
+
+#### 1. Получение Role ID и Secret ID
+
+```bash
+# Подключение к Vault (через docker exec если Vault в контейнере)
+export VAULT_ADDR=http://localhost:8200
+export VAULT_TOKEN=<root-token>
+
+# Role ID (статичный)
+vault read auth/approle/role/apigateway-ci/role-id
+
+# Secret ID (генерировать новый при компрометации)
+vault write -f auth/approle/role/apigateway-ci/secret-id
+```
+
+#### 2. Добавление переменных в GitLab
+
+GitLab → Settings → CI/CD → Variables:
+
+1. `VAULT_ADDR` = `http://vault:8200` (или внешний URL)
+2. `VAULT_ROLE_ID` = `<role_id>` (masked)
+3. `VAULT_SECRET_ID` = `<secret_id>` (masked, protected)
+
+#### 3. Использование в Pipeline
+
+CI pipeline автоматически загружает secrets через `vault-secrets.sh`:
+
+```yaml
+# .gitlab-ci.yml
+deploy-job:
+  extends: .vault-secrets
+  script:
+    - echo "DATABASE_URL=$DATABASE_URL"
+    - echo "POSTGRES_PASSWORD=****** (hidden)"
+```
+
+### Local Development
+
+#### С Vault (если доступен)
+
+```bash
+# Получить token
+export VAULT_ADDR=http://localhost:8200
+vault login
+
+# Или использовать script
+source ./docker/gitlab/vault-secrets.sh
+```
+
+#### Без Vault (fallback)
+
+Используйте `.env` файл (копия `.env.example` с реальными значениями).
+
+### Secret Rotation
+
+#### Ротация Secret ID
+
+```bash
+# Генерировать новый Secret ID
+vault write -f auth/approle/role/apigateway-ci/secret-id
+
+# Обновить в GitLab CI/CD Variables
+# GitLab → Settings → CI/CD → Variables → VAULT_SECRET_ID → Edit
+```
+
+#### Ротация паролей
+
+```bash
+# Обновить secret в Vault
+vault kv put secret/apigateway/database \
+  POSTGRES_USER="gateway" \
+  POSTGRES_PASSWORD="new-secure-password" \
+  DATABASE_URL="r2dbc:postgresql://infra-postgres:5432/gateway"
+
+# Secrets автоматически обновятся при следующем запуске pipeline
+```
+
+### Emergency Access
+
+При недоступности Vault:
+
+1. **CI/CD fallback:** Pipeline ожидает Vault и fail-ит при недоступности
+2. **Local dev:** Используйте `.env` файл как fallback
+3. **Manual override:** Можно добавить secrets напрямую в GitLab CI/CD Variables (временно)
+
+### Security Best Practices
+
+1. **Никогда не коммитьте secrets** — используйте `.env.example` как шаблон
+2. **Mask sensitive variables** — в GitLab отметьте переменные как masked
+3. **Protect deployment variables** — VAULT_SECRET_ID должен быть protected
+4. **Audit access** — Vault audit log включен
+5. **Rotate credentials** — Secret ID каждые 30 дней, пароли по политике
 
 ## Дополнительная документация
 

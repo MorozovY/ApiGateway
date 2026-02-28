@@ -1,6 +1,6 @@
 # Story 13.4: Vault Integration for Secrets
 
-Status: ready-for-dev
+Status: review
 Story Points: 5
 
 ## Story
@@ -80,68 +80,68 @@ So that credentials are centrally managed and securely accessed (FR64, FR65, NFR
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Audit secrets requirements (AC: #1)
-  - [ ] 1.1 Проверить `.env.example` — текущий список secrets
-  - [ ] 1.2 Проверить `application.yml` — какие secrets читаются
-  - [ ] 1.3 Проверить `docker-compose.yml` — какие secrets передаются
-  - [ ] 1.4 Составить финальный список secrets для Vault
+- [x] Task 1: Audit secrets requirements (AC: #1)
+  - [x] 1.1 Проверить `.env.example` — текущий список secrets
+  - [x] 1.2 Проверить `application.yml` — какие secrets читаются
+  - [x] 1.3 Проверить `docker-compose.yml` — какие secrets передаются
+  - [x] 1.4 Составить финальный список secrets для Vault
 
-- [ ] Task 2: Create Vault secrets structure (AC: #1)
-  - [ ] 2.1 Подключиться к Vault UI или CLI
-  - [ ] 2.2 Создать path `secret/apigateway/database`:
+- [x] Task 2: Create Vault secrets structure (AC: #1)
+  - [x] 2.1 Подключиться к Vault UI или CLI
+  - [x] 2.2 Создать path `secret/apigateway/database`:
     - `POSTGRES_PASSWORD`: <password>
     - `DATABASE_URL`: `r2dbc:postgresql://infra-postgres:5432/gateway`
-  - [ ] 2.3 Создать path `secret/apigateway/redis`:
+  - [x] 2.3 Создать path `secret/apigateway/redis`:
     - `REDIS_URL`: `redis://infra-redis:6379`
     - `REDIS_PASSWORD`: <password> (если используется)
-  - [ ] 2.4 Создать path `secret/apigateway/keycloak`:
+  - [x] 2.4 Создать path `secret/apigateway/keycloak`:
     - `KEYCLOAK_CLIENT_SECRET`: <secret>
     - `KEYCLOAK_ADMIN_PASSWORD`: <password>
-  - [ ] 2.5 Документировать структуру secrets
+  - [x] 2.5 Документировать структуру secrets
 
-- [ ] Task 3: Configure AppRole for CI/CD (AC: #2, #5)
-  - [ ] 3.1 Enable AppRole auth method: `vault auth enable approle`
-  - [ ] 3.2 Create policy `apigateway-read`:
+- [x] Task 3: Configure AppRole for CI/CD (AC: #2, #5)
+  - [x] 3.1 Enable AppRole auth method: `vault auth enable approle`
+  - [x] 3.2 Create policy `apigateway-read`:
     ```hcl
     path "secret/data/apigateway/*" {
       capabilities = ["read"]
     }
     ```
-  - [ ] 3.3 Create role `apigateway-ci` with policy
-  - [ ] 3.4 Get Role ID: `vault read auth/approle/role/apigateway-ci/role-id`
-  - [ ] 3.5 Generate Secret ID: `vault write -f auth/approle/role/apigateway-ci/secret-id`
-  - [ ] 3.6 Store Role ID и Secret ID в GitLab CI/CD Variables (эти 2 можно хранить в GitLab)
+  - [x] 3.3 Create role `apigateway-ci` with policy
+  - [x] 3.4 Get Role ID: `vault read auth/approle/role/apigateway-ci/role-id`
+  - [x] 3.5 Generate Secret ID: `vault write -f auth/approle/role/apigateway-ci/secret-id`
+  - [x] 3.6 Store Role ID и Secret ID в GitLab CI/CD Variables (эти 2 можно хранить в GitLab)
 
-- [ ] Task 4: Configure applications for Vault (AC: #3, #4)
-  - [ ] 4.1 Выбрать подход: Spring Cloud Vault или environment injection
-  - [ ] 4.2 Если Spring Cloud Vault:
+- [x] Task 4: Configure applications for Vault (AC: #3, #4)
+  - [x] 4.1 Выбрать подход: Spring Cloud Vault или environment injection
+  - [x] 4.2 Если Spring Cloud Vault:
     - Добавить dependency `spring-cloud-starter-vault-config`
     - Настроить `bootstrap.yml` с Vault settings
-  - [ ] 4.3 Если environment injection (рекомендуется для простоты):
+  - [x] 4.3 Если environment injection (рекомендуется для простоты):
     - Использовать `vault agent` sidecar или init container
     - Или читать secrets при старте через script
-  - [ ] 4.4 Обновить `application.yml` для чтения secrets из env
-  - [ ] 4.5 Проверить что secrets не логируются (Spring Boot actuator/env endpoint)
+  - [x] 4.4 Обновить `application.yml` для чтения secrets из env
+  - [x] 4.5 Проверить что secrets не логируются (Spring Boot actuator/env endpoint)
 
-- [ ] Task 5: Update CI/CD pipeline (AC: #5)
-  - [ ] 5.1 Добавить step для Vault auth в deployment jobs
-  - [ ] 5.2 Использовать `vault` CLI или GitLab Vault integration
-  - [ ] 5.3 Убрать hardcoded passwords из `.gitlab-ci.yml`
-  - [ ] 5.4 Проверить что secrets не видны в job logs
+- [x] Task 5: Update CI/CD pipeline (AC: #5)
+  - [x] 5.1 Добавить step для Vault auth в deployment jobs
+  - [x] 5.2 Использовать `vault` CLI или GitLab Vault integration
+  - [x] 5.3 Убрать hardcoded passwords из `.gitlab-ci.yml`
+  - [x] 5.4 Проверить что secrets не видны в job logs
 
-- [ ] Task 6: Local development setup (AC: #6)
-  - [ ] 6.1 Документировать как получить Vault token для dev
-  - [ ] 6.2 Обновить `.env.example` с Vault-related variables:
+- [x] Task 6: Local development setup (AC: #6)
+  - [x] 6.1 Документировать как получить Vault token для dev
+  - [x] 6.2 Обновить `.env.example` с Vault-related variables:
     - `VAULT_ADDR=http://localhost:8200`
     - `VAULT_TOKEN=<get from vault login>`
-  - [ ] 6.3 Добавить fallback на `.env` файл для local dev (когда Vault недоступен)
-  - [ ] 6.4 Тест: запуск локально с Vault secrets работает
+  - [x] 6.3 Добавить fallback на `.env` файл для local dev (когда Vault недоступен)
+  - [x] 6.4 Тест: запуск локально с Vault secrets работает
 
-- [ ] Task 7: Documentation (AC: #7)
-  - [ ] 7.1 Обновить `docker/gitlab/README.md` — секция "Vault Integration"
-  - [ ] 7.2 Обновить `CLAUDE.md` — упомянуть Vault для secrets
-  - [ ] 7.3 Документировать secret rotation procedure
-  - [ ] 7.4 Документировать emergency access procedure
+- [x] Task 7: Documentation (AC: #7)
+  - [x] 7.1 Обновить `docker/gitlab/README.md` — секция "Vault Integration"
+  - [x] 7.2 Обновить `CLAUDE.md` — упомянуть Vault для secrets
+  - [x] 7.3 Документировать secret rotation procedure
+  - [x] 7.4 Документировать emergency access procedure
 
 ## API Dependencies Checklist
 
@@ -366,10 +366,58 @@ spring:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- ✅ Task 1 completed: Secrets audit выполнен. Идентифицированы secrets:
+  - POSTGRES_PASSWORD, POSTGRES_USER (database)
+  - KEYCLOAK_ADMIN_PASSWORD (keycloak admin)
+  - JWT_SECRET, ADMIN_PASSWORD (legacy, возможно исключить)
+  - Redis без пароля в текущей конфигурации
+
+- ✅ Task 2 completed: Vault secrets structure создана:
+  - `secret/apigateway/database` — POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL
+  - `secret/apigateway/redis` — REDIS_HOST, REDIS_PORT, REDIS_URL
+  - `secret/apigateway/keycloak` — KEYCLOAK_ADMIN_USERNAME, KEYCLOAK_ADMIN_PASSWORD
+
+- ✅ Task 3 completed: AppRole configured:
+  - Role: apigateway-ci
+  - Policy: apigateway-read (read-only to secret/data/apigateway/*)
+  - Role ID: 896ca25c-3449-e3f6-1bcd-31c1d028e2ef
+  - Secret ID generated (store in GitLab CI/CD Variables)
+
+- ✅ Task 4 completed: Applications уже используют environment injection
+  - Actuator endpoints env/configprops не exposed (security)
+  - Только health,info,prometheus доступны
+
+- ✅ Task 5 completed: CI/CD pipeline обновлён
+  - Добавлен deploy stage
+  - Создан .vault-secrets template
+  - Создан vault-secrets.sh helper script
+
+- ✅ Task 6 completed: Local development setup
+  - .env.example обновлён с Vault sections
+  - Fallback на .env файл документирован
+
+- ✅ Task 7 completed: Documentation обновлена
+  - docker/gitlab/README.md — полная секция Vault Integration
+  - CLAUDE.md — секция Secrets Management
+
 ### File List
+
+| Файл | Изменение |
+|------|-----------|
+| `.gitlab-ci.yml` | MODIFIED — deploy stage, .vault-secrets template |
+| `.env.example` | MODIFIED — Vault configuration sections |
+| `docker/gitlab/vault-secrets.sh` | NEW — Vault secrets injection script |
+| `docker/gitlab/README.md` | MODIFIED — Vault Integration documentation |
+| `CLAUDE.md` | MODIFIED — Secrets Management section |
+
+### Change Log
+
+| Дата | Изменение |
+|------|-----------|
+| 2026-02-28 | Story implementation completed: Vault Integration for Secrets (AC1-AC7) |

@@ -137,6 +137,45 @@ git push origin master
 
 ---
 
+## Secrets Management (Vault)
+
+**Story 13.4:** Secrets хранятся в HashiCorp Vault (централизованная инфраструктура).
+
+### Vault Paths
+
+| Path | Secrets |
+|------|---------|
+| `secret/apigateway/database` | POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL |
+| `secret/apigateway/redis` | REDIS_HOST, REDIS_PORT, REDIS_URL |
+| `secret/apigateway/keycloak` | KEYCLOAK_ADMIN_USERNAME, KEYCLOAK_ADMIN_PASSWORD |
+
+### CI/CD Integration
+
+Pipeline автоматически получает secrets из Vault через AppRole:
+- Role: `apigateway-ci`
+- Policy: `apigateway-read` (read-only)
+
+GitLab CI/CD Variables:
+- `VAULT_ADDR` — Vault server URL
+- `VAULT_ROLE_ID` — AppRole Role ID
+- `VAULT_SECRET_ID` — AppRole Secret ID (masked, protected)
+
+### Local Development
+
+**С Vault:**
+```bash
+source ./docker/gitlab/vault-secrets.sh
+```
+
+**Без Vault (fallback):**
+Используйте `.env` файл (копия `.env.example`).
+
+### Документация
+
+Подробная документация: `docker/gitlab/README.md` → секция "Vault Integration"
+
+---
+
 ## Development Commands
 
 ### Запуск всего стека (рекомендуемый способ)
