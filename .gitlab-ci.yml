@@ -1,15 +1,307 @@
 # GitLab CI/CD Pipeline для ApiGateway
 # Story 13.1: GitHub Mirror sync
-# Story 13.2+: Build, test, deploy stages будут добавлены позже
+# Story 13.2: Build, test stages
+# Story 13.3: Docker image build & registry push
 
 stages:
+  - build
+  - test
+  - docker
   - sync
+
+# =============================================================================
+# CACHE TEMPLATES
+# =============================================================================
+
+# Gradle cache template для backend jobs
+# ВАЖНО: Кэшируем wrapper, dependencies и build outputs
+.gradle-cache:
+  cache:
+    key: gradle-deps-v2
+    paths:
+      - backend/gradle/wrapper/
+      - backend/.gradle/caches/
+      - backend/.gradle/wrapper/
+      - backend/gateway-admin/build/
+      - backend/gateway-core/build/
+      - backend/gateway-common/build/
+    policy: pull-push
+
+# NPM cache template для frontend jobs
+.npm-cache:
+  cache:
+    key: npm-${CI_COMMIT_REF_SLUG}
+    paths:
+      - frontend/admin-ui/node_modules/
+    policy: pull-push
+
+# =============================================================================
+# BUILD STAGE
+# =============================================================================
+
+backend-build:
+  stage: build
+  image: gradle:8.5-jdk21
+  extends: .gradle-cache
+  timeout: 15 minutes
+  variables:
+    # Nexus proxy для ускорения downloads (опционально)
+    NEXUS_URL: "http://nexus:8081"
+    # Используем системный Gradle вместо wrapper
+    GRADLE_USER_HOME: /cache/gradle
+  script:
+    - cd backend
+    # Используем Nexus init script если доступен
+    - |
+      if curl -sf "$NEXUS_URL/service/rest/v1/status" > /dev/null 2>&1; then
+        echo "Using Nexus proxy: $NEXUS_URL"
+        gradle build -x test --init-script ../docker/gitlab/gradle-init.gradle.kts
+      else
+        echo "Nexus not available, using default repositories"
+        gradle build -x test
+      fi
+  artifacts:
+    paths:
+      - backend/gateway-admin/build/libs/*.jar
+      - backend/gateway-core/build/libs/*.jar
+    exclude:
+      - backend/**/*-plain.jar
+    expire_in: 1 hour
+
+frontend-build:
+  stage: build
+  image: node:20-alpine
+  extends: .npm-cache
+  timeout: 10 minutes
+  variables:
+    # Nexus proxy для npm (опционально)
+    NEXUS_URL: "http://nexus:8081"
+  script:
+    - cd frontend/admin-ui
+    # Проверяем доступность Nexus и используем как proxy
+    - |
+      if wget -q --spider "$NEXUS_URL/service/rest/v1/status" 2>/dev/null; then
+        echo "Using Nexus npm proxy: $NEXUS_URL"
+        npm config set registry "$NEXUS_URL/repository/npm-proxy/"
+        npm config set strict-ssl false
+      else
+        echo "Nexus not available, using default npm registry"
+      fi
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/admin-ui/dist/
+    expire_in: 1 hour
+
+# =============================================================================
+# TEST STAGE
+# =============================================================================
+
+# Backend tests с GitLab Services (PostgreSQL + Redis)
+# Используем CI profile с фиксированными connection strings
+backend-test:
+  stage: test
+  image: gradle:8.5-jdk21
+  extends: .gradle-cache
+  timeout: 25 minutes
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+  variables:
+    # PostgreSQL service configuration (для инициализации контейнера)
+    POSTGRES_DB: gateway_test
+    POSTGRES_USER: gateway
+    POSTGRES_PASSWORD: gateway
+    # Connection variables для BaseIntegrationTest (передаются в test JVM)
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    # Отдельные БД для каждого модуля (предотвращает deadlock при parallel)
+    POSTGRES_DB_ADMIN: gateway_admin_test
+    POSTGRES_DB_CORE: gateway_core_test
+    # Legacy POSTGRES_DB для тестов с DynamicPropertySource которые его читают
+    POSTGRES_DB: gateway_admin_test
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    # Отключаем Testcontainers — используем GitLab Services
+    TESTCONTAINERS_DISABLED: "true"
+    # Flyway: очищаем базу при несовпадении миграций (решает проблему stale DB state)
+    FLYWAY_CLEAN_ON_VALIDATION_ERROR: "true"
+    FLYWAY_CLEAN_DISABLED: "false"
+    # Gradle config
+    GRADLE_USER_HOME: /cache/gradle
+  script:
+    - cd backend
+    # Устанавливаем PostgreSQL client для управления базой
+    - apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null
+    # Ждем готовности PostgreSQL
+    - |
+      for i in 1 2 3 4 5 6 7 8 9 10; do
+        if timeout 2 bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; then
+          echo "PostgreSQL ready"
+          break
+        fi
+        echo "Waiting for PostgreSQL... ($i)"
+        sleep 2
+      done
+    # Пересоздаём БД для каждого модуля (раздельные БД предотвращают deadlock)
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_admin_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_admin_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS gateway_core_test;"
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d postgres -c "CREATE DATABASE gateway_core_test;"
+    # Запуск тестов последовательно (--parallel вызывает Spring context pollution между модулями)
+    - gradle test jacocoTestReport --no-daemon -PtestcontainersDisabled=true
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - backend/**/build/test-results/test/*.xml
+    paths:
+      - backend/**/build/reports/tests/test/
+      - backend/**/build/reports/jacoco/test/
+  needs:
+    - job: backend-build
+      optional: true
+
+frontend-test:
+  stage: test
+  image: node:20-alpine
+  extends: .npm-cache
+  timeout: 10 minutes
+  variables:
+    # Nexus proxy (опционально)
+    NEXUS_URL: "http://nexus:8081"
+    # Keycloak env vars для тестов (валидация конфигурации)
+    VITE_KEYCLOAK_URL: "http://localhost:8180"
+    VITE_KEYCLOAK_REALM: "api-gateway"
+    VITE_KEYCLOAK_CLIENT_ID: "gateway-admin-ui"
+  script:
+    - cd frontend/admin-ui
+    # Проверяем доступность Nexus и используем как proxy
+    - |
+      if wget -q --spider "$NEXUS_URL/service/rest/v1/status" 2>/dev/null; then
+        echo "Using Nexus npm proxy: $NEXUS_URL"
+        npm config set registry "$NEXUS_URL/repository/npm-proxy/"
+        npm config set strict-ssl false
+      else
+        echo "Nexus not available, using default npm registry"
+      fi
+    - npm ci
+    - npm run test:coverage
+  needs:
+    - frontend-build
+
+# =============================================================================
+# E2E TESTS (Optional — требует запущенного стека)
+# =============================================================================
+
+# e2e-test:
+#   stage: test
+#   image: mcr.microsoft.com/playwright:v1.42.0-jammy
+#   timeout: 15 minutes
+#   when: manual
+#   allow_failure: true
+#   script:
+#     - cd frontend/admin-ui
+#     - npm ci
+#     - npx playwright test
+#   artifacts:
+#     when: always
+#     paths:
+#       - frontend/admin-ui/playwright-report/
+#       - frontend/admin-ui/test-results/
+#   needs:
+#     - frontend-build
+#   tags:
+#     - docker
+
+# =============================================================================
+# DOCKER STAGE (Story 13.3)
+# =============================================================================
+# Сборка и push Docker images в GitLab Container Registry
+# Требует: backend/frontend build artifacts
+# Images: gateway-admin, gateway-core, admin-ui
+
+# Базовый template для Docker jobs
+# Используем Docker socket mount (runners уже настроены с /var/run/docker.sock)
+.docker-base:
+  stage: docker
+  image: docker:24
+  variables:
+    # Registry URL (автоматически предоставляется GitLab)
+    # CI_REGISTRY = localhost:5050
+    # CI_REGISTRY_IMAGE = localhost:5050/root/api-gateway
+    DOCKER_BUILDKIT: "1"
+  before_script:
+    # Логин в GitLab Container Registry
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+# Gateway Admin Docker Image
+docker-gateway-admin:
+  extends: .docker-base
+  needs:
+    - job: backend-build
+      artifacts: true
+  script:
+    - echo "Building gateway-admin image..."
+    - ls -la backend/gateway-admin/build/libs/ || echo "WARNING - No JAR files found!"
+    - docker build -t $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA -f docker/Dockerfile.gateway-admin .
+    - docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_REF_SLUG
+    - if [ "$CI_COMMIT_BRANCH" == "master" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:latest && docker push $CI_REGISTRY_IMAGE/gateway-admin:latest; fi
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_TAG && docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_TAG; fi
+    - echo "gateway-admin image pushed successfully"
+
+# Gateway Core Docker Image
+docker-gateway-core:
+  extends: .docker-base
+  needs:
+    - job: backend-build
+      artifacts: true
+  script:
+    - echo "Building gateway-core image..."
+    - ls -la backend/gateway-core/build/libs/ || echo "WARNING - No JAR files found!"
+    - docker build -t $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA -f docker/Dockerfile.gateway-core .
+    - docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_REF_SLUG
+    - if [ "$CI_COMMIT_BRANCH" == "master" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:latest && docker push $CI_REGISTRY_IMAGE/gateway-core:latest; fi
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_TAG && docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_TAG; fi
+    - echo "gateway-core image pushed successfully"
+
+# Admin UI Docker Image (использует pre-built dist/ из CI артефактов)
+docker-admin-ui:
+  extends: .docker-base
+  needs:
+    - job: frontend-build
+      artifacts: true
+  script:
+    - echo "Building admin-ui image..."
+    - docker build -t $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA -f docker/Dockerfile.admin-ui.ci .
+    - docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_REF_SLUG
+    - if [ "$CI_COMMIT_BRANCH" == "master" ]; then docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:latest && docker push $CI_REGISTRY_IMAGE/admin-ui:latest; fi
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_TAG && docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_TAG; fi
+    - echo "admin-ui image pushed successfully"
+
+# =============================================================================
+# SYNC STAGE (from Story 13.1)
+# =============================================================================
 
 # Синхронизация в GitHub (manual trigger)
 # Запускается только вручную после merge в main
 sync-to-github:
   stage: sync
   image: alpine:latest
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: manual
@@ -22,5 +314,3 @@ sync-to-github:
     - git fetch --unshallow || true
     - git push github HEAD:master --force
     - git push github --tags --force
-  tags:
-    - docker

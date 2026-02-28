@@ -515,22 +515,7 @@ async function globalSetup(): Promise<void> {
   const pool = new Pool({ connectionString: databaseUrl })
 
   try {
-    // Создаём пользователей из realm-export с Keycloak UUID
-    // ВАЖНО: username != email (username: admin, email: admin@example.com)
-    // UUID должны совпадать с jwt.subject из Keycloak для audit_logs FK constraint
-    await pool.query(`
-      INSERT INTO users (id, username, password_hash, email, role, created_at, updated_at)
-      VALUES
-        ('f6de7d8b-0737-4c7e-8442-3ae00be29e91', 'admin', '$2a$10$dummy', 'admin@example.com', 'admin', NOW(), NOW()),
-        ('4b32f41d-fafb-483d-9a5c-706494035fd6', 'developer', '$2a$10$dummy', 'dev@example.com', 'developer', NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
-        username = EXCLUDED.username,
-        updated_at = NOW()
-    `)
-
-    // Шаг 5.1: Добавить test-* пользователей в БД с их Keycloak UUIDs
-    // Получаем admin token еще раз (может истечь после предыдущих операций)
+    // Получаем admin token для Keycloak Admin API
     const kcAdminTokenResponse2 = await fetch(
       `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
       {
@@ -545,18 +530,25 @@ async function globalSetup(): Promise<void> {
       }
     )
 
-    if (kcAdminTokenResponse2.ok) {
+    if (!kcAdminTokenResponse2.ok) {
+      console.warn('[E2E Setup] Не удалось получить Keycloak admin token для синхронизации пользователей в БД')
+    } else {
       const kcAdminTokenData2 = await kcAdminTokenResponse2.json() as { access_token: string }
       const kcAdminToken2 = kcAdminTokenData2.access_token
 
-      // Получаем UUIDs для test-* пользователей из Keycloak
-      const testUsersMapping = [
+      // Все пользователи которые нужно синхронизировать с БД
+      // ВАЖНО: Keycloak генерирует новые UUID при импорте realm, не использует UUID из файла!
+      // Поэтому получаем UUID динамически через Admin API
+      const usersToSync = [
+        { username: 'admin', email: 'admin@example.com', role: 'admin' },
+        { username: 'developer', email: 'dev@example.com', role: 'developer' },
+        { username: 'security', email: 'security@example.com', role: 'security' },
         { username: 'test-developer', email: 'test-developer@example.com', role: 'developer' },
         { username: 'test-security', email: 'test-security@example.com', role: 'security' },
         { username: 'test-admin', email: 'test-admin@example.com', role: 'admin' }
       ]
 
-      for (const user of testUsersMapping) {
+      for (const user of usersToSync) {
         // Получаем user ID из Keycloak
         const searchResponse = await fetch(
           `${keycloakUrl}/admin/realms/${keycloakRealm}/users?username=${user.username}&exact=true`,
@@ -570,23 +562,53 @@ async function globalSetup(): Promise<void> {
           if (users.length > 0) {
             const keycloakUserId = users[0].id
 
-            // Создаем user с Keycloak UUID (ON CONFLICT — пропускаем если уже существует)
-            await pool.query(`
-              INSERT INTO users (id, username, password_hash, email, role, created_at, updated_at)
-              VALUES ($1, $2, '$2a$10$dummy', $3, $4, NOW(), NOW())
-              ON CONFLICT (id) DO UPDATE SET
-                email = EXCLUDED.email,
-                role = EXCLUDED.role,
-                updated_at = NOW()
-            `, [keycloakUserId, user.username, user.email, user.role])
+            // Создаем/обновляем user с Keycloak UUID
+            // ON CONFLICT (username) — если пользователь существует, обновляем его id на Keycloak UUID
+            // Сначала очищаем FK ссылки для пользователя с другим id
+            const oldUserIds = await pool.query(`
+              SELECT id FROM users WHERE username = $1 AND id != $2
+            `, [user.username, keycloakUserId])
 
-            console.log(`[E2E Setup] Добавлен ${user.username} в БД с Keycloak ID ${keycloakUserId}`)
+            if (oldUserIds.rows.length > 0) {
+              const oldId = oldUserIds.rows[0].id
+
+              // СНАЧАЛА: Создаём нового пользователя с Keycloak UUID чтобы FK могли ссылаться на него
+              await pool.query(`
+                INSERT INTO users (id, username, password_hash, email, role, created_at, updated_at)
+                VALUES ($1, $2 || '_keycloak', '$2a$10$dummy', $3, $4, NOW(), NOW())
+                ON CONFLICT DO NOTHING
+              `, [keycloakUserId, user.username, user.email, user.role])
+
+              // Очищаем FK ссылки в правильном порядке — переносим на нового пользователя
+              // (все FK таблицы на users: routes.approved_by, routes.rejected_by, rate_limits.created_by, consumer_rate_limits.created_by, audit_logs.user_id)
+              await pool.query(`UPDATE routes SET created_by = $2 WHERE created_by = $1`, [oldId, keycloakUserId]).catch(() => {})
+              await pool.query(`UPDATE routes SET approved_by = $2 WHERE approved_by = $1`, [oldId, keycloakUserId]).catch(() => {})
+              await pool.query(`UPDATE routes SET rejected_by = $2 WHERE rejected_by = $1`, [oldId, keycloakUserId]).catch(() => {})
+              await pool.query(`UPDATE rate_limits SET created_by = $2 WHERE created_by = $1`, [oldId, keycloakUserId]).catch(() => {})
+              await pool.query(`UPDATE consumer_rate_limits SET created_by = $2 WHERE created_by = $1`, [oldId, keycloakUserId]).catch(() => {})
+              await pool.query(`DELETE FROM audit_logs WHERE user_id = $1`, [oldId]).catch(() => {})
+              await pool.query(`DELETE FROM users WHERE id = $1`, [oldId]).catch(() => {})
+
+              // Теперь переименовываем нового пользователя на правильный username
+              await pool.query(`UPDATE users SET username = $1 WHERE id = $2`, [user.username, keycloakUserId]).catch(() => {})
+
+              console.log(`[E2E Setup] Мигрирован ${user.username} на Keycloak ID ${keycloakUserId}`)
+            } else {
+              // Пользователь не существует или уже имеет правильный id — просто создаём/обновляем
+              await pool.query(`
+                INSERT INTO users (id, username, password_hash, email, role, created_at, updated_at)
+                VALUES ($1, $2, '$2a$10$dummy', $3, $4, NOW(), NOW())
+                ON CONFLICT DO NOTHING
+              `, [keycloakUserId, user.username, user.email, user.role])
+            }
+
+            console.log(`[E2E Setup] Синхронизирован ${user.username} с Keycloak ID ${keycloakUserId}`)
           }
         }
       }
     }
 
-    console.log('[E2E Setup] Keycloak пользователи созданы в БД.')
+    console.log('[E2E Setup] Keycloak пользователи синхронизированы в БД.')
   } finally {
     await pool.end()
   }

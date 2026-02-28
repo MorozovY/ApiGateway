@@ -85,14 +85,42 @@ fun `generates UUID when X-Correlation-ID header missing`() {
 
 ## Git-процесс
 
+### Репозитории
+
+Проект использует **два remote**:
+
+| Remote | URL | Роль |
+|--------|-----|------|
+| `gitlab` | http://localhost:8929/root/api-gateway.git | **Primary** (CI/CD) |
+| `origin` | https://github.com/MorozovY/ApiGateway.git | Mirror (public) |
+
 ### Коммит
 
 Просьба "закоммить" означает:
 1. `git add` нужных файлов
 2. `git commit` с message на английском языке
-3. `git push` в GitHub
+3. `git push gitlab` — push в **GitLab** (primary)
 
-Оба шага (локальный коммит и push) выполняются всегда вместе, если явно не указано иное.
+GitHub синхронизируется отдельно через CI job в GitLab (manual trigger).
+
+### Синхронизация с GitHub
+
+GitHub mirror обновляется **вручную** через GitLab CI:
+1. GitLab → CI/CD → Pipelines
+2. Найти pipeline на ветке `master`
+3. Запустить job `sync-to-github` (manual trigger)
+
+Или через CLI:
+```bash
+# Push напрямую в GitHub (если GitLab недоступен)
+git push origin master
+```
+
+### Важно
+
+- **Основная разработка** → push в `gitlab`
+- **GitHub** всегда отстаёт на один sync (это нормально для mirror)
+- При недоступности локального GitLab — можно временно push в `origin`
 
 ---
 
@@ -398,4 +426,4 @@ docker-compose up -d     # OK — запуск/пересоздание конт
 
 ---
 
-*Последнее обновление: 2026-02-23 (Story 12.2 Incident Post-Mortem — PA-09, PA-10)*
+*Последнее обновление: 2026-02-26 (Story 13.1 — GitLab as primary, GitHub as mirror)*

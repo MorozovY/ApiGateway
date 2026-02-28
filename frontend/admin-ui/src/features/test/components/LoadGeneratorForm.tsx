@@ -36,7 +36,7 @@ export function LoadGeneratorForm({ isRunning, onStart, onStop }: LoadGeneratorF
     return routesData.items.map((route) => ({
       id: route.id,
       path: route.path,
-      name: route.name,
+      description: route.description,
     }))
   }, [routesData])
 
@@ -86,7 +86,7 @@ export function LoadGeneratorForm({ isRunning, onStart, onStop }: LoadGeneratorF
               data-testid="route-selector"
               options={routeOptions.map((route) => ({
                 value: route.id,
-                label: `${route.path} (${route.name})`,
+                label: route.description ? `${route.path} (${route.description})` : route.path,
               }))}
             />
           </Form.Item>

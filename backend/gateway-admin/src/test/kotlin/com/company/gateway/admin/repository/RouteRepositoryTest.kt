@@ -2,6 +2,8 @@ package com.company.gateway.admin.repository
 
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -9,33 +11,63 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import reactor.test.StepVerifier
 
 @SpringBootTest
-@Testcontainers
 class RouteRepositoryTest {
 
     companion object {
-        @Container
+        // Проверяем запущены ли мы в CI
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
+
+        private var postgres: PostgreSQLContainer<*>? = null
+
+        @BeforeAll
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16")
-            .withDatabaseName("gateway")
-            .withUsername("gateway")
-            .withPassword("gateway")
+        fun startContainers() {
+            if (isTestcontainersDisabled) {
+                return
+            }
+            postgres = PostgreSQLContainer("postgres:16")
+                .withDatabaseName("gateway")
+                .withUsername("gateway")
+                .withPassword("gateway")
+            postgres!!.start()
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            postgres?.stop()
+        }
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+            if (isTestcontainersDisabled) {
+                // В CI читаем из env переменных
+                val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+                val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
+                val pgDb = System.getenv("POSTGRES_DB_ADMIN") ?: System.getenv("POSTGRES_DB") ?: "gateway_admin_test"
+                val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
+                val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
+
+                registry.add("spring.r2dbc.url") { "r2dbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.r2dbc.username") { pgUser }
+                registry.add("spring.r2dbc.password") { pgPass }
+                registry.add("spring.flyway.url") { "jdbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.flyway.user") { pgUser }
+                registry.add("spring.flyway.password") { pgPass }
+            } else {
+                registry.add("spring.r2dbc.url") {
+                    "r2dbc:postgresql://${postgres!!.host}:${postgres!!.firstMappedPort}/${postgres!!.databaseName}"
+                }
+                registry.add("spring.r2dbc.username", postgres!!::getUsername)
+                registry.add("spring.r2dbc.password", postgres!!::getPassword)
+                registry.add("spring.flyway.url", postgres!!::getJdbcUrl)
+                registry.add("spring.flyway.user", postgres!!::getUsername)
+                registry.add("spring.flyway.password", postgres!!::getPassword)
             }
-            registry.add("spring.r2dbc.username", postgres::getUsername)
-            registry.add("spring.r2dbc.password", postgres::getPassword)
-            registry.add("spring.flyway.url", postgres::getJdbcUrl)
-            registry.add("spring.flyway.user", postgres::getUsername)
-            registry.add("spring.flyway.password", postgres::getPassword)
             // Disable Redis auto-configuration for repository tests
             registry.add("spring.autoconfigure.exclude") {
                 "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"

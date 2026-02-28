@@ -1,5 +1,5 @@
 // Панель фильтров для аудит-логов (Story 7.5, AC2; Story 8.8)
-import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { Space, DatePicker, Select, Button } from 'antd'
 import { CloseCircleOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'

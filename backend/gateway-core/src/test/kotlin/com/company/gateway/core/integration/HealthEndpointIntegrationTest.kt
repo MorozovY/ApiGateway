@@ -1,6 +1,8 @@
 package com.company.gateway.core.integration
 
 import com.redis.testcontainers.RedisContainer
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -9,8 +11,6 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
  * Integration тесты для health check endpoints (Story 1.7).
@@ -18,35 +18,61 @@ import org.testcontainers.junit.jupiter.Testcontainers
  * Тестирование AC1, AC2, AC3, AC5, AC6 - Health endpoints с работающими зависимостями.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 @ActiveProfiles("test")
 class HealthEndpointIntegrationTest {
 
     companion object {
-        @Container
-        @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16")
-            .withDatabaseName("gateway")
-            .withUsername("gateway")
-            .withPassword("gateway")
+        // Проверяем запущены ли мы в CI
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
-        @Container
+        // Контейнеры — управляем lifecycle вручную (без @Container/@Testcontainers)
+        private var postgres: PostgreSQLContainer<*>? = null
+        private var redis: RedisContainer? = null
+
+        @BeforeAll
         @JvmStatic
-        val redis = RedisContainer("redis:7")
+        fun startContainers() {
+            // Запускаем контейнеры только локально
+            if (!isTestcontainersDisabled) {
+                postgres = PostgreSQLContainer("postgres:16")
+                    .withDatabaseName("gateway")
+                    .withUsername("gateway")
+                    .withPassword("gateway")
+                postgres?.start()
+
+                redis = RedisContainer("redis:7")
+                redis?.start()
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            postgres?.stop()
+            redis?.stop()
+        }
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+            if (!isTestcontainersDisabled) {
+                // Локально настраиваем Testcontainers
+                postgres?.let { pg ->
+                    registry.add("spring.r2dbc.url") {
+                        "r2dbc:postgresql://${pg.host}:${pg.firstMappedPort}/${pg.databaseName}"
+                    }
+                    registry.add("spring.r2dbc.username", pg::getUsername)
+                    registry.add("spring.r2dbc.password", pg::getPassword)
+                    registry.add("spring.flyway.url", pg::getJdbcUrl)
+                    registry.add("spring.flyway.user", pg::getUsername)
+                    registry.add("spring.flyway.password", pg::getPassword)
+                }
+                redis?.let { rd ->
+                    registry.add("spring.data.redis.host", rd::getHost)
+                    registry.add("spring.data.redis.port") { rd.firstMappedPort }
+                }
             }
-            registry.add("spring.r2dbc.username", postgres::getUsername)
-            registry.add("spring.r2dbc.password", postgres::getPassword)
-            registry.add("spring.flyway.url", postgres::getJdbcUrl)
-            registry.add("spring.flyway.user", postgres::getUsername)
-            registry.add("spring.flyway.password", postgres::getPassword)
-            registry.add("spring.data.redis.host", redis::getHost)
-            registry.add("spring.data.redis.port") { redis.firstMappedPort }
+            // Свойства, которые нужны всегда (и в CI, и локально)
             registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }

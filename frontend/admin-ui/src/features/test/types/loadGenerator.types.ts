@@ -41,5 +41,5 @@ export interface LoadGeneratorSummary {
 export interface RouteOption {
   id: string
   path: string
-  name: string
+  description: string | null
 }

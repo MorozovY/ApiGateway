@@ -88,7 +88,9 @@ class ConsumerServiceTest {
 
         val rateLimitsPage = PagedResponse(items = listOf(rateLimit), total = 1, offset = 0, limit = 10000)
 
-        whenever(keycloakAdminService.listConsumers()).thenReturn(Mono.just(clients))
+        // Server-side pagination: первый вызов с offset/limit, второй без (для total count)
+        whenever(keycloakAdminService.listConsumers(first = 0, max = 10)).thenReturn(Mono.just(clients))
+        whenever(keycloakAdminService.listConsumers(first = null, max = null)).thenReturn(Mono.just(clients))
         whenever(consumerRateLimitService.listRateLimits(0, 10000)).thenReturn(Mono.just(rateLimitsPage))
 
         // Act
@@ -111,7 +113,7 @@ class ConsumerServiceTest {
             }
             .verifyComplete()
 
-        verify(keycloakAdminService).listConsumers()
+        verify(keycloakAdminService).listConsumers(first = 0, max = 10)
         verify(consumerRateLimitService).listRateLimits(0, 10000)
     }
 
@@ -126,7 +128,8 @@ class ConsumerServiceTest {
 
         val emptyRateLimits = PagedResponse<ConsumerRateLimitResponse>(items = emptyList(), total = 0, offset = 0, limit = 10000)
 
-        whenever(keycloakAdminService.listConsumers()).thenReturn(Mono.just(clients))
+        // Client-side filtering: listConsumers() без параметров
+        whenever(keycloakAdminService.listConsumers(first = null, max = null)).thenReturn(Mono.just(clients))
         whenever(consumerRateLimitService.listRateLimits(0, 10000)).thenReturn(Mono.just(emptyRateLimits))
 
         // Act
@@ -152,7 +155,9 @@ class ConsumerServiceTest {
 
         val emptyRateLimits = PagedResponse<ConsumerRateLimitResponse>(items = emptyList(), total = 0, offset = 0, limit = 10000)
 
-        whenever(keycloakAdminService.listConsumers()).thenReturn(Mono.just(clients))
+        // Пустая search → server-side pagination
+        whenever(keycloakAdminService.listConsumers(first = 0, max = 10)).thenReturn(Mono.just(clients))
+        whenever(keycloakAdminService.listConsumers(first = null, max = null)).thenReturn(Mono.just(clients))
         whenever(consumerRateLimitService.listRateLimits(0, 10000)).thenReturn(Mono.just(emptyRateLimits))
 
         // Act — пустая search строка и whitespace-only
@@ -177,14 +182,22 @@ class ConsumerServiceTest {
 
     @Test
     fun `listConsumers применяет пагинацию`() {
-        // Arrange
-        val clients = (1..5).map {
+        // Arrange — полный список для total count
+        val allClients = (1..5).map {
             KeycloakClient("uuid-$it", "consumer-$it", null, true, true, it * 1000L)
         }
 
+        // Пагинированный список (offset=2, limit=2)
+        val paginatedClients = listOf(
+            KeycloakClient("uuid-3", "consumer-3", null, true, true, 3000L),
+            KeycloakClient("uuid-4", "consumer-4", null, true, true, 4000L)
+        )
+
         val emptyRateLimits = PagedResponse<ConsumerRateLimitResponse>(items = emptyList(), total = 0, offset = 0, limit = 10000)
 
-        whenever(keycloakAdminService.listConsumers()).thenReturn(Mono.just(clients))
+        // Server-side pagination: первый вызов с offset/limit, второй для total count
+        whenever(keycloakAdminService.listConsumers(first = 2, max = 2)).thenReturn(Mono.just(paginatedClients))
+        whenever(keycloakAdminService.listConsumers(first = null, max = null)).thenReturn(Mono.just(allClients))
         whenever(consumerRateLimitService.listRateLimits(0, 10000)).thenReturn(Mono.just(emptyRateLimits))
 
         // Act — offset=2, limit=2 (пропустить 2, взять 2)
@@ -361,10 +374,14 @@ class ConsumerServiceTest {
     @Test
     fun `disableConsumer вызывает Keycloak Admin API`() {
         // Arrange
+        val testUser = AuthenticatedUser(UUID.randomUUID(), "admin-test", Role.ADMIN)
+        val authentication = UsernamePasswordAuthenticationToken(testUser, null, testUser.authorities)
+
         whenever(keycloakAdminService.disableConsumer("test-consumer")).thenReturn(Mono.empty())
 
         // Act
         val result = service.disableConsumer("test-consumer")
+            .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication))
 
         // Assert
         StepVerifier.create(result)
@@ -376,10 +393,14 @@ class ConsumerServiceTest {
     @Test
     fun `enableConsumer вызывает Keycloak Admin API`() {
         // Arrange
+        val testUser = AuthenticatedUser(UUID.randomUUID(), "admin-test", Role.ADMIN)
+        val authentication = UsernamePasswordAuthenticationToken(testUser, null, testUser.authorities)
+
         whenever(keycloakAdminService.enableConsumer("test-consumer")).thenReturn(Mono.empty())
 
         // Act
         val result = service.enableConsumer("test-consumer")
+            .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication))
 
         // Assert
         StepVerifier.create(result)

@@ -11,6 +11,8 @@ import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
 import com.company.gateway.common.model.User
 import com.redis.testcontainers.RedisContainer
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -21,8 +23,6 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.time.Instant
@@ -37,36 +37,73 @@ import java.util.concurrent.atomic.AtomicReference
  * - Маршрут становится активным в течение 5 секунд
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 @ActiveProfiles("test")
 class ApprovalRedisIntegrationTest {
 
     companion object {
-        @Container
-        @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16")
-            .withDatabaseName("gateway")
-            .withUsername("gateway")
-            .withPassword("gateway")
+        // Проверяем запущены ли мы в CI
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
 
-        @Container
+        private var postgres: PostgreSQLContainer<*>? = null
+        private var redis: RedisContainer? = null
+
+        @BeforeAll
         @JvmStatic
-        val redis = RedisContainer("redis:7")
+        fun startContainers() {
+            if (isTestcontainersDisabled) {
+                return
+            }
+            postgres = PostgreSQLContainer("postgres:16")
+                .withDatabaseName("gateway")
+                .withUsername("gateway")
+                .withPassword("gateway")
+            postgres!!.start()
+
+            redis = RedisContainer("redis:7")
+            redis!!.start()
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            postgres?.stop()
+            redis?.stop()
+        }
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/${postgres.databaseName}"
+            if (isTestcontainersDisabled) {
+                // В CI читаем из env переменных
+                val pgHost = System.getenv("POSTGRES_HOST") ?: "localhost"
+                val pgPort = System.getenv("POSTGRES_PORT") ?: "5432"
+                val pgDb = System.getenv("POSTGRES_DB_ADMIN") ?: System.getenv("POSTGRES_DB") ?: "gateway_admin_test"
+                val pgUser = System.getenv("POSTGRES_USER") ?: "gateway"
+                val pgPass = System.getenv("POSTGRES_PASSWORD") ?: "gateway"
+                val redisHost = System.getenv("REDIS_HOST") ?: "localhost"
+                val redisPort = System.getenv("REDIS_PORT") ?: "6379"
+
+                registry.add("spring.r2dbc.url") { "r2dbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.r2dbc.username") { pgUser }
+                registry.add("spring.r2dbc.password") { pgPass }
+                registry.add("spring.flyway.url") { "jdbc:postgresql://$pgHost:$pgPort/$pgDb" }
+                registry.add("spring.flyway.user") { pgUser }
+                registry.add("spring.flyway.password") { pgPass }
+                registry.add("spring.data.redis.host") { redisHost }
+                registry.add("spring.data.redis.port") { redisPort.toInt() }
+            } else {
+                registry.add("spring.r2dbc.url") {
+                    "r2dbc:postgresql://${postgres!!.host}:${postgres!!.firstMappedPort}/${postgres!!.databaseName}"
+                }
+                registry.add("spring.r2dbc.username", postgres!!::getUsername)
+                registry.add("spring.r2dbc.password", postgres!!::getPassword)
+                registry.add("spring.flyway.url", postgres!!::getJdbcUrl)
+                registry.add("spring.flyway.user", postgres!!::getUsername)
+                registry.add("spring.flyway.password", postgres!!::getPassword)
+                // Redis configuration
+                registry.add("spring.data.redis.host", redis!!::getHost)
+                registry.add("spring.data.redis.port") { redis!!.firstMappedPort }
             }
-            registry.add("spring.r2dbc.username", postgres::getUsername)
-            registry.add("spring.r2dbc.password", postgres::getPassword)
-            registry.add("spring.flyway.url", postgres::getJdbcUrl)
-            registry.add("spring.flyway.user", postgres::getUsername)
-            registry.add("spring.flyway.password", postgres::getPassword)
-            // Redis configuration
-            registry.add("spring.data.redis.host", redis::getHost)
-            registry.add("spring.data.redis.port") { redis.firstMappedPort }
             // JWT конфигурация
             registry.add("jwt.secret") { "test-secret-key-minimum-32-characters-long" }
             registry.add("jwt.expiration") { 86400000 }

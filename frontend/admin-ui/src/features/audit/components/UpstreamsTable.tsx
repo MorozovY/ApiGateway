@@ -8,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useUpstreams } from '../hooks/useUpstreams'
 import { useUpstreamRoutes } from '../hooks/useUpstreamRoutes'
 import type { UpstreamSummary } from '../types/audit.types'
-import type { Route } from '@features/routes/types/route.types'
+import type { Route, RouteStatus } from '@features/routes/types/route.types'
 import { pluralizeRoutes } from '@shared/utils/pluralize'
 import { STATUS_COLORS, STATUS_LABELS } from '@shared/constants'
 
@@ -48,9 +48,9 @@ function ExpandedRoutes({ host }: { host: string }) {
       dataIndex: 'status',
       key: 'status',
       width: 130,
-      render: (status: string) => (
+      render: (status: RouteStatus) => (
         <Tag color={STATUS_COLORS[status]}>
-          {STATUS_LABELS[status] || status}
+          {STATUS_LABELS[status]}
         </Tag>
       ),
     },

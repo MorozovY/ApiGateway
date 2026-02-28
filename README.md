@@ -2,6 +2,25 @@
 
 Self-service API Gateway с административной панелью управления маршрутами.
 
+## Git Repositories
+
+Проект использует два remote:
+
+| Remote | URL | Назначение |
+|--------|-----|------------|
+| `gitlab` | http://localhost:8929/root/api-gateway.git | Primary (CI/CD) |
+| `origin` | https://github.com/MorozovY/ApiGateway.git | Mirror (public) |
+
+```bash
+# Clone (GitHub)
+git clone https://github.com/MorozovY/ApiGateway.git
+
+# Добавить локальный GitLab (после установки)
+git remote add gitlab http://localhost:8929/root/api-gateway.git
+```
+
+Для настройки локального GitLab см. [docker/gitlab/README.md](docker/gitlab/README.md).
+
 ## Требования
 
 - **Java 21+** (JDK)
@@ -148,3 +167,27 @@ curl -X POST "http://localhost:8180/realms/api-gateway/protocol/openid-connect/t
 - Ant Design
 - React Query
 - React Router v6
+
+## CI/CD Pipeline
+
+Проект использует GitLab CI для автоматизации build и test процессов.
+
+### Pipeline Stages
+
+**Build:**
+- Backend: Gradle build (JDK 21)
+- Frontend: npm ci + build (Node 20)
+
+**Test:**
+- Backend: Gradle tests с GitLab Services (PostgreSQL + Redis)
+- Frontend: Vitest unit tests с coverage
+- E2E: Playwright tests (закомментировано, требует запущенного стека)
+
+**Sync:**
+- Ручная синхронизация master ветки в GitHub mirror
+
+### Локальный GitLab
+
+Для настройки локального GitLab и CI/CD pipeline см. [docker/gitlab/README.md](docker/gitlab/README.md).
+
+Pipeline автоматически запускается при каждом push в GitLab remote. Test results и coverage reports доступны в GitLab UI.

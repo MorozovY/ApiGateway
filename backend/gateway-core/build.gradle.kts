@@ -76,3 +76,47 @@ java {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
+
+tasks.test {
+    useJUnitPlatform()
+
+    // Выводим stdout/stderr тестов для диагностики в CI
+    testLogging {
+        showStandardStreams = true
+        events("passed", "skipped", "failed")
+    }
+
+    // Testcontainers config (из -P или env)
+    val tcDisabled = findProperty("testcontainersDisabled")?.toString()
+        ?: System.getenv("TESTCONTAINERS_DISABLED")
+        ?: "false"
+    environment("TESTCONTAINERS_DISABLED", tcDisabled)
+    environment("TESTCONTAINERS_RYUK_DISABLED", tcDisabled)
+
+    // Passthrough database env vars для BaseIntegrationTest
+    val dbVars = listOf("POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD",
+           "REDIS_HOST", "REDIS_PORT")
+    dbVars.forEach { key ->
+        System.getenv(key)?.let { environment(key, it) }
+    }
+
+    // Passthrough Spring Boot env vars (SPRING_R2DBC_URL -> spring.r2dbc.url)
+    // Эти переменные Spring Boot конвертирует автоматически в application properties
+    val springVars = System.getenv().filterKeys { it.startsWith("SPRING_") }
+    springVars.forEach { (key, value) ->
+        environment(key, value)
+    }
+
+    // Диагностика: выводим что передаем в test JVM
+    doFirst {
+        println("=== ENV VARS PASSED TO TEST JVM ===")
+        println("TESTCONTAINERS_DISABLED=$tcDisabled")
+        dbVars.forEach { key ->
+            println("$key=${System.getenv(key) ?: "NOT SET"}")
+        }
+        springVars.forEach { (key, value) ->
+            println("$key=$value")
+        }
+        println("===================================")
+    }
+}

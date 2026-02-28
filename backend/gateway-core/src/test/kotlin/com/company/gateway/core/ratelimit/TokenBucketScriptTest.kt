@@ -2,20 +2,23 @@ package com.company.gateway.core.ratelimit
 
 import com.redis.testcontainers.RedisContainer
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.data.redis.serializer.RedisSerializationContext
 import org.springframework.data.redis.serializer.StringRedisSerializer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import reactor.test.StepVerifier
 import java.util.UUID
 
 /**
  * Интеграционные тесты для TokenBucketScript (Story 5.3)
+ *
+ * В локальной среде использует Testcontainers для Redis.
+ * В CI (TESTCONTAINERS_DISABLED=true) использует GitLab Services.
  *
  * Тесты:
  * - AC1: Запросы в пределах лимита проходят
@@ -23,13 +26,40 @@ import java.util.UUID
  * - AC3: Token bucket replenishment — токены восполняются со временем
  * - AC6: Distributed rate limiting — атомарность операций
  */
-@Testcontainers
 class TokenBucketScriptTest {
 
     companion object {
-        @Container
+        // Проверяем запущены ли мы в CI
+        private val isTestcontainersDisabled = System.getenv("TESTCONTAINERS_DISABLED") == "true"
+
+        // Redis контейнер (null в CI)
+        private var redis: RedisContainer? = null
+
+        // Хост и порт Redis (для CI или Testcontainers)
+        private var redisHost: String = "localhost"
+        private var redisPort: Int = 6379
+
+        @BeforeAll
         @JvmStatic
-        val redis = RedisContainer("redis:7")
+        fun startContainers() {
+            if (isTestcontainersDisabled) {
+                // CI режим — используем GitLab Services
+                redisHost = System.getenv("REDIS_HOST") ?: "redis"
+                redisPort = (System.getenv("REDIS_PORT") ?: "6379").toInt()
+            } else {
+                // Локально запускаем Testcontainers
+                redis = RedisContainer("redis:7")
+                redis!!.start()
+                redisHost = redis!!.host
+                redisPort = redis!!.firstMappedPort
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun stopContainers() {
+            redis?.stop()
+        }
     }
 
     private lateinit var redisTemplate: ReactiveRedisTemplate<String, String>
@@ -38,7 +68,7 @@ class TokenBucketScriptTest {
 
     @BeforeEach
     fun setUp() {
-        connectionFactory = LettuceConnectionFactory(redis.host, redis.firstMappedPort)
+        connectionFactory = LettuceConnectionFactory(redisHost, redisPort)
         connectionFactory.afterPropertiesSet()
 
         val serializer = StringRedisSerializer()

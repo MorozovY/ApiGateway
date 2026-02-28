@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.http.codec.json.Jackson2JsonDecoder
+import org.springframework.http.codec.json.Jackson2JsonEncoder
+import org.springframework.web.reactive.function.client.ExchangeStrategies
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.test.StepVerifier
 import java.time.Duration
@@ -33,14 +36,23 @@ class PrometheusClientTest {
     @BeforeEach
     fun setUp() {
         mockWebServer = MockWebServer()
-        mockWebServer.start()
+        // Используем порт 0 для автоматического выбора свободного порта
+        mockWebServer.start(0)
 
         // Используем явный IP-адрес чтобы избежать проблем с hosts файлом
         // (ymorozov.ru -> 127.0.0.1 в hosts может ломать тесты)
         val baseUrl = "http://127.0.0.1:${mockWebServer.port}"
 
+        // Настраиваем WebClient с Kotlin ObjectMapper для корректной десериализации List<Any>
+        val exchangeStrategies = ExchangeStrategies.builder()
+            .codecs { configurer ->
+                configurer.defaultCodecs().jackson2JsonEncoder(Jackson2JsonEncoder(objectMapper))
+                configurer.defaultCodecs().jackson2JsonDecoder(Jackson2JsonDecoder(objectMapper))
+            }
+            .build()
+
         prometheusClient = PrometheusClientImpl(
-            webClientBuilder = WebClient.builder(),
+            webClientBuilder = WebClient.builder().exchangeStrategies(exchangeStrategies),
             prometheusUrl = baseUrl,
             timeout = Duration.ofSeconds(5),
             maxRetryAttempts = 2,
@@ -50,7 +62,13 @@ class PrometheusClientTest {
 
     @AfterEach
     fun tearDown() {
-        mockWebServer.shutdown()
+        try {
+            mockWebServer.shutdown()
+            // Даём время на освобождение порта
+            Thread.sleep(50)
+        } catch (_: Exception) {
+            // Игнорируем ошибки shutdown
+        }
     }
 
     @Nested
@@ -58,26 +76,8 @@ class PrometheusClientTest {
 
         @Test
         fun `query возвращает корректные данные при успешном ответе`() {
-            // Given: Prometheus возвращает валидный ответ
-            val response = PrometheusQueryResponse(
-                status = "success",
-                data = PrometheusData(
-                    resultType = "vector",
-                    result = listOf(
-                        PrometheusMetric(
-                            metric = emptyMap(),
-                            value = listOf(1708444800, "42.5")
-                        )
-                    )
-                )
-            )
-
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .setBody(objectMapper.writeValueAsString(response))
-            )
+            // Given: Prometheus возвращает валидный ответ (raw JSON)
+            mockWebServer.enqueue(createMockResponse(createSuccessResponseJson(42.5)))
 
             // When
             val result = prometheusClient.query("sum(rate(gateway_requests_total[5m]))")
@@ -158,30 +158,27 @@ class PrometheusClientTest {
 
         @Test
         fun `query корректно парсит метрики с labels`() {
-            // Given: Prometheus возвращает метрики с labels
-            val response = PrometheusQueryResponse(
-                status = "success",
-                data = PrometheusData(
-                    resultType = "vector",
-                    result = listOf(
-                        PrometheusMetric(
-                            metric = mapOf("route_id" to "uuid-1", "status" to "2xx"),
-                            value = listOf(1708444800, "100")
-                        ),
-                        PrometheusMetric(
-                            metric = mapOf("route_id" to "uuid-2", "status" to "4xx"),
-                            value = listOf(1708444800, "5")
-                        )
-                    )
-                )
-            )
+            // Given: Prometheus возвращает метрики с labels (raw JSON)
+            val jsonResponse = """
+                {
+                    "status": "success",
+                    "data": {
+                        "resultType": "vector",
+                        "result": [
+                            {
+                                "metric": {"route_id": "uuid-1", "status": "2xx"},
+                                "value": [1708444800, "100"]
+                            },
+                            {
+                                "metric": {"route_id": "uuid-2", "status": "4xx"},
+                                "value": [1708444800, "5"]
+                            }
+                        ]
+                    }
+                }
+            """.trimIndent()
 
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .setBody(objectMapper.writeValueAsString(response))
-            )
+            mockWebServer.enqueue(createMockResponse(jsonResponse))
 
             // When
             val result = prometheusClient.query("sum by (route_id, status) (gateway_requests_total)")
@@ -205,26 +202,13 @@ class PrometheusClientTest {
 
         @Test
         fun `query обрабатывает медленный ответ корректно`() {
-            // Given: Prometheus отвечает с задержкой, но успешно
-            val response = PrometheusQueryResponse(
-                status = "success",
-                data = PrometheusData(
-                    resultType = "vector",
-                    result = listOf(
-                        PrometheusMetric(
-                            metric = emptyMap(),
-                            value = listOf(1708444800, "42.5")
-                        )
-                    )
-                )
-            )
-
+            // Given: Prometheus отвечает с задержкой, но успешно (raw JSON)
             mockWebServer.enqueue(
                 MockResponse()
                     .setResponseCode(200)
                     .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .setBodyDelay(500, TimeUnit.MILLISECONDS)  // 500ms задержка
-                    .setBody(objectMapper.writeValueAsString(response))
+                    .setBody(createSuccessResponseJson(42.5))
             )
 
             // Клиент с 5s timeout — должен успеть
@@ -242,26 +226,8 @@ class PrometheusClientTest {
 
         @Test
         fun `query успешно завершается при первом успешном ответе`() {
-            // Given: успешный ответ
-            val successResponse = PrometheusQueryResponse(
-                status = "success",
-                data = PrometheusData(
-                    resultType = "vector",
-                    result = listOf(
-                        PrometheusMetric(
-                            metric = emptyMap(),
-                            value = listOf(1708444800, "42.5")
-                        )
-                    )
-                )
-            )
-
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .setBody(objectMapper.writeValueAsString(successResponse))
-            )
+            // Given: успешный ответ (raw JSON)
+            mockWebServer.enqueue(createMockResponse(createSuccessResponseJson(42.5)))
 
             // When
             val result = prometheusClient.query("sum(rate(gateway_requests_total[5m]))")
@@ -301,15 +267,11 @@ class PrometheusClientTest {
 
         @Test
         fun `queryMultiple выполняет несколько запросов параллельно`() {
-            // Given: готовим ответы для нескольких запросов
-            val response1 = createSuccessResponse(100.0)
-            val response2 = createSuccessResponse(42.5)
-            val response3 = createSuccessResponse(0.05)
-
+            // Given: готовим ответы для нескольких запросов (raw JSON)
             // Добавляем ответы в очередь
-            mockWebServer.enqueue(createMockResponse(response1))
-            mockWebServer.enqueue(createMockResponse(response2))
-            mockWebServer.enqueue(createMockResponse(response3))
+            mockWebServer.enqueue(createMockResponse(createSuccessResponseJson(100.0)))
+            mockWebServer.enqueue(createMockResponse(createSuccessResponseJson(42.5)))
+            mockWebServer.enqueue(createMockResponse(createSuccessResponseJson(0.05)))
 
             val queries = mapOf(
                 "totalRequests" to "sum(increase(gateway_requests_total[5m]))",
@@ -345,25 +307,31 @@ class PrometheusClientTest {
 
     // Вспомогательные методы
 
-    private fun createSuccessResponse(value: Double): PrometheusQueryResponse {
-        return PrometheusQueryResponse(
-            status = "success",
-            data = PrometheusData(
-                resultType = "vector",
-                result = listOf(
-                    PrometheusMetric(
-                        metric = emptyMap(),
-                        value = listOf(1708444800, value.toString())
-                    )
-                )
-            )
-        )
+    /**
+     * Создаёт JSON строку для успешного Prometheus ответа.
+     * Используем raw JSON чтобы избежать проблем с десериализацией List<Any>.
+     */
+    private fun createSuccessResponseJson(value: Double): String {
+        return """
+            {
+                "status": "success",
+                "data": {
+                    "resultType": "vector",
+                    "result": [
+                        {
+                            "metric": {},
+                            "value": [1708444800, "$value"]
+                        }
+                    ]
+                }
+            }
+        """.trimIndent()
     }
 
-    private fun createMockResponse(response: PrometheusQueryResponse): MockResponse {
+    private fun createMockResponse(jsonBody: String): MockResponse {
         return MockResponse()
             .setResponseCode(200)
             .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .setBody(objectMapper.writeValueAsString(response))
+            .setBody(jsonBody)
     }
 }

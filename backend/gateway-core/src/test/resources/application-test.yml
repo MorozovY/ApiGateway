@@ -1,5 +1,25 @@
 spring:
+  r2dbc:
+    # ВАЖНО: gateway-core использует gateway_core_test (отдельная от gateway-admin)
+    url: r2dbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_CORE:gateway_core_test}
+    username: ${POSTGRES_USER:gateway}
+    password: ${POSTGRES_PASSWORD:gateway}
+    pool:
+      # Ограничиваем пул для CI (предотвращает "too many clients")
+      initial-size: 2
+      max-size: 5
+      max-idle-time: 30s
   flyway:
     enabled: true
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_CORE:gateway_core_test}
+    user: ${POSTGRES_USER:gateway}
+    password: ${POSTGRES_PASSWORD:gateway}
     locations: classpath:db/migration
     baseline-on-migrate: true
+    # CI: очищаем базу при несовпадении checksum миграций (env переменные из .gitlab-ci.yml)
+    clean-on-validation-error: ${FLYWAY_CLEAN_ON_VALIDATION_ERROR:false}
+    clean-disabled: ${FLYWAY_CLEAN_DISABLED:true}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}

@@ -335,8 +335,13 @@ describe('ConsumerRateLimitModal', () => {
     const setButton = screen.getByRole('button', { name: /set rate limit/i })
     await user.click(setButton)
 
+    // Сначала ждём вызов API, затем onClose (увеличен таймаут для CI)
+    await waitFor(() => {
+      expect(mockSetConsumerRateLimit).toHaveBeenCalled()
+    }, { timeout: 3000 })
+
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled()
-    })
+    }, { timeout: 3000 })
   })
 })

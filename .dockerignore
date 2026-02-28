@@ -1,0 +1,76 @@
+# .dockerignore
+# Оптимизация build context для Docker images
+# Story 13.3: Docker Image Build & Registry
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build outputs (собираем в CI, артефакты передаются отдельно)
+# НЕ исключаем build/, т.к. нужны JAR файлы из артефактов CI
+# backend/*/build/
+# frontend/admin-ui/dist/
+
+# Documentation
+docs/
+*.md
+!README.md
+LICENSE
+
+# BMAD workflow
+_bmad*/
+*.yaml
+!docker-compose*.yaml
+!.gitlab-ci.yml
+
+# Docker (не включаем docker configs в build context)
+docker/gitlab/
+docker/*.dev
+
+# Test files
+*.test.*
+*.spec.*
+playwright-report/
+test-results/
+coverage/
+.nyc_output/
+
+# Environment files (security)
+.env
+.env.*
+*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Gradle wrapper (не нужен в runtime image)
+backend/gradle/
+backend/gradlew*
+backend/*.gradle*
+
+# Source files (для JRE images не нужны исходники)
+# Закомментировано — нужны для frontend multi-stage build
+# **/*.kt
+# **/*.java
+# **/*.ts
+# **/*.tsx

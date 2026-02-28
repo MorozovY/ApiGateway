@@ -151,7 +151,7 @@ export function AuditPage() {
     try {
       // Загружаем все записи с текущими фильтрами (AC4)
       const allData = await fetchAllAuditLogsForExport(filter)
-      downloadAuditCsv(allData.items, filter.dateFrom, filter.dateTo, message)
+      downloadAuditCsv(allData.items, message, filter.dateFrom, filter.dateTo)
       message.success('Экспорт завершён')
     } catch {
       message.error('Ошибка при экспорте данных')

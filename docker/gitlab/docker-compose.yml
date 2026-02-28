@@ -1,18 +1,22 @@
-# GitLab CE + Runner для локальной CI/CD инфраструктуры
+# GitLab CE + Runners + Nexus для локальной CI/CD инфраструктуры
 # Документация: README.md в этой же директории
 #
 # Требования:
-#   - RAM: 4GB минимум для GitLab CE
-#   - Disk: 10GB+ для данных
-#   - Ports: 8929, 8922, 5050 должны быть свободны
+#   - RAM: 8GB минимум (GitLab 4GB + Nexus 2GB + Runners 2GB)
+#   - Disk: 20GB+ для данных
+#   - Ports: 8929, 8922, 5050, 8081 должны быть свободны
 #
 # Запуск: docker-compose up -d
 # Первый запуск занимает 3-5 минут для инициализации GitLab
+#
+# После первого запуска:
+#   1. Зарегистрировать runners: ./register-runners.sh
+#   2. Настроить Nexus: http://localhost:8081 (admin/admin123)
 
 services:
   gitlab:
     # Зафиксированная версия для стабильности (обновлять вручную)
-    image: gitlab/gitlab-ce:17.8.1-ce.0
+    image: gitlab/gitlab-ce:latest
     container_name: gitlab
     hostname: gitlab.local
     restart: unless-stopped
@@ -59,35 +63,146 @@ services:
       retries: 10
       start_period: 180s
 
-  gitlab-runner:
-    # Зафиксированная версия для стабильности (обновлять вручную)
-    image: gitlab/gitlab-runner:v17.8.1
-    container_name: gitlab-runner
+  # =============================================================================
+  # GITLAB RUNNERS (4 runners для параллельных jobs)
+  # =============================================================================
+  # Каждый runner может выполнять 1 job одновременно
+  # 4 runners = до 4 параллельных jobs (backend-build, frontend-build, backend-test, frontend-test)
+
+  gitlab-runner-1:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab-runner-1
     restart: unless-stopped
     depends_on:
       gitlab:
         condition: service_healthy
     volumes:
-      # Конфигурация runner
-      - runner_config:/etc/gitlab-runner
-      # Docker socket для запуска контейнеров из CI jobs
+      - runner_config_1:/etc/gitlab-runner
       - /var/run/docker.sock:/var/run/docker.sock
-    # Сетевой режим host для доступа к GitLab по localhost
-    # Это важно для Windows/Mac где Docker Desktop работает в VM
+      # Shared caches для ускорения builds
+      - gradle_cache:/cache/gradle
+      - npm_cache:/cache/npm
     extra_hosts:
       - "gitlab.local:host-gateway"
+      - "nexus:host-gateway"
+    environment:
+      # Указываем расположение shared caches
+      GRADLE_USER_HOME: /cache/gradle
+      NPM_CONFIG_CACHE: /cache/npm
+
+  gitlab-runner-2:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab-runner-2
+    restart: unless-stopped
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    volumes:
+      - runner_config_2:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gradle_cache:/cache/gradle
+      - npm_cache:/cache/npm
+    extra_hosts:
+      - "gitlab.local:host-gateway"
+      - "nexus:host-gateway"
+    environment:
+      GRADLE_USER_HOME: /cache/gradle
+      NPM_CONFIG_CACHE: /cache/npm
+
+  gitlab-runner-3:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab-runner-3
+    restart: unless-stopped
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    volumes:
+      - runner_config_3:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gradle_cache:/cache/gradle
+      - npm_cache:/cache/npm
+    extra_hosts:
+      - "gitlab.local:host-gateway"
+      - "nexus:host-gateway"
+    environment:
+      GRADLE_USER_HOME: /cache/gradle
+      NPM_CONFIG_CACHE: /cache/npm
+
+  gitlab-runner-4:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab-runner-4
+    restart: unless-stopped
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    volumes:
+      - runner_config_4:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gradle_cache:/cache/gradle
+      - npm_cache:/cache/npm
+    extra_hosts:
+      - "gitlab.local:host-gateway"
+      - "nexus:host-gateway"
+    environment:
+      GRADLE_USER_HOME: /cache/gradle
+      NPM_CONFIG_CACHE: /cache/npm
+
+  # =============================================================================
+  # NEXUS REPOSITORY MANAGER (кэширование зависимостей)
+  # =============================================================================
+  # Проксирует Maven Central, npmjs.org для ускорения downloads
+  # Web UI: http://localhost:8081
+  # Default credentials: admin / admin123 (сменить после первого входа)
+
+  nexus:
+    image: sonatype/nexus3:3.68.0
+    container_name: nexus
+    restart: unless-stopped
+    ports:
+      - "8081:8081"   # Web UI и Maven/npm proxy
+    volumes:
+      - nexus_data:/nexus-data
+    environment:
+      # Уменьшаем memory footprint для локальной разработки
+      INSTALL4J_ADD_VM_PARAMS: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/service/rest/v1/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
 volumes:
   # Именованные volumes для персистентности данных
   # Данные сохраняются между docker-compose down/up
+
+  # GitLab CE
   gitlab_config:
     name: gitlab_config
   gitlab_logs:
     name: gitlab_logs
   gitlab_data:
     name: gitlab_data
-  runner_config:
-    name: gitlab_runner_config
+
+  # GitLab Runners (каждый runner имеет свой config)
+  runner_config_1:
+    name: gitlab_runner_config_1
+  runner_config_2:
+    name: gitlab_runner_config_2
+  runner_config_3:
+    name: gitlab_runner_config_3
+  runner_config_4:
+    name: gitlab_runner_config_4
+
+  # Shared caches (все runners используют общий cache)
+  gradle_cache:
+    name: gitlab_gradle_cache
+  npm_cache:
+    name: gitlab_npm_cache
+
+  # Nexus data
+  nexus_data:
+    name: nexus_data
 
 networks:
   default:
