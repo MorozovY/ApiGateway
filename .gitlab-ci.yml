@@ -515,9 +515,8 @@ e2e-test:
     - cd frontend/admin-ui
     - npm ci
     - npx playwright install --with-deps chromium
-    # Проверка что test environment доступен
     - echo "Checking test environment accessibility..."
-    - curl -sf http://host.docker.internal:18081/actuator/health || echo "WARNING: gateway-admin-test not accessible"
+    - curl -sf http://host.docker.internal:18081/actuator/health || echo "WARNING gateway-admin-test not accessible"
     - BASE_URL=$BASE_URL npx playwright test --reporter=html || true
   artifacts:
     when: always
