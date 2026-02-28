@@ -41,16 +41,25 @@ esac
 NETWORK_NAME="gateway-${ENVIRONMENT}"
 CONTAINER_SUFFIX="-${ENVIRONMENT}"
 
+# Исправление hostname для Docker network
+# Vault может содержать "infra-postgres" или другие hostname,
+# но на Docker network postgres-net контейнер называется "postgres"
+FIXED_DATABASE_URL=$(echo "${DATABASE_URL}" | sed 's/infra-postgres/postgres/g')
+FIXED_REDIS_HOST=$(echo "${REDIS_HOST}" | sed 's/infra-redis/redis/g')
+
 cat > "$OUTPUT_FILE" << COMPOSE_EOF
 services:
   gateway-admin:
     image: ${CI_REGISTRY_IMAGE}/gateway-admin:${CI_COMMIT_SHA}
     container_name: gateway-admin${CONTAINER_SUFFIX}
     environment:
-      - SPRING_R2DBC_URL=${DATABASE_URL}
+      - SPRING_R2DBC_URL=${FIXED_DATABASE_URL}
       - SPRING_R2DBC_USERNAME=${POSTGRES_USER}
       - SPRING_R2DBC_PASSWORD=${POSTGRES_PASSWORD}
-      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_FLYWAY_URL=jdbc:postgresql://postgres:5432/gateway
+      - SPRING_FLYWAY_USER=${POSTGRES_USER}
+      - SPRING_FLYWAY_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
     ports:
@@ -65,10 +74,13 @@ services:
     image: ${CI_REGISTRY_IMAGE}/gateway-core:${CI_COMMIT_SHA}
     container_name: gateway-core${CONTAINER_SUFFIX}
     environment:
-      - SPRING_R2DBC_URL=${DATABASE_URL}
+      - SPRING_R2DBC_URL=${FIXED_DATABASE_URL}
       - SPRING_R2DBC_USERNAME=${POSTGRES_USER}
       - SPRING_R2DBC_PASSWORD=${POSTGRES_PASSWORD}
-      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_FLYWAY_URL=jdbc:postgresql://postgres:5432/gateway
+      - SPRING_FLYWAY_USER=${POSTGRES_USER}
+      - SPRING_FLYWAY_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
     ports:
