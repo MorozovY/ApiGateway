@@ -1,0 +1,140 @@
+# Docker Compose для CI/CD Deployment (Dev/Test Environments)
+# Story 13.5: Deployment Pipeline
+#
+# Этот файл размещается на target VM в /opt/apigateway/docker-compose.yml
+# Использует внешнюю инфраструктуру (postgres, redis, keycloak из infra network)
+#
+# Переменные окружения (из Vault или .env):
+#   DATABASE_URL, POSTGRES_USER, POSTGRES_PASSWORD
+#   REDIS_HOST, REDIS_PORT, REDIS_URL
+#   KEYCLOAK_* (если требуется)
+#
+# Image tags переопределяются через docker-compose.ci.yml (создаётся deploy.sh)
+
+services:
+  # Gateway Admin API
+  gateway-admin:
+    image: ${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}/gateway-admin:${IMAGE_TAG:-latest}
+    container_name: gateway-admin
+    restart: unless-stopped
+    environment:
+      # Database (from Vault secrets)
+      - SPRING_R2DBC_URL=${DATABASE_URL}
+      - SPRING_R2DBC_USERNAME=${POSTGRES_USER}
+      - SPRING_R2DBC_PASSWORD=${POSTGRES_PASSWORD}
+      # Flyway (JDBC URL derived from R2DBC)
+      - SPRING_FLYWAY_URL=jdbc:postgresql://${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-gateway}
+      - SPRING_FLYWAY_USER=${POSTGRES_USER}
+      - SPRING_FLYWAY_PASSWORD=${POSTGRES_PASSWORD}
+      # Redis
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST:-redis}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # Keycloak
+      - KEYCLOAK_AUTH_SERVER_URL=${KEYCLOAK_URL:-http://keycloak:8080}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-api-gateway}
+      - KEYCLOAK_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Spring profile
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-dev}
+      # JVM options
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - gateway-network
+      - postgres-net
+      - redis-net
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 256M
+
+  # Gateway Core (Routing)
+  gateway-core:
+    image: ${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}/gateway-core:${IMAGE_TAG:-latest}
+    container_name: gateway-core
+    restart: unless-stopped
+    environment:
+      # Database
+      - SPRING_R2DBC_URL=${DATABASE_URL}
+      - SPRING_R2DBC_USERNAME=${POSTGRES_USER}
+      - SPRING_R2DBC_PASSWORD=${POSTGRES_PASSWORD}
+      # Flyway
+      - SPRING_FLYWAY_URL=jdbc:postgresql://${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-gateway}
+      - SPRING_FLYWAY_USER=${POSTGRES_USER}
+      - SPRING_FLYWAY_PASSWORD=${POSTGRES_PASSWORD}
+      # Redis
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST:-redis}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # Keycloak (JWKS)
+      - KEYCLOAK_AUTH_SERVER_URL=${KEYCLOAK_URL:-http://keycloak:8080}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-api-gateway}
+      # Spring profile
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-dev}
+      # JVM options
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - gateway-network
+      - postgres-net
+      - redis-net
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 256M
+
+  # Admin UI (React + Nginx)
+  admin-ui:
+    image: ${CI_REGISTRY_IMAGE:-localhost:5050/root/api-gateway}/admin-ui:${IMAGE_TAG:-latest}
+    container_name: admin-ui
+    restart: unless-stopped
+    environment:
+      # Runtime config (через nginx envsubst или JS config)
+      - VITE_API_URL=${API_URL:-http://localhost:8081}
+      - VITE_KEYCLOAK_URL=${KEYCLOAK_URL:-http://localhost:8180}
+      - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM:-api-gateway}
+      - VITE_KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gateway-admin-ui}
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gateway-network
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+
+networks:
+  gateway-network:
+    driver: bridge
+  # External networks для подключения к инфраструктуре
+  postgres-net:
+    external: true
+  redis-net:
+    external: true

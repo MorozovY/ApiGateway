@@ -639,6 +639,173 @@ vault kv put secret/apigateway/database \
 4. **Audit access** — Vault audit log включен
 5. **Rotate credentials** — Secret ID каждые 30 дней, пароли по политике
 
+## Deployment Pipeline (Story 13.5)
+
+### Архитектура Deployment
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GitLab CI/CD                            │
+│  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐     │
+│  │  build  │ → │  test   │ → │ docker  │ → │ deploy  │     │
+│  └─────────┘   └─────────┘   └─────────┘   └────┬────┘     │
+│                                                  │          │
+│  GitLab Runners имеют доступ к Docker socket     │          │
+│  → прямой deployment без SSH                     │          │
+└──────────────────────────────────────────────────┼──────────┘
+                                                   │ Docker
+                                                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Local Docker Host                          │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │     DEV Environment (apigateway-dev)                 │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │    │
+│  │  │ gateway  │  │ gateway  │  │ admin-ui │           │    │
+│  │  │  admin   │  │   core   │  │  :3000   │           │    │
+│  │  │  :8081   │  │  :8080   │  │          │           │    │
+│  │  └──────────┘  └──────────┘  └──────────┘           │    │
+│  └─────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │     TEST Environment (apigateway-test)               │    │
+│  │  :18081, :18080, :3001                               │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌──────────────── External Networks ──────────────────┐    │
+│  │  postgres-net   │   redis-net   │   traefik-net     │    │
+│  │  (postgres,     │   (redis)     │   (keycloak)      │    │
+│  │   keycloak)     │               │                   │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Environments
+
+| Environment | Порты | Trigger | Purpose |
+|-------------|-------|---------|---------|
+| **dev** | 8081, 8080, 3000 | Manual на master | Быстрая итерация |
+| **test** | 18081, 18080, 3001 | Manual на master | E2E tests |
+
+### CI/CD Variables для Deployment
+
+GitLab → Settings → CI/CD → Variables:
+
+| Variable | Тип | Описание |
+|----------|-----|----------|
+| `VAULT_ADDR` | Variable | Vault server URL |
+| `VAULT_ROLE_ID` | Variable, Masked | AppRole Role ID |
+| `VAULT_SECRET_ID` | Variable, Masked, Protected | AppRole Secret ID |
+
+**Примечание:** SSH не требуется для локального deployment — runners используют Docker socket.
+
+### Deployment Jobs
+
+| Job | Описание |
+|-----|----------|
+| `deploy-dev` | Deploy в dev environment |
+| `smoke-test-dev` | Smoke tests после deploy-dev |
+| `deploy-test` | Deploy в test environment |
+| `e2e-test` | Playwright E2E tests |
+
+### Ручной Deployment
+
+```bash
+# Pull images из GitLab Registry
+docker login localhost:5050 -u root
+docker pull localhost:5050/root/api-gateway/gateway-admin:latest
+docker pull localhost:5050/root/api-gateway/gateway-core:latest
+docker pull localhost:5050/root/api-gateway/admin-ui:latest
+
+# Запуск с подключением к существующим сетям
+docker run -d --name gateway-admin-dev \
+  --network postgres-net \
+  -e SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/gateway \
+  -p 8081:8081 \
+  localhost:5050/root/api-gateway/gateway-admin:latest
+```
+
+### Deployment Scripts
+
+| Script | Описание |
+|--------|----------|
+| `deploy.sh` | Deployment: pull images, start containers, health check |
+| `rollback.sh` | Откат к предыдущей версии |
+| `smoke-test.sh` | Smoke tests после deployment |
+
+### Health Checks
+
+Deployment автоматически проверяет:
+
+| Service | Endpoint | Expected |
+|---------|----------|----------|
+| gateway-admin | `/actuator/health` | `{"status": "UP"}` |
+| gateway-core | `/actuator/health` | `{"status": "UP"}` |
+| admin-ui | `/` | HTTP 200 |
+
+При failure — автоматический rollback.
+
+### Smoke Tests
+
+После deployment запускаются smoke tests:
+
+```bash
+./smoke-test.sh http://gateway.dev.local
+```
+
+**Проверки:**
+- Gateway Admin health
+- Gateway Core health
+- Admin UI доступность
+- Swagger UI
+- API endpoints (response code)
+- Keycloak realm (optional)
+
+### Rollback
+
+**Автоматический:** при failure health check
+
+**Ручной:**
+```bash
+cd /opt/apigateway
+./rollback.sh dev
+```
+
+**Время rollback:** < 2 минут
+
+### Troubleshooting
+
+#### SSH Connection Failed
+
+```bash
+# Проверить SSH доступ вручную
+ssh -v -i ~/.ssh/gitlab_ci_deploy deployer@<HOST>
+
+# Частые проблемы:
+# - Неверные permissions на authorized_keys (должны быть 600)
+# - Firewall блокирует порт 22
+# - SELinux блокирует SSH
+```
+
+#### Health Check Failed
+
+```bash
+# На target VM проверить логи
+docker-compose -p apigateway-dev logs gateway-admin
+docker-compose -p apigateway-dev logs gateway-core
+
+# Проверить network connectivity
+docker-compose -p apigateway-dev exec gateway-admin wget -qO- http://localhost:8081/actuator/health
+```
+
+#### Registry Pull Failed
+
+```bash
+# Проверить логин в registry
+docker login localhost:5050 -u <user>
+
+# Проверить доступность image
+docker manifest inspect localhost:5050/root/api-gateway/gateway-admin:<tag>
+```
+
 ## Дополнительная документация
 
 - [GitLab CE Documentation](https://docs.gitlab.com/ee/)

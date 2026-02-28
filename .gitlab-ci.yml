@@ -294,10 +294,15 @@ docker-admin-ui:
 # DEPLOY STAGE (Story 13.4, 13.5)
 # =============================================================================
 # Vault integration для безопасного получения secrets
+# Direct Docker deployment (runners имеют доступ к Docker socket)
+#
 # Требуемые GitLab CI/CD Variables:
-#   VAULT_ADDR      - Vault server URL
-#   VAULT_ROLE_ID   - AppRole Role ID (masked)
-#   VAULT_SECRET_ID - AppRole Secret ID (masked, protected)
+#   VAULT_ADDR       - Vault server URL
+#   VAULT_ROLE_ID    - AppRole Role ID (masked)
+#   VAULT_SECRET_ID  - AppRole Secret ID (masked, protected)
+#
+# Опциональные (для локального deployment):
+#   DEPLOY_COMPOSE_PROJECT - Docker Compose project name (default: apigateway-dev)
 
 # Базовый template для Vault authentication
 # Используется deployment jobs для получения secrets
@@ -320,41 +325,334 @@ docker-admin-ui:
       fi
       echo "Vault secrets loaded successfully"
 
-# Deploy to Dev/Test environment (Story 13.5 placeholder)
-# Этот job будет расширен в Story 13.5
+# Базовый template для Docker deployment (локальный — через Docker socket)
+.docker-deploy:
+  image: docker:24
+  before_script:
+    # Устанавливаем docker-compose и утилиты
+    - apk add --no-cache curl jq bash docker-compose
+    # Логин в GitLab Container Registry
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # Загружаем secrets из Vault
+    - source ./docker/gitlab/vault-secrets.sh
+    - echo "Docker and Vault configured successfully"
+
+# Deploy to Dev Environment
+# Trigger: manual на master branch
+# Деплоит на ту же машину где работает GitLab (через Docker socket)
 deploy-dev:
   stage: deploy
-  image: alpine:latest
-  extends: .vault-secrets
+  extends: .docker-deploy
+  variables:
+    COMPOSE_PROJECT: apigateway-dev
+    ENVIRONMENT: dev
+  environment:
+    name: dev
+    url: http://localhost:3000
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: manual
       allow_failure: true
   script:
-    - echo "Deploy to dev environment with Vault secrets"
-    # Проверяем что все критичные secrets загружены (без вывода значений)
+    - echo "=========================================="
+    - echo "Deploying to DEV environment"
+    - echo "Project: $COMPOSE_PROJECT"
+    - echo "Commit: $CI_COMMIT_SHA"
+    - echo "Registry: $CI_REGISTRY_IMAGE"
+    - echo "=========================================="
+
+    # Pull новые images
+    - echo "Pulling images..."
+    - docker pull $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
+    - docker pull $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
+    - docker pull $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
+
+    # Создаём временный compose override с нужными image tags
+    # Подключаемся к существующим сетям: postgres-net, redis-net
     - |
-      check_secret() {
-        if [ -n "$1" ]; then
-          echo "  ✓ $2 loaded"
-        else
-          echo "  ✗ $2 MISSING" && exit 1
-        fi
-      }
-      echo "Verifying secrets..."
-      check_secret "$POSTGRES_USER" "POSTGRES_USER"
-      check_secret "$POSTGRES_PASSWORD" "POSTGRES_PASSWORD"
-      check_secret "$DATABASE_URL" "DATABASE_URL"
-      check_secret "$REDIS_HOST" "REDIS_HOST"
-      check_secret "$KEYCLOAK_ADMIN_USERNAME" "KEYCLOAK_ADMIN_USERNAME"
-      check_secret "$KEYCLOAK_ADMIN_PASSWORD" "KEYCLOAK_ADMIN_PASSWORD"
-      echo "All secrets verified"
-    # Реальный deployment будет добавлен в Story 13.5
-    - echo "Deployment placeholder - will be implemented in Story 13.5"
+      cat > /tmp/docker-compose.ci.yml << EOF
+      version: '3.8'
+      services:
+        gateway-admin:
+          image: $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
+          container_name: gateway-admin-dev
+          environment:
+            - SPRING_R2DBC_URL=$DATABASE_URL
+            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
+            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
+            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
+            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
+            - SPRING_PROFILES_ACTIVE=dev
+          ports:
+            - "8081:8081"
+          networks:
+            - gateway-dev
+            - postgres-net
+            - redis-net
+          restart: unless-stopped
+
+        gateway-core:
+          image: $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
+          container_name: gateway-core-dev
+          environment:
+            - SPRING_R2DBC_URL=$DATABASE_URL
+            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
+            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
+            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
+            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
+            - SPRING_PROFILES_ACTIVE=dev
+          ports:
+            - "8080:8080"
+          networks:
+            - gateway-dev
+            - postgres-net
+            - redis-net
+          restart: unless-stopped
+
+        admin-ui:
+          image: $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
+          container_name: admin-ui-dev
+          ports:
+            - "3000:80"
+          networks:
+            - gateway-dev
+          restart: unless-stopped
+
+      networks:
+        gateway-dev:
+          driver: bridge
+        postgres-net:
+          external: true
+        redis-net:
+          external: true
+      EOF
+
+    # Останавливаем старые контейнеры и запускаем новые
+    - echo "Deploying containers..."
+    - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.ci.yml down --remove-orphans || true
+    - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.ci.yml up -d
+
+    # Health check
+    - echo "Running health checks..."
+    - |
+      MAX_RETRIES=30
+      RETRY_INTERVAL=5
+
+      for service in gateway-admin:8081 gateway-core:8080; do
+        name=$(echo $service | cut -d: -f1)
+        port=$(echo $service | cut -d: -f2)
+        container="${name}-dev"
+
+        echo "Checking $name..."
+        for i in $(seq 1 $MAX_RETRIES); do
+          if docker exec $container wget -q --spider http://localhost:$port/actuator/health 2>/dev/null; then
+            echo "$name is healthy!"
+            break
+          fi
+          if [ $i -eq $MAX_RETRIES ]; then
+            echo "ERROR: $name health check failed after $MAX_RETRIES attempts"
+            docker logs $container --tail 50
+            exit 1
+          fi
+          echo "Waiting for $name... ($i/$MAX_RETRIES)"
+          sleep $RETRY_INTERVAL
+        done
+      done
+
+    - echo "=========================================="
+    - echo "Deployment to DEV SUCCESSFUL"
+    - echo "=========================================="
   needs:
     - docker-gateway-admin
     - docker-gateway-core
     - docker-admin-ui
+
+# Smoke Tests on Dev
+smoke-test-dev:
+  stage: deploy
+  image: alpine:latest
+  variables:
+    BASE_URL: http://gateway-admin-dev:8081
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+      allow_failure: true
+  before_script:
+    - apk add --no-cache curl jq bash
+  script:
+    - chmod +x docker/gitlab/smoke-test.sh
+    # Используем Docker network для доступа к контейнерам
+    - |
+      echo "Running smoke tests..."
+      # Gateway Admin Health
+      echo "Testing gateway-admin..."
+      if curl -sf http://gateway-admin-dev:8081/actuator/health | jq -e '.status == "UP"'; then
+        echo "PASS: gateway-admin"
+      else
+        echo "FAIL: gateway-admin"
+        exit 1
+      fi
+
+      # Gateway Core Health
+      echo "Testing gateway-core..."
+      if curl -sf http://gateway-core-dev:8080/actuator/health | jq -e '.status == "UP"'; then
+        echo "PASS: gateway-core"
+      else
+        echo "FAIL: gateway-core"
+        exit 1
+      fi
+
+      # Admin UI
+      echo "Testing admin-ui..."
+      if curl -sf -o /dev/null -w "%{http_code}" http://admin-ui-dev:80/ | grep -q 200; then
+        echo "PASS: admin-ui"
+      else
+        echo "FAIL: admin-ui"
+        exit 1
+      fi
+
+      echo "All smoke tests passed!"
+  needs:
+    - deploy-dev
+
+# Deploy to Test Environment (отдельный compose project)
+deploy-test:
+  stage: deploy
+  extends: .docker-deploy
+  variables:
+    COMPOSE_PROJECT: apigateway-test
+    ENVIRONMENT: test
+  environment:
+    name: test
+    url: http://localhost:3001
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+      allow_failure: true
+  script:
+    - echo "=========================================="
+    - echo "Deploying to TEST environment"
+    - echo "Project: $COMPOSE_PROJECT"
+    - echo "Commit: $CI_COMMIT_SHA"
+    - echo "=========================================="
+
+    # Pull images (могут быть уже скачаны из deploy-dev)
+    - docker pull $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA || true
+    - docker pull $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA || true
+    - docker pull $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA || true
+
+    # Compose для test environment (другие порты)
+    # Подключаемся к существующим сетям: postgres-net, redis-net
+    - |
+      cat > /tmp/docker-compose.test.yml << EOF
+      version: '3.8'
+      services:
+        gateway-admin:
+          image: $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
+          container_name: gateway-admin-test
+          environment:
+            - SPRING_R2DBC_URL=$DATABASE_URL
+            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
+            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
+            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
+            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
+            - SPRING_PROFILES_ACTIVE=test
+          ports:
+            - "18081:8081"
+          networks:
+            - gateway-test
+            - postgres-net
+            - redis-net
+          restart: unless-stopped
+
+        gateway-core:
+          image: $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
+          container_name: gateway-core-test
+          environment:
+            - SPRING_R2DBC_URL=$DATABASE_URL
+            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
+            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
+            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
+            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
+            - SPRING_PROFILES_ACTIVE=test
+          ports:
+            - "18080:8080"
+          networks:
+            - gateway-test
+            - postgres-net
+            - redis-net
+          restart: unless-stopped
+
+        admin-ui:
+          image: $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
+          container_name: admin-ui-test
+          ports:
+            - "3001:80"
+          networks:
+            - gateway-test
+          restart: unless-stopped
+
+      networks:
+        gateway-test:
+          driver: bridge
+        postgres-net:
+          external: true
+        redis-net:
+          external: true
+      EOF
+
+    - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.test.yml down --remove-orphans || true
+    - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.test.yml up -d
+
+    # Health check
+    - |
+      MAX_RETRIES=30
+      for service in gateway-admin-test:8081 gateway-core-test:8080; do
+        name=$(echo $service | cut -d: -f1)
+        port=$(echo $service | cut -d: -f2)
+
+        echo "Checking $name..."
+        for i in $(seq 1 $MAX_RETRIES); do
+          if docker exec $name wget -q --spider http://localhost:$port/actuator/health 2>/dev/null; then
+            echo "$name is healthy!"
+            break
+          fi
+          [ $i -eq $MAX_RETRIES ] && echo "ERROR: $name failed" && exit 1
+          sleep 5
+        done
+      done
+
+    - echo "Deployment to TEST SUCCESSFUL"
+  needs:
+    - docker-gateway-admin
+    - docker-gateway-core
+    - docker-admin-ui
+
+# E2E Tests on Test Environment
+e2e-test:
+  stage: deploy
+  image: mcr.microsoft.com/playwright:v1.42.0-jammy
+  variables:
+    # Test environment ports
+    BASE_URL: http://admin-ui-test
+    API_URL: http://gateway-admin-test:8081
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+      allow_failure: true  # Изначально не блокирует pipeline
+  script:
+    - cd frontend/admin-ui
+    - npm ci
+    - npx playwright install --with-deps chromium
+    - BASE_URL=$BASE_URL npx playwright test --reporter=html
+  artifacts:
+    when: always
+    paths:
+      - frontend/admin-ui/playwright-report/
+      - frontend/admin-ui/test-results/
+    expire_in: 7 days
+  needs:
+    - deploy-test
 
 # =============================================================================
 # SYNC STAGE (from Story 13.1)
