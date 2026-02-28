@@ -245,29 +245,13 @@ docker-gateway-admin:
       artifacts: true
   script:
     - echo "Building gateway-admin image..."
-    # Проверяем что артефакты доступны
-    - ls -la backend/gateway-admin/build/libs/ || echo "WARNING: No JAR files found!"
-    # Build image с commit SHA tag
+    - ls -la backend/gateway-admin/build/libs/ || echo "WARNING - No JAR files found!"
     - docker build -t $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA -f docker/Dockerfile.gateway-admin .
-    # Push commit SHA tag
     - docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
-    # Branch tag
     - docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_REF_SLUG
     - docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_REF_SLUG
-    # Latest tag для master branch
-    - |
-      if [ "$CI_COMMIT_BRANCH" == "master" ]; then
-        echo "Tagging as latest..."
-        docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:latest
-        docker push $CI_REGISTRY_IMAGE/gateway-admin:latest
-      fi
-    # Semantic version tag если git tag присутствует
-    - |
-      if [ -n "$CI_COMMIT_TAG" ]; then
-        echo "Tagging with version: $CI_COMMIT_TAG"
-        docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_TAG
-        docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_TAG
-      fi
+    - if [ "$CI_COMMIT_BRANCH" == "master" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:latest && docker push $CI_REGISTRY_IMAGE/gateway-admin:latest; fi
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_TAG && docker push $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_TAG; fi
     - echo "gateway-admin image pushed successfully"
 
 # Gateway Core Docker Image
@@ -278,29 +262,13 @@ docker-gateway-core:
       artifacts: true
   script:
     - echo "Building gateway-core image..."
-    # Проверяем что артефакты доступны
-    - ls -la backend/gateway-core/build/libs/ || echo "WARNING: No JAR files found!"
-    # Build image с commit SHA tag
+    - ls -la backend/gateway-core/build/libs/ || echo "WARNING - No JAR files found!"
     - docker build -t $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA -f docker/Dockerfile.gateway-core .
-    # Push commit SHA tag
     - docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
-    # Branch tag
     - docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_REF_SLUG
     - docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_REF_SLUG
-    # Latest tag для master branch
-    - |
-      if [ "$CI_COMMIT_BRANCH" == "master" ]; then
-        echo "Tagging as latest..."
-        docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:latest
-        docker push $CI_REGISTRY_IMAGE/gateway-core:latest
-      fi
-    # Semantic version tag если git tag присутствует
-    - |
-      if [ -n "$CI_COMMIT_TAG" ]; then
-        echo "Tagging with version: $CI_COMMIT_TAG"
-        docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_TAG
-        docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_TAG
-      fi
+    - if [ "$CI_COMMIT_BRANCH" == "master" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:latest && docker push $CI_REGISTRY_IMAGE/gateway-core:latest; fi
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_TAG && docker push $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_TAG; fi
     - echo "gateway-core image pushed successfully"
 
 # Admin UI Docker Image (использует pre-built dist/ из CI артефактов)
@@ -311,27 +279,12 @@ docker-admin-ui:
       artifacts: true
   script:
     - echo "Building admin-ui image..."
-    # Используем оптимизированный Dockerfile без multi-stage (dist/ уже собран)
     - docker build -t $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA -f docker/Dockerfile.admin-ui.ci .
-    # Push commit SHA tag
     - docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
-    # Branch tag
     - docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_REF_SLUG
     - docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_REF_SLUG
-    # Latest tag для master branch
-    - |
-      if [ "$CI_COMMIT_BRANCH" == "master" ]; then
-        echo "Tagging as latest..."
-        docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:latest
-        docker push $CI_REGISTRY_IMAGE/admin-ui:latest
-      fi
-    # Semantic version tag если git tag присутствует
-    - |
-      if [ -n "$CI_COMMIT_TAG" ]; then
-        echo "Tagging with version: $CI_COMMIT_TAG"
-        docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_TAG
-        docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_TAG
-      fi
+    - if [ "$CI_COMMIT_BRANCH" == "master" ]; then docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:latest && docker push $CI_REGISTRY_IMAGE/admin-ui:latest; fi
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_TAG && docker push $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_TAG; fi
     - echo "admin-ui image pushed successfully"
 
 # =============================================================================
