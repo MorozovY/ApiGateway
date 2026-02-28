@@ -332,10 +332,23 @@ deploy-dev:
       allow_failure: true
   script:
     - echo "Deploy to dev environment with Vault secrets"
-    - echo "POSTGRES_USER=$POSTGRES_USER"
-    - echo "POSTGRES_PASSWORD=****** (hidden)"
-    - echo "DATABASE_URL=$DATABASE_URL"
-    - echo "REDIS_HOST=$REDIS_HOST"
+    # Проверяем что все критичные secrets загружены (без вывода значений)
+    - |
+      check_secret() {
+        if [ -n "$1" ]; then
+          echo "  ✓ $2 loaded"
+        else
+          echo "  ✗ $2 MISSING" && exit 1
+        fi
+      }
+      echo "Verifying secrets..."
+      check_secret "$POSTGRES_USER" "POSTGRES_USER"
+      check_secret "$POSTGRES_PASSWORD" "POSTGRES_PASSWORD"
+      check_secret "$DATABASE_URL" "DATABASE_URL"
+      check_secret "$REDIS_HOST" "REDIS_HOST"
+      check_secret "$KEYCLOAK_ADMIN_USERNAME" "KEYCLOAK_ADMIN_USERNAME"
+      check_secret "$KEYCLOAK_ADMIN_PASSWORD" "KEYCLOAK_ADMIN_PASSWORD"
+      echo "All secrets verified"
     # Реальный deployment будет добавлен в Story 13.5
     - echo "Deployment placeholder - will be implemented in Story 13.5"
   needs:
@@ -363,9 +376,17 @@ sync-to-github:
       allow_failure: true
   script:
     - apk add --no-cache git
+    # Проверяем что GITHUB_TOKEN установлен
+    - |
+      if [ -z "$GITHUB_TOKEN" ]; then
+        echo "ERROR: GITHUB_TOKEN not set in CI/CD Variables"
+        echo "Go to: GitLab → Settings → CI/CD → Variables → Add GITHUB_TOKEN"
+        exit 1
+      fi
     - git config --global user.email "ci@localhost"
     - git config --global user.name "GitLab CI"
-    - git remote add github https://oauth2:${GITHUB_TOKEN}@github.com/MorozovY/ApiGateway.git || true
+    # x-access-token — правильный формат для GitHub PAT
+    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/MorozovY/ApiGateway.git || true
     - git fetch --unshallow || true
     - git push github HEAD:master --force
     - git push github --tags --force

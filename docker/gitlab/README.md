@@ -498,6 +498,8 @@ GitLab настроен как primary repository, GitHub как mirror:
 
 ## Vault Integration (Story 13.4)
 
+**Требуемая версия:** HashiCorp Vault 1.4+ (для KV v2 secrets engine)
+
 ### Архитектура Secrets Management
 
 ```
