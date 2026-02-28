@@ -236,8 +236,6 @@ frontend-test:
   before_script:
     # Логин в GitLab Container Registry
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  tags:
-    - docker
 
 # Gateway Admin Docker Image
 docker-gateway-admin:
