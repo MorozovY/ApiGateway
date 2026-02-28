@@ -1,6 +1,6 @@
 # Story 13.5: Deployment Pipeline — Dev & Test Environments
 
-Status: review
+Status: in-progress
 Story Points: 8
 
 ## Story
@@ -533,3 +533,31 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2026-02-28 | Fix: Correct hostname resolution (postgres, redis) for Docker networks |
 | 2026-02-28 | Connected gateway-postgres and gateway-redis to external networks |
 | 2026-02-28 | deploy-dev job tested successfully (job 516) |
+| 2026-02-28 | Code Review Fix: smoke-test.sh — добавлена поддержка environment-specific портов |
+| 2026-02-28 | Code Review Fix: e2e-test job — исправлены URLs для доступа к test containers |
+| 2026-02-28 | Code Review Fix: generate-compose.sh — убран hardcoded database name |
+| 2026-02-28 | Code Review Fix: rollback.sh — исправлены пути к compose файлам для CI |
+| 2026-02-28 | Code Review Fix: deploy-dev/deploy-test — добавлен auto-rollback при health check failure |
+
+### Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-02-28
+**Outcome:** Changes Requested → Fixed
+
+**Issues Found:** 3 HIGH, 4 MEDIUM, 2 LOW
+
+**HIGH Issues (Fixed):**
+1. ✅ smoke-test.sh использовал hardcoded порты вместо environment-specific
+2. ✅ e2e-test job использовал недоступные container names вместо mapped портов
+3. ⚠️ Testing Checklist не полностью выполнен (deploy-test, E2E требуют ручного тестирования)
+
+**MEDIUM Issues (Fixed):**
+1. ℹ️ deploy.sh не используется в CI (by design — inline deployment проще для отладки)
+2. ✅ rollback.sh полагался на несуществующие пути
+3. ✅ Hardcoded Flyway URL в generate-compose.sh
+4. ✅ AC7 Auto-Rollback — добавлен в CI deploy jobs
+
+**LOW Issues (Acknowledged):**
+1. ℹ️ deploy/docker-compose.ci-base.yml не используется (оставлен для ручного deployment)
+2. ℹ️ Дублирование environment URL (приемлемо для читаемости)
