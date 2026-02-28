@@ -356,109 +356,27 @@ deploy-dev:
   script:
     - echo "=========================================="
     - echo "Deploying to DEV environment"
-    - echo "Project: $COMPOSE_PROJECT"
-    - echo "Commit: $CI_COMMIT_SHA"
-    - echo "Registry: $CI_REGISTRY_IMAGE"
+    - echo "Project - $COMPOSE_PROJECT"
+    - echo "Commit - $CI_COMMIT_SHA"
+    - echo "Registry - $CI_REGISTRY_IMAGE"
     - echo "=========================================="
-
-    # Pull новые images
     - echo "Pulling images..."
     - docker pull $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
     - docker pull $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
     - docker pull $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
-
-    # Создаём временный compose override с нужными image tags
-    # Подключаемся к существующим сетям: postgres-net, redis-net
-    - |
-      cat > /tmp/docker-compose.ci.yml << EOF
-      version: '3.8'
-      services:
-        gateway-admin:
-          image: $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
-          container_name: gateway-admin-dev
-          environment:
-            - SPRING_R2DBC_URL=$DATABASE_URL
-            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
-            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
-            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
-            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
-            - SPRING_PROFILES_ACTIVE=dev
-          ports:
-            - "8081:8081"
-          networks:
-            - gateway-dev
-            - postgres-net
-            - redis-net
-          restart: unless-stopped
-
-        gateway-core:
-          image: $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
-          container_name: gateway-core-dev
-          environment:
-            - SPRING_R2DBC_URL=$DATABASE_URL
-            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
-            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
-            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
-            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
-            - SPRING_PROFILES_ACTIVE=dev
-          ports:
-            - "8080:8080"
-          networks:
-            - gateway-dev
-            - postgres-net
-            - redis-net
-          restart: unless-stopped
-
-        admin-ui:
-          image: $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
-          container_name: admin-ui-dev
-          ports:
-            - "3000:80"
-          networks:
-            - gateway-dev
-          restart: unless-stopped
-
-      networks:
-        gateway-dev:
-          driver: bridge
-        postgres-net:
-          external: true
-        redis-net:
-          external: true
-      EOF
-
-    # Останавливаем старые контейнеры и запускаем новые
+    - echo "Generating compose file..."
+    - chmod +x docker/gitlab/generate-compose.sh
+    - ./docker/gitlab/generate-compose.sh dev /tmp/docker-compose.ci.yml
+    - cat /tmp/docker-compose.ci.yml
     - echo "Deploying containers..."
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.ci.yml down --remove-orphans || true
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.ci.yml up -d
-
-    # Health check
     - echo "Running health checks..."
-    - |
-      MAX_RETRIES=30
-      RETRY_INTERVAL=5
-
-      for service in gateway-admin:8081 gateway-core:8080; do
-        name=$(echo $service | cut -d: -f1)
-        port=$(echo $service | cut -d: -f2)
-        container="${name}-dev"
-
-        echo "Checking $name..."
-        for i in $(seq 1 $MAX_RETRIES); do
-          if docker exec $container wget -q --spider http://localhost:$port/actuator/health 2>/dev/null; then
-            echo "$name is healthy!"
-            break
-          fi
-          if [ $i -eq $MAX_RETRIES ]; then
-            echo "ERROR: $name health check failed after $MAX_RETRIES attempts"
-            docker logs $container --tail 50
-            exit 1
-          fi
-          echo "Waiting for $name... ($i/$MAX_RETRIES)"
-          sleep $RETRY_INTERVAL
-        done
-      done
-
+    - sleep 30
+    - docker exec gateway-admin-dev wget -q --spider http://localhost:8081/actuator/health || (docker logs gateway-admin-dev --tail 30 && exit 1)
+    - echo "gateway-admin is healthy"
+    - docker exec gateway-core-dev wget -q --spider http://localhost:8080/actuator/health || (docker logs gateway-core-dev --tail 30 && exit 1)
+    - echo "gateway-core is healthy"
     - echo "=========================================="
     - echo "Deployment to DEV SUCCESSFUL"
     - echo "=========================================="
@@ -470,48 +388,17 @@ deploy-dev:
 # Smoke Tests on Dev
 smoke-test-dev:
   stage: deploy
-  image: alpine:latest
-  variables:
-    BASE_URL: http://gateway-admin-dev:8081
+  image: docker:24
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: manual
       allow_failure: true
-  before_script:
-    - apk add --no-cache curl jq bash
   script:
-    - chmod +x docker/gitlab/smoke-test.sh
-    # Используем Docker network для доступа к контейнерам
-    - |
-      echo "Running smoke tests..."
-      # Gateway Admin Health
-      echo "Testing gateway-admin..."
-      if curl -sf http://gateway-admin-dev:8081/actuator/health | jq -e '.status == "UP"'; then
-        echo "PASS: gateway-admin"
-      else
-        echo "FAIL: gateway-admin"
-        exit 1
-      fi
-
-      # Gateway Core Health
-      echo "Testing gateway-core..."
-      if curl -sf http://gateway-core-dev:8080/actuator/health | jq -e '.status == "UP"'; then
-        echo "PASS: gateway-core"
-      else
-        echo "FAIL: gateway-core"
-        exit 1
-      fi
-
-      # Admin UI
-      echo "Testing admin-ui..."
-      if curl -sf -o /dev/null -w "%{http_code}" http://admin-ui-dev:80/ | grep -q 200; then
-        echo "PASS: admin-ui"
-      else
-        echo "FAIL: admin-ui"
-        exit 1
-      fi
-
-      echo "All smoke tests passed!"
+    - echo "Running smoke tests..."
+    - docker exec gateway-admin-dev wget -q --spider http://localhost:8081/actuator/health && echo "PASS gateway-admin" || (echo "FAIL gateway-admin" && exit 1)
+    - docker exec gateway-core-dev wget -q --spider http://localhost:8080/actuator/health && echo "PASS gateway-core" || (echo "FAIL gateway-core" && exit 1)
+    - docker exec admin-ui-dev wget -q --spider http://localhost:80/ && echo "PASS admin-ui" || (echo "FAIL admin-ui" && exit 1)
+    - echo "All smoke tests passed!"
   needs:
     - deploy-dev
 
@@ -532,96 +419,22 @@ deploy-test:
   script:
     - echo "=========================================="
     - echo "Deploying to TEST environment"
-    - echo "Project: $COMPOSE_PROJECT"
-    - echo "Commit: $CI_COMMIT_SHA"
+    - echo "Project - $COMPOSE_PROJECT"
+    - echo "Commit - $CI_COMMIT_SHA"
     - echo "=========================================="
-
-    # Pull images (могут быть уже скачаны из deploy-dev)
     - docker pull $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA || true
     - docker pull $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA || true
     - docker pull $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA || true
-
-    # Compose для test environment (другие порты)
-    # Подключаемся к существующим сетям: postgres-net, redis-net
-    - |
-      cat > /tmp/docker-compose.test.yml << EOF
-      version: '3.8'
-      services:
-        gateway-admin:
-          image: $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA
-          container_name: gateway-admin-test
-          environment:
-            - SPRING_R2DBC_URL=$DATABASE_URL
-            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
-            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
-            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
-            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
-            - SPRING_PROFILES_ACTIVE=test
-          ports:
-            - "18081:8081"
-          networks:
-            - gateway-test
-            - postgres-net
-            - redis-net
-          restart: unless-stopped
-
-        gateway-core:
-          image: $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA
-          container_name: gateway-core-test
-          environment:
-            - SPRING_R2DBC_URL=$DATABASE_URL
-            - SPRING_R2DBC_USERNAME=$POSTGRES_USER
-            - SPRING_R2DBC_PASSWORD=$POSTGRES_PASSWORD
-            - SPRING_DATA_REDIS_HOST=$REDIS_HOST
-            - SPRING_DATA_REDIS_PORT=$REDIS_PORT
-            - SPRING_PROFILES_ACTIVE=test
-          ports:
-            - "18080:8080"
-          networks:
-            - gateway-test
-            - postgres-net
-            - redis-net
-          restart: unless-stopped
-
-        admin-ui:
-          image: $CI_REGISTRY_IMAGE/admin-ui:$CI_COMMIT_SHA
-          container_name: admin-ui-test
-          ports:
-            - "3001:80"
-          networks:
-            - gateway-test
-          restart: unless-stopped
-
-      networks:
-        gateway-test:
-          driver: bridge
-        postgres-net:
-          external: true
-        redis-net:
-          external: true
-      EOF
-
+    - chmod +x docker/gitlab/generate-compose.sh
+    - ./docker/gitlab/generate-compose.sh test /tmp/docker-compose.test.yml
+    - cat /tmp/docker-compose.test.yml
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.test.yml down --remove-orphans || true
     - docker-compose -p $COMPOSE_PROJECT -f /tmp/docker-compose.test.yml up -d
-
-    # Health check
-    - |
-      MAX_RETRIES=30
-      for service in gateway-admin-test:8081 gateway-core-test:8080; do
-        name=$(echo $service | cut -d: -f1)
-        port=$(echo $service | cut -d: -f2)
-
-        echo "Checking $name..."
-        for i in $(seq 1 $MAX_RETRIES); do
-          if docker exec $name wget -q --spider http://localhost:$port/actuator/health 2>/dev/null; then
-            echo "$name is healthy!"
-            break
-          fi
-          [ $i -eq $MAX_RETRIES ] && echo "ERROR: $name failed" && exit 1
-          sleep 5
-        done
-      done
-
+    - sleep 30
+    - docker exec gateway-admin-test wget -q --spider http://localhost:8081/actuator/health || (docker logs gateway-admin-test --tail 30 && exit 1)
+    - echo "gateway-admin-test is healthy"
+    - docker exec gateway-core-test wget -q --spider http://localhost:8080/actuator/health || (docker logs gateway-core-test --tail 30 && exit 1)
+    - echo "gateway-core-test is healthy"
     - echo "Deployment to TEST SUCCESSFUL"
   needs:
     - docker-gateway-admin
