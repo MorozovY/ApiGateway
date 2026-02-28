@@ -62,9 +62,10 @@ backend-build:
       fi
   artifacts:
     paths:
-      # JAR файлы для Docker image build
       - backend/gateway-admin/build/libs/*.jar
       - backend/gateway-core/build/libs/*.jar
+    exclude:
+      - backend/**/*-plain.jar
     expire_in: 1 hour
 
 frontend-build:
