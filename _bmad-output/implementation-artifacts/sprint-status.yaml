@@ -20,7 +20,7 @@
 # - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
-updated: 2026-02-27
+updated: 2026-02-28
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
@@ -84,8 +84,8 @@ development_status:
   13-0-local-gitlab-infrastructure: done                     # SP:5 — NEW: локальный GitLab в Docker
   13-1-gitlab-repository-setup-github-mirror: done           # SP:2 — push repo, настройка mirror (depends: 13.0)
   13-2-ci-pipeline-build-test: done                      # SP:8 — .gitlab-ci.yml, build/test stages
-  13-3-docker-image-build-registry: backlog            # SP:5 — docker build, registry push
-  13-4-secrets-management-gitlab-variables: backlog    # SP:3 — настройка CI/CD variables
+  13-3-docker-image-build-registry: in-progress      # SP:5 — docker build, registry push
+  13-4-secrets-management-gitlab-variables: ready-for-dev  # SP:3 — настройка CI/CD variables
   13-5-deployment-pipeline-dev-test: backlog           # SP:8 — SSH deploy, health checks, smoke tests
   13-6-production-deployment-approval: backlog         # SP:5 — manual approval, rollback
   13-7-security-scanning-sast-dependencies: backlog    # SP:2 — включить GitLab SAST templates

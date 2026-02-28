@@ -268,6 +268,56 @@ docker push localhost:5050/root/myproject/myimage:latest
 docker pull localhost:5050/root/myproject/myimage:latest
 ```
 
+### CI/CD Docker Images
+
+CI pipeline автоматически собирает и pushит images в Registry:
+
+| Image | Описание | Dockerfile |
+|-------|----------|------------|
+| `gateway-admin` | Backend Admin API | `docker/Dockerfile.gateway-admin` |
+| `gateway-core` | Gateway Core | `docker/Dockerfile.gateway-core` |
+| `admin-ui` | Frontend (Nginx) | `docker/Dockerfile.admin-ui.ci` |
+
+**Теги:**
+- `$CI_COMMIT_SHA` — полный commit hash (всегда)
+- `$CI_COMMIT_REF_SLUG` — branch name (всегда)
+- `latest` — только на master branch
+- `v1.2.3` — semantic version (если git tag присутствует)
+
+**Pull image из CI:**
+```bash
+# По commit SHA
+docker pull localhost:5050/root/api-gateway/gateway-admin:abc123def
+
+# По branch
+docker pull localhost:5050/root/api-gateway/gateway-admin:feat-13-3-docker-image-build-registry
+
+# Latest (master)
+docker pull localhost:5050/root/api-gateway/gateway-admin:latest
+```
+
+### Registry Cleanup Policy (рекомендуемая настройка)
+
+Для автоматической очистки старых images настройте политику в GitLab UI:
+
+1. GitLab → `root/api-gateway` → Settings → Packages & Registries → Container Registry
+2. Cleanup policies → Add cleanup policy:
+
+```
+Enabled: Yes
+Run cleanup: Every week
+Keep the most recent: 10 tags
+Remove tags older than: 30 days
+Remove tags matching: .*
+Do NOT remove tags matching: ^v\d+\.\d+\.\d+$|^latest$|^master$
+```
+
+**Важно:**
+- Semantic version tags (`v1.0.0`, `v2.1.3`) сохраняются навсегда
+- `latest` и `master` tags сохраняются навсегда
+- Feature branch tags удаляются через 30 дней
+- Минимум 10 последних tags каждого image сохраняются
+
 ## Управление
 
 ### Остановка GitLab
