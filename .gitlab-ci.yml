@@ -245,6 +245,8 @@ docker-gateway-admin:
       artifacts: true
   script:
     - echo "Building gateway-admin image..."
+    # Проверяем что артефакты доступны
+    - ls -la backend/gateway-admin/build/libs/ || echo "WARNING: No JAR files found!"
     # Build image с commit SHA tag
     - docker build -t $CI_REGISTRY_IMAGE/gateway-admin:$CI_COMMIT_SHA -f docker/Dockerfile.gateway-admin .
     # Push commit SHA tag
@@ -276,6 +278,8 @@ docker-gateway-core:
       artifacts: true
   script:
     - echo "Building gateway-core image..."
+    # Проверяем что артефакты доступны
+    - ls -la backend/gateway-core/build/libs/ || echo "WARNING: No JAR files found!"
     # Build image с commit SHA tag
     - docker build -t $CI_REGISTRY_IMAGE/gateway-core:$CI_COMMIT_SHA -f docker/Dockerfile.gateway-core .
     # Push commit SHA tag
