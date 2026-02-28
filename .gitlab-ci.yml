@@ -348,7 +348,7 @@ deploy-dev:
     ENVIRONMENT: dev
   environment:
     name: dev
-    url: http://localhost:3000
+    url: http://localhost:23000
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: manual
@@ -413,7 +413,7 @@ deploy-test:
     ENVIRONMENT: test
   environment:
     name: test
-    url: http://localhost:3001
+    url: http://localhost:13000
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: manual

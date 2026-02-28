@@ -20,16 +20,17 @@ ENVIRONMENT="${1:-dev}"
 OUTPUT_FILE="${2:-/tmp/docker-compose.ci.yml}"
 
 # Порты в зависимости от environment
+# (используем нестандартные порты чтобы не конфликтовать с инфраструктурой)
 case "$ENVIRONMENT" in
   dev)
-    ADMIN_PORT="8081"
-    CORE_PORT="8080"
-    UI_PORT="3000"
+    ADMIN_PORT="28081"
+    CORE_PORT="28080"
+    UI_PORT="23000"
     ;;
   test)
     ADMIN_PORT="18081"
     CORE_PORT="18080"
-    UI_PORT="3001"
+    UI_PORT="13000"
     ;;
   *)
     echo "Unknown environment: $ENVIRONMENT"
@@ -41,8 +42,6 @@ NETWORK_NAME="gateway-${ENVIRONMENT}"
 CONTAINER_SUFFIX="-${ENVIRONMENT}"
 
 cat > "$OUTPUT_FILE" << COMPOSE_EOF
-version: '3.8'
-
 services:
   gateway-admin:
     image: ${CI_REGISTRY_IMAGE}/gateway-admin:${CI_COMMIT_SHA}
