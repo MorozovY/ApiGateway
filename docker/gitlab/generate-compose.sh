@@ -94,7 +94,7 @@ services:
       - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
-      # Keycloak (Story 12.1) — через Docker network
+      # Keycloak (Story 12.1) — доступен через postgres-net
       - KEYCLOAK_ENABLED=true
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME:-admin}
@@ -110,7 +110,6 @@ services:
       - traefik-net
       - postgres-net
       - redis-net
-      - keycloak-net
       - monitoring-net
     restart: unless-stopped
 
@@ -150,7 +149,6 @@ services:
       - traefik-net
       - postgres-net
       - redis-net
-      - keycloak-net
       - monitoring-net
     restart: unless-stopped
 
@@ -184,8 +182,6 @@ networks:
   postgres-net:
     external: true
   redis-net:
-    external: true
-  keycloak-net:
     external: true
   monitoring-net:
     external: true
