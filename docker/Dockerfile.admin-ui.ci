@@ -15,12 +15,12 @@ FROM caddy:2-alpine
 COPY frontend/admin-ui/dist /srv
 
 # Caddyfile для SPA (все пути -> index.html)
-RUN echo ':80 { \
-    root * /srv \
-    try_files {path} /index.html \
-    file_server \
-    respond /health 200 \
-}' > /etc/caddy/Caddyfile
+RUN printf ':80 {\n\
+    root * /srv\n\
+    try_files {path} /index.html\n\
+    file_server\n\
+    respond /health 200\n\
+}\n' > /etc/caddy/Caddyfile
 
 EXPOSE 80
 
