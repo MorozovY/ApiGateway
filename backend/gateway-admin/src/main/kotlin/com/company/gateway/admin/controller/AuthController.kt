@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder
 import java.util.Optional
 import java.util.UUID
 
@@ -42,7 +43,8 @@ class AuthController(
     private val jwtService: JwtService,
     private val cookieService: CookieService,
     private val keycloakProperties: Optional<KeycloakProperties>,
-    private val keycloakAdminService: Optional<KeycloakAdminService>
+    private val keycloakAdminService: Optional<KeycloakAdminService>,
+    private val jwtDecoder: Optional<ReactiveJwtDecoder>
 ) {
     /**
      * Проверяет, включен ли режим Keycloak.
@@ -318,6 +320,47 @@ class AuthController(
                     "status" to "ERROR",
                     "errorType" to (error::class.simpleName ?: "Unknown"),
                     "errorMessage" to (error.message ?: "No message")
+                )))
+            }
+    }
+
+    /**
+     * Debug endpoint для проверки декодирования JWT токена.
+     *
+     * Публичный endpoint. Принимает токен и пытается декодировать через JwtDecoder.
+     *
+     * @param token JWT токен для проверки
+     * @return JSON с результатом декодирования
+     */
+    @PostMapping("/debug/decode")
+    fun debugDecode(@RequestBody request: Map<String, String>): Mono<ResponseEntity<Map<String, Any>>> {
+        val token = request["token"] ?: return Mono.just(
+            ResponseEntity.badRequest().body(mapOf("error" to "Missing 'token' field"))
+        )
+
+        if (!jwtDecoder.isPresent) {
+            return Mono.just(ResponseEntity.ok(mapOf(
+                "error" to "JwtDecoder not available (keycloak.enabled=false?)",
+                "keycloakEnabled" to isKeycloakEnabled()
+            )))
+        }
+
+        return jwtDecoder.get().decode(token)
+            .map { jwt ->
+                ResponseEntity.ok(mapOf<String, Any>(
+                    "status" to "SUCCESS",
+                    "subject" to (jwt.subject ?: "null"),
+                    "issuer" to (jwt.issuer?.toString() ?: "null"),
+                    "claims" to jwt.claims.keys.toList(),
+                    "expiresAt" to (jwt.expiresAt?.toString() ?: "null")
+                ))
+            }
+            .onErrorResume { error ->
+                Mono.just(ResponseEntity.ok(mapOf<String, Any>(
+                    "status" to "ERROR",
+                    "errorType" to (error::class.simpleName ?: "Unknown"),
+                    "errorMessage" to (error.message ?: "No message"),
+                    "errorCause" to (error.cause?.message ?: "No cause")
                 )))
             }
     }
