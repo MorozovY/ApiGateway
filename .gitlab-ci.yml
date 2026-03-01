@@ -410,6 +410,7 @@ deploy-dev:
 
 # Smoke Tests on Dev
 # Запускает полный smoke-test.sh с environment-specific портами
+# Автоматически после deploy-dev
 smoke-test-dev:
   stage: deploy
   image: docker:24
@@ -417,8 +418,7 @@ smoke-test-dev:
     ENVIRONMENT: dev
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: manual
-      allow_failure: true
+      when: on_success
   before_script:
     - apk add --no-cache curl jq bash
   script:
@@ -435,6 +435,7 @@ smoke-test-dev:
     - deploy-dev
 
 # Deploy to Test Environment (отдельный compose project)
+# Автоматически после smoke-test-dev
 deploy-test:
   stage: deploy
   extends: .docker-deploy
@@ -446,8 +447,7 @@ deploy-test:
     url: http://localhost:13000
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: manual
-      allow_failure: true
+      when: on_success
   script:
     - echo "=========================================="
     - echo "Deploying to TEST environment"
@@ -492,9 +492,7 @@ deploy-test:
       echo "gateway-core-test is healthy"
     - echo "Deployment to TEST SUCCESSFUL"
   needs:
-    - docker-gateway-admin
-    - docker-gateway-core
-    - docker-admin-ui
+    - smoke-test-dev  # Ждём успешного smoke test на dev перед deploy на test
 
 # E2E Tests on Test Environment
 # Примечание: Playwright запускается на хосте и подключается к test containers через mapped порты
@@ -512,8 +510,8 @@ e2e-test:
     VITE_KEYCLOAK_URL: http://host.docker.internal:8180
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: manual
-      allow_failure: true  # Изначально не блокирует pipeline
+      when: on_success
+      allow_failure: true  # Не блокирует pipeline при падении тестов
   script:
     - cd frontend/admin-ui
     - npm ci
