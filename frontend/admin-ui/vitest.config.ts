@@ -5,6 +5,8 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  // Используем mode: 'test' для загрузки .env.test файла
+  mode: 'test',
   test: {
     globals: true,
     environment: 'jsdom',

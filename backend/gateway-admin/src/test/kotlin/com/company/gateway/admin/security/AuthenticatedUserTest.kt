@@ -396,13 +396,89 @@ class AuthenticatedUserTest {
         }
 
         @Test
-        fun `fromKeycloakJwt выбрасывает TokenInvalid при невалидном UUID в subject`() {
-            // Given: Keycloak JWT с невалидным UUID
+        fun `fromKeycloakJwt генерирует deterministic UUID при невалидном UUID в subject`() {
+            // Given: Keycloak JWT с невалидным UUID в subject
             val jwt = createKeycloakJwt(
                 subject = "not-a-valid-uuid",
                 preferredUsername = "user",
                 realmAccessRoles = listOf("admin-ui:developer")
             )
+
+            // When: создаём AuthenticatedUser
+            val user = AuthenticatedUser.fromKeycloakJwt(jwt)
+
+            // Then: генерируется deterministic UUID из строки
+            val expectedUuid = UUID.nameUUIDFromBytes("not-a-valid-uuid".toByteArray())
+            assertThat(user.userId).isEqualTo(expectedUuid)
+            assertThat(user.username).isEqualTo("user")
+            assertThat(user.role).isEqualTo(Role.DEVELOPER)
+        }
+
+        @Test
+        fun `fromKeycloakJwt использует sid claim когда subject отсутствует`() {
+            // Given: Keycloak JWT без subject, но с sid claim
+            val sessionId = UUID.randomUUID().toString()
+            val claims = mutableMapOf<String, Any>(
+                "preferred_username" to "user_with_sid",
+                "sid" to sessionId,
+                "realm_access" to mapOf("roles" to listOf("admin-ui:developer"))
+            )
+
+            val jwt = Jwt.withTokenValue("mock-token")
+                .header("alg", "RS256")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .claims { it.putAll(claims) }
+                .build()
+
+            // When: создаём AuthenticatedUser
+            val user = AuthenticatedUser.fromKeycloakJwt(jwt)
+
+            // Then: используется sid как userId
+            assertThat(user.userId).isEqualTo(UUID.fromString(sessionId))
+            assertThat(user.username).isEqualTo("user_with_sid")
+        }
+
+        @Test
+        fun `fromKeycloakJwt использует jti claim когда subject и sid отсутствуют`() {
+            // Given: Keycloak JWT без subject и sid, но с jti claim
+            val jti = UUID.randomUUID().toString()
+            val claims = mutableMapOf<String, Any>(
+                "preferred_username" to "user_with_jti",
+                "jti" to jti,
+                "realm_access" to mapOf("roles" to listOf("admin-ui:security"))
+            )
+
+            val jwt = Jwt.withTokenValue("mock-token")
+                .header("alg", "RS256")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .claims { it.putAll(claims) }
+                .build()
+
+            // When: создаём AuthenticatedUser
+            val user = AuthenticatedUser.fromKeycloakJwt(jwt)
+
+            // Then: используется jti как userId
+            assertThat(user.userId).isEqualTo(UUID.fromString(jti))
+            assertThat(user.username).isEqualTo("user_with_jti")
+            assertThat(user.role).isEqualTo(Role.SECURITY)
+        }
+
+        @Test
+        fun `fromKeycloakJwt выбрасывает TokenInvalid когда нет идентификаторов пользователя`() {
+            // Given: Keycloak JWT без subject, sid и jti
+            val claims = mutableMapOf<String, Any>(
+                "preferred_username" to "user_no_id",
+                "realm_access" to mapOf("roles" to listOf("admin-ui:developer"))
+            )
+
+            val jwt = Jwt.withTokenValue("mock-token")
+                .header("alg", "RS256")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .claims { it.putAll(claims) }
+                .build()
 
             // When & Then: выбрасывается JwtAuthenticationException.TokenInvalid
             org.junit.jupiter.api.assertThrows<JwtAuthenticationException.TokenInvalid> {
