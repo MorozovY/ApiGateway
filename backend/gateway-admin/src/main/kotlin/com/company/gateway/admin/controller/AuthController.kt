@@ -282,6 +282,47 @@ class AuthController(
     }
 
     /**
+     * Debug endpoint для проверки connectivity к JWKS.
+     *
+     * Публичный endpoint. Пытается загрузить JWKS и возвращает результат.
+     *
+     * @return JSON с результатом проверки
+     */
+    @GetMapping("/debug/jwks")
+    fun debugJwks(): Mono<ResponseEntity<Map<String, Any>>> {
+        if (!keycloakProperties.isPresent) {
+            return Mono.just(ResponseEntity.ok(mapOf(
+                "error" to "Keycloak properties not configured"
+            )))
+        }
+
+        val props = keycloakProperties.get()
+        val jwksUri = props.jwksUri
+
+        return org.springframework.web.reactive.function.client.WebClient.create()
+            .get()
+            .uri(jwksUri)
+            .retrieve()
+            .bodyToMono(String::class.java)
+            .map { body ->
+                ResponseEntity.ok(mapOf<String, Any>(
+                    "jwksUri" to jwksUri,
+                    "status" to "SUCCESS",
+                    "responseLength" to body.length,
+                    "responsePreview" to body.take(200)
+                ))
+            }
+            .onErrorResume { error ->
+                Mono.just(ResponseEntity.ok(mapOf<String, Any>(
+                    "jwksUri" to jwksUri,
+                    "status" to "ERROR",
+                    "errorType" to (error::class.simpleName ?: "Unknown"),
+                    "errorMessage" to (error.message ?: "No message")
+                )))
+            }
+    }
+
+    /**
      * Извлекает и валидирует JWT токен из cookie.
      *
      * @param exchange ServerWebExchange для доступа к cookies
