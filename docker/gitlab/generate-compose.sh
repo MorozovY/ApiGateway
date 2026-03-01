@@ -94,9 +94,9 @@ services:
       - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
-      # Keycloak (Story 12.1) — доступен через postgres-net
+      # Keycloak (Story 12.1) — используем external URL для совпадения issuer в JWT
       - KEYCLOAK_ENABLED=true
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=https://keycloak.ymorozov.ru
       - KEYCLOAK_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME:-admin}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
       # Monitoring (Story 13.11)
@@ -139,9 +139,9 @@ services:
       - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
-      # Keycloak (Story 12.4) — JWT validation
+      # Keycloak (Story 12.4) — JWT validation, external URL для совпадения issuer
       - KEYCLOAK_ENABLED=true
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=https://keycloak.ymorozov.ru
     ports:
       - "${CORE_PORT}:8080"
     networks:
