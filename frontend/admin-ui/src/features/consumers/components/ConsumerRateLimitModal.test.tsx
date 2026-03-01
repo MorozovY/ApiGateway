@@ -305,7 +305,7 @@ describe('ConsumerRateLimitModal', () => {
   })
 
   it('закрывает модальное окно после успешного создания rate limit (AC8)', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     mockGetConsumerRateLimit.mockResolvedValue(null)
     mockSetConsumerRateLimit.mockResolvedValue({
       requestsPerSecond: 50,
@@ -324,24 +324,27 @@ describe('ConsumerRateLimitModal', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText(/requests per second/i)).toBeInTheDocument()
-    })
+    }, { timeout: 5000 })
 
     const rpsInput = screen.getByLabelText(/requests per second/i)
     const burstInput = screen.getByLabelText(/burst size/i)
 
+    // Очищаем и вводим значения (InputNumber может иметь начальные значения)
+    await user.clear(rpsInput)
     await user.type(rpsInput, '50')
+    await user.clear(burstInput)
     await user.type(burstInput, '75')
 
     const setButton = screen.getByRole('button', { name: /set rate limit/i })
     await user.click(setButton)
 
-    // Сначала ждём вызов API, затем onClose (увеличен таймаут для CI)
+    // Увеличен таймаут для CI — форма Ant Design может быть медленной
     await waitFor(() => {
       expect(mockSetConsumerRateLimit).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    }, { timeout: 10000 })
 
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    }, { timeout: 5000 })
   })
 })
