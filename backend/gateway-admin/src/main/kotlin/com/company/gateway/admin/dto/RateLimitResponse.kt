@@ -24,7 +24,7 @@ data class RateLimitResponse(
     val requestsPerSecond: Int,
     val burstSize: Int,
     val usageCount: Long,
-    val createdBy: UUID,
+    val createdBy: UUID?,
     val createdAt: Instant?,
     val updatedAt: Instant?
 ) {

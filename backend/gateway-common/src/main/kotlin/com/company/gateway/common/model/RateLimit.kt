@@ -41,9 +41,9 @@ data class RateLimit(
     @Column("burst_size")
     val burstSize: Int,
 
-    /** ID пользователя, создавшего политику */
+    /** ID пользователя, создавшего политику (nullable для legacy данных) */
     @Column("created_by")
-    val createdBy: UUID,
+    val createdBy: UUID? = null,
 
     /** Дата и время создания */
     @Column("created_at")
