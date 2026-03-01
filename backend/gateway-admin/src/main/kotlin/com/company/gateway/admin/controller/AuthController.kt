@@ -325,6 +325,31 @@ class AuthController(
     }
 
     /**
+     * Debug endpoint для проверки SecurityContext.
+     *
+     * Показывает содержимое SecurityContext для диагностики.
+     */
+    @GetMapping("/debug/security")
+    fun debugSecurity(): Mono<ResponseEntity<Map<String, Any>>> {
+        return org.springframework.security.core.context.ReactiveSecurityContextHolder.getContext()
+            .map { context ->
+                val auth = context.authentication
+                ResponseEntity.ok(mapOf<String, Any>(
+                    "hasAuthentication" to (auth != null),
+                    "authenticationType" to (auth?.javaClass?.simpleName ?: "null"),
+                    "principalType" to (auth?.principal?.javaClass?.simpleName ?: "null"),
+                    "isAuthenticated" to (auth?.isAuthenticated ?: false),
+                    "authorities" to (auth?.authorities?.map { it.authority } ?: emptyList<String>()),
+                    "name" to (auth?.name ?: "null")
+                ))
+            }
+            .defaultIfEmpty(ResponseEntity.ok(mapOf(
+                "hasAuthentication" to false,
+                "error" to "SecurityContext is empty"
+            )))
+    }
+
+    /**
      * Debug endpoint для проверки входящих headers.
      *
      * Публичный endpoint. Показывает какие headers приходят от Traefik.
