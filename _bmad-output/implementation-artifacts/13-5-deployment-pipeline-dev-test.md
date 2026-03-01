@@ -1,6 +1,6 @@
 # Story 13.5: Deployment Pipeline — Dev & Test Environments
 
-Status: in-progress
+Status: review
 Story Points: 8
 
 ## Story
