@@ -325,6 +325,27 @@ class AuthController(
     }
 
     /**
+     * Debug endpoint для проверки входящих headers.
+     *
+     * Публичный endpoint. Показывает какие headers приходят от Traefik.
+     *
+     * @return JSON со списком headers
+     */
+    @GetMapping("/debug/headers")
+    fun debugHeaders(exchange: ServerWebExchange): Mono<ResponseEntity<Map<String, Any>>> {
+        val headers = exchange.request.headers.toSingleValueMap()
+        val authHeader = exchange.request.headers.getFirst("Authorization")
+
+        return Mono.just(ResponseEntity.ok(mapOf(
+            "allHeaders" to headers.keys.sorted(),
+            "authorizationPresent" to (authHeader != null),
+            "authorizationPreview" to (authHeader?.take(50) ?: "null"),
+            "contentType" to (headers["Content-Type"] ?: "null"),
+            "host" to (headers["Host"] ?: "null")
+        )))
+    }
+
+    /**
      * Debug endpoint для проверки декодирования JWT токена.
      *
      * Публичный endpoint. Принимает токен и пытается декодировать через JwtDecoder.
