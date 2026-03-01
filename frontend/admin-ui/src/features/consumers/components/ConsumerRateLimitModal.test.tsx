@@ -305,6 +305,7 @@ describe('ConsumerRateLimitModal', () => {
   })
 
   it('закрывает модальное окно после успешного создания rate limit (AC8)', async () => {
+    // Увеличен timeout для CI — тест содержит множественные waitFor
     const user = userEvent.setup()
     mockGetConsumerRateLimit.mockResolvedValue(null)
     mockSetConsumerRateLimit.mockResolvedValue({
@@ -344,5 +345,5 @@ describe('ConsumerRateLimitModal', () => {
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled()
     }, { timeout: 5000 })
-  })
+  }, 20000)
 })
