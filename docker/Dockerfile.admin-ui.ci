@@ -1,6 +1,7 @@
 # Dockerfile.admin-ui.ci
 # Оптимизированный Dockerfile для CI — использует pre-built dist/ из артефактов
 # Story 13.3: Docker Image Build & Registry
+# Story 13.8: Routing через Traefik (nginx удалён)
 #
 # Использование в CI:
 #   docker build -f docker/Dockerfile.admin-ui.ci .
@@ -8,17 +9,22 @@
 # Требования:
 #   - frontend/admin-ui/dist/ должен существовать (из frontend-build job artifacts)
 
-FROM nginx:alpine
+FROM caddy:2-alpine
 
 # Копируем pre-built frontend из CI артефактов
-COPY frontend/admin-ui/dist /usr/share/nginx/html
+COPY frontend/admin-ui/dist /srv
 
-# Nginx конфигурация
-COPY docker/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+# Caddyfile для SPA (все пути -> index.html)
+RUN echo ':80 { \
+    root * /srv \
+    try_files {path} /index.html \
+    file_server \
+    respond /health 200 \
+}' > /etc/caddy/Caddyfile
 
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]
