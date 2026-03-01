@@ -70,7 +70,7 @@ describe('useLoadGenerator', () => {
     )
 
     expect(result.current.state.successCount).toBeGreaterThan(0)
-    // Story 9.2: Используем относительный путь /api${routePath} через nginx
+    // Story 9.2, 13.8: Используем относительный путь /api${routePath} через Traefik
     expect(mockFetch).toHaveBeenCalledWith('/api/test-route', {
       method: 'GET',
     })

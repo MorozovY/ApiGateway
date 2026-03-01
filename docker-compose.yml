@@ -14,30 +14,15 @@
 #   - Grafana (port 3001): Dashboard visualization (3000 занят frontend)
 #
 # Health checks:
-#   - PostgreSQL: pg_isready command (interval: 10s, timeout: 5s, retries: 5)
 #   - Redis: redis-cli ping (interval: 10s, timeout: 5s, retries: 5)
-#   - Keycloak 24 (port 8180): Identity Provider для SSO аутентификации
+#
+# Централизованная инфраструктура (Story 13.8, 13.9):
+#   - PostgreSQL: запущен в infra проекте (postgres-net)
+#   - Keycloak: запущен в infra проекте
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: gateway-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-gateway}
-      POSTGRES_USER: ${POSTGRES_USER:-gateway}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gateway}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gateway}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - gateway-network
+  # PostgreSQL удалён — используется централизованный infra-postgres (Story 13.9)
+  # Подключение через внешнюю сеть postgres-net
 
   redis:
     image: redis:7
@@ -54,36 +39,9 @@ services:
     networks:
       - gateway-network
 
-  # Keycloak — Identity Provider для SSO аутентификации
-  # Запускается в development режиме (HTTP, без SSL)
-  # Realm автоматически импортируется при первом старте
-  keycloak:
-    image: quay.io/keycloak/keycloak:24.0
-    container_name: gateway-keycloak
-    command: start-dev --import-realm
-    environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: ${POSTGRES_USER:-gateway}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-gateway}
-      KC_HEALTH_ENABLED: "true"
-    ports:
-      - "8180:8080"
-    volumes:
-      - ./docker/keycloak:/opt/keycloak/data/import:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\nHost: localhost\nConnection: close\n\n' >&3 && cat <&3 | grep -q '200 OK'"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-    networks:
-      - gateway-network
+  # Keycloak удалён из локального compose — используется централизованный из infra (Story 13.8)
+  # Доступ через: http://keycloak:8080 (внутри Docker networks)
+  # Внешний доступ: https://keycloak.ymorozov.ru (через Traefik)
 
   # Мониторинг (опциональный profile "monitoring")
   prometheus:
@@ -137,7 +95,7 @@ services:
       - gateway-network
 
 volumes:
-  postgres_data:
+  # postgres_data удалён — используется centralized infra-postgres (Story 13.9)
   redis_data:
   prometheus_data:
   grafana_data:
@@ -145,3 +103,11 @@ volumes:
 networks:
   gateway-network:
     driver: bridge
+  # Внешняя сеть для подключения к централизованному Traefik
+  # Создаётся в infra проекте: docker network create traefik-net
+  traefik-net:
+    external: true
+  # Внешняя сеть для подключения к централизованному PostgreSQL (Story 13.9)
+  # Создаётся в infra проекте: docker network create postgres-net
+  postgres-net:
+    external: true

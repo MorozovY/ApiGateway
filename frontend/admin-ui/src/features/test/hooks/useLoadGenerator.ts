@@ -7,8 +7,8 @@ import type {
 } from '../types/loadGenerator.types'
 
 /**
- * Префикс для API запросов к gateway-core через nginx.
- * nginx routing: /api/* → gateway-core:8080 (см. docker/nginx/nginx.conf)
+ * Префикс для API запросов к gateway-core через Traefik.
+ * Traefik routing: /api/* → gateway-core:8080 (Story 13.8)
  * Используем относительный путь для работы через same-origin (без CORS).
  */
 const GATEWAY_API_PREFIX = '/api'
@@ -115,7 +115,7 @@ export function useLoadGenerator(): UseLoadGeneratorReturn {
 
         const requestStartTime = performance.now()
         try {
-          // Отправляем запрос через nginx → gateway-core
+          // Отправляем запрос через Traefik → gateway-core (Story 13.8)
           // Используем относительный путь /api${routePath} для same-origin запросов
           const response = await fetch(`${GATEWAY_API_PREFIX}${config.routePath}`, {
             method: 'GET',

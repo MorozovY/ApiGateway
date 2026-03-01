@@ -91,10 +91,8 @@ gateway:
 grafana:
   url: ${GRAFANA_URL:http://localhost:3001}
 
-# Nginx конфигурация (Story 10.5)
-# Nginx является entry point (reverse proxy) системы
-nginx:
-  url: ${NGINX_URL:http://localhost:80}
+# Примечание: Nginx удалён (Story 13.8). Reverse proxy — централизованный Traefik (infra проект).
+# Внешние URL: https://gateway.ymorozov.ru/* — см. CLAUDE.md для деталей routing.
 
 # Keycloak конфигурация (Story 12.1, Story 12.3, Story 12.9)
 # Identity Provider для SSO аутентификации

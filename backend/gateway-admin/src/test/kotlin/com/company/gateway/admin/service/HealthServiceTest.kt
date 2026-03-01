@@ -27,13 +27,14 @@ import java.net.ConnectException
 import java.time.Duration
 
 /**
- * Unit тесты для HealthService (Story 8.1, 10.5).
+ * Unit тесты для HealthService (Story 8.1, 13.8).
  *
  * Покрывает AC1 и AC2:
  * - AC1: Отображение статусов всех сервисов (UP/DOWN)
  * - AC2: Отображение DOWN для недоступных сервисов с деталями ошибки
  *
- * Использует MockWebServer для эмуляции HTTP endpoints (nginx, gateway-core, prometheus, grafana).
+ * Использует MockWebServer для эмуляции HTTP endpoints (gateway-core, prometheus, grafana, keycloak).
+ * Примечание: nginx удалён в Story 13.8, reverse proxy — централизованный Traefik.
  */
 class HealthServiceTest {
 
@@ -72,7 +73,6 @@ class HealthServiceTest {
             gatewayCoreUrl = baseUrl,
             prometheusUrl = baseUrl,
             grafanaUrl = baseUrl,
-            nginxUrl = baseUrl,
             keycloakUrl = baseUrl,
             checkTimeout = Duration.ofSeconds(5)
         )
@@ -84,27 +84,6 @@ class HealthServiceTest {
 
     @Nested
     inner class AC1_AllServicesUp {
-
-        @Test
-        fun `возвращает UP для Nginx когда health endpoint отвечает`() {
-            // Given: nginx /nginx-health возвращает 200
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setBody("healthy\n")
-            )
-
-            val healthService = createHealthService()
-
-            // When & Then
-            StepVerifier.create(healthService.checkNginx())
-                .expectNextMatches { service ->
-                    service.name == "nginx" &&
-                        service.status == ServiceStatus.UP &&
-                        service.details == null
-                }
-                .verifyComplete()
-        }
 
         @Test
         fun `возвращает UP для gateway-core когда actuator отвечает`() {
@@ -264,23 +243,6 @@ class HealthServiceTest {
 
     @Nested
     inner class AC2_ServiceDown {
-
-        @Test
-        fun `возвращает DOWN для Nginx когда сервер недоступен`() {
-            // Given: MockWebServer закрыт — соединение будет отклонено
-            mockWebServer.shutdown()
-
-            val healthService = createHealthService()
-
-            // When & Then
-            StepVerifier.create(healthService.checkNginx())
-                .expectNextMatches { service ->
-                    service.name == "nginx" &&
-                        service.status == ServiceStatus.DOWN &&
-                        service.details != null
-                }
-                .verifyComplete()
-        }
 
         @Test
         fun `возвращает DOWN для gateway-core когда actuator возвращает status DOWN`() {
@@ -476,11 +438,11 @@ class HealthServiceTest {
                     as Publisher<Connection>
             )
 
-            // When & Then: ожидаем 8 сервисов (nginx + gateway + postgresql + redis + keycloak + prometheus + grafana)
+            // When & Then: ожидаем 7 сервисов (gateway + postgresql + redis + keycloak + prometheus + grafana)
+            // Примечание: nginx удалён в Story 13.8
             StepVerifier.create(healthService.getServicesHealth())
                 .expectNextMatches { response ->
-                    response.services.size == 8 &&
-                        response.services.any { it.name == "nginx" && it.status == ServiceStatus.DOWN } &&
+                    response.services.size == 7 &&
                         response.services.any { it.name == "gateway-core" && it.status == ServiceStatus.DOWN } &&
                         response.services.any { it.name == "gateway-admin" && it.status == ServiceStatus.UP } &&
                         response.services.any { it.name == "postgresql" && it.status == ServiceStatus.DOWN } &&

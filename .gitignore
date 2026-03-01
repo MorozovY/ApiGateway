@@ -87,6 +87,8 @@ frontend/admin-ui/.env.e2e
 # Database
 *.db
 *.sqlite
+# PostgreSQL backups (Story 13.9)
+gateway_backup_*.sql
 
 # BMAD output (optional - uncomment if you want to exclude)
 # _bmad-output/

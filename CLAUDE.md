@@ -199,12 +199,31 @@ docker-compose logs -f gateway-core
 docker-compose logs -f admin-ui
 ```
 
-**Сервисы:**
-- **gateway-admin**: http://localhost:8081 (API + Swagger UI: /swagger-ui.html)
+**Сервисы (локальный доступ):**
+- **gateway-admin**: http://localhost:8082 (API + Swagger UI: /swagger-ui.html)
 - **gateway-core**: http://localhost:8080 (Gateway)
 - **admin-ui**: http://localhost:3000 (Frontend)
 - **Prometheus**: http://localhost:9090 (с --profile monitoring)
 - **Grafana**: http://localhost:3001 (с --profile monitoring, login: admin/admin)
+
+**Внешний доступ (через Traefik):** (Story 13.8)
+- **Frontend**: https://gateway.ymorozov.ru/
+- **Admin API**: https://gateway.ymorozov.ru/api/v1/*
+- **Gateway API**: https://gateway.ymorozov.ru/api/*
+- **Swagger UI**: https://gateway.ymorozov.ru/swagger-ui.html
+
+**Примечание:** Traefik и PostgreSQL запущены в централизованной инфраструктуре (infra проект).
+Для работы необходимо чтобы сети были созданы:
+```bash
+# Создать сети (если не существуют) — выполнить один раз
+docker network create traefik-net 2>/dev/null || true
+docker network create postgres-net 2>/dev/null || true
+```
+
+**Централизованная инфраструктура (Story 13.9):**
+- **PostgreSQL**: запущен в infra проекте, доступен через `postgres-net`
+- **Keycloak**: запущен в infra проекте, доступен через Docker networks
+- Credentials хранятся в Vault (`secret/apigateway/database`)
 
 **Hot-reload:**
 - Backend: изменения в `backend/*/src` автоматически перезагружают сервис
@@ -213,12 +232,15 @@ docker-compose logs -f admin-ui
 ### Запуск только инфраструктуры
 
 ```bash
-# Только PostgreSQL и Redis (без приложений)
-docker-compose up -d postgres redis
+# Только Redis (PostgreSQL запущен в infra проекте — Story 13.9)
+docker-compose up -d redis
 
 # С Prometheus + Grafana
-docker-compose up -d postgres redis && docker-compose --profile monitoring up -d prometheus grafana
+docker-compose up -d redis && docker-compose --profile monitoring up -d prometheus grafana
 ```
+
+**Важно:** PostgreSQL больше не запускается локально. Используется централизованный
+postgres из infra проекта. Убедитесь что infra stack запущен перед стартом ApiGateway.
 
 ### Мониторинг (Prometheus + Grafana)
 

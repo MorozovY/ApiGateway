@@ -281,7 +281,7 @@ async function globalSetup(): Promise<void> {
     )
   }
 
-  const apiBase = 'http://localhost:8081'
+  const apiBase = process.env.API_BASE || 'http://localhost:8082'
   const keycloakUrl = process.env.KEYCLOAK_URL || 'http://localhost:8180'
   const keycloakRealm = process.env.KEYCLOAK_REALM || 'api-gateway'
   const keycloakClientId = process.env.KEYCLOAK_CLIENT_ID || 'gateway-admin-ui'

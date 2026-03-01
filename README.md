@@ -29,18 +29,32 @@ git remote add gitlab http://localhost:8929/root/api-gateway.git
 
 ## Быстрый старт
 
-### 1. Запуск инфраструктуры
+### 0. Централизованная инфраструктура (Story 13.9)
+
+ApiGateway использует централизованную инфраструктуру из infra проекта:
+- **PostgreSQL** — запущен в infra проекте, доступен через `postgres-net`
+- **Keycloak** — запущен в infra проекте, доступен через Docker networks
+
+Перед запуском ApiGateway убедитесь что infra stack запущен.
+
+### 1. Создание Docker networks
+
+```bash
+# Создать сети (если не существуют)
+docker network create traefik-net 2>/dev/null || true
+docker network create postgres-net 2>/dev/null || true
+```
+
+### 2. Запуск локальной инфраструктуры
 
 ```bash
 docker-compose up -d
 ```
 
 Это запустит:
-- PostgreSQL 16 на порту 5432
 - Redis 7 на порту 6379
-- Keycloak 24 на порту 8180 (Identity Provider)
 
-### 2. Backend
+### 3. Backend
 
 ```bash
 cd backend
@@ -55,7 +69,7 @@ cd backend
 ./gradlew :gateway-core:bootRun
 ```
 
-### 3. Frontend
+### 4. Frontend
 
 ```bash
 cd frontend/admin-ui
@@ -95,11 +109,34 @@ api-gateway/
 | Сервис | Порт | Описание |
 |--------|------|----------|
 | gateway-core | 8080 | Gateway runtime (request routing) |
-| gateway-admin | 8081 | Admin API |
+| gateway-admin | 8082 | Admin API (8081 занят Nexus) |
 | admin-ui | 3000 | Frontend dev server |
-| PostgreSQL | 5432 | Database |
 | Redis | 6379 | Cache |
-| Keycloak | 8180 | Identity Provider (SSO) |
+
+**Централизованная инфраструктура (infra проект):**
+| Сервис | Доступ | Описание |
+|--------|--------|----------|
+| PostgreSQL | postgres:5432 (через postgres-net) | Database |
+| Keycloak | keycloak:8080 (через Docker networks) | Identity Provider (SSO) |
+
+## Reverse Proxy (Traefik)
+
+Проект использует централизованный Traefik для внешнего доступа (Story 13.8).
+
+**Внешние URL** (Backend = внутренний порт контейнера):
+| URL | Backend (container port) |
+|-----|--------------------------|
+| https://gateway.ymorozov.ru/ | admin-ui:3000 |
+| https://gateway.ymorozov.ru/api/v1/* | gateway-admin:8081 |
+| https://gateway.ymorozov.ru/api/* | gateway-core:8080 |
+| https://gateway.ymorozov.ru/swagger-ui.html | gateway-admin:8081 |
+
+> **Примечание:** Host-mapped порты отличаются (gateway-admin: 8082 на host, 8081 внутри контейнера).
+> Keycloak routing (`/keycloak/*`) не включён — Keycloak доступен напрямую на порту 8180.
+
+**Требования:**
+- Traefik должен быть запущен в infra проекте
+- Сеть `traefik-net` должна быть создана
 
 ## Конфигурация
 

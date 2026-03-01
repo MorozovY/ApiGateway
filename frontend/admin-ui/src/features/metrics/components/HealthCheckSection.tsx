@@ -24,19 +24,17 @@ const STATUS_COLORS = {
 /**
  * Конфигурация отображения сервисов.
  * Определяет порядок и отображаемые имена.
- * Nginx первый (order: 0), так как это entry point системы (reverse proxy).
- * Всего 8 сервисов: nginx, gateway-core, gateway-admin, postgresql, redis, keycloak, prometheus, grafana.
- * Располагаются в 2 ряда по 4 карточки.
+ * Всего 7 сервисов: gateway-core, gateway-admin, postgresql, redis, keycloak, prometheus, grafana.
+ * Reverse proxy (Traefik) — во внешней инфраструктуре, не проверяется напрямую.
  */
 const SERVICE_CONFIG: Record<string, { displayName: string; order: number }> = {
-  'nginx': { displayName: 'Nginx', order: 0 },
-  'gateway-core': { displayName: 'Gateway Core', order: 1 },
-  'gateway-admin': { displayName: 'Gateway Admin', order: 2 },
-  'postgresql': { displayName: 'PostgreSQL', order: 3 },
-  'redis': { displayName: 'Redis', order: 4 },
-  'keycloak': { displayName: 'Keycloak', order: 5 },
-  'prometheus': { displayName: 'Prometheus', order: 6 },
-  'grafana': { displayName: 'Grafana', order: 7 },
+  'gateway-core': { displayName: 'Gateway Core', order: 0 },
+  'gateway-admin': { displayName: 'Gateway Admin', order: 1 },
+  'postgresql': { displayName: 'PostgreSQL', order: 2 },
+  'redis': { displayName: 'Redis', order: 3 },
+  'keycloak': { displayName: 'Keycloak', order: 4 },
+  'prometheus': { displayName: 'Prometheus', order: 5 },
+  'grafana': { displayName: 'Grafana', order: 6 },
 }
 
 /**
