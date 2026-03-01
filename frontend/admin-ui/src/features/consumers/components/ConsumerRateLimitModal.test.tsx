@@ -305,7 +305,7 @@ describe('ConsumerRateLimitModal', () => {
   })
 
   it('закрывает модальное окно после успешного создания rate limit (AC8)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const user = userEvent.setup()
     mockGetConsumerRateLimit.mockResolvedValue(null)
     mockSetConsumerRateLimit.mockResolvedValue({
       requestsPerSecond: 50,
@@ -329,10 +329,8 @@ describe('ConsumerRateLimitModal', () => {
     const rpsInput = screen.getByLabelText(/requests per second/i)
     const burstInput = screen.getByLabelText(/burst size/i)
 
-    // Очищаем и вводим значения (InputNumber может иметь начальные значения)
-    await user.clear(rpsInput)
+    // Вводим значения
     await user.type(rpsInput, '50')
-    await user.clear(burstInput)
     await user.type(burstInput, '75')
 
     const setButton = screen.getByRole('button', { name: /set rate limit/i })
