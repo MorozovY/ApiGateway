@@ -164,7 +164,7 @@ describe('keycloakApi', () => {
 
       // Code Review Fix: M5 - обновлённое error message для revoked tokens
       await expect(keycloakRefreshToken('expired-token')).rejects.toThrow(
-        'Сессия истекла или токен отозван'
+        'Сессия истекла или токен отозван. Пожалуйста, войдите снова'
       )
     })
   })
