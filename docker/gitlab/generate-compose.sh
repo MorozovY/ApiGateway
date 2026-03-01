@@ -47,10 +47,10 @@ NETWORK_NAME="gateway-${ENVIRONMENT}"
 CONTAINER_SUFFIX="-${ENVIRONMENT}"
 
 # Исправление hostname для Docker network
-# Vault может содержать "infra-postgres" или другие hostname,
-# но на Docker network postgres-net контейнер называется "postgres"
-FIXED_DATABASE_URL=$(echo "${DATABASE_URL}" | sed 's/infra-postgres/postgres/g')
-FIXED_REDIS_HOST=$(echo "${REDIS_HOST}" | sed 's/infra-redis/redis/g')
+# Vault может содержать "infra-postgres", "gateway-redis" или другие hostname,
+# но на Docker network контейнеры называются "postgres" и "redis"
+FIXED_DATABASE_URL=$(echo "${DATABASE_URL}" | sed 's/infra-postgres/postgres/g; s/gateway-postgres/postgres/g')
+FIXED_REDIS_HOST=$(echo "${REDIS_HOST}" | sed 's/infra-redis/redis/g; s/gateway-redis/redis/g')
 
 # Извлечение database name из DATABASE_URL
 # Формат: r2dbc:postgresql://host:port/dbname или postgresql://host:port/dbname
