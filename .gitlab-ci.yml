@@ -14,14 +14,6 @@ include:
   - template: Jobs/SAST.gitlab-ci.yml
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
 
-# =============================================================================
-# GLOBAL VARIABLES
-# =============================================================================
-variables:
-  # Исключаем директории с тестами и билд-артефактами из SAST
-  # Сканируем только production code, исключаем тесты, node_modules, build outputs
-  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build"
-
 stages:
   - build
   - test
@@ -783,3 +775,24 @@ sync-to-github:
     - git fetch --unshallow || true
     - git push github HEAD:master --force
     - git push github --tags --force
+
+# =============================================================================
+# SECURITY SCANNING CONFIGURATION (Story 13.7)
+# =============================================================================
+# Переопределение SAST variables для исключения тестов и build artifacts
+# SAST jobs наследуются из template Jobs/SAST.gitlab-ci.yml
+
+# Semgrep SAST — сканирует Java, JavaScript, TypeScript
+semgrep-sast:
+  variables:
+    SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build"
+
+# SpotBugs SAST — сканирует Kotlin (требует compiled classes)
+spotbugs-sast:
+  variables:
+    SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build"
+
+# NodeJS Scan — сканирует Node.js приложения
+nodejs-scan-sast:
+  variables:
+    SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build"
