@@ -463,8 +463,10 @@ class RateLimitIntegrationTest {
             .expectHeader().exists("X-RateLimit-Remaining")
             .expectHeader().exists("X-RateLimit-Reset")
 
-        // Исчерпываем burst
-        repeat(2) {
+        // Исчерпываем burst (burst=3, нужно ещё 2 запроса после первого)
+        // Делаем 5 дополнительных запросов чтобы гарантированно исчерпать burst
+        // даже если между запросами восполняется часть токенов
+        repeat(5) {
             webTestClient.get()
                 .uri("/api/headers-test")
                 .header("X-Forwarded-For", testClientIp)
@@ -472,6 +474,7 @@ class RateLimitIntegrationTest {
         }
 
         // 429 ответ тоже должен содержать заголовки
+        // После 6 запросов подряд burst точно исчерпан
         webTestClient.get()
             .uri("/api/headers-test")
             .header("X-Forwarded-For", testClientIp)
