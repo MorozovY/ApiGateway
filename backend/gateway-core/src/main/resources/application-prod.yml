@@ -1,0 +1,36 @@
+# Production profile для gateway-core
+# Активируется через SPRING_PROFILES_ACTIVE=prod
+#
+# ВАЖНО: Все secrets ДОЛЖНЫ передаваться через environment variables!
+# Этот файл содержит только production-specific defaults.
+
+spring:
+  r2dbc:
+    pool:
+      # Увеличенный pool для production нагрузки
+      initial-size: 5
+      max-size: 20
+  cloud:
+    gateway:
+      httpclient:
+        # Production timeouts
+        connect-timeout: 3000   # 3 seconds (stricter than dev)
+        response-timeout: 15000 # 15 seconds (stricter than dev)
+
+# Keycloak включён по умолчанию в production
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+
+management:
+  endpoint:
+    health:
+      # В production показываем детали только авторизованным
+      show-details: when_authorized
+
+# Logging: менее verbose в production
+logging:
+  level:
+    root: WARN
+    com.company.gateway.core: INFO
+    org.springframework.cloud.gateway: WARN
+    org.springframework.security: WARN

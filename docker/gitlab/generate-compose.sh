@@ -32,6 +32,11 @@ case "$ENVIRONMENT" in
     CORE_PORT="18080"
     UI_PORT="13000"
     ;;
+  prod)
+    ADMIN_PORT="38081"
+    CORE_PORT="38080"
+    UI_PORT="33000"
+    ;;
   *)
     echo "Unknown environment: $ENVIRONMENT"
     exit 1

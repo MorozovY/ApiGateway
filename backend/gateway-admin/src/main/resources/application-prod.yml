@@ -1,0 +1,34 @@
+# Production profile для gateway-admin
+# Активируется через SPRING_PROFILES_ACTIVE=prod
+#
+# ВАЖНО: Все secrets ДОЛЖНЫ передаваться через environment variables!
+# Этот файл содержит только production-specific defaults.
+
+spring:
+  r2dbc:
+    pool:
+      # Увеличенный pool для production нагрузки
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 10m
+  flyway:
+    # В production НЕ запускаем миграции автоматически
+    # Миграции должны запускаться отдельным процессом
+    enabled: ${FLYWAY_ENABLED:true}
+
+management:
+  endpoint:
+    health:
+      # В production показываем детали только авторизованным
+      show-details: when_authorized
+
+# Keycloak включён по умолчанию в production
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+
+# Logging: менее verbose в production
+logging:
+  level:
+    root: WARN
+    com.apigateway: INFO
+    org.springframework.security: WARN

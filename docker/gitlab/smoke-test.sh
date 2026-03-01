@@ -41,6 +41,12 @@ case "$ENVIRONMENT" in
     CORE_PORT="${CORE_PORT:-18080}"
     UI_PORT="${UI_PORT:-13000}"
     ;;
+  prod)
+    # Production environment
+    ADMIN_PORT="${ADMIN_PORT:-38081}"
+    CORE_PORT="${CORE_PORT:-38080}"
+    UI_PORT="${UI_PORT:-33000}"
+    ;;
   local)
     # Локальная разработка — стандартные порты
     ADMIN_PORT="${ADMIN_PORT:-8081}"

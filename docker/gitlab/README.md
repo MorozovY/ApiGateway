@@ -639,7 +639,7 @@ vault kv put secret/apigateway/database \
 4. **Audit access** — Vault audit log включен
 5. **Rotate credentials** — Secret ID каждые 30 дней, пароли по политике
 
-## Deployment Pipeline (Story 13.5)
+## Deployment Pipeline (Story 13.5, 13.6)
 
 ### Архитектура Deployment
 
@@ -661,13 +661,18 @@ vault kv put secret/apigateway/database \
 │  │     DEV Environment (apigateway-dev)                 │    │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │    │
 │  │  │ gateway  │  │ gateway  │  │ admin-ui │           │    │
-│  │  │  admin   │  │   core   │  │  :3000   │           │    │
-│  │  │  :8081   │  │  :8080   │  │          │           │    │
+│  │  │  admin   │  │   core   │  │  :23000  │           │    │
+│  │  │  :28081  │  │  :28080  │  │          │           │    │
 │  │  └──────────┘  └──────────┘  └──────────┘           │    │
 │  └─────────────────────────────────────────────────────┘    │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │     TEST Environment (apigateway-test)               │    │
-│  │  :18081, :18080, :3001                               │    │
+│  │  :18081, :18080, :13000                              │    │
+│  └─────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │     PROD Environment (apigateway-prod)               │    │
+│  │  :38081, :38080, :33000                              │    │
+│  │  (Manual approval required)                          │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                                                              │
 │  ┌──────────────── External Networks ──────────────────┐    │
@@ -683,7 +688,8 @@ vault kv put secret/apigateway/database \
 | Environment | Порты (Admin, Core, UI) | Trigger | Purpose |
 |-------------|-------------------------|---------|---------|
 | **dev** | 28081, 28080, 23000 | Manual на master | Быстрая итерация |
-| **test** | 18081, 18080, 13000 | Manual на master | E2E tests |
+| **test** | 18081, 18080, 13000 | Auto после smoke-test-dev | E2E tests |
+| **prod** | 38081, 38080, 33000 | Manual после e2e-test | Production |
 
 ### CI/CD Variables для Deployment
 
@@ -699,12 +705,15 @@ GitLab → Settings → CI/CD → Variables:
 
 ### Deployment Jobs
 
-| Job | Описание |
-|-----|----------|
-| `deploy-dev` | Deploy в dev environment |
-| `smoke-test-dev` | Smoke tests после deploy-dev |
-| `deploy-test` | Deploy в test environment |
-| `e2e-test` | Playwright E2E tests |
+| Job | Описание | Trigger |
+|-----|----------|---------|
+| `deploy-dev` | Deploy в dev environment | Manual |
+| `smoke-test-dev` | Smoke tests после deploy-dev | Auto |
+| `deploy-test` | Deploy в test environment | Auto |
+| `e2e-test` | Playwright E2E tests | Auto |
+| `deploy-prod` | Deploy в production с rolling update | Manual |
+| `smoke-test-prod` | Smoke tests после deploy-prod | Auto |
+| `rollback-prod` | Откат production к предыдущей версии | Manual |
 
 ### Ручной Deployment
 
@@ -770,6 +779,127 @@ cd /opt/apigateway
 ```
 
 **Время rollback:** < 2 минут
+
+## Production Deployment (Story 13.6)
+
+### Процесс Production Deployment
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  e2e-test    │ ──► │  deploy-prod │ ──► │ smoke-test   │ ──► │   Git Tag    │
+│   (auto)     │     │  (manual)    │     │    -prod     │     │   created    │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+                           │
+                           ▼
+                    Rolling Update:
+                    1. gateway-core
+                    2. gateway-admin
+                    3. admin-ui
+                    (health check после каждого)
+```
+
+### Запуск Production Deployment
+
+1. **Prerequisites:**
+   - E2E tests должны пройти успешно
+   - Пользователь должен иметь роль Maintainer+
+
+2. **Trigger:**
+   - GitLab → CI/CD → Pipelines → найти pipeline на master
+   - Нажать `deploy-prod` (manual trigger)
+
+3. **Verification:**
+   - Smoke tests запускаются автоматически
+   - Git tag создаётся: `prod-YYYY-MM-DD-N`
+
+### Rolling Update Strategy
+
+Production deployment использует rolling update для минимизации downtime:
+
+| Шаг | Сервис | Health Check | Rollback при failure |
+|-----|--------|--------------|---------------------|
+| 1 | gateway-core | /actuator/health | Да |
+| 2 | gateway-admin | /actuator/health | Да |
+| 3 | admin-ui | / | Да |
+
+**Порядок обновления:**
+- gateway-core первый (основной трафик идёт через него)
+- gateway-admin второй (API management)
+- admin-ui последний (frontend)
+
+### Production Rollback
+
+**Автоматический:** при failure любого health check во время deployment
+
+**Ручной (через GitLab UI):**
+1. GitLab → CI/CD → Pipelines
+2. Найти pipeline на master
+3. Нажать `rollback-prod` (manual trigger)
+
+**Ручной (через CLI):**
+```bash
+./docker/gitlab/rollback.sh prod
+```
+
+**Время rollback:** < 2 минут
+
+### Git Tags
+
+Каждый успешный production deployment создаёт Git tag:
+
+**Формат:** `prod-YYYY-MM-DD-N`
+- `YYYY-MM-DD` — дата deployment
+- `N` — номер pipeline (CI_PIPELINE_IID)
+
+**Примеры:**
+- `prod-2026-03-01-42`
+- `prod-2026-03-15-87`
+
+**Использование:**
+```bash
+# Посмотреть все production tags
+git tag -l "prod-*"
+
+# Checkout specific deployment
+git checkout prod-2026-03-01-42
+```
+
+**Настройка Git Tag Push:**
+
+Для автоматического push тегов в GitLab и GitHub необходимо:
+
+1. **GitLab (автоматически):** Используется `CI_JOB_TOKEN`. Убедитесь что в
+   Settings → CI/CD → Token Access разрешён push для jobs.
+
+2. **GitHub (опционально):** Добавьте `GITHUB_TOKEN` в GitLab CI/CD Variables:
+   - Settings → CI/CD → Variables → Add variable
+   - Key: `GITHUB_TOKEN`
+   - Value: Personal Access Token с правами `repo`
+   - Flags: Masked, Protected
+
+### Environment Protection (рекомендуется)
+
+Для дополнительной безопасности настройте protected environment в GitLab:
+
+1. GitLab → Settings → CI/CD → Protected environments
+2. Add environment: `production`
+3. Allowed to deploy: `Maintainers` (или конкретные пользователи)
+4. Required approvals: `0` (или `1` для dual-control)
+
+### Port Allocation Summary
+
+| Environment | Admin Port | Core Port | UI Port | Compose Project |
+|-------------|------------|-----------|---------|-----------------|
+| dev | 28081 | 28080 | 23000 | apigateway-dev |
+| test | 18081 | 18080 | 13000 | apigateway-test |
+| **prod** | **38081** | **38080** | **33000** | **apigateway-prod** |
+
+### Audit Trail
+
+Production deployment audit:
+- **GitLab Job Log:** кто запустил, когда, какой commit
+- **Git Tags:** история всех production deployments
+- **GitLab Environments:** deployment history в UI
 
 ### Troubleshooting
 
