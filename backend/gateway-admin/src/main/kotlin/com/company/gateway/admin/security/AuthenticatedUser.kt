@@ -81,7 +81,20 @@ data class AuthenticatedUser(
          */
         fun fromKeycloakJwt(jwt: Jwt): AuthenticatedUser {
             return try {
-                val userId = UUID.fromString(jwt.subject)
+                // Используем sub claim если есть, иначе fallback на sid или jti
+                // Некоторые конфигурации Keycloak не включают sub в access token
+                val userIdString = jwt.subject
+                    ?: jwt.getClaimAsString("sid")
+                    ?: jwt.getClaimAsString("jti")
+                    ?: throw IllegalArgumentException("No user identifier found (sub, sid, or jti)")
+
+                val userId = try {
+                    UUID.fromString(userIdString)
+                } catch (e: IllegalArgumentException) {
+                    // Если не UUID, генерируем deterministic UUID из строки
+                    UUID.nameUUIDFromBytes(userIdString.toByteArray())
+                }
+
                 val username = jwt.getClaimAsString("preferred_username")
                     ?: throw IllegalArgumentException("preferred_username claim is missing")
                 val email = jwt.getClaimAsString("email")
