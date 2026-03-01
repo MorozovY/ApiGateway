@@ -1,6 +1,6 @@
 # Story 13.5: Deployment Pipeline — Dev & Test Environments
 
-Status: review
+Status: done
 Story Points: 8
 
 ## Story
@@ -436,9 +436,9 @@ e2e-test:
 - [x] ~~SSH connection работает из GitLab runner~~ (не требуется — Docker socket)
 - [x] deploy-dev job успешно выполняется (job 516)
 - [x] Health checks проходят после deployment (gateway-admin, gateway-core healthy)
-- [ ] Smoke tests все зелёные (smoke-test-dev) — **автоматически после deploy-dev**
-- [ ] deploy-test job работает — **автоматически после smoke-test-dev**
-- [ ] E2E tests выполняются (даже если падают) — **автоматически после deploy-test**
+- [x] Smoke tests все зелёные (smoke-test-dev) — **pipeline #146 success**
+- [x] deploy-test job работает — **pipeline #146 success**
+- [x] E2E tests выполняются — **pipeline #146 success**
 - [x] Rollback работает при health check failure (verified via failed deployments)
 - [x] Documentation обновлена
 
@@ -546,6 +546,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2026-03-01 | Code Review #2: deploy.sh — добавлено автоопределение пути к rollback.sh |
 | 2026-03-01 | Code Review #2: e2e-test — добавлен fallback для Linux (gateway IP вместо host.docker.internal) |
 | 2026-03-01 | Jobs smoke-test-dev, deploy-test, e2e-test — изменены с manual на automatic |
+| 2026-03-01 | Fix: ConsumerRateLimitModal flaky test — увеличен timeout |
+| 2026-03-01 | **Story completed** — Pipeline #146 success, all jobs passed |
 
 ### Senior Developer Review (AI)
 
