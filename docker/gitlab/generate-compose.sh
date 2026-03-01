@@ -98,7 +98,7 @@ services:
       - KEYCLOAK_ENABLED=true
       - KEYCLOAK_URL=https://keycloak.ymorozov.ru
       - KEYCLOAK_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME:-admin}
-      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-kcAdmin2026Secure}
       # Monitoring (Story 13.11)
       - PROMETHEUS_URL=http://prometheus:9090
       - GATEWAY_CORE_URL=http://gateway-core${CONTAINER_SUFFIX}:8080
