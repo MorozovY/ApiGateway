@@ -30,10 +30,10 @@ class RateLimitEventPublisher(
     companion object {
         /**
          * Канал Redis для уведомлений об изменении rate limit политик.
-         * Должен совпадать с gateway.cache.ratelimit-invalidation-channel в gateway-core
-         * (default: ratelimit-cache-invalidation).
+         * Должен совпадать с gateway.cache.ratelimit-invalidation-channel в gateway-core.
+         * Prefix "gateway:" для изоляции в централизованном Redis (Story 13.10).
          */
-        const val RATELIMIT_CACHE_CHANNEL = "ratelimit-cache-invalidation"
+        const val RATELIMIT_CACHE_CHANNEL = "gateway:ratelimit-cache-invalidation"
     }
 
     /**

@@ -187,9 +187,6 @@ docker-compose up -d --build
 # Последующие запуски
 docker-compose up -d
 
-# С мониторингом (Prometheus + Grafana)
-docker-compose --profile monitoring up -d
-
 # Проверка статуса
 docker-compose ps
 
@@ -203,8 +200,6 @@ docker-compose logs -f admin-ui
 - **gateway-admin**: http://localhost:8082 (API + Swagger UI: /swagger-ui.html)
 - **gateway-core**: http://localhost:8080 (Gateway)
 - **admin-ui**: http://localhost:3000 (Frontend)
-- **Prometheus**: http://localhost:9090 (с --profile monitoring)
-- **Grafana**: http://localhost:3001 (с --profile monitoring, login: admin/admin)
 
 **Внешний доступ (через Traefik):** (Story 13.8)
 - **Frontend**: https://gateway.ymorozov.ru/
@@ -212,58 +207,52 @@ docker-compose logs -f admin-ui
 - **Gateway API**: https://gateway.ymorozov.ru/api/*
 - **Swagger UI**: https://gateway.ymorozov.ru/swagger-ui.html
 
-**Примечание:** Traefik и PostgreSQL запущены в централизованной инфраструктуре (infra проект).
+**Примечание:** Traefik, PostgreSQL, Redis и мониторинг запущены в централизованной инфраструктуре (infra проект).
 Для работы необходимо чтобы сети были созданы:
 ```bash
 # Создать сети (если не существуют) — выполнить один раз
 docker network create traefik-net 2>/dev/null || true
 docker network create postgres-net 2>/dev/null || true
+docker network create redis-net 2>/dev/null || true
+docker network create monitoring-net 2>/dev/null || true
 ```
 
-**Централизованная инфраструктура (Story 13.9):**
+**Централизованная инфраструктура (Story 13.9, 13.10, 13.11):**
 - **PostgreSQL**: запущен в infra проекте, доступен через `postgres-net`
+- **Redis**: запущен в infra проекте, доступен через `redis-net` (Story 13.10)
 - **Keycloak**: запущен в infra проекте, доступен через Docker networks
-- Credentials хранятся в Vault (`secret/apigateway/database`)
+- **Prometheus**: запущен в infra проекте, доступен через `monitoring-net` (Story 13.11)
+- **Grafana**: запущен в infra проекте, dashboard "API Gateway" автоматически provisioned
+- Credentials хранятся в Vault (`secret/apigateway/database`, `secret/apigateway/redis`)
 
 **Hot-reload:**
 - Backend: изменения в `backend/*/src` автоматически перезагружают сервис
 - Frontend: Vite HMR обновляет браузер при изменениях в `frontend/admin-ui/src`
 
-### Запуск только инфраструктуры
+**Важно:** PostgreSQL, Redis и мониторинг больше не запускаются локально. Используется централизованная
+инфраструктура из infra проекта (Story 13.9, 13.10, 13.11). Убедитесь что infra stack запущен перед стартом ApiGateway.
 
-```bash
-# Только Redis (PostgreSQL запущен в infra проекте — Story 13.9)
-docker-compose up -d redis
+### Мониторинг (Centralized Prometheus + Grafana) (Story 13.11)
 
-# С Prometheus + Grafana
-docker-compose up -d redis && docker-compose --profile monitoring up -d prometheus grafana
-```
+Мониторинг запущен в централизованной инфраструктуре (infra проект).
 
-**Важно:** PostgreSQL больше не запускается локально. Используется централизованный
-postgres из infra проекта. Убедитесь что infra stack запущен перед стартом ApiGateway.
+**Доступ к мониторингу:**
+- **Prometheus**: https://prometheus.ymorozov.ru (или http://localhost:9090 если порт пробросен)
+- **Grafana**: https://grafana.ymorozov.ru (Keycloak SSO)
+- **Dashboard**: "API Gateway" — метрики gateway-core и gateway-admin
 
-### Мониторинг (Prometheus + Grafana)
+**Метрики собираются автоматически:**
+- Prometheus scrapes gateway-core:8080 и gateway-admin:8081 через monitoring-net
+- Scrape interval: 15 секунд
+- Для работы метрик gateway services должны быть запущены и подключены к monitoring-net
 
-```bash
-# Запуск мониторинга
-docker-compose --profile monitoring up -d
-
-# UI доступ:
-# - Prometheus: http://localhost:9090 (targets: http://localhost:9090/targets)
-# - Grafana: http://localhost:3001 (login: admin/admin)
-
-# Остановка мониторинга
-docker-compose --profile monitoring down
-
-# Полная очистка с данными
-docker-compose --profile monitoring down -v
-```
-
-**Примечания:**
-- Grafana использует порт 3001 (3000 занят frontend dev server)
-- Prometheus scrape interval: 15 секунд
-- Dashboard "API Gateway" автоматически provisioned
-- Для работы метрик gateway-core должен быть запущен
+**Alert Rules:**
+- `HighConsumerCardinality` — >1000 unique consumers (warning)
+- `CriticalConsumerCardinality` — >5000 unique consumers (critical)
+- `HighMetricsCardinality` — >100K total series
+- `high-error-rate` — error rate >5%
+- `high-latency-p95` — P95 >500ms
+- `gateway-down` — no metrics for 1 min
 
 ### Запуск backend (без Docker)
 
@@ -339,7 +328,8 @@ npm install
 
 ```bash
 # После сброса БД — восстановить демо-маршруты и rate limits
-docker exec -i gateway-postgres psql -U gateway -d gateway < scripts/seed-demo-data.sql
+# Примечание: postgres контейнер теперь в infra проекте (infra-postgres)
+docker exec -i infra-postgres psql -U gateway -d gateway < scripts/seed-demo-data.sql
 
 # Перезапустить gateway-core для синхронизации routes в Redis
 docker restart gateway-core-dev
@@ -352,7 +342,7 @@ docker restart gateway-core-dev
 ### Docker конфигурация
 
 **Файлы:**
-- `docker-compose.yml` — инфраструктура (postgres, redis) + monitoring profile
+- `docker-compose.yml` — networks (только external networks, services удалены)
 - `docker-compose.override.yml` — dev apps с hot-reload (автоматически применяется)
 - `docker-compose.override.yml.example` — шаблон для команды
 
@@ -487,4 +477,4 @@ docker-compose up -d     # OK — запуск/пересоздание конт
 
 ---
 
-*Последнее обновление: 2026-02-26 (Story 13.1 — GitLab as primary, GitHub as mirror)*
+*Последнее обновление: 2026-03-01 (Story 13.11 — Monitoring migration to centralized infra)*

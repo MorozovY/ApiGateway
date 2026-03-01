@@ -79,8 +79,9 @@ class RateLimitEventPublisherTest {
         val rateLimitId = UUID.randomUUID()
         val publisher = RateLimitEventPublisher(redisTemplate)
 
+        // Используем константу из класса (Story 13.10: добавлен prefix "gateway:")
         whenever(redisTemplate.convertAndSend(
-            eq("ratelimit-cache-invalidation"),
+            eq(RateLimitEventPublisher.RATELIMIT_CACHE_CHANNEL),
             any<String>()
         )).thenReturn(Mono.just(2L))
 
@@ -89,9 +90,9 @@ class RateLimitEventPublisherTest {
             .expectNext(2L)
             .verifyComplete()
 
-        // Проверяем что используется правильный канал
+        // Проверяем что используется правильный канал с gateway: prefix
         verify(redisTemplate).convertAndSend(
-            eq("ratelimit-cache-invalidation"),
+            eq(RateLimitEventPublisher.RATELIMIT_CACHE_CHANNEL),
             eq(rateLimitId.toString())
         )
     }

@@ -78,7 +78,8 @@ class HealthEndpointTest {
             // Redis unavailable - use invalid port (для тестирования поведения при недоступном Redis)
             registry.add("spring.data.redis.host") { "localhost" }
             registry.add("spring.data.redis.port") { 59999 }
-            registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
+            // Story 13.10: используем gateway: prefix для изоляции в централизованном Redis
+            registry.add("gateway.cache.invalidation-channel") { "gateway:route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }
             registry.add("management.endpoint.health.show-details") { "always" }

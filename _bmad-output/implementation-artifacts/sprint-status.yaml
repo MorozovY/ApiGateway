@@ -93,7 +93,7 @@ development_status:
   # NEW: Infrastructure Migration (Sprint Change Proposal 2026-02-28)
   13-8-traefik-routing-configuration: done                      # SP:3 — nginx → Traefik, routing rules
   13-9-postgresql-migration-to-infra: done                    # SP:3 — миграция БД в централизованный postgres
-  13-10-redis-migration-to-infra: backlog                    # SP:2 — переключение на централизованный redis
-  13-11-monitoring-migration-prometheus-grafana: backlog     # SP:3 — перенос dashboards в infra
+  13-10-redis-migration-to-infra: done                # SP:2 — переключение на централизованный redis
+  13-11-monitoring-migration-prometheus-grafana: review  # SP:3 — перенос dashboards в infra
   13-12-docker-compose-cleanup-documentation: backlog        # SP:2 — cleanup, обновление docs
   epic-13-retrospective: optional

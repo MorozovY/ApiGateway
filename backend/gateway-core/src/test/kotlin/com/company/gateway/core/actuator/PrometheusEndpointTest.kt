@@ -75,7 +75,8 @@ class PrometheusEndpointTest {
                 registry.add("spring.data.redis.port") { 59999 }
             }
             // Cache configuration (нужно всегда)
-            registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
+            // Story 13.10: используем gateway: prefix для изоляции в централизованном Redis
+            registry.add("gateway.cache.invalidation-channel") { "gateway:route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }
         }

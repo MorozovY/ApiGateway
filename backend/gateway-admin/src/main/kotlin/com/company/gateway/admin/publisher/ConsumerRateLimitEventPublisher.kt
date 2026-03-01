@@ -30,8 +30,9 @@ class ConsumerRateLimitEventPublisher(
         /**
          * Канал Redis для уведомлений об изменении consumer rate limits.
          * Gateway-core подписывается на этот канал для cache invalidation.
+         * Prefix "gateway:" для изоляции в централизованном Redis (Story 13.10).
          */
-        const val CONSUMER_RATELIMIT_CACHE_CHANNEL = "consumer-ratelimit-cache-invalidation"
+        const val CONSUMER_RATELIMIT_CACHE_CHANNEL = "gateway:consumer-ratelimit-cache-invalidation"
     }
 
     /**

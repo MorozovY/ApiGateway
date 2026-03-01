@@ -88,7 +88,8 @@ class HotReloadIntegrationTest {
                 }
             }
             // Cache configuration (нужно всегда)
-            registry.add("gateway.cache.invalidation-channel") { "route-cache-invalidation" }
+            // Story 13.10: используем gateway: prefix для изоляции в централизованном Redis
+            registry.add("gateway.cache.invalidation-channel") { "gateway:route-cache-invalidation" }
             registry.add("gateway.cache.ttl-seconds") { 60 }
             registry.add("gateway.cache.max-routes") { 1000 }
         }
@@ -177,7 +178,8 @@ class HotReloadIntegrationTest {
             .expectStatus().isOk
 
         // Отправляем Redis invalidation event и проверяем, что кэш всё ещё работает
-        redisTemplate.convertAndSend("route-cache-invalidation", "*").block()
+        // Story 13.10: используем gateway: prefix для изоляции в централизованном Redis
+        redisTemplate.convertAndSend("gateway:route-cache-invalidation", "*").block()
 
         // Небольшая задержка для асинхронной обработки
         Thread.sleep(500)

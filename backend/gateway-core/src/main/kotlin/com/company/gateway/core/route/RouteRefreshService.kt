@@ -21,10 +21,10 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Сервис подписки на Redis Pub/Sub для обновления кэша маршрутов и rate limit политик.
  *
- * Подписывается на три канала:
- * - route-cache-invalidation: события изменения маршрутов
- * - ratelimit-cache-invalidation: события изменения rate limit политик (Story 5.8)
- * - consumer-ratelimit-cache-invalidation: события изменения consumer rate limits (Story 12.8)
+ * Подписывается на три канала (Story 13.10: используем gateway: prefix для изоляции):
+ * - gateway:route-cache-invalidation: события изменения маршрутов
+ * - gateway:ratelimit-cache-invalidation: события изменения rate limit политик (Story 5.8)
+ * - gateway:consumer-ratelimit-cache-invalidation: события изменения consumer rate limits (Story 12.8)
  *
  * При недоступности Redis использует Caffeine cache с TTL fallback
  * и автоматически переподключается каждые 30 секунд.

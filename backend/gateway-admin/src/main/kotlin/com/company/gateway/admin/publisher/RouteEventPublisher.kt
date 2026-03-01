@@ -29,10 +29,10 @@ class RouteEventPublisher(
     companion object {
         /**
          * Канал Redis для уведомлений об изменении маршрутов.
-         * Должен совпадать с gateway.cache.invalidation-channel в gateway-core
-         * (default: route-cache-invalidation).
+         * Должен совпадать с gateway.cache.invalidation-channel в gateway-core.
+         * Prefix "gateway:" для изоляции в централизованном Redis (Story 13.10).
          */
-        const val ROUTE_CACHE_CHANNEL = "route-cache-invalidation"
+        const val ROUTE_CACHE_CHANNEL = "gateway:route-cache-invalidation"
     }
 
     /**

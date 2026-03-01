@@ -10,7 +10,11 @@ keycloak:
 
 gateway:
   cache:
-    invalidation-channel: route-cache-invalidation
+    # Pub/Sub каналы для cache invalidation
+    # Prefix "gateway:" для изоляции в централизованном Redis (Story 13.10)
+    invalidation-channel: gateway:route-cache-invalidation
+    ratelimit-invalidation-channel: gateway:ratelimit-cache-invalidation
+    consumer-ratelimit-invalidation-channel: gateway:consumer-ratelimit-cache-invalidation
     ttl-seconds: 60
     max-routes: 1000
     max-rate-limits: 100
@@ -18,7 +22,7 @@ gateway:
   ratelimit:
     fallback-enabled: true           # Включить Caffeine fallback при недоступности Redis
     fallback-reduction: 0.5          # 50% от policy при fallback
-    redis-key-prefix: ratelimit      # Префикс ключей Redis
+    redis-key-prefix: gateway:ratelimit  # Префикс ключей Redis с "gateway:" для изоляции (Story 13.10)
     local-cache-ttl-seconds: 60      # TTL локального кэша fallback
 
 spring:
