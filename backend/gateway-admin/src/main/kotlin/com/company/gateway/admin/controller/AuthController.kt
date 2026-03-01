@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder
 import java.util.Optional
 import java.util.UUID
 
@@ -43,8 +42,7 @@ class AuthController(
     private val jwtService: JwtService,
     private val cookieService: CookieService,
     private val keycloakProperties: Optional<KeycloakProperties>,
-    private val keycloakAdminService: Optional<KeycloakAdminService>,
-    private val jwtDecoder: Optional<ReactiveJwtDecoder>
+    private val keycloakAdminService: Optional<KeycloakAdminService>
 ) {
     /**
      * Проверяет, включен ли режим Keycloak.
@@ -253,161 +251,6 @@ class AuthController(
                         users = users
                     )
                 )
-            }
-    }
-
-    /**
-     * Debug endpoint для проверки конфигурации Keycloak.
-     *
-     * Публичный endpoint для диагностики проблем с аутентификацией.
-     * Возвращает информацию о текущей конфигурации Keycloak.
-     *
-     * @return JSON с информацией о конфигурации
-     */
-    @GetMapping("/debug/config")
-    fun debugConfig(): Mono<ResponseEntity<Map<String, Any>>> {
-        val config = mutableMapOf<String, Any>(
-            "keycloakEnabled" to isKeycloakEnabled(),
-            "keycloakPropertiesPresent" to keycloakProperties.isPresent,
-            "keycloakAdminServicePresent" to keycloakAdminService.isPresent
-        )
-
-        keycloakProperties.ifPresent { props ->
-            config["keycloakUrl"] = props.url
-            config["keycloakRealm"] = props.realm
-            config["keycloakClientId"] = props.clientId
-            config["issuerUri"] = props.issuerUri
-            config["jwksUri"] = props.jwksUri
-        }
-
-        return Mono.just(ResponseEntity.ok(config))
-    }
-
-    /**
-     * Debug endpoint для проверки connectivity к JWKS.
-     *
-     * Публичный endpoint. Пытается загрузить JWKS и возвращает результат.
-     *
-     * @return JSON с результатом проверки
-     */
-    @GetMapping("/debug/jwks")
-    fun debugJwks(): Mono<ResponseEntity<Map<String, Any>>> {
-        if (!keycloakProperties.isPresent) {
-            return Mono.just(ResponseEntity.ok(mapOf(
-                "error" to "Keycloak properties not configured"
-            )))
-        }
-
-        val props = keycloakProperties.get()
-        val jwksUri = props.jwksUri
-
-        return org.springframework.web.reactive.function.client.WebClient.create()
-            .get()
-            .uri(jwksUri)
-            .retrieve()
-            .bodyToMono(String::class.java)
-            .map { body ->
-                ResponseEntity.ok(mapOf<String, Any>(
-                    "jwksUri" to jwksUri,
-                    "status" to "SUCCESS",
-                    "responseLength" to body.length,
-                    "responsePreview" to body.take(200)
-                ))
-            }
-            .onErrorResume { error ->
-                Mono.just(ResponseEntity.ok(mapOf<String, Any>(
-                    "jwksUri" to jwksUri,
-                    "status" to "ERROR",
-                    "errorType" to (error::class.simpleName ?: "Unknown"),
-                    "errorMessage" to (error.message ?: "No message")
-                )))
-            }
-    }
-
-    /**
-     * Debug endpoint для проверки SecurityContext.
-     *
-     * Показывает содержимое SecurityContext для диагностики.
-     */
-    @GetMapping("/debug/security")
-    fun debugSecurity(): Mono<ResponseEntity<Map<String, Any>>> {
-        return org.springframework.security.core.context.ReactiveSecurityContextHolder.getContext()
-            .map { context ->
-                val auth = context.authentication
-                ResponseEntity.ok(mapOf<String, Any>(
-                    "hasAuthentication" to (auth != null),
-                    "authenticationType" to (auth?.javaClass?.simpleName ?: "null"),
-                    "principalType" to (auth?.principal?.javaClass?.simpleName ?: "null"),
-                    "isAuthenticated" to (auth?.isAuthenticated ?: false),
-                    "authorities" to (auth?.authorities?.map { it.authority } ?: emptyList<String>()),
-                    "name" to (auth?.name ?: "null")
-                ))
-            }
-            .defaultIfEmpty(ResponseEntity.ok(mapOf(
-                "hasAuthentication" to false,
-                "error" to "SecurityContext is empty"
-            )))
-    }
-
-    /**
-     * Debug endpoint для проверки входящих headers.
-     *
-     * Публичный endpoint. Показывает какие headers приходят от Traefik.
-     *
-     * @return JSON со списком headers
-     */
-    @GetMapping("/debug/headers")
-    fun debugHeaders(exchange: ServerWebExchange): Mono<ResponseEntity<Map<String, Any>>> {
-        val headers = exchange.request.headers.toSingleValueMap()
-        val authHeader = exchange.request.headers.getFirst("Authorization")
-
-        return Mono.just(ResponseEntity.ok(mapOf(
-            "allHeaders" to headers.keys.sorted(),
-            "authorizationPresent" to (authHeader != null),
-            "authorizationPreview" to (authHeader?.take(50) ?: "null"),
-            "contentType" to (headers["Content-Type"] ?: "null"),
-            "host" to (headers["Host"] ?: "null")
-        )))
-    }
-
-    /**
-     * Debug endpoint для проверки декодирования JWT токена.
-     *
-     * Публичный endpoint. Принимает токен и пытается декодировать через JwtDecoder.
-     *
-     * @param token JWT токен для проверки
-     * @return JSON с результатом декодирования
-     */
-    @PostMapping("/debug/decode")
-    fun debugDecode(@RequestBody request: Map<String, String>): Mono<ResponseEntity<Map<String, Any>>> {
-        val token = request["token"] ?: return Mono.just(
-            ResponseEntity.badRequest().body(mapOf("error" to "Missing 'token' field"))
-        )
-
-        if (!jwtDecoder.isPresent) {
-            return Mono.just(ResponseEntity.ok(mapOf(
-                "error" to "JwtDecoder not available (keycloak.enabled=false?)",
-                "keycloakEnabled" to isKeycloakEnabled()
-            )))
-        }
-
-        return jwtDecoder.get().decode(token)
-            .map { jwt ->
-                ResponseEntity.ok(mapOf<String, Any>(
-                    "status" to "SUCCESS",
-                    "subject" to (jwt.subject ?: "null"),
-                    "issuer" to (jwt.issuer?.toString() ?: "null"),
-                    "claims" to jwt.claims.keys.toList(),
-                    "expiresAt" to (jwt.expiresAt?.toString() ?: "null")
-                ))
-            }
-            .onErrorResume { error ->
-                Mono.just(ResponseEntity.ok(mapOf<String, Any>(
-                    "status" to "ERROR",
-                    "errorType" to (error::class.simpleName ?: "Unknown"),
-                    "errorMessage" to (error.message ?: "No message"),
-                    "errorCause" to (error.cause?.message ?: "No cause")
-                )))
             }
     }
 

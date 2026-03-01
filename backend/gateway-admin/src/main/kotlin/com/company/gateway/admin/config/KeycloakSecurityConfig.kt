@@ -160,7 +160,6 @@ class KeycloakSecurityConfig(
                     .pathMatchers("/api/v1/auth/login").permitAll()
                     .pathMatchers("/api/v1/auth/logout").permitAll()
                     .pathMatchers("/api/v1/auth/reset-demo-passwords").permitAll()
-                    .pathMatchers("/api/v1/auth/debug/**").permitAll()
                     // Auth endpoints: change-password, me — требуют аутентификации
                     .pathMatchers("/api/v1/auth/change-password").authenticated()
                     .pathMatchers("/api/v1/auth/me").authenticated()
