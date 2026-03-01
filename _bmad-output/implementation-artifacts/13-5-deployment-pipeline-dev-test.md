@@ -436,11 +436,13 @@ e2e-test:
 - [x] ~~SSH connection работает из GitLab runner~~ (не требуется — Docker socket)
 - [x] deploy-dev job успешно выполняется (job 516)
 - [x] Health checks проходят после deployment (gateway-admin, gateway-core healthy)
-- [ ] Smoke tests все зелёные (smoke-test-dev manual trigger)
-- [ ] deploy-test job работает (manual trigger)
-- [ ] E2E tests выполняются (даже если падают)
+- [ ] Smoke tests все зелёные (smoke-test-dev manual trigger) — **требует ручного запуска в GitLab**
+- [ ] deploy-test job работает (manual trigger) — **требует ручного запуска в GitLab**
+- [ ] E2E tests выполняются (даже если падают) — **требует deploy-test + manual trigger**
 - [x] Rollback работает при health check failure (verified via failed deployments)
 - [x] Documentation обновлена
+
+**Примечание:** Пункты с manual trigger требуют запуска через GitLab UI после push изменений.
 
 ### Файлы которые будут созданы/изменены
 
@@ -538,6 +540,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2026-02-28 | Code Review Fix: generate-compose.sh — убран hardcoded database name |
 | 2026-02-28 | Code Review Fix: rollback.sh — исправлены пути к compose файлам для CI |
 | 2026-02-28 | Code Review Fix: deploy-dev/deploy-test — добавлен auto-rollback при health check failure |
+| 2026-03-01 | Code Review #2: README.md — исправлены порты (28081, 28080, 23000 для dev) |
+| 2026-03-01 | Code Review #2: rollback.sh — исправлена логика определения compose файла для dev |
+| 2026-03-01 | Code Review #2: generate-compose.sh — добавлено извлечение POSTGRES_DB из DATABASE_URL |
+| 2026-03-01 | Code Review #2: deploy.sh — добавлено автоопределение пути к rollback.sh |
+| 2026-03-01 | Code Review #2: e2e-test — добавлен fallback для Linux (gateway IP вместо host.docker.internal) |
 
 ### Senior Developer Review (AI)
 
@@ -561,3 +568,28 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 **LOW Issues (Acknowledged):**
 1. ℹ️ deploy/docker-compose.ci-base.yml не используется (оставлен для ручного deployment)
 2. ℹ️ Дублирование environment URL (приемлемо для читаемости)
+
+---
+
+### Senior Developer Review #2 (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-03-01
+**Outcome:** Changes Requested → Fixed
+
+**Issues Found:** 3 HIGH, 4 MEDIUM, 2 LOW
+
+**HIGH Issues:**
+1. ✅ deploy.sh не используется в CI — задокументировано как "by design" для ручного deployment
+2. ✅ README порты не соответствовали generate-compose.sh — исправлено (28081, 28080, 23000 для dev)
+3. ⚠️ Testing Checklist: deploy-test, smoke-test-dev, E2E требуют ручного тестирования
+
+**MEDIUM Issues (Fixed):**
+1. ✅ rollback.sh: неверный путь к compose файлу для dev environment — исправлена логика
+2. ✅ POSTGRES_DB: добавлено извлечение database name из DATABASE_URL в generate-compose.sh
+3. ✅ deploy.sh: путь к rollback.sh — добавлено автоопределение (CI vs local)
+4. ✅ e2e-test: host.docker.internal — добавлен fallback для Linux runners (gateway IP)
+
+**LOW Issues (Acknowledged):**
+1. ℹ️ deploy/docker-compose.ci-base.yml — оставлен для документации ручного deployment
+2. ℹ️ Keycloak smoke test опционален — соответствует AC3 ("login page accessible")

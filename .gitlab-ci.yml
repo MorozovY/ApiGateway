@@ -498,12 +498,15 @@ deploy-test:
 
 # E2E Tests on Test Environment
 # Примечание: Playwright запускается на хосте и подключается к test containers через mapped порты
+# ВАЖНО: host.docker.internal работает на Docker Desktop (Windows/Mac).
+# На Linux может потребоваться --add-host=host.docker.internal:host-gateway в docker run
 e2e-test:
   stage: deploy
   image: mcr.microsoft.com/playwright:v1.42.0-jammy
   variables:
     # Test environment использует порты из generate-compose.sh (test)
     # host.docker.internal позволяет Playwright контейнеру достучаться до хоста
+    # На Linux runners: если host.docker.internal недоступен, используем gateway IP
     BASE_URL: http://host.docker.internal:13000
     VITE_API_URL: http://host.docker.internal:18081
     VITE_KEYCLOAK_URL: http://host.docker.internal:8180
@@ -515,9 +518,20 @@ e2e-test:
     - cd frontend/admin-ui
     - npm ci
     - npx playwright install --with-deps chromium
+    # Определяем host для подключения (Linux fallback)
+    - |
+      if ! getent hosts host.docker.internal > /dev/null 2>&1; then
+        echo "host.docker.internal not available, using gateway IP"
+        GATEWAY_IP=$(ip route | grep default | awk '{print $3}')
+        export BASE_URL="http://${GATEWAY_IP}:13000"
+        export VITE_API_URL="http://${GATEWAY_IP}:18081"
+        export VITE_KEYCLOAK_URL="http://${GATEWAY_IP}:8180"
+        echo "Using gateway IP: $GATEWAY_IP"
+      fi
     - echo "Checking test environment accessibility..."
-    - curl -sf http://host.docker.internal:18081/actuator/health || echo "WARNING gateway-admin-test not accessible"
-    - BASE_URL=$BASE_URL npx playwright test --reporter=html || true
+    - echo "BASE_URL=$BASE_URL"
+    - curl -sf "${VITE_API_URL}/actuator/health" || echo "WARNING gateway-admin-test not accessible"
+    - npx playwright test --reporter=html || true
   artifacts:
     when: always
     paths:

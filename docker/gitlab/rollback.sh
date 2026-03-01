@@ -23,8 +23,14 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 ENVIRONMENT="${1:-dev}"
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/apigateway}"
 COMPOSE_PROJECT="apigateway-${ENVIRONMENT}"
-# CI использует /tmp для compose файлов, локально — DEPLOY_PATH
-COMPOSE_FILE="${COMPOSE_FILE:-/tmp/docker-compose.${ENVIRONMENT}.yml}"
+# CI использует /tmp для compose файлов с разными именами:
+# - dev: /tmp/docker-compose.ci.yml (из generate-compose.sh dev)
+# - test: /tmp/docker-compose.test.yml (из generate-compose.sh test)
+if [ "$ENVIRONMENT" = "dev" ]; then
+    COMPOSE_FILE="${COMPOSE_FILE:-/tmp/docker-compose.ci.yml}"
+else
+    COMPOSE_FILE="${COMPOSE_FILE:-/tmp/docker-compose.${ENVIRONMENT}.yml}"
+fi
 PREVIOUS_IMAGES_FILE="/tmp/previous_images_${ENVIRONMENT}.txt"
 ROLLBACK_TAG="${ROLLBACK_TAG:-latest}"
 

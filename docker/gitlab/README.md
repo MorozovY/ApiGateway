@@ -680,10 +680,10 @@ vault kv put secret/apigateway/database \
 
 ### Environments
 
-| Environment | Порты | Trigger | Purpose |
-|-------------|-------|---------|---------|
-| **dev** | 8081, 8080, 3000 | Manual на master | Быстрая итерация |
-| **test** | 18081, 18080, 3001 | Manual на master | E2E tests |
+| Environment | Порты (Admin, Core, UI) | Trigger | Purpose |
+|-------------|-------------------------|---------|---------|
+| **dev** | 28081, 28080, 23000 | Manual на master | Быстрая итерация |
+| **test** | 18081, 18080, 13000 | Manual на master | E2E tests |
 
 ### CI/CD Variables для Deployment
 

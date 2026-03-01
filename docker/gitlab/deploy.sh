@@ -32,6 +32,16 @@ PREVIOUS_IMAGES_FILE="/tmp/previous_images_${ENVIRONMENT}.txt"
 HEALTH_CHECK_RETRIES="${HEALTH_CHECK_RETRIES:-30}"
 HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-5}"
 
+# Определяем путь к rollback.sh (CI vs local deployment)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "${SCRIPT_DIR}/rollback.sh" ]; then
+    ROLLBACK_SCRIPT="${SCRIPT_DIR}/rollback.sh"
+elif [ -f "$ROLLBACK_SCRIPT" ]; then
+    ROLLBACK_SCRIPT="$ROLLBACK_SCRIPT"
+else
+    ROLLBACK_SCRIPT="./docker/gitlab/rollback.sh"
+fi
+
 # Проверка обязательных переменных
 check_required_vars() {
     local missing=0
@@ -257,7 +267,7 @@ main() {
         log_error "Failed to deploy containers"
         # Пытаемся откатиться
         log_warn "Attempting rollback..."
-        "${DEPLOY_PATH}/rollback.sh" "$ENVIRONMENT" || true
+        "$ROLLBACK_SCRIPT" "$ENVIRONMENT" || true
         exit 1
     fi
 
@@ -265,7 +275,7 @@ main() {
     if ! health_check_all; then
         log_error "Health checks failed"
         log_warn "Attempting rollback..."
-        "${DEPLOY_PATH}/rollback.sh" "$ENVIRONMENT" || true
+        "$ROLLBACK_SCRIPT" "$ENVIRONMENT" || true
         exit 1
     fi
 

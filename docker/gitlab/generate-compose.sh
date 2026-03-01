@@ -47,6 +47,12 @@ CONTAINER_SUFFIX="-${ENVIRONMENT}"
 FIXED_DATABASE_URL=$(echo "${DATABASE_URL}" | sed 's/infra-postgres/postgres/g')
 FIXED_REDIS_HOST=$(echo "${REDIS_HOST}" | sed 's/infra-redis/redis/g')
 
+# Извлечение database name из DATABASE_URL
+# Формат: r2dbc:postgresql://host:port/dbname или postgresql://host:port/dbname
+# Используем fallback "gateway" если не удаётся извлечь
+EXTRACTED_DB_NAME=$(echo "${DATABASE_URL}" | sed -n 's|.*://[^/]*/\([^?]*\).*|\1|p')
+POSTGRES_DB="${POSTGRES_DB:-${EXTRACTED_DB_NAME:-gateway}}"
+
 cat > "$OUTPUT_FILE" << COMPOSE_EOF
 services:
   gateway-admin:
