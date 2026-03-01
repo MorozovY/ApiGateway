@@ -94,6 +94,15 @@ services:
       - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
+      # Keycloak (Story 12.1) — через Docker network
+      - KEYCLOAK_ENABLED=true
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_ADMIN_USERNAME=${KEYCLOAK_ADMIN_USERNAME:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Monitoring (Story 13.11)
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GATEWAY_CORE_URL=http://gateway-core${CONTAINER_SUFFIX}:8080
+      - GRAFANA_URL=http://grafana:3000
     ports:
       - "${ADMIN_PORT}:8081"
     networks:
@@ -101,6 +110,8 @@ services:
       - traefik-net
       - postgres-net
       - redis-net
+      - keycloak-net
+      - monitoring-net
     restart: unless-stopped
 
   gateway-core:
@@ -129,6 +140,9 @@ services:
       - SPRING_DATA_REDIS_HOST=${FIXED_REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
+      # Keycloak (Story 12.4) — JWT validation
+      - KEYCLOAK_ENABLED=true
+      - KEYCLOAK_URL=http://keycloak:8080
     ports:
       - "${CORE_PORT}:8080"
     networks:
@@ -136,6 +150,8 @@ services:
       - traefik-net
       - postgres-net
       - redis-net
+      - keycloak-net
+      - monitoring-net
     restart: unless-stopped
 
   admin-ui:
@@ -168,6 +184,10 @@ networks:
   postgres-net:
     external: true
   redis-net:
+    external: true
+  keycloak-net:
+    external: true
+  monitoring-net:
     external: true
 COMPOSE_EOF
 
