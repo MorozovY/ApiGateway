@@ -1,6 +1,6 @@
 # Story 13.7: Security Scanning (SAST & Dependencies)
 
-Status: review
+Status: done
 Story Points: 2
 
 ## Story
@@ -88,8 +88,10 @@ So that vulnerabilities are caught before deployment (FR70, FR71).
 **Then** новые уязвимости видны в diff (если GitLab версия поддерживает)
 **And** comparison с target branch показан (если доступно)
 
+**Status: N/A для GitLab CE** — Security MR widget доступен только в GitLab Ultimate.
+
 **Implementation Notes:**
-- В локальном GitLab CE MR widget для security может быть ограничен
+- В локальном GitLab CE MR widget для security НЕ доступен
 - Основной способ просмотра — job artifacts и job logs
 - Remediation suggestions — через links в reports
 
@@ -353,8 +355,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | Файл | Изменение |
 |------|-----------|
 | `.gitlab-ci.yml` | MODIFIED — добавлен include block с SAST и Dependency templates, добавлена SAST_EXCLUDED_PATHS, упрощён deploy-prod |
-| `docker/gitlab/deploy-prod.sh` | NEW — скрипт production deployment (вынесен из .gitlab-ci.yml) |
+| `docker/gitlab/deploy-prod.sh` | NEW — скрипт production deployment (вынесен из .gitlab-ci.yml для исправления YAML nesting) |
 | `docker/gitlab/README.md` | MODIFIED — добавлена секция Security Scanning с документацией |
+| `backend/gateway-core/src/test/kotlin/com/company/gateway/core/integration/RateLimitIntegrationTest.kt` | MODIFIED — увеличено количество запросов для надёжного исчерпания burst (fix flaky test) |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | MODIFIED — статус story изменён на in-progress → review |
 | `_bmad-output/implementation-artifacts/13-7-security-scanning-sast-dependencies.md` | MODIFIED — отмечены выполненные задачи, заполнен Dev Agent Record |
 
