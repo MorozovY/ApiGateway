@@ -89,7 +89,7 @@ development_status:
   13-4-vault-integration-secrets: done                          # SP:5 — CHANGED: Vault вместо GitLab Variables
   13-5-deployment-pipeline-dev-test: done                      # SP:8 — code review passed, deploy-dev tested
   13-6-production-deployment-approval: done                    # SP:5 — code review passed, all issues fixed
-  13-7-security-scanning-sast-dependencies: backlog          # SP:2 — включить GitLab SAST templates
+  13-7-security-scanning-sast-dependencies: review             # SP:2 — включить GitLab SAST templates
   # NEW: Infrastructure Migration (Sprint Change Proposal 2026-02-28)
   13-8-traefik-routing-configuration: backlog                # SP:3 — nginx → Traefik, routing rules
   13-9-postgresql-migration-to-infra: backlog                # SP:3 — миграция БД в централизованный postgres

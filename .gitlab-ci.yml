@@ -3,6 +3,24 @@
 # Story 13.2: Build, test stages
 # Story 13.3: Docker image build & registry push
 # Story 13.4: Vault integration for secrets
+# Story 13.7: Security Scanning (SAST & Dependencies)
+
+# =============================================================================
+# SECURITY SCANNING TEMPLATES (Story 13.7)
+# =============================================================================
+# GitLab SAST и Dependency Scanning templates
+# Jobs автоматически добавляются в test stage
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+
+# =============================================================================
+# GLOBAL VARIABLES
+# =============================================================================
+variables:
+  # Исключаем директории с тестами и билд-артефактами из SAST
+  # Сканируем только production code, исключаем тесты, node_modules, build outputs
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build"
 
 stages:
   - build

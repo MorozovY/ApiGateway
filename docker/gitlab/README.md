@@ -936,6 +936,188 @@ docker login localhost:5050 -u <user>
 docker manifest inspect localhost:5050/root/api-gateway/gateway-admin:<tag>
 ```
 
+## Security Scanning (Story 13.7)
+
+### Архитектура Security Scanning
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GitLab CI/CD Pipeline                    │
+│                                                               │
+│  build → test ─────────────────────────────────► docker → deploy
+│           │                                                   │
+│           ├── backend-test                                   │
+│           ├── frontend-test                                  │
+│           ├── semgrep-sast          (SAST: JS, TS, Java)    │
+│           ├── spotbugs-sast         (SAST: Kotlin, Groovy)  │
+│           ├── nodejs-scan-sast      (SAST: Node.js)         │
+│           └── gemnasium-*           (Dependencies: Gradle, npm)
+│                                                               │
+│  Security jobs выполняются параллельно с test jobs          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Включённые Analyzers
+
+| Analyzer | Тип | Языки/Frameworks | Файлы |
+|----------|-----|------------------|-------|
+| semgrep-sast | SAST | Java, JavaScript, TypeScript | `*.java`, `*.ts`, `*.tsx`, `*.js` |
+| spotbugs-sast | SAST | Kotlin, Groovy, Scala | `*.kt`, `*.kts` (требует compiled classes) |
+| nodejs-scan-sast | SAST | Node.js | `package.json` |
+| gemnasium-maven | Dependencies | Gradle, Maven | `build.gradle.kts`, `pom.xml` |
+| gemnasium | Dependencies | npm, yarn | `package-lock.json`, `yarn.lock` |
+
+### SAST Configuration
+
+**Исключённые директории (SAST_EXCLUDED_PATHS):**
+```
+spec, test, tests, tmp, node_modules, dist, build, backend/**/build
+```
+
+Эти директории исключены из SAST сканирования для:
+- Уменьшения false positives в тестовом коде
+- Ускорения сканирования
+- Исключения build artifacts
+
+### Просмотр Security Reports
+
+Поскольку GitLab CE не имеет Security Dashboard (доступен только в Ultimate),
+результаты просматриваются через:
+
+#### 1. Job Logs
+```
+GitLab → CI/CD → Pipelines → [Pipeline] → test stage → [security job] → logs
+```
+
+#### 2. Job Artifacts
+```bash
+# Скачать artifacts из UI:
+GitLab → CI/CD → Jobs → [security job] → Download artifacts
+
+# Artifacts:
+- gl-sast-report.json         # SAST findings
+- gl-dependency-scanning-report.json  # Dependency vulnerabilities
+```
+
+#### 3. Чтение Reports
+
+**SAST Report структура:**
+```json
+{
+  "version": "15.0.0",
+  "vulnerabilities": [
+    {
+      "id": "...",
+      "category": "sast",
+      "name": "SQL Injection",
+      "message": "Possible SQL injection",
+      "severity": "Critical",  // Critical, High, Medium, Low, Info
+      "location": {
+        "file": "src/main/kotlin/...",
+        "start_line": 42
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "name": "CWE-89",
+          "value": "89"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Dependency Scanning Report:**
+```json
+{
+  "version": "15.0.0",
+  "vulnerabilities": [
+    {
+      "id": "...",
+      "category": "dependency_scanning",
+      "name": "CVE-2023-XXXXX",
+      "message": "Vulnerable dependency found",
+      "severity": "High",
+      "solution": "Upgrade to version X.Y.Z",
+      "location": {
+        "file": "frontend/admin-ui/package-lock.json",
+        "dependency": {
+          "package": { "name": "example-package" },
+          "version": "1.2.3"
+        }
+      }
+    }
+  ]
+}
+```
+
+### Security Policy
+
+**Текущая настройка:**
+- `allow_failure: true` — security jobs не блокируют pipeline
+- Critical/High уязвимости отображаются в logs как warnings
+- Blocking mode можно включить изменив `allow_failure: false`
+
+**Для включения blocking mode:**
+```yaml
+# В .gitlab-ci.yml добавить после include:
+semgrep-sast:
+  allow_failure: false
+
+spotbugs-sast:
+  allow_failure: false
+
+gemnasium-dependency_scanning:
+  allow_failure: false
+```
+
+### Vulnerability Allowlist (опционально)
+
+Для игнорирования известных/принятых уязвимостей создайте `.vulnerability-allowlist.yml`:
+
+```yaml
+# .vulnerability-allowlist.yml
+# Документируйте причину для каждого исключения
+vulnerabilities:
+  - id: "CVE-2023-XXXXX"
+    reason: "False positive - не используется уязвимая функция"
+    expires: "2026-12-31"
+  - id: "SEMGREP-RULE-ID"
+    reason: "Accepted risk - защищено другими механизмами"
+```
+
+### Best Practices
+
+1. **Регулярный Review:** Проверяйте security reports после каждого pipeline
+2. **Приоритезация:** Исправляйте Critical/High уязвимости до merge
+3. **Dependencies:** Регулярно обновляйте зависимости (`npm audit fix`, `./gradlew dependencyUpdates`)
+4. **Documentation:** Документируйте принятые риски в allowlist
+
+### Troubleshooting
+
+#### SpotBugs не находит уязвимости в Kotlin
+SpotBugs требует скомпилированный bytecode. Убедитесь что:
+- `backend-build` job успешно завершён до security jobs
+- `.class` файлы доступны в artifacts
+
+#### Слишком много false positives
+1. Настройте `SAST_EXCLUDED_PATHS` для исключения тестов
+2. Используйте `.vulnerability-allowlist.yml` для известных false positives
+3. Проверьте что сканируется только production code
+
+#### Dependency scan не находит уязвимости
+1. Убедитесь что lock files присутствуют:
+   - `frontend/admin-ui/package-lock.json`
+   - Backend: `build.gradle.kts` достаточно
+2. Проверьте что Gemnasium analyzer запустился
+
+### Ссылки
+
+- [GitLab SAST Documentation](https://docs.gitlab.com/user/application_security/sast/)
+- [GitLab Dependency Scanning](https://docs.gitlab.com/user/application_security/dependency_scanning/)
+- [GitLab Security Reports](https://docs.gitlab.com/user/application_security/)
+
 ## Дополнительная документация
 
 - [GitLab CE Documentation](https://docs.gitlab.com/ee/)
