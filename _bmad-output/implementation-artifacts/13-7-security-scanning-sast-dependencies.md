@@ -334,20 +334,26 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
    - Templates добавляют jobs в test stage автоматически, stages не изменены
 
 2. **Task 2 (Pipeline Testing):**
-   - Требует push в GitLab и запуска pipeline для верификации
-   - Security jobs будут выполняться параллельно с backend-test и frontend-test
-   - Artifacts: `gl-sast-report.json`, `gl-dependency-scanning-report.json`
+   - Pipeline 156 запущен и security jobs выполнены
+   - `semgrep-sast`: **success** — сканирование Java/TypeScript/JavaScript кода
+   - Другие SAST analyzers (spotbugs, nodejs-scan) не запустились — нет соответствующих файлов
+   - Gemnasium dependency scanning включён в pipeline
 
 3. **Task 3 (Documentation):**
    - Добавлена секция "Security Scanning (Story 13.7)" в docker/gitlab/README.md
    - Документирована архитектура, включённые analyzers, просмотр reports
    - Описан vulnerability allowlist и best practices
 
+4. **Дополнительные исправления:**
+   - Исправлена ошибка YAML nesting в deploy-prod (вынесен в отдельный скрипт deploy-prod.sh)
+   - Это исправление относится к Story 13.6, но было необходимо для работы pipeline
+
 ### File List
 
 | Файл | Изменение |
 |------|-----------|
-| `.gitlab-ci.yml` | MODIFIED — добавлен include block с SAST и Dependency templates, добавлена SAST_EXCLUDED_PATHS |
+| `.gitlab-ci.yml` | MODIFIED — добавлен include block с SAST и Dependency templates, добавлена SAST_EXCLUDED_PATHS, упрощён deploy-prod |
+| `docker/gitlab/deploy-prod.sh` | NEW — скрипт production deployment (вынесен из .gitlab-ci.yml) |
 | `docker/gitlab/README.md` | MODIFIED — добавлена секция Security Scanning с документацией |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | MODIFIED — статус story изменён на in-progress → review |
 | `_bmad-output/implementation-artifacts/13-7-security-scanning-sast-dependencies.md` | MODIFIED — отмечены выполненные задачи, заполнен Dev Agent Record |
@@ -355,4 +361,5 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Change Log
 
 - 2026-03-01: Story 13.7 — включены GitLab SAST и Dependency Scanning templates, добавлена документация
+- 2026-03-01: Fix — вынесен deploy-prod script для исправления YAML nesting error
 
