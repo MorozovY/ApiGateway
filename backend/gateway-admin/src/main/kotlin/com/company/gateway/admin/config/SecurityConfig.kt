@@ -46,6 +46,7 @@ class SecurityConfig(
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
                     .pathMatchers("/api/v1/auth/**").permitAll()
+                    .pathMatchers("/api/v1/auth/debug/**").permitAll()
                     .pathMatchers("/api-docs/**").permitAll()
                     .pathMatchers("/swagger-ui/**").permitAll()
                     .pathMatchers("/swagger-ui.html").permitAll()
@@ -72,6 +73,7 @@ class SecurityConfig(
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
                     .pathMatchers("/api/v1/auth/**").permitAll()
+                    .pathMatchers("/api/v1/auth/debug/**").permitAll()
                     .pathMatchers("/api/v1/**").authenticated()
                     .anyExchange().permitAll()
             }
@@ -95,6 +97,7 @@ class SecurityConfig(
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
                     .pathMatchers("/api/v1/auth/**").permitAll()
+                    .pathMatchers("/api/v1/auth/debug/**").permitAll()
                     .anyExchange().authenticated()
             }
             .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)

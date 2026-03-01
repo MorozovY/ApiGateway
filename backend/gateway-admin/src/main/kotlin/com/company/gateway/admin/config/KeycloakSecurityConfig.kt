@@ -156,10 +156,11 @@ class KeycloakSecurityConfig(
                     .pathMatchers("/actuator/health/**").permitAll()
                     .pathMatchers("/actuator/info").permitAll()
                     .pathMatchers("/actuator/prometheus").permitAll()
-                    // Auth endpoints: login, logout, reset-demo-passwords — public
+                    // Auth endpoints: login, logout, reset-demo-passwords, debug — public
                     .pathMatchers("/api/v1/auth/login").permitAll()
                     .pathMatchers("/api/v1/auth/logout").permitAll()
                     .pathMatchers("/api/v1/auth/reset-demo-passwords").permitAll()
+                    .pathMatchers("/api/v1/auth/debug/**").permitAll()
                     // Auth endpoints: change-password, me — требуют аутентификации
                     .pathMatchers("/api/v1/auth/change-password").authenticated()
                     .pathMatchers("/api/v1/auth/me").authenticated()

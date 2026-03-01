@@ -255,6 +255,33 @@ class AuthController(
     }
 
     /**
+     * Debug endpoint для проверки конфигурации Keycloak.
+     *
+     * Публичный endpoint для диагностики проблем с аутентификацией.
+     * Возвращает информацию о текущей конфигурации Keycloak.
+     *
+     * @return JSON с информацией о конфигурации
+     */
+    @GetMapping("/debug/config")
+    fun debugConfig(): Mono<ResponseEntity<Map<String, Any>>> {
+        val config = mutableMapOf<String, Any>(
+            "keycloakEnabled" to isKeycloakEnabled(),
+            "keycloakPropertiesPresent" to keycloakProperties.isPresent,
+            "keycloakAdminServicePresent" to keycloakAdminService.isPresent
+        )
+
+        keycloakProperties.ifPresent { props ->
+            config["keycloakUrl"] = props.url
+            config["keycloakRealm"] = props.realm
+            config["keycloakClientId"] = props.clientId
+            config["issuerUri"] = props.issuerUri
+            config["jwksUri"] = props.jwksUri
+        }
+
+        return Mono.just(ResponseEntity.ok(config))
+    }
+
+    /**
      * Извлекает и валидирует JWT токен из cookie.
      *
      * @param exchange ServerWebExchange для доступа к cookies
