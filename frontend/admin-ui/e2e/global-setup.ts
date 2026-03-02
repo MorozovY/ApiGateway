@@ -60,11 +60,13 @@ async function cleanupKeycloakConsumers(): Promise<void> {
   const adminUser = process.env.KEYCLOAK_ADMIN_USER || 'admin'
   const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin'
 
-  try {
-    console.log('[E2E Cleanup] Очистка E2E consumers из Keycloak...')
+  console.log('[E2E Cleanup] Очистка E2E consumers из Keycloak...')
 
+  // Story 13.14: Graceful handling если Keycloak недоступен
+  let adminTokenResponse: Response
+  try {
     // Получаем admin token для Keycloak Admin API
-    const adminTokenResponse = await fetch(
+    adminTokenResponse = await fetch(
       `${keycloakUrl}/realms/master/protocol/openid-connect/token`,
       {
         method: 'POST',
@@ -77,7 +79,12 @@ async function cleanupKeycloakConsumers(): Promise<void> {
         }),
       }
     )
+  } catch (err) {
+    console.warn('[E2E Cleanup] Keycloak недоступен, пропуск cleanup consumers:', (err as Error).message)
+    return
+  }
 
+  try {
     if (!adminTokenResponse.ok) {
       console.warn('[E2E Cleanup] Не удалось получить Keycloak admin token, пропускаем cleanup consumers')
       return
@@ -162,7 +169,16 @@ async function cleanupTestData(): Promise<void> {
 
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
 
-  const pool = new Pool({ connectionString: databaseUrl })
+  // Story 13.14: Graceful handling если БД недоступна (централизованная инфра)
+  let pool: pg.Pool
+  try {
+    pool = new Pool({ connectionString: databaseUrl })
+    // Проверяем подключение
+    await pool.query('SELECT 1')
+  } catch (err) {
+    console.warn('[E2E Cleanup] БД недоступна, пропуск cleanup:', (err as Error).message)
+    return
+  }
 
   try {
     console.log('[E2E Cleanup] Очистка тестовых данных...')
@@ -298,19 +314,29 @@ async function globalSetup(): Promise<void> {
   // Шаг 1: Аутентификация через Keycloak Direct Access Grants
   console.log(`[E2E Setup] Вход под пользователем ${adminUsername} через Keycloak...`)
 
-  const tokenResponse = await fetch(
-    `${keycloakUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'password',
-        client_id: keycloakClientId,
-        username: adminUsername,
-        password: adminPassword,
-      }),
-    }
-  )
+  // Story 13.14: Graceful error message если Keycloak недоступен
+  let tokenResponse: Response
+  try {
+    tokenResponse = await fetch(
+      `${keycloakUrl}/realms/${keycloakRealm}/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: keycloakClientId,
+          username: adminUsername,
+          password: adminPassword,
+        }),
+      }
+    )
+  } catch (err) {
+    throw new Error(
+      `[E2E Setup] Keycloak недоступен (${keycloakUrl}).\n` +
+      `Проверьте что Keycloak запущен и доступен.\n` +
+      `Ошибка: ${(err as Error).message}`
+    )
+  }
 
   if (!tokenResponse.ok) {
     const body = await tokenResponse.text()
