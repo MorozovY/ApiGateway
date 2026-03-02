@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+// ESM-совместимый аналог __dirname
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Загрузка переменных из .env файла (для CI)
 function loadEnvFile(): void {
