@@ -11,7 +11,11 @@
 INSERT INTO users (username, email, password_hash, role, is_active)
 VALUES
     ('developer', 'developer@gateway.local', '$2a$10$placeholder.developer.hash.not.used.with.keycloak', 'developer', true),
-    ('security', 'security@gateway.local', '$2a$10$placeholder.security.hash.not.used.with.keycloak', 'security', true)
+    ('security', 'security@gateway.local', '$2a$10$placeholder.security.hash.not.used.with.keycloak', 'security', true),
+    -- E2E test users (синхронизация из Keycloak, Story 13.12)
+    ('test-developer', 'test-developer@example.com', '$2a$10$placeholder.test.hash.not.used.with.keycloak', 'developer', true),
+    ('test-security', 'test-security@example.com', '$2a$10$placeholder.test.hash.not.used.with.keycloak', 'security', true),
+    ('test-admin', 'test-admin@example.com', '$2a$10$placeholder.test.hash.not.used.with.keycloak', 'admin', true)
 ON CONFLICT (username) DO NOTHING;
 
 -- Получаем UUID пользователей
