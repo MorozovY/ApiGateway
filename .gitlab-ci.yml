@@ -96,6 +96,13 @@ frontend-build:
   variables:
     # Nexus proxy для npm (опционально)
     NEXUS_URL: "http://nexus:8081"
+    # Keycloak configuration (baked into build)
+    # Story 13.13 Fix: VITE_* vars must be set at build time
+    VITE_KEYCLOAK_URL: "https://keycloak.ymorozov.ru"
+    VITE_KEYCLOAK_REALM: "api-gateway"
+    VITE_KEYCLOAK_CLIENT_ID: "gateway-admin-ui"
+    # API URL for production/test (same infrastructure)
+    VITE_API_URL: "https://gateway.ymorozov.ru"
   script:
     - cd frontend/admin-ui
     # Проверяем доступность Nexus и используем как proxy
