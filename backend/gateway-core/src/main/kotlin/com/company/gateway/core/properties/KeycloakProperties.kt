@@ -27,7 +27,15 @@ data class KeycloakProperties(
     /**
      * Имя realm в Keycloak.
      */
-    val realm: String = "api-gateway"
+    val realm: String = "api-gateway",
+
+    /**
+     * Дополнительные issuer URL для JWT validation.
+     * Используется когда токены могут приходить от разных URL Keycloak
+     * (например, внешний URL https://keycloak.example.com и внутренний http://keycloak:8080).
+     * Формат: список URL через запятую.
+     */
+    val additionalIssuers: List<String> = emptyList()
 ) {
     /**
      * Полный URL issuer для JWT validation.

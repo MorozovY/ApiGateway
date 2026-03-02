@@ -508,6 +508,24 @@ deploy-test:
         exit 1
       fi
       echo "gateway-core-test is healthy"
+    # Seed demo data для E2E тестов (Story 13.12)
+    # Создаём routes, rate limits, consumers которые используются в тестах
+    - echo "Seeding demo data for E2E tests..."
+    - |
+      # PostgreSQL доступен через postgres-net как 'postgres'
+      # Используем gateway-admin-test контейнер для доступа к psql через apt
+      docker exec gateway-admin-test bash -c "
+        apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null 2>&1 || true
+      " || true
+      # Копируем seed script и выполняем
+      docker cp scripts/seed-demo-data.sql gateway-admin-test:/tmp/seed-demo-data.sql
+      docker exec gateway-admin-test bash -c "
+        PGPASSWORD=\${SPRING_R2DBC_PASSWORD:-GwDb2026SecurePass} psql -h postgres -U \${SPRING_R2DBC_USERNAME:-gateway} -d gateway -f /tmp/seed-demo-data.sql
+      " && echo "Seed data loaded successfully" || echo "WARNING: Seed data may already exist (ON CONFLICT DO NOTHING)"
+    # Перезагружаем routes в gateway-core (Redis sync)
+    - docker restart gateway-core-test
+    - sleep 10
+    - docker exec gateway-core-test wget -q --spider http://localhost:8080/actuator/health && echo "gateway-core-test restarted and healthy"
     - echo "Deployment to TEST SUCCESSFUL"
   needs:
     - smoke-test-dev  # Ждём успешного smoke test на dev перед deploy на test
@@ -572,9 +590,9 @@ e2e-test:
     - echo "E2E_ADMIN_USERNAME=$E2E_ADMIN_USERNAME"
     - echo "E2E_SKIP_DB_CLEANUP=$E2E_SKIP_DB_CLEANUP"
     # Создаём .env файл для Playwright (dotenv автоматически загружается)
-    # KEYCLOAK_ADMIN_PASSWORD: fallback на "admin" если не задан в CI/CD Variables
+    # KEYCLOAK_ADMIN_PASSWORD: fallback на production password если не задан в CI/CD Variables
     - |
-      KC_ADMIN_PWD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
+      KC_ADMIN_PWD="${KEYCLOAK_ADMIN_PASSWORD:-kcAdmin2026Secure}"
       cat > .env << EOF
       BASE_URL=${BASE_URL}
       API_BASE=${API_BASE}

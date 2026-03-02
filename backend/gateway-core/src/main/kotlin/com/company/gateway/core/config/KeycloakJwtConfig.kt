@@ -61,12 +61,26 @@ class KeycloakJwtConfig(
             .withJwkSetUri(keycloakProperties.jwksUri)
             .build()
 
-        // Разрешаем несколько issuer для Docker/localhost совместимости
-        val allowedIssuers = listOf(
-            "http://localhost:8180/realms/${keycloakProperties.realm}",
-            "http://host.docker.internal:8180/realms/${keycloakProperties.realm}",
-            "http://keycloak:8080/realms/${keycloakProperties.realm}"
-        )
+        // Разрешаем несколько issuer для Docker/localhost/external совместимости
+        // Включаем как локальные URL, так и внешний URL из конфигурации (KEYCLOAK_URL)
+        // Дополнительные issuers можно задать через KEYCLOAK_ADDITIONAL_ISSUERS
+        val allowedIssuers = buildSet {
+            // Локальные/Docker URL для обратной совместимости
+            add("http://localhost:8180/realms/${keycloakProperties.realm}")
+            add("http://host.docker.internal:8180/realms/${keycloakProperties.realm}")
+            add("http://keycloak:8080/realms/${keycloakProperties.realm}")
+            // Внешний URL из конфигурации (например https://keycloak.ymorozov.ru/realms/api-gateway)
+            add(keycloakProperties.issuerUri)
+            // Дополнительные issuers из конфигурации (KEYCLOAK_ADDITIONAL_ISSUERS)
+            keycloakProperties.additionalIssuers.forEach { issuer ->
+                // Добавляем как с realm, так и без (если уже полный URL)
+                if (issuer.contains("/realms/")) {
+                    add(issuer)
+                } else {
+                    add("$issuer/realms/${keycloakProperties.realm}")
+                }
+            }
+        }.toList()
         log.info("Allowed JWT issuers: $allowedIssuers")
 
         val issuerValidator = MultiIssuerValidator(allowedIssuers)
