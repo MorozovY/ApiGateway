@@ -363,4 +363,45 @@ class RouteCacheManagerTest {
 
         assertThat(result).isNull()
     }
+
+    // Story 14.1: Async rate limit loading тесты
+
+    @Test
+    fun `loadRateLimitAsync загружает и кэширует политику асинхронно`() {
+        val rateLimitId = UUID.randomUUID()
+        val rateLimit = createRateLimit(rateLimitId)
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.just(rateLimit))
+
+        StepVerifier.create(cacheManager.loadRateLimitAsync(rateLimitId))
+            .expectNext(rateLimit)
+            .verifyComplete()
+
+        // Политика должна быть закэширована
+        assertThat(cacheManager.getCachedRateLimit(rateLimitId)).isEqualTo(rateLimit)
+        verify(caffeineRateLimitCache).put(eq(rateLimitId), eq(rateLimit))
+    }
+
+    @Test
+    fun `loadRateLimitAsync возвращает empty Mono когда политика не найдена`() {
+        val rateLimitId = UUID.randomUUID()
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.empty())
+
+        StepVerifier.create(cacheManager.loadRateLimitAsync(rateLimitId))
+            .verifyComplete()
+    }
+
+    @Test
+    fun `loadRateLimitAsync пробрасывает ошибку для handling в caller`() {
+        val rateLimitId = UUID.randomUUID()
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.error(RuntimeException("Database error")))
+
+        StepVerifier.create(cacheManager.loadRateLimitAsync(rateLimitId))
+            .verifyError(RuntimeException::class.java)
+    }
 }

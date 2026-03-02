@@ -66,38 +66,49 @@ class DynamicRouteLocator(
                         log.debug("Predicate: path={}, routePath={}, method={}, pathMatches={}, methodMatches={}",
                             path, dbRoute.path, method, pathMatches, methodMatches)
 
-                        // Устанавливаем атрибуты при совпадении маршрута
-                        if (pathMatches && methodMatches) {
-                            // Route ID для rate limiting и метрик
-                            exchange.attributes[RateLimitFilter.ROUTE_ID_ATTRIBUTE] = dbRoute.id
-
-                            // JWT authentication атрибуты (Story 12.4)
-                            exchange.attributes[JwtAuthenticationFilter.AUTH_REQUIRED_ATTRIBUTE] = dbRoute.authRequired
-                            dbRoute.allowedConsumers?.let { consumers ->
-                                exchange.attributes[JwtAuthenticationFilter.ALLOWED_CONSUMERS_ATTRIBUTE] = consumers
-                            }
-
-                            // Загружаем rate limit политику из кэша, если назначена
-                            // Story 5.8, AC2: fallback загрузка если политика не в кэше
-                            dbRoute.rateLimitId?.let { rateLimitId ->
-                                var rateLimit = cacheManager.getCachedRateLimit(rateLimitId)
-
-                                // Fallback: если политика не в кэше, загружаем напрямую из БД
-                                if (rateLimit == null) {
-                                    log.warn("Политика {} не найдена в кэше, выполняем fallback загрузку", rateLimitId)
-                                    rateLimit = cacheManager.loadRateLimitSync(rateLimitId)
-                                }
-
-                                if (rateLimit != null) {
-                                    exchange.attributes[RateLimitFilter.RATE_LIMIT_ATTRIBUTE] = rateLimit
-                                } else {
-                                    log.warn("Политика {} не найдена даже при fallback, rate limiting отключён для маршрута {}",
-                                        rateLimitId, dbRoute.id)
-                                }
-                            }
+                        // Если маршрут не совпадает, возвращаем false сразу
+                        if (!pathMatches || !methodMatches) {
+                            return@asyncPredicate Mono.just(false)
                         }
 
-                        Mono.just(pathMatches && methodMatches)
+                        // Устанавливаем синхронные атрибуты при совпадении маршрута
+                        // Route ID для rate limiting и метрик
+                        exchange.attributes[RateLimitFilter.ROUTE_ID_ATTRIBUTE] = dbRoute.id
+
+                        // JWT authentication атрибуты (Story 12.4)
+                        exchange.attributes[JwtAuthenticationFilter.AUTH_REQUIRED_ATTRIBUTE] = dbRoute.authRequired
+                        dbRoute.allowedConsumers?.let { consumers ->
+                            exchange.attributes[JwtAuthenticationFilter.ALLOWED_CONSUMERS_ATTRIBUTE] = consumers
+                        }
+
+                        // Story 14.1: Асинхронная загрузка rate limit политики
+                        // Используем Mono.defer + flatMap для deferred loading без блокировки
+                        val rateLimitMono: Mono<Boolean> = dbRoute.rateLimitId?.let { rateLimitId ->
+                            // Сначала проверяем кэш
+                            val cached = cacheManager.getCachedRateLimit(rateLimitId)
+                            if (cached != null) {
+                                // Политика в кэше — устанавливаем атрибут и возвращаем true
+                                exchange.attributes[RateLimitFilter.RATE_LIMIT_ATTRIBUTE] = cached
+                                Mono.just(true)
+                            } else {
+                                // Cache miss — асинхронная загрузка из БД
+                                log.warn("Политика {} не найдена в кэше, выполняем async загрузку", rateLimitId)
+                                cacheManager.loadRateLimitAsync(rateLimitId)
+                                    .doOnNext { rateLimit ->
+                                        exchange.attributes[RateLimitFilter.RATE_LIMIT_ATTRIBUTE] = rateLimit
+                                    }
+                                    .thenReturn(true)
+                                    .defaultIfEmpty(true) // Политика не найдена — продолжаем без rate limit
+                                    .onErrorResume { e ->
+                                        // Graceful degradation: при ошибке загрузки продолжаем без rate limit
+                                        log.warn("Ошибка async загрузки политики {}: {}, rate limiting отключён для маршрута {}",
+                                            rateLimitId, e.message, dbRoute.id)
+                                        Mono.just(true)
+                                    }
+                            }
+                        } ?: Mono.just(true) // Нет rateLimitId — возвращаем true
+
+                        rateLimitMono
                     }
                     .build()
             }

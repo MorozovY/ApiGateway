@@ -174,7 +174,29 @@ class RouteCacheManager(
             .then()
 
     /**
+     * Асинхронная загрузка политики rate limit и обновление кэша.
+     *
+     * Story 14.1: Полностью асинхронная загрузка для reactive pipelines.
+     * НЕ блокирует Netty event loop.
+     *
+     * @param rateLimitId ID политики для загрузки
+     * @return Mono<RateLimit> или empty Mono если политика не найдена
+     */
+    fun loadRateLimitAsync(rateLimitId: UUID): Mono<RateLimit> =
+        rateLimitRepository.findById(rateLimitId)
+            .doOnNext { rateLimit ->
+                // Кэшируем загруженную политику для следующих запросов
+                cachedRateLimits.updateAndGet { map ->
+                    map.toMutableMap().apply { put(rateLimitId, rateLimit) }
+                }
+                caffeineRateLimitCache.put(rateLimitId, rateLimit)
+                logger.info("Политика rate limit загружена асинхронно и закэширована: {}", rateLimitId)
+            }
+
+    /**
      * Синхронная загрузка политики — fallback для DynamicRouteLocator.
+     * @deprecated Использовать loadRateLimitAsync() для reactive chains.
+     *
      * ВАЖНО: Блокирующий вызов, использовать только для fallback!
      *
      * Story 5.8, AC2: Маршруты с rate limit работают сразу после publish
@@ -182,6 +204,7 @@ class RouteCacheManager(
      * @param rateLimitId ID политики для загрузки
      * @return RateLimit или null если политика не найдена
      */
+    @Deprecated("Использовать loadRateLimitAsync() для reactive chains", ReplaceWith("loadRateLimitAsync(rateLimitId)"))
     fun loadRateLimitSync(rateLimitId: UUID): RateLimit? {
         return try {
             rateLimitRepository.findById(rateLimitId)
