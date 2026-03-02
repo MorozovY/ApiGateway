@@ -532,8 +532,8 @@ e2e-test:
     KEYCLOAK_REALM: api-gateway
     KEYCLOAK_CLIENT_ID: gateway-admin-ui
     # Keycloak Admin API для cleanup consumers
+    # KEYCLOAK_ADMIN_PASSWORD берётся из CI/CD Variables или fallback в script
     KEYCLOAK_ADMIN_USER: admin
-    KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     # E2E Test credentials (test-admin из Keycloak)
     E2E_ADMIN_USERNAME: test-admin
     E2E_ADMIN_PASSWORD: Test1234!
@@ -568,7 +568,9 @@ e2e-test:
     - echo "E2E_ADMIN_USERNAME=$E2E_ADMIN_USERNAME"
     - echo "E2E_SKIP_DB_CLEANUP=$E2E_SKIP_DB_CLEANUP"
     # Создаём .env файл для Playwright (dotenv автоматически загружается)
+    # KEYCLOAK_ADMIN_PASSWORD: fallback на "admin" если не задан в CI/CD Variables
     - |
+      KC_ADMIN_PWD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
       cat > .env << EOF
       BASE_URL=${BASE_URL}
       API_BASE=${API_BASE}
@@ -577,7 +579,7 @@ e2e-test:
       KEYCLOAK_REALM=${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_ADMIN_USER=${KEYCLOAK_ADMIN_USER}
-      KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN_PASSWORD=${KC_ADMIN_PWD}
       E2E_ADMIN_USERNAME=${E2E_ADMIN_USERNAME}
       E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD}
       E2E_SKIP_DB_CLEANUP=${E2E_SKIP_DB_CLEANUP}
