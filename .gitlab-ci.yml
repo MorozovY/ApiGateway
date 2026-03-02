@@ -229,7 +229,7 @@ frontend-test:
 
 e2e-test-mock:
   stage: test
-  image: mcr.microsoft.com/playwright:v1.52.0-jammy
+  image: mcr.microsoft.com/playwright:v1.58.2-jammy
   extends: .npm-cache
   timeout: 5 minutes
   variables:
@@ -584,7 +584,7 @@ deploy-test:
 # Story 13.15: Этот job использует LEGACY тесты из e2e.legacy/ с реальным Keycloak
 e2e-test-integration:
   stage: deploy
-  image: mcr.microsoft.com/playwright:v1.52.0-jammy
+  image: mcr.microsoft.com/playwright:v1.58.2-jammy
   variables:
     # E2E тесты используют внешние URL через Traefik (доступны из любого контейнера)
     # host.docker.internal не работает надёжно в GitLab Docker executor
