@@ -21,6 +21,16 @@ const DEV_EMAIL = process.env.E2E_DEV_EMAIL || 'test-developer@example.com'
 const DEV_PASSWORD = process.env.E2E_DEV_PASSWORD || 'Test1234!'
 
 // ============================================================================
+// Service URLs (параметризованные через env variables)
+// ============================================================================
+
+// Gateway Admin API (для управления routes, users, consumers)
+const API_BASE = process.env.API_BASE || '${API_BASE}'
+
+// Gateway Core (для проксирования запросов, метрик)
+const GATEWAY_URL = process.env.GATEWAY_URL || '${GATEWAY_URL}'
+
+// ============================================================================
 // Helper Functions (FIX H-3: Generic consumer token helper, устраняет дублирование)
 // ============================================================================
 
@@ -190,7 +200,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     // Cleanup routes (если создавали)
     for (const routeId of resources.routeIds) {
       try {
-        await page.request.delete(`http://localhost:8081/api/v1/routes/${routeId}`, {
+        await page.request.delete(`${API_BASE}/api/v1/routes/${routeId}`, {
           failOnStatusCode: false
         })
       } catch {
@@ -610,7 +620,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       const requests = []
       for (let i = 0; i < 25; i++) {
         requests.push(
-          page.request.get('http://localhost:8080/api/users', {
+          page.request.get('${GATEWAY_URL}/api/users', {
             headers: { 'Authorization': `Bearer ${token}` },
             failOnStatusCode: false
           })
@@ -644,7 +654,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
   test.describe('AC6: Protected Route Authentication', () => {
     test('должен вернуть 401 для protected route без токена', async ({ page }) => {
       // Тестируем published маршрут с auth_required=true
-      const response = await page.request.get('http://localhost:8080/api/users', {
+      const response = await page.request.get('${GATEWAY_URL}/api/users', {
         failOnStatusCode: false
       })
 
@@ -662,7 +672,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       expect(token).toBeTruthy()
 
       // Делаем запрос к Gateway с токеном
-      const response = await page.request.get('http://localhost:8080/api/users', {
+      const response = await page.request.get('${GATEWAY_URL}/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -686,7 +696,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       expect(payload.azp).toBe('company-a')
 
       // Gateway должен использовать azp как consumer_id для метрик и rate limiting
-      const response = await page.request.get('http://localhost:8080/api/users', {
+      const response = await page.request.get('${GATEWAY_URL}/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -728,7 +738,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       await page.waitForTimeout(3000)
 
       // Делаем запрос к Gateway БЕЗ JWT токена (не используем apiRequest, используем прямой page.request)
-      const gatewayUrl = `http://localhost:8080${routePath}`
+      const gatewayUrl = `${GATEWAY_URL}${routePath}`
       const response = await page.request.get(gatewayUrl, {
         failOnStatusCode: false
       })
@@ -771,7 +781,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       const companyBToken = await getCompanyBToken(page)
 
       // Делаем запрос к Gateway с токеном company-b
-      const gatewayUrl = `http://localhost:8080${routePath}`
+      const gatewayUrl = `${GATEWAY_URL}${routePath}`
       const response = await page.request.get(gatewayUrl, {
         headers: { 'Authorization': `Bearer ${companyBToken}` },
         failOnStatusCode: false
@@ -798,7 +808,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
 
       console.log('[E2E] Отправляем запрос с tampered token...')
 
-      const response = await page.request.get('http://localhost:8080/api/users', {
+      const response = await page.request.get('${GATEWAY_URL}/api/users', {
         headers: { 'Authorization': `Bearer ${tamperedToken}` },
         failOnStatusCode: false
       })
@@ -823,7 +833,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
 
       // Делаем несколько requests для генерации метрик
       for (let i = 0; i < 5; i++) {
-        await page.request.get('http://localhost:8080/api/users', {
+        await page.request.get('${GATEWAY_URL}/api/users', {
           headers: { 'Authorization': `Bearer ${token}` },
         })
       }
@@ -833,7 +843,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       // FIX H-5: Заменили waitForTimeout на polling wait
       // Prometheus scrape interval = 15s, ждём метрики
       await expect(async () => {
-        const metricsResponse = await page.request.get('http://localhost:8080/actuator/prometheus')
+        const metricsResponse = await page.request.get('${GATEWAY_URL}/actuator/prometheus')
         const metricsText = await metricsResponse.text()
 
         // Проверяем наличие consumer_id label
@@ -841,7 +851,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       }).toPass({ timeout: 20000, intervals: [2000] })
 
       // Финальная проверка структуры метрик
-      const metricsResponse = await page.request.get('http://localhost:8080/actuator/prometheus')
+      const metricsResponse = await page.request.get('${GATEWAY_URL}/actuator/prometheus')
       const metricsText = await metricsResponse.text()
 
       // Проверяем что есть gateway метрики с consumer_id

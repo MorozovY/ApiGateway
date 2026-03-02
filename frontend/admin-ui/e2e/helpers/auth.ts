@@ -133,7 +133,8 @@ export async function apiRequest(
   options?: Record<string, unknown>
 ): Promise<Response> {
   const token = await getAuthToken(page)
-  const baseUrl = url.startsWith('http') ? '' : 'http://localhost:8081'
+  const apiBase = process.env.API_BASE || 'http://localhost:8081'
+  const baseUrl = url.startsWith('http') ? '' : apiBase
 
   return page.request.fetch(`${baseUrl}${url}`, {
     method,

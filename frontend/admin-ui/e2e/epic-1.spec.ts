@@ -1,12 +1,15 @@
 import { test, expect } from '@playwright/test'
 
+// Service URLs (параметризованные через env variables)
+const API_BASE = process.env.API_BASE || 'http://localhost:8081'
+
 /**
  * Epic 1 — Infrastructure.
  * Проверяет базовую доступность backend и frontend.
  */
 test.describe('Epic 1: Infrastructure', () => {
   test('API доступен: GET /actuator/health возвращает 200', async ({ request }) => {
-    const response = await request.get('http://localhost:8081/actuator/health')
+    const response = await request.get(`${API_BASE}/actuator/health`)
     expect(response.status()).toBe(200)
   })
 

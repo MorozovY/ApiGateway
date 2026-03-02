@@ -526,6 +526,8 @@ e2e-test:
     BASE_URL: http://host.docker.internal:13000
     VITE_API_URL: http://host.docker.internal:18081
     API_BASE: http://host.docker.internal:18081
+    # Gateway Core для проксирования запросов и метрик
+    GATEWAY_URL: http://host.docker.internal:18080
     # Keycloak — используем external URL (через Traefik)
     VITE_KEYCLOAK_URL: https://keycloak.ymorozov.ru
     KEYCLOAK_URL: https://keycloak.ymorozov.ru
@@ -558,12 +560,14 @@ e2e-test:
         export BASE_URL="http://${GATEWAY_IP}:13000"
         export VITE_API_URL="http://${GATEWAY_IP}:18081"
         export API_BASE="http://${GATEWAY_IP}:18081"
+        export GATEWAY_URL="http://${GATEWAY_IP}:18080"
         echo "Using gateway IP: $GATEWAY_IP"
       fi
     # Дебаг — проверяем все переменные для E2E
     - echo "=== E2E Environment Debug ==="
     - echo "BASE_URL=$BASE_URL"
     - echo "API_BASE=$API_BASE"
+    - echo "GATEWAY_URL=$GATEWAY_URL"
     - echo "KEYCLOAK_URL=$KEYCLOAK_URL"
     - echo "E2E_ADMIN_USERNAME=$E2E_ADMIN_USERNAME"
     - echo "E2E_SKIP_DB_CLEANUP=$E2E_SKIP_DB_CLEANUP"
@@ -574,6 +578,7 @@ e2e-test:
       cat > .env << EOF
       BASE_URL=${BASE_URL}
       API_BASE=${API_BASE}
+      GATEWAY_URL=${GATEWAY_URL}
       VITE_API_URL=${VITE_API_URL}
       KEYCLOAK_URL=${KEYCLOAK_URL}
       KEYCLOAK_REALM=${KEYCLOAK_REALM}

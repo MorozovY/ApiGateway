@@ -2,6 +2,9 @@ import { test, expect, type Page } from '@playwright/test'
 import { login, apiRequest } from './helpers/auth'
 import { filterTableByName } from './helpers/table'
 
+// Service URLs (параметризованные через env variables)
+const GATEWAY_URL = process.env.GATEWAY_URL || '${GATEWAY_URL}'
+
 /**
  * Уникальный суффикс для изоляции данных между тест-ранами.
  * Генерируется per-test для поддержки параллельного запуска в будущем.
@@ -271,7 +274,7 @@ test.describe('Epic 5: Rate Limiting', () => {
     await page.waitForTimeout(3000)
 
     // Gateway URL для тестирования rate limit
-    const gatewayUrl = `http://localhost:8080/e2e-rl-${routePath}`
+    const gatewayUrl = `${GATEWAY_URL}/e2e-rl-${routePath}`
     let firstResponse: Awaited<ReturnType<typeof page.request.get>>
 
     // Ждём синхронизации gateway с retry (fallback на Caffeine TTL если Redis недоступен)

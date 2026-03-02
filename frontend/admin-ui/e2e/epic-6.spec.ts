@@ -2,6 +2,12 @@ import { test, expect, type Page } from '@playwright/test'
 import { login, apiRequest } from './helpers/auth'
 
 // =============================================================================
+// Service URLs (параметризованные через env variables)
+// =============================================================================
+
+const GATEWAY_URL = process.env.GATEWAY_URL || '${GATEWAY_URL}'
+
+// =============================================================================
 // Константы для timeouts (M2: централизованное управление)
 // =============================================================================
 
@@ -154,13 +160,13 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     await page.waitForTimeout(GATEWAY_SYNC_DELAY)
 
     // Генерируем трафик через gateway
-    const gatewayUrl = `http://localhost:8080/e2e-metrics-${routePath}`
+    const gatewayUrl = `${GATEWAY_URL}/e2e-metrics-${routePath}`
     for (let i = 0; i < 3; i++) {
       await page.request.get(gatewayUrl, { failOnStatusCode: false })
     }
 
     // Запрашиваем метрики с gateway-core (port 8080)
-    const response = await page.request.get('http://localhost:8080/actuator/prometheus')
+    const response = await page.request.get('${GATEWAY_URL}/actuator/prometheus')
     expect(response.ok()).toBeTruthy()
 
     // Проверяем Content-Type (text/plain или text/plain;charset=utf-8)
@@ -193,7 +199,7 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     await page.waitForTimeout(GATEWAY_SYNC_DELAY)
 
     // Выполняем несколько запросов через gateway
-    const gatewayUrl = `http://localhost:8080/e2e-metrics-${routePath}`
+    const gatewayUrl = `${GATEWAY_URL}/e2e-metrics-${routePath}`
     for (let i = 0; i < 5; i++) {
       await page.request.get(gatewayUrl, { failOnStatusCode: false })
     }
@@ -202,7 +208,7 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     await page.waitForTimeout(METRICS_SCRAPE_DELAY)
 
     // Запрашиваем Prometheus метрики
-    const response = await page.request.get('http://localhost:8080/actuator/prometheus')
+    const response = await page.request.get('${GATEWAY_URL}/actuator/prometheus')
     expect(response.ok()).toBeTruthy()
     const body = await response.text()
 
@@ -237,7 +243,7 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     await page.waitForTimeout(GATEWAY_SYNC_DELAY)
 
     // Генерируем начальный трафик через gateway
-    const gatewayUrl = `http://localhost:8080/e2e-metrics-${routePath}`
+    const gatewayUrl = `${GATEWAY_URL}/e2e-metrics-${routePath}`
     for (let i = 0; i < 5; i++) {
       await page.request.get(gatewayUrl, { failOnStatusCode: false })
     }
