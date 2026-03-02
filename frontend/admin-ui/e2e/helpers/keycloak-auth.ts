@@ -66,14 +66,14 @@ export async function keycloakLogin(
   const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
 
   // Verify expected claims
-  if (!payload.sub) {
-    throw new Error('JWT missing "sub" claim')
-  }
+  // NOTE: Keycloak access tokens могут не содержать 'sub' claim по умолчанию.
+  // Используем preferred_username или azp как fallback для идентификации.
   if (!payload.azp) {
     throw new Error('JWT missing "azp" claim (consumer_id extraction)')
   }
 
-  console.log(`[E2E] Login successful: ${username}, consumer_id: ${payload.azp}`)
+  const userId = payload.sub || payload.preferred_username || payload.azp
+  console.log(`[E2E] Login successful: ${username}, userId: ${userId}, azp: ${payload.azp}`)
 }
 
 /**

@@ -3,7 +3,7 @@ import { login, apiRequest } from './helpers/auth'
 import { filterTableByName } from './helpers/table'
 
 // Service URLs (параметризованные через env variables)
-const GATEWAY_URL = process.env.GATEWAY_URL || '${GATEWAY_URL}'
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:8080'
 
 /**
  * Уникальный суффикс для изоляции данных между тест-ранами.

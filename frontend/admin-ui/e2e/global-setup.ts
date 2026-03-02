@@ -444,7 +444,31 @@ async function globalSetup(): Promise<void> {
       if (checkResponse.ok) {
         const existingUsers = await checkResponse.json() as Array<{ id: string; username: string }>
         if (existingUsers.length > 0) {
-          console.log(`[E2E Setup] Keycloak пользователь ${testUser.username} уже существует — пропускаем`)
+          const existingUser = existingUsers[0]
+          console.log(`[E2E Setup] Keycloak пользователь ${testUser.username} уже существует — сбрасываем пароль`)
+
+          // Сброс пароля для существующего пользователя (чтобы гарантировать Test1234!)
+          const resetPasswordResponse = await fetch(
+            `${keycloakUrl}/admin/realms/${keycloakRealm}/users/${existingUser.id}/reset-password`,
+            {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${kcAdminToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                type: 'password',
+                value: 'Test1234!',
+                temporary: false
+              })
+            }
+          )
+
+          if (resetPasswordResponse.ok || resetPasswordResponse.status === 204) {
+            console.log(`[E2E Setup] Пароль для ${testUser.username} сброшен на Test1234!`)
+          } else {
+            console.warn(`[E2E Setup] Не удалось сбросить пароль для ${testUser.username}: ${resetPasswordResponse.status}`)
+          }
           continue
         }
       }

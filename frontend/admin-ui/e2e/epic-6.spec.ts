@@ -5,7 +5,7 @@ import { login, apiRequest } from './helpers/auth'
 // Service URLs (параметризованные через env variables)
 // =============================================================================
 
-const GATEWAY_URL = process.env.GATEWAY_URL || '${GATEWAY_URL}'
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:8080'
 
 // =============================================================================
 // Константы для timeouts (M2: централизованное управление)
@@ -166,7 +166,7 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     }
 
     // Запрашиваем метрики с gateway-core (port 8080)
-    const response = await page.request.get('${GATEWAY_URL}/actuator/prometheus')
+    const response = await page.request.get(`${GATEWAY_URL}/actuator/prometheus`)
     expect(response.ok()).toBeTruthy()
 
     // Проверяем Content-Type (text/plain или text/plain;charset=utf-8)
@@ -208,7 +208,7 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     await page.waitForTimeout(METRICS_SCRAPE_DELAY)
 
     // Запрашиваем Prometheus метрики
-    const response = await page.request.get('${GATEWAY_URL}/actuator/prometheus')
+    const response = await page.request.get(`${GATEWAY_URL}/actuator/prometheus`)
     expect(response.ok()).toBeTruthy()
     const body = await response.text()
 
