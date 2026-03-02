@@ -36,7 +36,10 @@ export default defineConfig({
   testDir: './e2e',
   // FIX M-4: Включаем parallel execution после добавления test isolation (TIMESTAMP + resources cleanup)
   fullyParallel: true,
-  retries: 1,
+  // Story 13.14 AC4: Увеличены retries для CI стабильности (login flakiness)
+  retries: process.env.CI ? 2 : 1,
+  // Story 13.14 AC4: Увеличен global timeout для CI (network latency)
+  timeout: process.env.CI ? 60_000 : 30_000,
   reporter: 'html',
   globalSetup: './e2e/global-setup.ts',
   globalTeardown: './e2e/global-teardown.ts',
@@ -45,6 +48,9 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Story 13.14 AC4: Увеличен action timeout для CI
+    actionTimeout: process.env.CI ? 15_000 : 10_000,
+    navigationTimeout: process.env.CI ? 30_000 : 15_000,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

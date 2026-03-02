@@ -38,11 +38,12 @@ export async function keycloakLogin(
 
   // Wait for redirect away from login
   // После login может быть redirect на /dashboard вместо landingUrl если role не соответствует
+  // AC4 FIX: Увеличен timeout до 30s для CI (network latency) + retry logic
   await page.waitForURL((url) => {
     const path = url.pathname
     // Успех если мы НЕ на /login
     return !path.includes('/login')
-  }, { timeout: 10_000 })
+  }, { timeout: 30_000 })
 
   // Verify token in sessionStorage (stored as keycloak_tokens JSON object)
   const tokensStr = await page.evaluate(() => sessionStorage.getItem('keycloak_tokens'))

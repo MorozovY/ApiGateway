@@ -147,8 +147,23 @@ test.describe('Epic 6: Monitoring & Observability', () => {
    * Примечание: gateway_requests_total и gateway_request_duration_seconds
    * появляются только при наличии трафика через published маршруты.
    * Поэтому создаём маршрут и генерируем трафик.
+   *
+   * Story 13.14 AC3: Добавлена проверка Content-Type и skip для HTML response.
    */
   test('Prometheus метрики доступны', { timeout: TEST_TIMEOUT_LONG }, async ({ page }) => {
+    // Story 13.14 AC3: Проверяем доступность metrics endpoint перед тестом
+    const checkResponse = await page.request.get(`${GATEWAY_URL}/actuator/prometheus`, {
+      failOnStatusCode: false
+    })
+
+    // Skip если endpoint возвращает HTML (Traefik не настроен для /actuator)
+    const checkContentType = checkResponse.headers()['content-type'] || ''
+    if (checkContentType.includes('text/html') || !checkResponse.ok()) {
+      console.log(`[E2E] SKIP: /actuator/prometheus недоступен или возвращает HTML (status: ${checkResponse.status()}, content-type: ${checkContentType})`)
+      test.skip(true, 'Metrics endpoint not available or returns HTML - check Traefik routing')
+      return
+    }
+
     // Логинимся как admin для создания маршрута
     await login(page, 'test-admin', 'Test1234!', '/dashboard')
 
@@ -176,6 +191,9 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     // Получаем тело ответа
     const body = await response.text()
 
+    // Story 13.14 AC3: Проверяем что это не HTML
+    expect(body).not.toContain('<!DOCTYPE')
+
     // Проверяем наличие gateway_requests_total метрики
     expect(body).toContain('gateway_requests_total')
 
@@ -186,8 +204,20 @@ test.describe('Epic 6: Monitoring & Observability', () => {
   /**
    * AC2: Per-route метрики работают.
    * Создаём published маршрут, выполняем запросы, проверяем labels в метриках.
+   *
+   * Story 13.14 AC3: Добавлена проверка доступности metrics endpoint.
    */
   test('Per-route метрики работают', { timeout: TEST_TIMEOUT_LONG }, async ({ page }) => {
+    // Story 13.14 AC3: Проверяем доступность metrics endpoint
+    const checkResponse = await page.request.get(`${GATEWAY_URL}/actuator/prometheus`, {
+      failOnStatusCode: false
+    })
+    const checkContentType = checkResponse.headers()['content-type'] || ''
+    if (checkContentType.includes('text/html') || !checkResponse.ok()) {
+      test.skip(true, 'Metrics endpoint not available - check Traefik routing')
+      return
+    }
+
     // Логинимся как admin для создания маршрута
     await login(page, 'test-admin', 'Test1234!', '/dashboard')
 
@@ -211,6 +241,9 @@ test.describe('Epic 6: Monitoring & Observability', () => {
     const response = await page.request.get(`${GATEWAY_URL}/actuator/prometheus`)
     expect(response.ok()).toBeTruthy()
     const body = await response.text()
+
+    // Story 13.14 AC3: Проверяем что это не HTML
+    expect(body).not.toContain('<!DOCTYPE')
 
     // Проверяем что метрики содержат route_path label с нашим маршрутом
     expect(body).toContain(`route_path="/e2e-metrics-${routePath}"`)

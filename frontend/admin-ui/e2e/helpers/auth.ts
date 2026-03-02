@@ -124,8 +124,10 @@ export async function apiRequest(
   const token = await getAuthToken(page)
   const apiBase = process.env.API_BASE || 'http://localhost:8081'
   const baseUrl = url.startsWith('http') ? '' : apiBase
+  const fullUrl = `${baseUrl}${url}`
 
-  return page.request.fetch(`${baseUrl}${url}`, {
+  console.log(`[E2E API] ${method} ${fullUrl}`)
+  const response = await page.request.fetch(fullUrl, {
     method,
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -135,4 +137,9 @@ export async function apiRequest(
     data,
     ...options
   })
+
+  // Логируем результат для отладки
+  console.log(`[E2E API] ${response.ok() ? 'OK' : 'FAIL'} ${method} ${fullUrl} → ${response.status()}`)
+
+  return response
 }
