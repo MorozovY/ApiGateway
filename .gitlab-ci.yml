@@ -537,36 +537,13 @@ e2e-test:
     # E2E Test credentials (test-admin из Keycloak)
     E2E_ADMIN_USERNAME: test-admin
     E2E_ADMIN_PASSWORD: Test1234!
-    # DB cleanup выполняется через docker exec postgres (см. before_script)
+    # DB cleanup пропускается в CI (E2E данные изолированы по /e2e-% паттерну)
+    # Cleanup будет выполнен при следующем запуске через Keycloak API (cleanupKeycloakConsumers)
     E2E_SKIP_DB_CLEANUP: "true"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
       allow_failure: true  # Не блокирует pipeline при падении тестов
-  before_script:
-    # Cleanup тестовых данных через postgres контейнер (имеет доступ к БД)
-    - echo "[E2E] Cleanup тестовых данных через postgres..."
-    - |
-      docker exec postgres psql -U gateway -d gateway -c "
-        -- Удаляем route_versions для E2E маршрутов
-        DELETE FROM route_versions WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%');
-        -- Удаляем E2E маршруты
-        DELETE FROM routes WHERE path LIKE '/e2e-%';
-        -- Удаляем маршруты связанные с E2E политиками
-        DELETE FROM routes WHERE rate_limit_id IN (SELECT id FROM rate_limits WHERE name LIKE 'e2e-%');
-        -- Удаляем E2E политики
-        DELETE FROM rate_limits WHERE name LIKE 'e2e-%';
-        -- Удаляем audit_logs для E2E пользователей
-        DELETE FROM audit_logs WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        -- Обнуляем FK ссылки на E2E пользователей
-        UPDATE routes SET approved_by = NULL WHERE approved_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        UPDATE routes SET rejected_by = NULL WHERE rejected_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        -- Удаляем rate_limits созданные E2E пользователями
-        DELETE FROM rate_limits WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        -- Удаляем E2E пользователей
-        DELETE FROM users WHERE username LIKE 'e2e-%';
-      " || echo "WARNING: DB cleanup failed (may be first run)"
-    - echo "[E2E] Cleanup завершён"
   script:
     - cd frontend/admin-ui
     - npm ci
@@ -585,22 +562,6 @@ e2e-test:
     - echo "BASE_URL=$BASE_URL"
     - curl -sf "${VITE_API_URL}/actuator/health" || echo "WARNING gateway-admin-test not accessible"
     - npx playwright test --reporter=html
-  after_script:
-    # Cleanup после тестов (teardown)
-    - echo "[E2E] Teardown — cleanup тестовых данных..."
-    - |
-      docker exec postgres psql -U gateway -d gateway -c "
-        DELETE FROM route_versions WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%');
-        DELETE FROM routes WHERE path LIKE '/e2e-%';
-        DELETE FROM routes WHERE rate_limit_id IN (SELECT id FROM rate_limits WHERE name LIKE 'e2e-%');
-        DELETE FROM rate_limits WHERE name LIKE 'e2e-%';
-        DELETE FROM audit_logs WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        UPDATE routes SET approved_by = NULL WHERE approved_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        UPDATE routes SET rejected_by = NULL WHERE rejected_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        DELETE FROM rate_limits WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
-        DELETE FROM users WHERE username LIKE 'e2e-%';
-      " || echo "WARNING: DB teardown failed"
-    - echo "[E2E] Teardown завершён"
   artifacts:
     when: always
     paths:
