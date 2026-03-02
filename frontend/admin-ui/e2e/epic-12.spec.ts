@@ -11,15 +11,14 @@ import { apiRequest } from './helpers/auth'
 // ============================================================================
 
 // Admin user — полный доступ ко всем функциям
-// NOTE: Keycloak использует email для login (не username)
-// NOTE: Используем E2E_TEST_ADMIN_* вместо E2E_ADMIN_* чтобы не конфликтовать с global-setup
-const ADMIN_USER = process.env.E2E_TEST_ADMIN_USER || 'test-admin@example.com'
+// Story 13.13 Fix: Keycloak Direct Access Grants принимает USERNAME, не email
+const ADMIN_USER = process.env.E2E_TEST_ADMIN_USER || 'test-admin'
 const ADMIN_EMAIL = process.env.E2E_TEST_ADMIN_EMAIL || 'test-admin@example.com'
 const ADMIN_PASSWORD = process.env.E2E_TEST_ADMIN_PASSWORD || 'Test1234!'
 
 // Developer user — ограниченный доступ (Routes, Metrics)
-// NOTE: Keycloak использует email для login (не username)
-const DEV_USER = process.env.E2E_TEST_DEV_USER || 'test-developer@example.com'
+// Story 13.13 Fix: Keycloak Direct Access Grants принимает USERNAME, не email
+const DEV_USER = process.env.E2E_TEST_DEV_USER || 'test-developer'
 const DEV_EMAIL = process.env.E2E_TEST_DEV_EMAIL || 'test-developer@example.com'
 const DEV_PASSWORD = process.env.E2E_TEST_DEV_PASSWORD || 'Test1234!'
 

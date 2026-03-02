@@ -21,19 +21,14 @@ export async function clearSession(page: Page): Promise<void> {
 }
 
 /**
- * USERNAME to EMAIL mapping для backward compatibility с старыми тестами.
+ * USERNAME mapping — НЕ конвертируем в email!
  *
- * Story 12.2 мигрировала на Keycloak Direct Access Grants, который требует EMAIL вместо username.
- * Старые тесты (Epic 2-8) используют username вроде "test-developer".
- * Этот mapping конвертирует username → email для совместимости.
+ * Story 13.13 Fix: Keycloak принимает USERNAME в Direct Access Grants,
+ * а не email. Конвертация username → email ломала аутентификацию в CI.
+ *
+ * loginWithEmailAllowed=true в realm означает что МОЖНО логиниться по email,
+ * но это не значит что email ОБЯЗАТЕЛЕН. Username работает всегда.
  */
-const USERNAME_TO_EMAIL_MAP: Record<string, string> = {
-  'test-developer': 'test-developer@example.com',
-  'test-security': 'test-security@example.com',
-  'test-admin': 'test-admin@example.com',
-  'admin': 'admin@example.com',
-  'developer': 'dev@example.com',
-}
 
 /**
  * Выполняет вход через Keycloak Direct Access Grants.
@@ -61,18 +56,12 @@ export async function login(
   // Очищаем сессию перед новым логином (важно для тестов со сменой пользователя)
   await clearSession(page)
 
-  // Конвертируем username в email для Keycloak
-  // Если username уже содержит "@" — используем как есть
-  // Иначе — ищем в маппинге
-  let email = username
-  if (!username.includes('@')) {
-    email = USERNAME_TO_EMAIL_MAP[username] || `${username}@example.com`
-  }
-
-  console.log(`[E2E Legacy] login("${username}") → keycloakLogin("${email}")`)
+  // Story 13.13 Fix: Используем username напрямую, без конвертации в email.
+  // Keycloak Direct Access Grants принимает username, не email.
+  console.log(`[E2E] login("${username}") → keycloakLogin("${username}")`)
 
   // Делегируем на Keycloak authentication
-  return keycloakLoginImpl(page, email, password, landingUrl)
+  return keycloakLoginImpl(page, username, password, landingUrl)
 }
 
 /**
