@@ -97,7 +97,8 @@ development_status:
   13-11-monitoring-migration-prometheus-grafana: done  # SP:3 — перенос dashboards в infra
   13-12-docker-compose-cleanup-documentation: done  # SP:2 — cleanup, обновление docs
   13-13-e2e-ci-user-sync: done                   # SP:2 — FIXED: FK constraint, sync script added
-  13-14-e2e-remaining-failures: review   # SP:5 — AC2-AC4 выполнены, ожидает pipeline validation (AC5)
+  13-14-e2e-remaining-failures: cancelled        # SP:5 — CANCELLED: подход с адаптацией не работает, см. 13-15
+  13-15-e2e-rewrite-from-scratch: ready-for-dev  # SP:8 — E2E с чистого листа, CI-first, mock dependencies
   epic-13-retrospective: optional
 
   # Epic 14: Technical Debt & Reliability (Architecture Audit 2026-03-01)
