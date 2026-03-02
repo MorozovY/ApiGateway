@@ -369,7 +369,7 @@ deploy-dev:
     url: http://localhost:23000
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: manual
+      when: on_success  # Автоматический запуск после build/docker stages
       allow_failure: true
   script:
     - echo "=========================================="
