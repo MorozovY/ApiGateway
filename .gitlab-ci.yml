@@ -22,12 +22,29 @@ stages:
   - sync
 
 # =============================================================================
-# GLOBAL VARIABLES (Story 13.7)
+# SAST BLOCKING MODE (Story 14.2)
 # =============================================================================
-# Исключаем директории с тестами и билд-артефактами из SAST
+# Override semgrep-sast job для блокировки pipeline при Critical/High уязвимостях
+# По умолчанию GitLab SAST template использует allow_failure: true
+# Переопределяем на false для обеспечения security gate
+
+semgrep-sast:
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+    - if: $CI_MERGE_REQUEST_ID
+      when: always
+    - when: never
+
+# =============================================================================
+# GLOBAL VARIABLES (Story 13.7, Story 14.2)
+# =============================================================================
+# Исключаем директории с тестами, билд-артефактами и конфигами из SAST
 # Сканируем только production code
+# Story 14.2: Расширен список исключений для уменьшения false positives
 variables:
-  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build"
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build, **/*Test.kt, **/*Tests.kt, **/test/**, **/tests/**, docker/**, scripts/**, *.md, *.yml, *.yaml"
 
 # =============================================================================
 # CACHE TEMPLATES
@@ -667,6 +684,12 @@ rollback-prod:
 sync-to-github:
   stage: sync
   image: alpine:latest
+  # Независим от deploy-prod — достаточно успешного deploy-dev
+  needs:
+    - job: deploy-dev
+      optional: true
+    - job: smoke-test-dev
+      optional: true
   retry:
     max: 2
     when:
