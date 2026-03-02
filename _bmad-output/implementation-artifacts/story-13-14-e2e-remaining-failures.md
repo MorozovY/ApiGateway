@@ -166,8 +166,13 @@ Pipeline #202 результаты показывают 4 категории fai
 - [x] Добавить CI-specific timeouts — actionTimeout 15s, navigationTimeout 30s
 
 ### Phase 6: Pipeline Validation (AC5)
-- [ ] Запустить pipeline и проверить результаты
-- [ ] Target: < 5 failures
+- [x] Запустить pipeline и проверить результаты
+- [ ] Target: < 5 failures — BLOCKED: инфраструктурная проблема
+
+**Блокер:** Test environment (gateway.ymorozov.ru) недоступен из CI runner.
+- Pipeline #207 e2e-test: failed — Keycloak/Gateway unreachable
+- Причина: DNS/network между runner и test environment
+- Требуется: настройка Traefik или Docker networks для CI
 
 ## Dev Agent Record
 
@@ -219,6 +224,7 @@ Pipeline #202 результаты показывают 4 категории fai
 | `frontend/admin-ui/e2e/epic-6.spec.ts` | AC3: graceful skip для metrics tests если endpoint недоступен |
 | `frontend/admin-ui/e2e/epic-12.spec.ts` | AC3/AC4: улучшена обработка ошибок login и metrics tests |
 | `frontend/admin-ui/e2e/screenshots/diagnostic-after-login.png` | Скриншот для диагностики login flow |
+| `frontend/admin-ui/e2e/global-setup.ts` | Graceful handling когда DB/Keycloak недоступны |
 
 ## Change Log
 
