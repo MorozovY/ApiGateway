@@ -538,14 +538,13 @@ e2e-test:
   stage: deploy
   image: mcr.microsoft.com/playwright:v1.42.0-jammy
   variables:
-    # Test environment использует порты из generate-compose.sh (test)
-    # host.docker.internal позволяет Playwright контейнеру достучаться до хоста
-    # На Linux runners: если host.docker.internal недоступен, используем gateway IP
-    BASE_URL: http://host.docker.internal:13000
-    VITE_API_URL: http://host.docker.internal:18081
-    API_BASE: http://host.docker.internal:18081
-    # Gateway Core для проксирования запросов и метрик
-    GATEWAY_URL: http://host.docker.internal:18080
+    # E2E тесты используют внешние URL через Traefik (доступны из любого контейнера)
+    # host.docker.internal не работает надёжно в GitLab Docker executor
+    BASE_URL: https://gateway.ymorozov.ru
+    VITE_API_URL: https://gateway.ymorozov.ru
+    API_BASE: https://gateway.ymorozov.ru
+    # Gateway Core для проксирования запросов и метрик (через Traefik)
+    GATEWAY_URL: https://gateway.ymorozov.ru
     # Keycloak — используем external URL (через Traefik)
     VITE_KEYCLOAK_URL: https://keycloak.ymorozov.ru
     KEYCLOAK_URL: https://keycloak.ymorozov.ru
@@ -570,18 +569,7 @@ e2e-test:
     - rm -f .env.e2e
     - npm ci
     - npx playwright install --with-deps chromium
-    # Определяем host для подключения (Linux fallback)
-    - |
-      if ! getent hosts host.docker.internal > /dev/null 2>&1; then
-        echo "host.docker.internal not available, using gateway IP"
-        GATEWAY_IP=$(ip route | grep default | awk '{print $3}')
-        export BASE_URL="http://${GATEWAY_IP}:13000"
-        export VITE_API_URL="http://${GATEWAY_IP}:18081"
-        export API_BASE="http://${GATEWAY_IP}:18081"
-        export GATEWAY_URL="http://${GATEWAY_IP}:18080"
-        echo "Using gateway IP: $GATEWAY_IP"
-      fi
-    # Дебаг — проверяем все переменные для E2E
+    # Дебаг — проверяем все переменные для E2E (все URL внешние через Traefik)
     - echo "=== E2E Environment Debug ==="
     - echo "BASE_URL=$BASE_URL"
     - echo "API_BASE=$API_BASE"
@@ -610,8 +598,9 @@ e2e-test:
     - echo "=== Created .env file ==="
     - cat .env
     - echo "=== Checking test environment accessibility ==="
-    - curl -sf "${API_BASE}/actuator/health" || echo "WARNING gateway-admin-test not accessible at ${API_BASE}"
-    - curl -sf "${BASE_URL}" || echo "WARNING admin-ui-test not accessible at ${BASE_URL}"
+    # Проверяем доступность через внешние URL (Traefik)
+    - curl -sf "${BASE_URL}/api/v1/actuator/health" || echo "WARNING gateway-admin not accessible at ${BASE_URL}/api/v1"
+    - curl -sf "${BASE_URL}" || echo "WARNING admin-ui not accessible at ${BASE_URL}"
     # Установка dotenv-cli для загрузки .env файла
     - npm install -g dotenv-cli
     # Запуск тестов с переменными из .env файла
