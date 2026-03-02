@@ -149,8 +149,17 @@ async function cleanupKeycloakConsumers(): Promise<void> {
  * Не удаляет:
  * - test-developer, test-security, test-admin (системные тестовые пользователи)
  * - company-a, company-b, company-c (pre-seeded consumers для тестов)
+ *
+ * В CI окружении (E2E_SKIP_DB_CLEANUP=true) cleanup выполняется через
+ * docker exec postgres в before_script (см. .gitlab-ci.yml).
  */
 async function cleanupTestData(): Promise<void> {
+  // В CI cleanup выполняется через docker exec postgres в before_script
+  if (process.env.E2E_SKIP_DB_CLEANUP === 'true') {
+    console.log('[E2E Cleanup] Пропуск — cleanup уже выполнен через docker exec postgres')
+    return
+  }
+
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
 
   const pool = new Pool({ connectionString: databaseUrl })
@@ -510,6 +519,13 @@ async function globalSetup(): Promise<void> {
   }
 
   // Шаг 5: Создание Keycloak пользователей в БД (для audit_logs FK constraint)
+  // В CI пропускаем — PostgreSQL недоступен из Playwright контейнера
+  if (process.env.E2E_SKIP_DB_CLEANUP === 'true') {
+    console.log('[E2E Setup] Пропуск синхронизации пользователей в БД (CI mode)')
+    console.log('[E2E Setup] Подготовка завершена.')
+    return
+  }
+
   console.log('[E2E Setup] Создаём Keycloak пользователей в БД для audit_logs...')
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
   const pool = new Pool({ connectionString: databaseUrl })

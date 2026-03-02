@@ -45,8 +45,17 @@ function loadEnvFile(): void {
  * - audit_logs: entity_id совпадает с тестовыми routes/rate_limits
  *
  * Порядок удаления учитывает FK constraints.
+ *
+ * В CI окружении (E2E_SKIP_DB_CLEANUP=true) cleanup выполняется через
+ * docker exec postgres в after_script (см. .gitlab-ci.yml).
  */
 async function cleanupTestData(): Promise<void> {
+  // В CI cleanup выполняется через docker exec postgres в after_script
+  if (process.env.E2E_SKIP_DB_CLEANUP === 'true') {
+    console.log('[E2E Teardown] Пропуск — cleanup выполняется через docker exec postgres')
+    return
+  }
+
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
 
   const pool = new Pool({ connectionString: databaseUrl })
