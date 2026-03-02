@@ -251,13 +251,16 @@ class DynamicRouteLocatorTest {
         whenever(cacheManager.loadRateLimitAsync(rateLimitId))
             .thenReturn(Mono.just(rateLimit).delayElement(Duration.ofMillis(50)))
 
-        // When: получаем маршрут и выполняем predicate
-        val gatewayRoute = dynamicRouteLocator.getRoutes().blockFirst()!!
         val request = MockServerHttpRequest.get("/api/limited/test").build()
         val exchange = MockServerWebExchange.from(request)
 
-        // Then: predicate завершается успешно (async)
-        StepVerifier.create(gatewayRoute.predicate.apply(exchange))
+        // When/Then: полностью reactive verification без .blockFirst()
+        // Story 14.1: проверяем что весь chain async, включая predicate evaluation
+        StepVerifier.create(
+            dynamicRouteLocator.getRoutes()
+                .next()
+                .flatMap { gatewayRoute -> Mono.from(gatewayRoute.predicate.apply(exchange)) }
+        )
             .expectNext(true)
             .verifyComplete()
 
@@ -276,12 +279,15 @@ class DynamicRouteLocatorTest {
         whenever(cacheManager.getCachedRoutes()).thenReturn(listOf(route))
         whenever(cacheManager.getCachedRateLimit(rateLimitId)).thenReturn(rateLimit)
 
-        // When: получаем маршрут и выполняем predicate
-        val gatewayRoute = dynamicRouteLocator.getRoutes().blockFirst()!!
         val request = MockServerHttpRequest.get("/api/cached/test").build()
         val exchange = MockServerWebExchange.from(request)
 
-        StepVerifier.create(gatewayRoute.predicate.apply(exchange))
+        // When/Then: полностью reactive verification
+        StepVerifier.create(
+            dynamicRouteLocator.getRoutes()
+                .next()
+                .flatMap { gatewayRoute -> Mono.from(gatewayRoute.predicate.apply(exchange)) }
+        )
             .expectNext(true)
             .verifyComplete()
 
@@ -301,13 +307,15 @@ class DynamicRouteLocatorTest {
         whenever(cacheManager.loadRateLimitAsync(rateLimitId))
             .thenReturn(Mono.error(RuntimeException("Database unavailable")))
 
-        // When: получаем маршрут и выполняем predicate
-        val gatewayRoute = dynamicRouteLocator.getRoutes().blockFirst()!!
         val request = MockServerHttpRequest.get("/api/error/test").build()
         val exchange = MockServerWebExchange.from(request)
 
-        // Then: predicate возвращает true (graceful degradation — маршрут работает без rate limit)
-        StepVerifier.create(gatewayRoute.predicate.apply(exchange))
+        // When/Then: predicate возвращает true (graceful degradation — маршрут работает без rate limit)
+        StepVerifier.create(
+            dynamicRouteLocator.getRoutes()
+                .next()
+                .flatMap { gatewayRoute -> Mono.from(gatewayRoute.predicate.apply(exchange)) }
+        )
             .expectNext(true)
             .verifyComplete()
     }
@@ -319,13 +327,15 @@ class DynamicRouteLocatorTest {
 
         whenever(cacheManager.getCachedRoutes()).thenReturn(listOf(route))
 
-        // When: запрос на другой путь
-        val gatewayRoute = dynamicRouteLocator.getRoutes().blockFirst()!!
         val request = MockServerHttpRequest.get("/api/users/test").build()
         val exchange = MockServerWebExchange.from(request)
 
-        // Then: predicate возвращает false, async загрузка НЕ вызывается
-        StepVerifier.create(gatewayRoute.predicate.apply(exchange))
+        // When/Then: predicate возвращает false, async загрузка НЕ вызывается
+        StepVerifier.create(
+            dynamicRouteLocator.getRoutes()
+                .next()
+                .flatMap { gatewayRoute -> Mono.from(gatewayRoute.predicate.apply(exchange)) }
+        )
             .expectNext(false)
             .verifyComplete()
 
@@ -343,13 +353,15 @@ class DynamicRouteLocatorTest {
         // Политика не найдена в БД — empty Mono
         whenever(cacheManager.loadRateLimitAsync(rateLimitId)).thenReturn(Mono.empty())
 
-        // When: получаем маршрут и выполняем predicate
-        val gatewayRoute = dynamicRouteLocator.getRoutes().blockFirst()!!
         val request = MockServerHttpRequest.get("/api/notfound/test").build()
         val exchange = MockServerWebExchange.from(request)
 
-        // Then: predicate возвращает true (defaultIfEmpty) — маршрут работает без rate limit
-        StepVerifier.create(gatewayRoute.predicate.apply(exchange))
+        // When/Then: predicate возвращает true (defaultIfEmpty) — маршрут работает без rate limit
+        StepVerifier.create(
+            dynamicRouteLocator.getRoutes()
+                .next()
+                .flatMap { gatewayRoute -> Mono.from(gatewayRoute.predicate.apply(exchange)) }
+        )
             .expectNext(true)
             .verifyComplete()
 

@@ -404,4 +404,20 @@ class RouteCacheManagerTest {
         StepVerifier.create(cacheManager.loadRateLimitAsync(rateLimitId))
             .verifyError(RuntimeException::class.java)
     }
+
+    @Test
+    fun `loadRateLimitAsync имеет timeout 5 секунд для защиты от зависания БД`() {
+        // Given: БД не отвечает (имитация через never-completing Mono)
+        val rateLimitId = UUID.randomUUID()
+
+        whenever(rateLimitRepository.findById(rateLimitId))
+            .thenReturn(Mono.never())
+
+        // When/Then: timeout срабатывает через 5 секунд
+        // Используем виртуальное время для быстрого теста
+        StepVerifier.withVirtualTime { cacheManager.loadRateLimitAsync(rateLimitId) }
+            .expectSubscription()
+            .thenAwait(java.time.Duration.ofSeconds(5))
+            .verifyError(java.util.concurrent.TimeoutException::class.java)
+    }
 }

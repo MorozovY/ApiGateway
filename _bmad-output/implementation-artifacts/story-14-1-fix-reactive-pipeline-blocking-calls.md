@@ -1,6 +1,6 @@
 # Story 14.1: Fix Reactive Pipeline Blocking Calls
 
-Status: review
+Status: done
 
 ## Story
 
@@ -202,7 +202,60 @@ N/A
 - `backend/gateway-core/src/test/kotlin/com/company/gateway/core/route/DynamicRouteLocatorTest.kt`
 - `backend/gateway-core/src/test/kotlin/com/company/gateway/core/cache/RouteCacheManagerTest.kt`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Yury
+**Date:** 2026-03-02
+**Outcome:** ✅ APPROVED (after fixes)
+
+### Review Summary
+
+| Severity | Found | Fixed |
+|----------|-------|-------|
+| 🔴 HIGH | 2 | 2 |
+| 🟡 MEDIUM | 4 | 4 |
+| 🟢 LOW | 4 | 0 (deferred) |
+
+### Fixed Issues
+
+**H1: Deprecated `.block()` method enhanced** (RouteCacheManager.kt:207-233)
+- Улучшен `@Deprecated` annotation с детальным message о блокировке Netty event loop
+- Добавлен runtime warning log при вызове deprecated метода
+- Комментарий обновлён с объяснением почему метод оставлен (backward compatibility)
+
+**H2: Timeout test added** (RouteCacheManagerTest.kt:409-420)
+- Добавлен тест `loadRateLimitAsync имеет timeout 5 секунд для защиты от зависания БД`
+- Использует StepVerifier.withVirtualTime для проверки timeout behavior
+
+**M1: Timeout added to loadRateLimitAsync** (RouteCacheManager.kt:197)
+- Добавлен `.timeout(Duration.ofSeconds(5))` для consistency с sync версией
+- Защита от зависания при database connection issues
+
+**M2: Comment explaining RefreshRoutesEvent** (RouteCacheManager.kt:184-188)
+- Добавлен комментарий объясняющий почему RefreshRoutesEvent не публикуется
+- Это fallback loading, не cache invalidation
+
+**M3: Tests refactored to avoid `.blockFirst()`** (DynamicRouteLocatorTest.kt:241-370)
+- 5 тестов переписаны с использованием полностью reactive StepVerifier chain
+- `Mono.from(gatewayRoute.predicate.apply(exchange))` вместо `.blockFirst()`
+
+**M4: Stale comment updated** (RouteCacheManager.kt:207-215)
+- Удалена ссылка на "Story 5.8, AC2" из deprecated метода
+- Добавлено объяснение что метод заменён в Story 14.1
+
+### Deferred Issues (LOW)
+
+- L1-L4: Documentation и naming improvements — не критичны, можно адресовать в future sprint
+
+### Verification
+
+```
+./gradlew :gateway-core:test --tests "*RouteCacheManagerTest" --tests "*DynamicRouteLocatorTest"
+BUILD SUCCESSFUL - all 28 tests passed
+```
+
 ## Change Log
 
+- 2026-03-02: Code Review completed — 6 issues fixed (H1, H2, M1-M4), status → done
 - 2026-03-02: Story 14.1 implemented — async rate limit loading in reactive pipelines, Flyway configuration fixed
 

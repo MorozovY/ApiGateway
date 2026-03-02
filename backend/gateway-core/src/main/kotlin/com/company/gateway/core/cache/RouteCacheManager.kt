@@ -179,11 +179,16 @@ class RouteCacheManager(
      * Story 14.1: Полностью асинхронная загрузка для reactive pipelines.
      * НЕ блокирует Netty event loop.
      *
+     * Примечание: RefreshRoutesEvent НЕ публикуется, т.к. это fallback loading
+     * при cache miss, а не инвалидация кэша. Маршрут уже существует, просто
+     * подгружается политика для текущего запроса.
+     *
      * @param rateLimitId ID политики для загрузки
      * @return Mono<RateLimit> или empty Mono если политика не найдена
      */
     fun loadRateLimitAsync(rateLimitId: UUID): Mono<RateLimit> =
         rateLimitRepository.findById(rateLimitId)
+            .timeout(java.time.Duration.ofSeconds(5))
             .doOnNext { rateLimit ->
                 // Кэшируем загруженную политику для следующих запросов
                 cachedRateLimits.updateAndGet { map ->
@@ -194,18 +199,23 @@ class RouteCacheManager(
             }
 
     /**
-     * Синхронная загрузка политики — fallback для DynamicRouteLocator.
-     * @deprecated Использовать loadRateLimitAsync() для reactive chains.
+     * Синхронная загрузка политики — DEPRECATED, заменён на loadRateLimitAsync().
      *
-     * ВАЖНО: Блокирующий вызов, использовать только для fallback!
-     *
-     * Story 5.8, AC2: Маршруты с rate limit работают сразу после publish
+     * @deprecated БЛОКИРУЕТ Netty event loop! Вызов .block() в reactive chain
+     * приводит к latency spikes и деградации throughput. Story 14.1 заменил
+     * все использования на loadRateLimitAsync(). Этот метод оставлен только
+     * для обратной совместимости и будет удалён в следующем major release.
      *
      * @param rateLimitId ID политики для загрузки
      * @return RateLimit или null если политика не найдена
      */
-    @Deprecated("Использовать loadRateLimitAsync() для reactive chains", ReplaceWith("loadRateLimitAsync(rateLimitId)"))
+    @Deprecated(
+        message = "БЛОКИРУЕТ Netty event loop! Использовать loadRateLimitAsync() для reactive chains",
+        replaceWith = ReplaceWith("loadRateLimitAsync(rateLimitId)"),
+        level = DeprecationLevel.WARNING
+    )
     fun loadRateLimitSync(rateLimitId: UUID): RateLimit? {
+        logger.warn("DEPRECATED: loadRateLimitSync() вызван для {}. Использовать loadRateLimitAsync()!", rateLimitId)
         return try {
             rateLimitRepository.findById(rateLimitId)
                 .doOnNext { rateLimit ->

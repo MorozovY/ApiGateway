@@ -81,7 +81,7 @@ development_status:
   # Epic 13: GitLab CI/CD & Infrastructure Migration (Total: ~50 SP)
   # Changed: Local GitLab in Docker (Sprint Change Proposal 2026-02-26)
   # Changed: Centralized Infrastructure Migration (Sprint Change Proposal 2026-02-28)
-  epic-13: in-progress  # 2026-02-26: Started
+  epic-13: done  # 2026-03-02: All 15 stories completed (1 cancelled)
   13-0-local-gitlab-infrastructure: done                     # SP:5 — локальный GitLab в Docker
   13-1-gitlab-repository-setup-github-mirror: done           # SP:2 — push repo, настройка mirror
   13-2-ci-pipeline-build-test: done                          # SP:8 — .gitlab-ci.yml, build/test stages
@@ -98,14 +98,16 @@ development_status:
   13-12-docker-compose-cleanup-documentation: done  # SP:2 — cleanup, обновление docs
   13-13-e2e-ci-user-sync: done                   # SP:2 — FIXED: FK constraint, sync script added
   13-14-e2e-remaining-failures: cancelled        # SP:5 — CANCELLED: подход с адаптацией не работает, см. 13-15
-  13-15-e2e-rewrite-from-scratch: ready-for-dev  # SP:8 — E2E с чистого листа, CI-first, mock dependencies
-  epic-13-retrospective: optional
+  13-15-e2e-rewrite-from-scratch: done  # SP:8 — E2E с чистого листа, CI-first, 55 tests, 5/5 pipelines green
+  epic-13-retrospective: done  # 2026-03-02
 
   # Epic 14: Technical Debt & Reliability (Architecture Audit 2026-03-01)
   # Source: architecture-audit-2026-03-01.md
-  epic-14: backlog  # Total: ~23 SP
-  14-1-fix-reactive-pipeline-blocking-calls: backlog        # SP:3 — P0: async DB calls, Flyway config
-  14-2-sast-blocking-mode-migration-cleanup: backlog        # SP:5 — P0: SAST blocking, migration renumbering
-  14-3-custom-metrics-sli-slo-definition: backlog           # SP:5 — observability, SLO dashboard
-  14-4-frontend-code-splitting-performance: backlog         # SP:5 — React.lazy, bundle optimization
-  14-5-distributed-tracing-integration: backlog             # SP:5 — Jaeger, OpenTelemetry
+  # Updated: Epic 13 Retrospective 2026-03-02 — added Story 14-6
+  epic-14: in-progress  # Total: ~28 SP
+  14-1-fix-reactive-pipeline-blocking-calls: done  # SP:3 — P0: async DB calls, Flyway config
+  14-2-sast-blocking-mode-migration-cleanup: ready-for-dev  # SP:5 — P0: SAST blocking, migration renumbering
+  14-3-custom-metrics-sli-slo-definition: ready-for-dev     # SP:5 — P1: observability, SLO dashboard
+  14-4-frontend-code-splitting-performance: ready-for-dev   # SP:5 — P1: React.lazy, bundle optimization
+  14-5-distributed-tracing-integration: backlog             # SP:5 — P2: Jaeger, OpenTelemetry
+  14-6-e2e-test-coverage-expansion: backlog                 # SP:5 — P2: +15 E2E tests (RBAC, consumers, errors)
