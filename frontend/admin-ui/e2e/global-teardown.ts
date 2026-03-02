@@ -45,11 +45,28 @@ function loadEnvFile(): void {
  * - audit_logs: entity_id совпадает с тестовыми routes/rate_limits
  *
  * Порядок удаления учитывает FK constraints.
+ *
+ * В CI окружении (E2E_SKIP_DB_CLEANUP=true) cleanup пропускается,
+ * так как Playwright контейнер не имеет доступа к postgres-net.
  */
 async function cleanupTestData(): Promise<void> {
+  // В CI PostgreSQL недоступен напрямую из Playwright контейнера
+  if (process.env.E2E_SKIP_DB_CLEANUP === 'true') {
+    console.log('[E2E Teardown] Пропуск DB cleanup (E2E_SKIP_DB_CLEANUP=true)')
+    return
+  }
+
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
 
-  const pool = new Pool({ connectionString: databaseUrl })
+  // Проверяем доступность PostgreSQL перед подключением
+  let pool: pg.Pool
+  try {
+    pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 })
+    await pool.query('SELECT 1')
+  } catch (error) {
+    console.warn('[E2E Teardown] PostgreSQL недоступен, пропускаем DB cleanup:', (error as Error).message)
+    return
+  }
 
   try {
     console.log('[E2E Teardown] Очистка тестовых данных после прогона...')

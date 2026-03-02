@@ -525,7 +525,20 @@ e2e-test:
     # На Linux runners: если host.docker.internal недоступен, используем gateway IP
     BASE_URL: http://host.docker.internal:13000
     VITE_API_URL: http://host.docker.internal:18081
-    VITE_KEYCLOAK_URL: http://host.docker.internal:8180
+    API_BASE: http://host.docker.internal:18081
+    # Keycloak — используем external URL (через Traefik)
+    VITE_KEYCLOAK_URL: https://keycloak.ymorozov.ru
+    KEYCLOAK_URL: https://keycloak.ymorozov.ru
+    KEYCLOAK_REALM: api-gateway
+    KEYCLOAK_CLIENT_ID: gateway-admin-ui
+    # Keycloak Admin API для cleanup consumers
+    KEYCLOAK_ADMIN_USER: admin
+    KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    # E2E Test credentials (test-admin из Keycloak)
+    E2E_ADMIN_USERNAME: test-admin
+    E2E_ADMIN_PASSWORD: Test1234!
+    # Пропуск прямого подключения к PostgreSQL (недоступен из Playwright контейнера)
+    E2E_SKIP_DB_CLEANUP: "true"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
@@ -541,13 +554,14 @@ e2e-test:
         GATEWAY_IP=$(ip route | grep default | awk '{print $3}')
         export BASE_URL="http://${GATEWAY_IP}:13000"
         export VITE_API_URL="http://${GATEWAY_IP}:18081"
-        export VITE_KEYCLOAK_URL="http://${GATEWAY_IP}:8180"
+        export API_BASE="http://${GATEWAY_IP}:18081"
         echo "Using gateway IP: $GATEWAY_IP"
       fi
     - echo "Checking test environment accessibility..."
     - echo "BASE_URL=$BASE_URL"
+    - echo "E2E_SKIP_DB_CLEANUP=$E2E_SKIP_DB_CLEANUP"
     - curl -sf "${VITE_API_URL}/actuator/health" || echo "WARNING gateway-admin-test not accessible"
-    - npx playwright test --reporter=html || true
+    - npx playwright test --reporter=html
   artifacts:
     when: always
     paths:

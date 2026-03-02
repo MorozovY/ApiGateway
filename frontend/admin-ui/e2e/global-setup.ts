@@ -149,11 +149,29 @@ async function cleanupKeycloakConsumers(): Promise<void> {
  * Не удаляет:
  * - test-developer, test-security, test-admin (системные тестовые пользователи)
  * - company-a, company-b, company-c (pre-seeded consumers для тестов)
+ *
+ * В CI окружении (E2E_SKIP_DB_CLEANUP=true) cleanup пропускается,
+ * так как Playwright контейнер не имеет доступа к postgres-net.
  */
 async function cleanupTestData(): Promise<void> {
+  // В CI PostgreSQL недоступен напрямую из Playwright контейнера
+  if (process.env.E2E_SKIP_DB_CLEANUP === 'true') {
+    console.log('[E2E Cleanup] Пропуск DB cleanup (E2E_SKIP_DB_CLEANUP=true)')
+    return
+  }
+
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
 
-  const pool = new Pool({ connectionString: databaseUrl })
+  // Проверяем доступность PostgreSQL перед подключением
+  let pool: pg.Pool
+  try {
+    pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 })
+    // Проверяем подключение
+    await pool.query('SELECT 1')
+  } catch (error) {
+    console.warn('[E2E Cleanup] PostgreSQL недоступен, пропускаем DB cleanup:', (error as Error).message)
+    return
+  }
 
   try {
     console.log('[E2E Cleanup] Очистка тестовых данных...')
@@ -510,9 +528,25 @@ async function globalSetup(): Promise<void> {
   }
 
   // Шаг 5: Создание Keycloak пользователей в БД (для audit_logs FK constraint)
+  // В CI PostgreSQL недоступен напрямую из Playwright контейнера
+  if (process.env.E2E_SKIP_DB_CLEANUP === 'true') {
+    console.log('[E2E Setup] Пропуск синхронизации пользователей в БД (E2E_SKIP_DB_CLEANUP=true)')
+    console.log('[E2E Setup] Подготовка завершена.')
+    return
+  }
+
   console.log('[E2E Setup] Создаём Keycloak пользователей в БД для audit_logs...')
   const databaseUrl = process.env.DATABASE_URL || 'postgresql://gateway:gateway@localhost:5432/gateway'
-  const pool = new Pool({ connectionString: databaseUrl })
+
+  let pool: pg.Pool
+  try {
+    pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 })
+    await pool.query('SELECT 1')
+  } catch (error) {
+    console.warn('[E2E Setup] PostgreSQL недоступен, пропускаем синхронизацию пользователей:', (error as Error).message)
+    console.log('[E2E Setup] Подготовка завершена.')
+    return
+  }
 
   try {
     // Получаем admin token для Keycloak Admin API
