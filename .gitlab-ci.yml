@@ -235,8 +235,14 @@ e2e-test-mock:
   variables:
     # Nexus proxy (опционально)
     NEXUS_URL: "http://nexus:8081"
+    # CI флаг для playwright.config.ts
+    CI: "true"
   script:
     - cd frontend/admin-ui
+    # Проверяем что dist/ папка есть (от frontend-build артефактов)
+    - echo "=== Checking frontend-build artifacts ==="
+    - ls -la dist/ || (echo "ERROR: dist/ not found - frontend-build artifacts missing" && exit 1)
+    - echo "dist/ found with $(ls dist/ | wc -l) files"
     # Проверяем доступность Nexus и используем как proxy
     - |
       if wget -q --spider "$NEXUS_URL/service/rest/v1/status" 2>/dev/null; then
@@ -247,7 +253,8 @@ e2e-test-mock:
         echo "Nexus not available, using default npm registry"
       fi
     - npm ci
-    # Playwright уже установлен в базовом образе
+    # Playwright сам запустит preview server через webServer config
+    - echo "=== Running E2E tests ==="
     - npx playwright test --reporter=line
   artifacts:
     when: always
@@ -256,7 +263,8 @@ e2e-test-mock:
       - frontend/admin-ui/test-results/
     expire_in: 7 days
   needs:
-    - frontend-build
+    - job: frontend-build
+      artifacts: true
 
 # =============================================================================
 # DOCKER STAGE (Story 13.3)
