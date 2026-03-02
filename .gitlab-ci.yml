@@ -546,6 +546,8 @@ e2e-test:
       allow_failure: true  # Не блокирует pipeline при падении тестов
   script:
     - cd frontend/admin-ui
+    # Удаляем локальный .env.e2e чтобы использовать CI переменные
+    - rm -f .env.e2e
     - npm ci
     - npx playwright install --with-deps chromium
     # Определяем host для подключения (Linux fallback)
@@ -558,10 +560,37 @@ e2e-test:
         export API_BASE="http://${GATEWAY_IP}:18081"
         echo "Using gateway IP: $GATEWAY_IP"
       fi
-    - echo "Checking test environment accessibility..."
+    # Дебаг — проверяем все переменные для E2E
+    - echo "=== E2E Environment Debug ==="
     - echo "BASE_URL=$BASE_URL"
-    - curl -sf "${VITE_API_URL}/actuator/health" || echo "WARNING gateway-admin-test not accessible"
-    - npx playwright test --reporter=html
+    - echo "API_BASE=$API_BASE"
+    - echo "KEYCLOAK_URL=$KEYCLOAK_URL"
+    - echo "E2E_ADMIN_USERNAME=$E2E_ADMIN_USERNAME"
+    - echo "E2E_SKIP_DB_CLEANUP=$E2E_SKIP_DB_CLEANUP"
+    # Создаём .env файл для Playwright (dotenv автоматически загружается)
+    - |
+      cat > .env << EOF
+      BASE_URL=${BASE_URL}
+      API_BASE=${API_BASE}
+      VITE_API_URL=${VITE_API_URL}
+      KEYCLOAK_URL=${KEYCLOAK_URL}
+      KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_ADMIN_USER=${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      E2E_ADMIN_USERNAME=${E2E_ADMIN_USERNAME}
+      E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD}
+      E2E_SKIP_DB_CLEANUP=${E2E_SKIP_DB_CLEANUP}
+      EOF
+    - echo "=== Created .env file ==="
+    - cat .env
+    - echo "=== Checking test environment accessibility ==="
+    - curl -sf "${API_BASE}/actuator/health" || echo "WARNING gateway-admin-test not accessible at ${API_BASE}"
+    - curl -sf "${BASE_URL}" || echo "WARNING admin-ui-test not accessible at ${BASE_URL}"
+    # Установка dotenv-cli для загрузки .env файла
+    - npm install -g dotenv-cli
+    # Запуск тестов с переменными из .env файла
+    - dotenv -- npx playwright test --reporter=html
   artifacts:
     when: always
     paths:
