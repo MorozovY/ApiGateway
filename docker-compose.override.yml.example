@@ -4,50 +4,93 @@
 # и добавляет сервисы приложения с поддержкой hot-reload.
 #
 # Использование:
-#   docker-compose up -d                    # infra + apps (этот файл применяется автоматически)
-#   docker-compose up -d postgres redis     # только infra (явно указываем сервисы)
-#   docker-compose --profile monitoring up -d  # infra + apps + monitoring
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   docker-compose up -d    # Запуск всех сервисов
+#
+# Централизованная инфраструктура (Story 13.8, 13.9, 13.10, 13.11):
+#   - PostgreSQL: через postgres-net (infra проект)
+#   - Redis: через redis-net (infra проект)
+#   - Keycloak: через Docker networks (infra проект)
+#   - Traefik: через traefik-net (infra проект)
+#   - Prometheus & Grafana: через monitoring-net (infra проект)
+#
+# Мониторинг:
+#   - Prometheus: https://prometheus.ymorozov.ru
+#   - Grafana: https://grafana.ymorozov.ru
+#   - Dashboard "API Gateway" с метриками gateway-core и gateway-admin
+#
+# ВАЖНО: Перед запуском убедитесь что infra stack запущен и сети созданы:
+#   docker network create traefik-net 2>/dev/null || true
+#   docker network create postgres-net 2>/dev/null || true
+#   docker network create redis-net 2>/dev/null || true
+#   docker network create monitoring-net 2>/dev/null || true
 #
 # Для production НЕ используйте этот файл (переименуйте или удалите)
 
 services:
-  # Gateway Admin API (port 8081)
+  # Gateway Admin API (port 8082, внутри 8081)
   # Hot-reload: изменения в backend/gateway-admin/src перезагружают сервис
+  # Примечание: Порт 8081 занят Nexus (docker/gitlab), используем 8082
+  # Traefik routing: gateway.ymorozov.ru/api/v1/* и /swagger-ui*
   gateway-admin:
     build:
       context: .
       dockerfile: docker/Dockerfile.gateway-admin.dev
     container_name: gateway-admin-dev
     ports:
-      - "8081:8081"
+      - "8082:8081"
+    labels:
+      # === TRAEFIK ROUTING (Story 13.8) ===
+      - "traefik.enable=true"
+      # --- Admin API Router (/api/v1/*) ---
+      - "traefik.http.routers.gateway-admin-api.rule=Host(`gateway.ymorozov.ru`) && PathPrefix(`/api/v1`)"
+      - "traefik.http.routers.gateway-admin-api.entrypoints=websecure"
+      - "traefik.http.routers.gateway-admin-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.gateway-admin-api.service=gateway-admin"
+      # --- Swagger UI Router ---
+      - "traefik.http.routers.gateway-admin-swagger.rule=Host(`gateway.ymorozov.ru`) && (PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`) || PathPrefix(`/webjars`))"
+      - "traefik.http.routers.gateway-admin-swagger.entrypoints=websecure"
+      - "traefik.http.routers.gateway-admin-swagger.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.gateway-admin-swagger.service=gateway-admin"
+      # --- Service Definition ---
+      - "traefik.http.services.gateway-admin.loadbalancer.server.port=8081"
     environment:
+      # PostgreSQL — централизованный infra-postgres (Story 13.9)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=gateway
       - POSTGRES_USER=gateway
-      - POSTGRES_PASSWORD=gateway
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      # Redis — централизованный infra-redis (Story 13.10)
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_PROFILES_ACTIVE=dev
       - ADMIN_PASSWORD=admin123
       - JWT_SECRET=dev-secret-key-minimum-32-characters-long
-      # Prometheus URL для MetricsService (Story 7.0)
+      # Prometheus URL для MetricsService (Story 7.0, 13.11)
+      # Централизованный Prometheus из infra проекта
       - PROMETHEUS_URL=http://prometheus:9090
-      # Health check URLs (Story 8.1, 10.5) — Docker service names
+      # Health check URLs (Story 8.1, 10.5, 12.1) — Docker service names
       - GATEWAY_CORE_URL=http://gateway-core:8080
       - GRAFANA_URL=http://grafana:3000
-      - NGINX_URL=http://nginx:80
+      # Keycloak из infra — внутренний доступ через Docker network (Story 13.8)
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_ENABLED=true
+      - KEYCLOAK_ADMIN_USERNAME=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Монтируем исходники для hot-reload
       - ./backend/gateway-common/src:/app/backend/gateway-common/src:ro
       - ./backend/gateway-admin/src:/app/backend/gateway-admin/src:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    # depends_on удалён — postgres и redis централизованы в infra (Story 13.9, 13.10)
     networks:
       - gateway-network
+      - traefik-net
+      - postgres-net
+      - redis-net
+      - monitoring-net  # Story 13.11: для scrape метрик централизованным Prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
       interval: 30s
@@ -57,6 +100,7 @@ services:
 
   # Gateway Core (port 8080)
   # Hot-reload: изменения в backend/gateway-core/src перезагружают сервис
+  # Traefik routing: gateway.ymorozov.ru/api/* (кроме /api/v1)
   gateway-core:
     build:
       context: .
@@ -64,26 +108,47 @@ services:
     container_name: gateway-core-dev
     ports:
       - "8080:8080"
+    labels:
+      # === TRAEFIK ROUTING (Story 13.8) ===
+      - "traefik.enable=true"
+      # --- Gateway Core API Router (/api/* except /api/v1) ---
+      # Используем более низкий приоритет чтобы /api/v1 шёл на gateway-admin
+      - "traefik.http.routers.gateway-core-api.rule=Host(`gateway.ymorozov.ru`) && PathPrefix(`/api`) && !PathPrefix(`/api/v1`)"
+      - "traefik.http.routers.gateway-core-api.entrypoints=websecure"
+      - "traefik.http.routers.gateway-core-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.gateway-core-api.service=gateway-core"
+      # --- Strip /api prefix (gateway-core expects / not /api/) ---
+      - "traefik.http.routers.gateway-core-api.middlewares=gateway-core-strip"
+      - "traefik.http.middlewares.gateway-core-strip.stripprefix.prefixes=/api"
+      # --- Service Definition ---
+      - "traefik.http.services.gateway-core.loadbalancer.server.port=8080"
     environment:
+      # PostgreSQL — централизованный infra-postgres (Story 13.9)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=gateway
       - POSTGRES_USER=gateway
-      - POSTGRES_PASSWORD=gateway
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_PROFILES_ACTIVE=dev
+      # JWT Authentication (Story 12.4)
+      # Keycloak из infra — внутренний доступ через Docker network (Story 13.8)
+      - KEYCLOAK_ENABLED=true
+      - KEYCLOAK_URL=http://keycloak:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Монтируем исходники для hot-reload
       - ./backend/gateway-common/src:/app/backend/gateway-common/src:ro
       - ./backend/gateway-core/src:/app/backend/gateway-core/src:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    # depends_on удалён — postgres и redis централизованы в infra (Story 13.9, 13.10)
     networks:
       - gateway-network
+      - traefik-net
+      - postgres-net
+      - redis-net
+      - monitoring-net  # Story 13.11: для scrape метрик централизованным Prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
@@ -93,6 +158,7 @@ services:
 
   # Admin UI (port 3000)
   # Hot-reload: Vite HMR автоматически обновляет браузер при изменениях в src/
+  # Traefik routing: gateway.ymorozov.ru/ (catch-all, lowest priority)
   admin-ui:
     build:
       context: .
@@ -100,9 +166,23 @@ services:
     container_name: admin-ui-dev
     ports:
       - "3000:3000"
+    labels:
+      # === TRAEFIK ROUTING (Story 13.8) ===
+      - "traefik.enable=true"
+      # --- Admin UI Router (catch-all for frontend) ---
+      - "traefik.http.routers.admin-ui.rule=Host(`gateway.ymorozov.ru`)"
+      - "traefik.http.routers.admin-ui.entrypoints=websecure"
+      - "traefik.http.routers.admin-ui.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.admin-ui.service=admin-ui"
+      # Самый низкий приоритет — catch-all после /api/* и /swagger-ui*
+      - "traefik.http.routers.admin-ui.priority=1"
+      # --- Service Definition ---
+      - "traefik.http.services.admin-ui.loadbalancer.server.port=3000"
     environment:
       # Для API proxy внутри Docker network
       - VITE_API_URL=http://gateway-admin:8081
+      # HMR через Traefik для внешнего доступа (Story 13.8)
+      - VITE_HMR_PORT=443
     volumes:
       # Монтируем исходники для HMR
       - ./frontend/admin-ui/src:/app/src:ro
@@ -112,39 +192,18 @@ services:
       - ./frontend/admin-ui/tsconfig.json:/app/tsconfig.json:ro
       - ./frontend/admin-ui/tsconfig.app.json:/app/tsconfig.app.json:ro
       - ./frontend/admin-ui/tsconfig.node.json:/app/tsconfig.node.json:ro
+      # Environment variables для Keycloak (Story 12.2)
+      - ./frontend/admin-ui/.env:/app/.env:ro
     depends_on:
       - gateway-admin
     networks:
       - gateway-network
+      - traefik-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
+      # Используем 127.0.0.1 вместо localhost — DNS resolver в Alpine контейнере
+      # может не резолвить localhost корректно
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # Nginx Reverse Proxy (port 80)
-  # Маршрутизация:
-  #   http://localhost/            → admin-ui
-  #   http://localhost/api/admin/* → gateway-admin
-  #   http://localhost/api/*       → gateway-core
-  nginx:
-    image: nginx:alpine
-    container_name: gateway-nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./docs:/app/docs:ro
-    depends_on:
-      - admin-ui
-      - gateway-admin
-      - gateway-core
-    networks:
-      - gateway-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/nginx-health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s

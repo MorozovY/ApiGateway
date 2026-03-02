@@ -1,6 +1,19 @@
 # ApiGateway Production Deployment Guide
 
-Полное руководство по развертыванию ApiGateway на production сервере.
+> ⚠️ **УСТАРЕЛО (2026-03-02):** Эта документация описывает standalone deployment с nginx, локальными PostgreSQL/Redis и Prometheus/Grafana.
+>
+> **Текущая архитектура (Story 13.8-13.12):**
+> - Reverse proxy: **Traefik** (централизованный, infra проект)
+> - Database: **PostgreSQL** (централизованный, infra проект)
+> - Cache: **Redis** (централизованный, infra проект)
+> - Monitoring: **Prometheus + Grafana** (централизованный, infra проект)
+>
+> Для deployment используйте `docker-compose.ci-base.yml` с подключением к centralized infrastructure.
+> Удалённые файлы: `docker-compose.prod.yml`, `nginx/`, `prometheus/`, `grafana/`
+
+---
+
+Полное руководство по развертыванию ApiGateway на production сервере (LEGACY).
 
 ## Требования
 

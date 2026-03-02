@@ -95,5 +95,14 @@ development_status:
   13-9-postgresql-migration-to-infra: done                    # SP:3 — миграция БД в централизованный postgres
   13-10-redis-migration-to-infra: done                # SP:2 — переключение на централизованный redis
   13-11-monitoring-migration-prometheus-grafana: done  # SP:3 — перенос dashboards в infra
-  13-12-docker-compose-cleanup-documentation: backlog        # SP:2 — cleanup, обновление docs
+  13-12-docker-compose-cleanup-documentation: done  # SP:2 — cleanup, обновление docs
   epic-13-retrospective: optional
+
+  # Epic 14: Technical Debt & Reliability (Architecture Audit 2026-03-01)
+  # Source: architecture-audit-2026-03-01.md
+  epic-14: backlog  # Total: ~23 SP
+  14-1-fix-reactive-pipeline-blocking-calls: backlog        # SP:3 — P0: async DB calls, Flyway config
+  14-2-sast-blocking-mode-migration-cleanup: backlog        # SP:5 — P0: SAST blocking, migration renumbering
+  14-3-custom-metrics-sli-slo-definition: backlog           # SP:5 — observability, SLO dashboard
+  14-4-frontend-code-splitting-performance: backlog         # SP:5 — React.lazy, bundle optimization
+  14-5-distributed-tracing-integration: backlog             # SP:5 — Jaeger, OpenTelemetry
