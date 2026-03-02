@@ -7,6 +7,20 @@ import { keycloakLogin, keycloakLogout, navigateToMenu } from './helpers/keycloa
 import { apiRequest } from './helpers/auth'
 
 // ============================================================================
+// Test Credentials (параметризованные через env variables)
+// ============================================================================
+
+// Admin user — полный доступ ко всем функциям
+const ADMIN_USER = process.env.E2E_ADMIN_USER || 'test-admin'
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'test-admin@example.com'
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'Test1234!'
+
+// Developer user — ограниченный доступ (Routes, Metrics)
+const DEV_USER = process.env.E2E_DEV_USER || 'test-developer'
+const DEV_EMAIL = process.env.E2E_DEV_EMAIL || 'test-developer@example.com'
+const DEV_PASSWORD = process.env.E2E_DEV_PASSWORD || 'Test1234!'
+
+// ============================================================================
 // Helper Functions (FIX H-3: Generic consumer token helper, устраняет дублирование)
 // ============================================================================
 
@@ -195,7 +209,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
   test.describe('AC1: Keycloak SSO Login', () => {
     test('должен успешно войти с valid credentials', async ({ page }) => {
       // Логинимся через Keycloak Direct Access Grants
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // Проверяем что находимся на dashboard
       await expect(page).toHaveURL('/dashboard')
@@ -206,7 +220,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('должен сохранить JWT token в sessionStorage', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // Проверяем структуру токена в sessionStorage
       const tokensStr = await page.evaluate(() => sessionStorage.getItem('keycloak_tokens'))
@@ -226,13 +240,13 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       const payload = JSON.parse(atob(parts[1]))
       expect(payload).toHaveProperty('sub') // User ID
       expect(payload).toHaveProperty('preferred_username')
-      expect(payload).toHaveProperty('email', 'admin@example.com')
+      expect(payload).toHaveProperty('email', ADMIN_EMAIL)
       expect(payload.realm_access?.roles).toContain('admin-ui:admin')
     })
 
     test('должен успешно выйти через Keycloak logout', async ({ page }) => {
       // Логинимся
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
       await expect(page).toHaveURL('/dashboard')
 
       // Выходим
@@ -250,7 +264,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       await page.goto('/')
 
       // Пытаемся войти с неверным паролем
-      await page.locator('[data-testid="username-input"]').fill('admin@example.com')
+      await page.locator('[data-testid="username-input"]').fill(ADMIN_USER)
       await page.locator('[data-testid="password-input"]').fill('wrong-password')
       await page.locator('[data-testid="login-button"]').click()
 
@@ -267,8 +281,8 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
   // ============================================================================
 
   test.describe('AC2: Role-based Access Control', () => {
-    test('dev@example.com должен видеть только Routes и Metrics menu', async ({ page }) => {
-      await keycloakLogin(page, 'dev@example.com', 'dev123', '/dashboard')
+    test('developer должен видеть только Routes и Metrics menu', async ({ page }) => {
+      await keycloakLogin(page, DEV_USER, DEV_PASSWORD, '/dashboard')
 
       // Ждём загрузки sidebar
       await page.waitForSelector('[role="menuitem"]', { timeout: 5000 })
@@ -283,8 +297,8 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       await expect(page.locator('[role="menuitem"]').filter({ hasText: /^Consumers$/ })).not.toBeVisible()
     })
 
-    test('dev@example.com не должен иметь доступ к /users', async ({ page }) => {
-      await keycloakLogin(page, 'dev@example.com', 'dev123', '/dashboard')
+    test('developer не должен иметь доступ к /users', async ({ page }) => {
+      await keycloakLogin(page, DEV_USER, DEV_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu — но для /users нужно direct goto (это 403 test)
       // Оставляем goto т.к. это edge case — developer пытается обойти UI
@@ -304,7 +318,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('admin должен видеть все menu items', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // Ждём загрузки sidebar
       await page.waitForSelector('[role="menuitem"]', { timeout: 5000 })
@@ -318,7 +332,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('admin должен иметь доступ ко всем страницам', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Users$/)
@@ -338,7 +352,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
 
   test.describe('AC3: Consumer Management CRUD', () => {
     test('должен создать consumer и показать secret', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Consumers$/)
@@ -381,7 +395,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('должен выполнить rotate secret для consumer', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Consumers$/)
@@ -411,7 +425,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('должен disable и enable consumer', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Consumers$/)
@@ -440,7 +454,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('должен найти consumer по Client ID через поиск', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Consumers$/)
@@ -470,7 +484,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
 
   test.describe('AC4: Per-consumer Rate Limits', () => {
     test('должен установить rate limit для consumer через UI', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Consumers$/)
@@ -515,7 +529,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('должен обновить существующий rate limit', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // FIX H-6: Заменили page.goto на navigateToMenu
       await navigateToMenu(page, /^Consumers$/)
@@ -567,7 +581,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       console.log('[E2E] Тестируем Gateway rate limit enforcement для company-a...')
 
       // Устанавливаем низкий rate limit для company-a (10 req/s)
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
       await navigateToMenu(page, /^Consumers$/)
 
       const consumerRow = page.locator('.ant-table-tbody tr', { hasText: 'company-a' }).first()
@@ -689,7 +703,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       console.log('[E2E] Тестируем public route (auth_required=false)...')
 
       // Сначала логинимся как admin для создания route через Admin API
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // Создаем public route через Admin API
       const routePath = `/e2e-public-${TIMESTAMP}`
@@ -729,7 +743,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
       console.log('[E2E] Тестируем consumer whitelist enforcement...')
 
       // Сначала логинимся как admin для создания route через Admin API
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       // Создаем protected route с whitelist через Admin API
       const routePath = `/e2e-whitelist-${TIMESTAMP}`
@@ -843,7 +857,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     test('должен перейти на /metrics с consumer_id filter через View Metrics link', async ({ page }) => {
       console.log('[E2E] Тестируем View Metrics link...')
 
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
       await navigateToMenu(page, /^Consumers$/)
 
       // Ждём загрузки таблицы
@@ -880,7 +894,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     test('login flow должен завершиться < 5 секунд', async ({ page }) => {
       const startTime = Date.now()
 
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
 
       const duration = Date.now() - startTime
       console.log(`[E2E Performance] Login duration: ${duration}ms`)
@@ -889,7 +903,7 @@ test.describe('Epic 12: Keycloak Integration & Multi-tenant Metrics', () => {
     })
 
     test('consumer creation должна завершиться < 3 секунд', async ({ page }) => {
-      await keycloakLogin(page, 'admin@example.com', 'admin123', '/dashboard')
+      await keycloakLogin(page, ADMIN_USER, ADMIN_PASSWORD, '/dashboard')
       await navigateToMenu(page, /^Consumers$/)
 
       await page.locator('[data-testid="create-consumer-button"]').click()
