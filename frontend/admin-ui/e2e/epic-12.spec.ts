@@ -11,12 +11,14 @@ import { apiRequest } from './helpers/auth'
 // ============================================================================
 
 // Admin user — полный доступ ко всем функциям
-const ADMIN_USER = process.env.E2E_ADMIN_USER || 'test-admin'
+// NOTE: Keycloak использует email для login (не username)
+const ADMIN_USER = process.env.E2E_ADMIN_USER || 'test-admin@example.com'
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'test-admin@example.com'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'Test1234!'
 
 // Developer user — ограниченный доступ (Routes, Metrics)
-const DEV_USER = process.env.E2E_DEV_USER || 'test-developer'
+// NOTE: Keycloak использует email для login (не username)
+const DEV_USER = process.env.E2E_DEV_USER || 'test-developer@example.com'
 const DEV_EMAIL = process.env.E2E_DEV_EMAIL || 'test-developer@example.com'
 const DEV_PASSWORD = process.env.E2E_DEV_PASSWORD || 'Test1234!'
 
