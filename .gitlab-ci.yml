@@ -221,28 +221,42 @@ frontend-test:
     - frontend-build
 
 # =============================================================================
-# E2E TESTS (Optional — требует запущенного стека)
+# E2E TESTS (Story 13.15 — Mock-based, CI-first)
 # =============================================================================
+# Тесты используют Playwright route handlers для мока API и auth
+# Не требуют внешних зависимостей (Keycloak, PostgreSQL, backend services)
+# Запускаются автоматически на каждый commit
 
-# e2e-test:
-#   stage: test
-#   image: mcr.microsoft.com/playwright:v1.42.0-jammy
-#   timeout: 15 minutes
-#   when: manual
-#   allow_failure: true
-#   script:
-#     - cd frontend/admin-ui
-#     - npm ci
-#     - npx playwright test
-#   artifacts:
-#     when: always
-#     paths:
-#       - frontend/admin-ui/playwright-report/
-#       - frontend/admin-ui/test-results/
-#   needs:
-#     - frontend-build
-#   tags:
-#     - docker
+e2e-test-mock:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.52.0-jammy
+  extends: .npm-cache
+  timeout: 5 minutes
+  variables:
+    # Nexus proxy (опционально)
+    NEXUS_URL: "http://nexus:8081"
+  script:
+    - cd frontend/admin-ui
+    # Проверяем доступность Nexus и используем как proxy
+    - |
+      if wget -q --spider "$NEXUS_URL/service/rest/v1/status" 2>/dev/null; then
+        echo "Using Nexus npm proxy: $NEXUS_URL"
+        npm config set registry "$NEXUS_URL/repository/npm-proxy/"
+        npm config set strict-ssl false
+      else
+        echo "Nexus not available, using default npm registry"
+      fi
+    - npm ci
+    # Playwright уже установлен в базовом образе
+    - npx playwright test --reporter=line
+  artifacts:
+    when: always
+    paths:
+      - frontend/admin-ui/playwright-report/
+      - frontend/admin-ui/test-results/
+    expire_in: 7 days
+  needs:
+    - frontend-build
 
 # =============================================================================
 # DOCKER STAGE (Story 13.3)
@@ -558,13 +572,14 @@ deploy-test:
   needs:
     - smoke-test-dev  # Ждём успешного smoke test на dev перед deploy на test
 
-# E2E Tests on Test Environment
+# E2E Integration Tests on Test Environment (требует реального Keycloak и backend)
 # Примечание: Playwright запускается на хосте и подключается к test containers через mapped порты
 # ВАЖНО: host.docker.internal работает на Docker Desktop (Windows/Mac).
 # На Linux может потребоваться --add-host=host.docker.internal:host-gateway в docker run
-e2e-test:
+# Story 13.15: Этот job использует LEGACY тесты из e2e.legacy/ с реальным Keycloak
+e2e-test-integration:
   stage: deploy
-  image: mcr.microsoft.com/playwright:v1.42.0-jammy
+  image: mcr.microsoft.com/playwright:v1.52.0-jammy
   variables:
     # E2E тесты используют внешние URL через Traefik (доступны из любого контейнера)
     # host.docker.internal не работает надёжно в GitLab Docker executor
@@ -589,8 +604,8 @@ e2e-test:
     E2E_SKIP_DB_CLEANUP: "true"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: on_success
-      allow_failure: true  # Не блокирует pipeline при падении тестов
+      when: manual  # Ручной запуск — legacy тесты требуют полной инфраструктуры
+      allow_failure: true
   script:
     - cd frontend/admin-ui
     # Удаляем локальный .env.e2e чтобы использовать CI переменные
@@ -598,15 +613,11 @@ e2e-test:
     - npm ci
     - npx playwright install --with-deps chromium
     # Дебаг — проверяем все переменные для E2E (все URL внешние через Traefik)
-    - echo "=== E2E Environment Debug ==="
+    - echo "=== E2E Integration Tests (Legacy — requires Keycloak) ==="
     - echo "BASE_URL=$BASE_URL"
-    - echo "API_BASE=$API_BASE"
-    - echo "GATEWAY_URL=$GATEWAY_URL"
     - echo "KEYCLOAK_URL=$KEYCLOAK_URL"
     - echo "E2E_ADMIN_USERNAME=$E2E_ADMIN_USERNAME"
-    - echo "E2E_SKIP_DB_CLEANUP=$E2E_SKIP_DB_CLEANUP"
     # Создаём .env файл для Playwright (dotenv автоматически загружается)
-    # KEYCLOAK_ADMIN_PASSWORD: fallback на production password если не задан в CI/CD Variables
     - |
       KC_ADMIN_PWD="${KEYCLOAK_ADMIN_PASSWORD:-kcAdmin2026Secure}"
       cat > .env << EOF
@@ -623,16 +634,13 @@ e2e-test:
       E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD}
       E2E_SKIP_DB_CLEANUP=${E2E_SKIP_DB_CLEANUP}
       EOF
-    - echo "=== Created .env file ==="
-    - cat .env
-    - echo "=== Checking test environment accessibility ==="
     # Проверяем доступность через внешние URL (Traefik)
     - curl -sf "${BASE_URL}/api/v1/actuator/health" || echo "WARNING gateway-admin not accessible at ${BASE_URL}/api/v1"
     - curl -sf "${BASE_URL}" || echo "WARNING admin-ui not accessible at ${BASE_URL}"
     # Установка dotenv-cli для загрузки .env файла
     - npm install -g dotenv-cli
-    # Запуск тестов с переменными из .env файла
-    - dotenv -- npx playwright test --reporter=html
+    # Запуск LEGACY тестов из e2e.legacy/
+    - dotenv -- npx playwright test --config=e2e.legacy/playwright.config.ts --reporter=html
   artifacts:
     when: always
     paths:
@@ -671,7 +679,7 @@ deploy-prod:
     - chmod +x docker/gitlab/deploy-prod.sh
     - ./docker/gitlab/deploy-prod.sh /tmp/docker-compose.prod.yml
   needs:
-    - e2e-test
+    - e2e-test-mock  # Story 13.15: используем mock-based тесты (быстрее и стабильнее)
 
 # Smoke Tests for Production
 # Автоматически запускается после deploy-prod

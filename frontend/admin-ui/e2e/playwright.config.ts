@@ -1,14 +1,11 @@
-// Playwright Config — Story 13.15: CI-first E2E тесты
-// Mock-based: не требуют Keycloak, PostgreSQL или backend services
+// Playwright Config — E2E тесты с mock зависимостями
+// Story 13.15: CI-first подход, единая конфигурация без условий `if CI`
 
 import { defineConfig, devices } from '@playwright/test'
 
-// CI режим — используем preview server вместо dev server
-const isCI = !!process.env.CI
-
 export default defineConfig({
   // Директория с тестами
-  testDir: './e2e/tests',
+  testDir: './tests',
 
   // Параллельное выполнение тестов
   fullyParallel: true,
@@ -19,8 +16,8 @@ export default defineConfig({
   // Timeout для теста (30 секунд достаточно для mock API)
   timeout: 30_000,
 
-  // Reporter — line для CI, HTML для локального
-  reporter: isCI ? 'line' : [['html', { outputFolder: './playwright-report' }]],
+  // Reporter — HTML отчёт
+  reporter: [['html', { outputFolder: '../playwright-report' }]],
 
   // Общие настройки для всех тестов
   use: {
@@ -46,11 +43,11 @@ export default defineConfig({
     },
   ],
 
-  // Web server — запускаем preview (build output) в CI, dev server локально
+  // Dev server — запуск Vite при необходимости
   webServer: {
-    command: isCI ? 'npm run preview' : 'npm run dev',
+    command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !isCI,
+    reuseExistingServer: true,
     timeout: 60_000,
   },
 })
