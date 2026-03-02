@@ -522,6 +522,27 @@ deploy-test:
       docker exec gateway-admin-test bash -c "
         PGPASSWORD=\${SPRING_R2DBC_PASSWORD:-GwDb2026SecurePass} psql -h postgres -U \${SPRING_R2DBC_USERNAME:-gateway} -d gateway -f /tmp/seed-demo-data.sql
       " && echo "Seed data loaded successfully" || echo "WARNING: Seed data may already exist (ON CONFLICT DO NOTHING)"
+    # Story 13.13: Синхронизация Keycloak users в PostgreSQL для audit_logs FK constraint
+    # Получаем Keycloak UUIDs и обновляем users в БД
+    - echo "Syncing Keycloak users to PostgreSQL for audit_logs FK..."
+    - |
+      # Устанавливаем curl, jq, postgresql-client в Alpine контейнере
+      docker exec gateway-admin-test sh -c "apk add --no-cache curl jq postgresql-client > /dev/null 2>&1 || true"
+      # Копируем и выполняем sync script (sh-совместимый)
+      # Конвертируем CRLF в LF (Windows line endings → Unix)
+      docker cp scripts/sync-keycloak-users.sh gateway-admin-test:/tmp/sync-keycloak-users.sh
+      docker exec gateway-admin-test sh -c "sed -i 's/\r$//' /tmp/sync-keycloak-users.sh"
+      docker exec gateway-admin-test sh -c "
+        chmod +x /tmp/sync-keycloak-users.sh
+        export KEYCLOAK_URL=https://keycloak.ymorozov.ru
+        export KEYCLOAK_ADMIN_USER=admin
+        export KEYCLOAK_ADMIN_PASSWORD=\${KEYCLOAK_ADMIN_PASSWORD:-kcAdmin2026Secure}
+        export POSTGRES_HOST=postgres
+        export POSTGRES_USER=\${SPRING_R2DBC_USERNAME:-gateway}
+        export POSTGRES_PASSWORD=\${SPRING_R2DBC_PASSWORD:-GwDb2026SecurePass}
+        export POSTGRES_DB=gateway
+        /tmp/sync-keycloak-users.sh
+      " && echo "Keycloak users synced successfully"
     # Перезагружаем routes в gateway-core (Redis sync)
     - docker restart gateway-core-test
     - sleep 10

@@ -20,7 +20,7 @@
 # - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
-updated: 2026-03-01
+updated: 2026-03-02
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
@@ -96,6 +96,7 @@ development_status:
   13-10-redis-migration-to-infra: done                # SP:2 — переключение на централизованный redis
   13-11-monitoring-migration-prometheus-grafana: done  # SP:3 — перенос dashboards в infra
   13-12-docker-compose-cleanup-documentation: done  # SP:2 — cleanup, обновление docs
+  13-13-e2e-ci-user-sync: in-progress              # SP:2 — P0 BLOCKER: FK constraint audit_logs
   epic-13-retrospective: optional
 
   # Epic 14: Technical Debt & Reliability (Architecture Audit 2026-03-01)
