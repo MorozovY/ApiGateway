@@ -1,6 +1,6 @@
 # Story 14.3: Custom Metrics & SLI/SLO Definition
 
-Status: review
+Status: done
 
 ## Story
 
