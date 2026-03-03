@@ -48,19 +48,10 @@ test.describe('RBAC Developer', () => {
     // Пытаемся перейти на страницу Approvals
     await page.goto('/approvals')
 
-    // Developer должен быть редиректнут — страница Approvals недоступна
-    // Ждём что страница загрузится и проверяем где мы оказались
+    // Developer должен быть редиректнут на /dashboard
+    await expect(page).toHaveURL(/\/dashboard/)
 
-    // Вариант 1: Редирект на другую страницу
-    // Вариант 2: Access denied message
-
-    // Проверяем что мы НЕ видим контент страницы Approvals
+    // Подтверждаем что контент страницы Approvals не виден
     await expect(page.getByRole('heading', { name: /согласование маршрутов/i })).not.toBeVisible()
-
-    // Должен быть либо dashboard, либо routes (страница по умолчанию для developer)
-    const sidebar = page.locator('.ant-layout-sider')
-    const isOnDashboard = await sidebar.getByText('Dashboard').isVisible().catch(() => false)
-
-    expect(isOnDashboard).toBeTruthy()
   })
 })

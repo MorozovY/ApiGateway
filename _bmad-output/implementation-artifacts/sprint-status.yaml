@@ -20,7 +20,7 @@
 # - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
-updated: 2026-03-03
+updated: 2026-03-03  # 14-6 done — 71 E2E tests, all issues fixed
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
@@ -107,7 +107,7 @@ development_status:
   epic-14: in-progress  # Total: ~28 SP
   14-1-fix-reactive-pipeline-blocking-calls: done  # SP:3 — P0: async DB calls, Flyway config
   14-2-sast-blocking-mode-migration-cleanup: done  # SP:5 — P0: SAST blocking, migration renumbering
-  14-3-custom-metrics-sli-slo-definition: review     # SP:5 — P1: observability, SLO dashboard
+  14-3-custom-metrics-sli-slo-definition: done       # SP:5 — P1: observability, SLO dashboard
   14-4-frontend-code-splitting-performance: done            # SP:5 — P1: React.lazy, bundle optimization
   14-5-distributed-tracing-integration: done                  # SP:5 — P2: Jaeger, OpenTelemetry
-  14-6-e2e-test-coverage-expansion: in-progress           # SP:5 — P2: +15 E2E tests (RBAC, consumers, errors)
+  14-6-e2e-test-coverage-expansion: done                   # SP:5 — P2: +16 E2E tests (RBAC, consumers, errors) — 71 total, 5 green pipelines
