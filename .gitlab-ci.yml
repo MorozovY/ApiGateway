@@ -44,7 +44,7 @@ semgrep-sast:
 # Сканируем только production code
 # Story 14.2: Расширен список исключений для уменьшения false positives
 variables:
-  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build, **/*Test.kt, **/*Tests.kt, **/test/**, **/tests/**, docker/**, scripts/**, *.md, *.yml, *.yaml"
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build, **/*Test.kt, **/*Tests.kt, **/test/**, **/tests/**, docker/**, scripts/**, *.md, *.yml, *.yaml, **/e2e.legacy/**"
 
 # =============================================================================
 # CACHE TEMPLATES
