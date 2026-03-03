@@ -7,10 +7,12 @@ spring:
     username: ${POSTGRES_USER:gateway}
     password: ${POSTGRES_PASSWORD:gateway}
     pool:
-      # Ограничиваем пул для CI (предотвращает "too many clients")
-      initial-size: 2
-      max-size: 5
-      max-idle-time: 30s
+      # Минимальный пул для CI — много test contexts создают много pools
+      # PostgreSQL default max_connections=100, нужно вписаться
+      initial-size: 1
+      max-size: 2
+      max-idle-time: 10s
+      max-acquire-time: 5s
   flyway:
     enabled: true
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB_ADMIN:gateway_admin_test}
