@@ -1,6 +1,6 @@
 # Story 14.2: SAST Blocking Mode & Migration Cleanup
 
-Status: review
+Status: done
 
 ## Story
 
@@ -246,6 +246,12 @@ fun vulnerableQuery(userInput: String): String {
 2. Создать исключение в baseline
 3. Вернуть `allow_failure: false`
 
+**Git Rollback (emergency):**
+```bash
+# Откат SAST blocking mode (если нужно срочно)
+git revert 3990506  # docs(14.2): SAST blocking mode and migration convention
+```
+
 **Миграции:**
 Не требуется — миграции не изменяются.
 
@@ -276,13 +282,14 @@ N/A — infrastructure/documentation changes only
 |------|-----------|
 | `.gitlab-ci.yml` | SAST blocking mode + extended SAST_EXCLUDED_PATHS + e2e.legacy exclusion |
 | `CLAUDE.md` | Migration Naming Convention section |
-| `docker/gitlab/README.md` | Updated Security Policy section |
+| `docker/gitlab/README.md` | Updated Security Policy section + synced SAST_EXCLUDED_PATHS (code review fix) |
 | `backend/gateway-admin/src/main/resources/application.yml` | Added out-of-order comment |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | Updated story status to review |
-| `story-14-2-*.md` | Status: review, all tasks completed |
+| `story-14-2-*.md` | Status: done, all tasks completed + code review fixes |
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-03-03 | Story implementation completed: SAST blocking mode enabled, migration convention documented, pipeline verified |
+| 2026-03-03 | Code review fixes: synced SAST_EXCLUDED_PATHS in README.md, added git rollback reference |

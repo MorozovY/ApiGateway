@@ -7,7 +7,7 @@
 - **Priority:** P0 (блокирует CI pipeline)
 - **Story Points:** 2 (S — простое, 1-2 часа)
 - **Created:** 2026-03-02
-- **Status:** done
+- **Status:** done ✅
 
 ## Problem Statement
 

@@ -1073,7 +1073,7 @@ semgrep-sast:
 
 # Исключённые пути (уменьшение false positives)
 variables:
-  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build, **/*Test.kt, **/*Tests.kt, **/test/**, **/tests/**, docker/**, scripts/**, *.md, *.yml, *.yaml"
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build, **/*Test.kt, **/*Tests.kt, **/test/**, **/tests/**, docker/**, scripts/**, *.md, *.yml, *.yaml, **/e2e.legacy/**"
 ```
 
 **Rollback при блокировке легитимного кода:**

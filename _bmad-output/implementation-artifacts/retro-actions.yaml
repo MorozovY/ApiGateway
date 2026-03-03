@@ -17,24 +17,57 @@
 #     notes: дополнительные заметки
 
 generated: 2026-02-20
-last_updated: 2026-02-26  # Epic 12 Retrospective completed
+last_updated: 2026-03-02  # Epic 13 Retrospective completed
 
 # =================================
 # ACTIVE ACTION ITEMS
 # =================================
 
 action_items:
+  # --- Epic 13 Action Items (2026-03-02) ---
+
+  - id: E13-AI06
+    description: "PA-11: CI-first E2E — все E2E тесты должны проходить в CI до merge. Никаких 'напишем потом адаптируем'."
+    owner: "QA + Dev"
+    priority: high
+    status: open
+    source: epic-13-retro
+    deadline: Ongoing
+    created: 2026-03-02
+    notes: "Урок из Story 13-14 cancelled → 13-15 success. Адаптация существующих тестов дороже чем rewrite."
+
+  - id: E13-AI07
+    description: "Критерий отмены: если >50% тестов требуют workarounds → принять решение о rewrite, не продолжать адаптацию"
+    owner: "SM (Bob)"
+    priority: medium
+    status: open
+    source: epic-13-retro
+    deadline: Sprint 14
+    created: 2026-03-02
+    notes: "Избежать sunk cost fallacy. Story 13-14 должна была быть cancelled раньше."
+
+  - id: E13-AI08
+    description: "Документировать E2E mock architecture для onboarding новых разработчиков"
+    owner: "QA (Dana)"
+    priority: low
+    status: open
+    source: epic-13-retro
+    deadline: Sprint 15
+    created: 2026-03-02
+    notes: "Story 13-15 создала хорошую архитектуру, нужна документация для новых членов команды."
+
   # --- Epic 12 Action Items (2026-02-26) ---
 
   - id: E12-AI01
     description: "Интегрировать PA-09 (Migration Pre-flight Checklist) в story template для всех миграционных stories"
     owner: "SM (Bob)"
     priority: high
-    status: open
+    status: done
     source: epic-12-retro
     deadline: Sprint 13
     created: 2026-02-26
-    notes: "PA-09 создан после Story 12.2 инцидента, нужно формализовать в шаблоне"
+    completed: 2026-03-02
+    notes: "PA-09 применялся во всех миграциях Epic 13 (Stories 13.8-13.11). 4 миграции без инцидентов."
 
   - id: E12-AI02
     description: "Создать документ 'Reactive Patterns Cookbook' — Mono.defer, switchIfEmpty, cache nullability, error handling"
@@ -50,11 +83,12 @@ action_items:
     description: "E2E тесты добавлять раньше в epic — не откладывать на последнюю story"
     owner: "PO + Dev"
     priority: medium
-    status: open
+    status: done
     source: epic-12-retro
     deadline: Ongoing
     created: 2026-02-26
-    notes: "В Epic 12 E2E тесты были только в Story 12.10 (последняя)"
+    completed: 2026-03-02
+    notes: "Частично выполнено. В Epic 13 E2E были в конце, но Story 13-15 создала CI-first архитектуру. Заменён на E13-AI06 (CI-first для всех E2E)."
 
   - id: E12-AI04
     description: "Настроить lint rules для автоматической проверки комментариев на русском языке"
@@ -162,6 +196,12 @@ process_agreements:
     description: "Dangerous Operations Confirmation — спрашивать явное подтверждение перед удалением production кода, изменением auth"
     source: epic-12-retro (Story 12.2 incident)
     created: 2026-02-23
+    status: active
+
+  - id: PA-11
+    description: "CI-first E2E — все E2E тесты должны проходить в CI до merge. Тесты пишутся с mock dependencies, без real Keycloak/DB."
+    source: epic-13-retro (Story 13-14 cancelled, 13-15 success)
+    created: 2026-03-02
     status: active
 
 # =================================
