@@ -12,7 +12,7 @@ test.describe('Consumers CRUD', () => {
     await setupMockApi(page)
   })
 
-  test('создание consumer показывает secret modal', async ({ page }) => {
+  test('создание consumer показывает модальное окно с секретом', async ({ page }) => {
     await page.goto('/consumers')
 
     // Ждём загрузки страницы
@@ -42,7 +42,7 @@ test.describe('Consumers CRUD', () => {
     await expect(secretDialog.getByRole('button', { name: /закрыть/i })).toBeVisible()
   })
 
-  test('установка rate limit через modal', async ({ page }) => {
+  test('установка rate limit через модальное окно', async ({ page }) => {
     await page.goto('/consumers')
 
     // Ждём загрузки данных
@@ -57,7 +57,7 @@ test.describe('Consumers CRUD', () => {
     // Проверяем что модальное окно rate limit открылось
     // Заголовок содержит "Rate Limit для <clientId>"
     const rateLimitDialog = page.getByRole('dialog').filter({ hasText: /rate limit/i })
-    await expect(rateLimitDialog).toBeVisible({ timeout: 10000 })
+    await expect(rateLimitDialog).toBeVisible()
 
     // Проверяем наличие кнопки "Set Rate Limit" (submit)
     await expect(rateLimitDialog.getByRole('button', { name: /set rate limit/i })).toBeVisible()
@@ -66,7 +66,7 @@ test.describe('Consumers CRUD', () => {
     await expect(rateLimitDialog.getByRole('button', { name: /cancel/i })).toBeVisible()
   })
 
-  test('деактивация consumer показывает confirmation', async ({ page }) => {
+  test('деактивация consumer показывает подтверждение', async ({ page }) => {
     await page.goto('/consumers')
 
     // Находим активный consumer

@@ -1,13 +1,13 @@
 # Story 14.6: E2E Test Coverage Expansion
 
-Status: in-progress (AC1-AC5, AC7 complete, AC6 pending CI validation)
+Status: in-progress (AC1-AC5, AC7 complete + Code Review fixes, AC6 pending CI validation)
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
 ## Story
 
 As a **QA Engineer**,
-I want to expand E2E test coverage with 15 new tests covering RBAC, consumers, and error handling,
+I want to expand E2E test coverage with 16 new tests covering RBAC, consumers, and error handling,
 So that we can catch more regressions in CI/CD and increase confidence in releases.
 
 ## Acceptance Criteria
@@ -34,7 +34,7 @@ So that we can catch more regressions in CI/CD and increase confidence in releas
 **Then** consumers table displays with correct columns
 **And** search by client ID works
 **And** status filter (Active/Disabled) works
-**And** test count: 2 tests
+**And** test count: 3 tests
 
 ### AC4: Consumer CRUD Tests (14-consumers-crud.spec.ts)
 **Given** the Consumers page
@@ -56,7 +56,7 @@ So that we can catch more regressions in CI/CD and increase confidence in releas
 ### AC6: CI Pipeline Integration
 **Given** all new E2E tests
 **When** GitLab CI pipeline runs
-**Then** all 70 E2E tests pass (55 existing + 15 new)
+**Then** all 71 E2E tests pass (55 existing + 16 new)
 **And** no flaky tests (5 consecutive green pipelines required)
 
 ### AC7: Test Fixtures Update
@@ -111,7 +111,7 @@ So that we can catch more regressions in CI/CD and increase confidence in releas
   - [x] 8.4 Test: 500 Server Error → error notification
   - [x] 8.5 Test: Network error → connection error message
 - [ ] Task 9: CI Pipeline Validation (AC: 6) ⏳ Pending
-  - [x] 9.1 Run full E2E suite locally (npx playwright test) — **70 tests passed**
+  - [x] 9.1 Run full E2E suite locally (npx playwright test) — **71 tests passed**
   - [ ] 9.2 Push and verify 5 consecutive green pipelines
   - [ ] 9.3 Document any flaky test patterns and fixes
 
@@ -354,5 +354,62 @@ frontend/admin-ui/e2e/fixtures/
 
 ### Completion Notes List
 
+**2026-03-03 Code Review Fixes:**
+- M1: Добавлен File List в story (documentation)
+- M2: Добавлен status filter в api.fixture.ts (AC3 compliance)
+- M3: Добавлен тест для status filter в 13-consumers-list.spec.ts (AC3 compliance)
+- M4: Рефакторинг 15-error-handling.spec.ts — использование fixture functions вместо inline handlers
+- M5: Удалён waitForTimeout anti-pattern в 13-consumers-list.spec.ts
+- L1: Исправлены названия тестов на русский язык (CLAUDE.md compliance)
+- L3: Удалён hardcoded timeout в 14-consumers-crud.spec.ts
+- Итого: +1 тест (71 вместо 70)
+
 ### File List
+
+**Test Files (новые):**
+- `frontend/admin-ui/e2e/tests/11-rbac-developer.spec.ts` — 3 теста RBAC developer
+- `frontend/admin-ui/e2e/tests/12-rbac-security.spec.ts` — 3 теста RBAC security
+- `frontend/admin-ui/e2e/tests/13-consumers-list.spec.ts` — 3 теста consumer list (включая status filter)
+- `frontend/admin-ui/e2e/tests/14-consumers-crud.spec.ts` — 3 теста consumer CRUD
+- `frontend/admin-ui/e2e/tests/15-error-handling.spec.ts` — 4 теста error handling
+
+**Fixture Files (изменённые):**
+- `frontend/admin-ui/e2e/fixtures/auth.fixture.ts` — добавлены mockDeveloperUser, mockSecurityUser, setupMockAuthWithRole()
+- `frontend/admin-ui/e2e/fixtures/api.fixture.ts` — добавлены mockConsumers, consumer API handlers, error simulation, status filter
+
+**Итого:** 16 новых тестов (71 всего, было 55)
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-03-03
+**Status:** ✅ Approved with fixes applied
+
+### Findings Summary
+
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| Critical | 0 | — |
+| Medium | 5 | 5 |
+| Low | 4 | 3 |
+
+### Issues Fixed
+
+1. **M1** (Documentation): File List заполнен
+2. **M2** (AC3 partial): Status filter добавлен в api.fixture.ts
+3. **M3** (AC3 missing test): Тест фильтра статуса добавлен
+4. **M4** (Code duplication): 15-error-handling.spec.ts рефакторен на использование fixture functions
+5. **M5** (Anti-pattern): waitForTimeout заменён на expect assertions
+6. **L1** (CLAUDE.md): Названия тестов исправлены на русский
+7. **L3** (Anti-pattern): Hardcoded timeout удалён
+
+### Remaining Items
+
+- **AC6**: CI Pipeline Validation pending (Task 9.2, 9.3) — требует 5 green pipelines
+
+### Test Results
+
+```
+71 passed (8.5s)
+```
 

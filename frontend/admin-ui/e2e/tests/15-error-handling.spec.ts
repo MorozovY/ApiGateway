@@ -1,55 +1,12 @@
 // E2E тест: Error Handling — обработка ошибок API
 // Story 14.6: AC5 — Error Handling Tests (4 теста)
 
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { setupMockAuth, clearAuth } from '../fixtures/auth.fixture'
-
-/**
- * Настраивает mock API с симуляцией ошибки для указанного статуса
- */
-async function setupMockApiWithError(page: Page, errorCode: number, errorEndpoint?: string) {
-  await page.route('**/api/**', async (route) => {
-    const pathname = new URL(route.request().url()).pathname
-
-    // Если endpoint указан, проверяем совпадение
-    if (errorEndpoint && !pathname.includes(errorEndpoint)) {
-      // Продолжаем нормальный запрос для других endpoints
-      await route.continue()
-      return
-    }
-
-    // Возвращаем ошибку
-    await route.fulfill({
-      status: errorCode,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        type: 'about:blank',
-        title: errorCode === 403 ? 'Forbidden' : 'Internal Server Error',
-        status: errorCode,
-        detail: errorCode === 403 ? 'Access denied' : 'An error occurred',
-      }),
-    })
-  })
-}
-
-/**
- * Настраивает mock API с симуляцией сетевой ошибки
- */
-async function setupMockApiWithNetworkError(page: Page, errorEndpoint?: string) {
-  await page.route('**/api/**', async (route) => {
-    const pathname = new URL(route.request().url()).pathname
-
-    if (errorEndpoint && !pathname.includes(errorEndpoint)) {
-      await route.continue()
-      return
-    }
-
-    await route.abort('connectionfailed')
-  })
-}
+import { setupMockApi, simulateApiError, simulateNetworkError } from '../fixtures/api.fixture'
 
 test.describe('Error Handling', () => {
-  test('401 Unauthorized redirect на login', async ({ page }) => {
+  test('401 редиректит на страницу логина', async ({ page }) => {
     // НЕ устанавливаем auth — симулируем не аутентифицированного пользователя
     await clearAuth(page)
 
@@ -63,43 +20,48 @@ test.describe('Error Handling', () => {
     await expect(page.locator('text=/login|войти|username|password/i').first()).toBeVisible()
   })
 
-  test('403 Forbidden показывает access denied', async ({ page }) => {
-    // Устанавливаем auth
+  test('403 показывает сообщение об отказе в доступе', async ({ page }) => {
+    // Устанавливаем auth и API mock
     await setupMockAuth(page)
+    await setupMockApi(page)
 
-    // Настраиваем mock API с 403 для routes
-    await setupMockApiWithError(page, 403, '/routes')
+    // Симулируем 403 для routes endpoint
+    await simulateApiError(page, 403, '/routes')
 
     // Переходим на routes — получим 403
     await page.goto('/routes')
 
     // UI показывает "Ошибка загрузки" при неудачной загрузке компонента
-    await expect(page.getByText('Ошибка загрузки')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Ошибка загрузки')).toBeVisible()
   })
 
-  test('500 Server Error показывает error notification', async ({ page }) => {
+  test('500 показывает уведомление об ошибке сервера', async ({ page }) => {
+    // Устанавливаем auth и API mock
     await setupMockAuth(page)
+    await setupMockApi(page)
 
-    // Настраиваем mock API с 500 для routes
-    await setupMockApiWithError(page, 500, '/routes')
+    // Симулируем 500 для routes endpoint
+    await simulateApiError(page, 500, '/routes')
 
     // Переходим на routes
     await page.goto('/routes')
 
     // UI показывает "Ошибка загрузки" при неудачной загрузке компонента
-    await expect(page.getByText('Ошибка загрузки')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Ошибка загрузки')).toBeVisible()
   })
 
-  test('Network error показывает connection error', async ({ page }) => {
+  test('сетевая ошибка показывает сообщение о проблеме соединения', async ({ page }) => {
+    // Устанавливаем auth и API mock
     await setupMockAuth(page)
+    await setupMockApi(page)
 
-    // Настраиваем mock API с network error для routes
-    await setupMockApiWithNetworkError(page, '/routes')
+    // Симулируем network error для routes endpoint
+    await simulateNetworkError(page, '/routes')
 
     // Переходим на routes
     await page.goto('/routes')
 
     // UI показывает "Ошибка загрузки" при network error
-    await expect(page.getByText('Ошибка загрузки')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Ошибка загрузки')).toBeVisible()
   })
 })

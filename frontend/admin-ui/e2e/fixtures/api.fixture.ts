@@ -499,12 +499,19 @@ async function handleApiRequest(
   // Consumers list: GET /api/v1/consumers
   if (pathname === '/api/v1/consumers' && method === 'GET') {
     const search = url.searchParams.get('search')
+    const status = url.searchParams.get('status') // AC3: status filter (Active/Disabled)
     let filtered = consumersState
 
     // Task 2.2: search/filter support
     if (search) {
       const s = search.toLowerCase()
       filtered = filtered.filter((c) => c.clientId.toLowerCase().includes(s))
+    }
+
+    // AC3: status filter — 'active' или 'disabled'
+    if (status) {
+      const isEnabled = status.toLowerCase() === 'active'
+      filtered = filtered.filter((c) => c.enabled === isEnabled)
     }
 
     return route.fulfill({
