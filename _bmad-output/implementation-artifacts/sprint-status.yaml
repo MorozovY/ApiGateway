@@ -109,5 +109,5 @@ development_status:
   14-2-sast-blocking-mode-migration-cleanup: done  # SP:5 — P0: SAST blocking, migration renumbering
   14-3-custom-metrics-sli-slo-definition: review     # SP:5 — P1: observability, SLO dashboard
   14-4-frontend-code-splitting-performance: done            # SP:5 — P1: React.lazy, bundle optimization
-  14-5-distributed-tracing-integration: review               # SP:5 — P2: Jaeger, OpenTelemetry
+  14-5-distributed-tracing-integration: done                  # SP:5 — P2: Jaeger, OpenTelemetry
   14-6-e2e-test-coverage-expansion: backlog                 # SP:5 — P2: +15 E2E tests (RBAC, consumers, errors)

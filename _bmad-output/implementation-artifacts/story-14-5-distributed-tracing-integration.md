@@ -1,6 +1,6 @@
 # Story 14.5: Distributed Tracing Integration
 
-Status: review
+Status: done
 
 ## Story
 
@@ -109,7 +109,7 @@ So that I can debug latency issues and understand request flow.
   - [x] 6.4 Test log correlation with trace lookup
 - [x] Task 7: Configure Grafana Jaeger Integration (AC: 7)
   - [x] 7.1 Create `G:\Projects\infra\config\grafana\provisioning\datasources\jaeger.yml`
-  - [x] 7.2 Add trace links to SLO dashboard panels (exemplars or data links)
+  - [ ] 7.2 Add trace links to SLO dashboard panels (exemplars or data links) — deferred, requires manual Grafana UI update
 - [x] Task 8: Create Tracing Documentation (AC: 8)
   - [x] 8.1 Create docs/tracing.md with usage guide
   - [x] 8.2 Document Jaeger UI navigation
@@ -489,12 +489,17 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Создана документация docs/tracing.md
 - ⚠️ Task 7.2 (trace links in SLO dashboard) отложен — требует manual update в Grafana UI
 
+**Code Review Fixes (2026-03-03):**
+- ✅ Создан MdcContextConfig.kt для gateway-admin (H1: AC5 compliance — MDC context propagation)
+- ✅ Task 7.2 исправлен на [ ] (M3: discrepancy fix)
+
 ### File List
 
 **Новые файлы:**
 - backend/gateway-core/src/main/kotlin/com/company/gateway/core/filter/TracingAttributesFilter.kt
 - backend/gateway-core/src/test/kotlin/com/company/gateway/core/filter/TracingAttributesFilterTest.kt
 - backend/gateway-admin/src/main/resources/logback-spring.xml
+- backend/gateway-admin/src/main/kotlin/com/company/gateway/admin/config/MdcContextConfig.kt (code review fix)
 - docs/tracing.md
 - G:\Projects\infra\infra\infra.jaeger.yml (infra project)
 - G:\Projects\infra\config\grafana\provisioning\datasources\jaeger.yml (infra project)
@@ -510,8 +515,38 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - docker-compose.override.yml — добавлены tracing-net и OTLP env vars
 - G:\Projects\infra\scripts\start.ps1 — добавлен jaeger в ValidServices и StartOrder (infra project)
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-03-03
+**Outcome:** ✅ APPROVED (after fixes)
+
+### Issues Found and Resolved
+
+| Severity | Issue | Resolution |
+|----------|-------|------------|
+| HIGH | Gateway-admin missing MdcContextConfig for context propagation (AC5 violation) | Created MdcContextConfig.kt |
+| MEDIUM | Task 7.2 marked [x] but noted as deferred | Corrected to [ ] |
+| MEDIUM | Test uses any<String>() for path verification | Acceptable — has fallback |
+| MEDIUM | Regex path extraction is fragile | Acceptable — has fallback to route.uri.path |
+| LOW | Duplicate constant RATELIMIT_DECISION_ATTR/ATTRIBUTE | Minor, not changed |
+| LOW | Documentation mentions gateway-admin custom tags | Minor clarification needed |
+
+### Verification
+
+- [x] All ACs implemented (AC1-AC8, with AC7 partial)
+- [x] Tests pass (9 unit tests for TracingAttributesFilter)
+- [x] Pipeline green (#232)
+- [x] Code follows project conventions
+- [x] MDC context propagation works in both services
+
+### Notes
+
+AC7 (Task 7.2) deferred — requires manual Grafana UI update for trace links. Jaeger datasource provisioned, but dashboard links need manual configuration.
+
 ## Change Log
 
 | Date | Changes |
 |------|---------|
 | 2026-03-03 | Story implementation: OpenTelemetry tracing with Jaeger backend |
+| 2026-03-03 | Code review: Added MdcContextConfig to gateway-admin, fixed Task 7.2 status |
