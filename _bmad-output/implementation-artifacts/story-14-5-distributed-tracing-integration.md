@@ -109,7 +109,7 @@ So that I can debug latency issues and understand request flow.
   - [x] 6.4 Test log correlation with trace lookup
 - [x] Task 7: Configure Grafana Jaeger Integration (AC: 7)
   - [x] 7.1 Create `G:\Projects\infra\config\grafana\provisioning\datasources\jaeger.yml`
-  - [ ] 7.2 Add trace links to SLO dashboard panels (exemplars or data links) — deferred, requires manual Grafana UI update
+  - [x] 7.2 Add trace links to SLO dashboard panels (data links to Jaeger in Latency and Error Rate panels)
 - [x] Task 8: Create Tracing Documentation (AC: 8)
   - [x] 8.1 Create docs/tracing.md with usage guide
   - [x] 8.2 Document Jaeger UI navigation
@@ -487,11 +487,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Создан logback-spring.xml для gateway-admin с traceId/spanId
 - ✅ Создан Jaeger datasource для Grafana
 - ✅ Создана документация docs/tracing.md
-- ⚠️ Task 7.2 (trace links in SLO dashboard) отложен — требует manual update в Grafana UI
-
 **Code Review Fixes (2026-03-03):**
 - ✅ Создан MdcContextConfig.kt для gateway-admin (H1: AC5 compliance — MDC context propagation)
-- ✅ Task 7.2 исправлен на [ ] (M3: discrepancy fix)
+- ✅ Добавлены trace data links в gateway-dashboard.json (Latency и Error Rate panels)
 
 ### File List
 
@@ -503,6 +501,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - docs/tracing.md
 - G:\Projects\infra\infra\infra.jaeger.yml (infra project)
 - G:\Projects\infra\config\grafana\provisioning\datasources\jaeger.yml (infra project)
+- G:\Projects\infra\config\grafana\dashboards\gateway-dashboard.json (infra project, modified — added trace links)
 
 **Изменённые файлы:**
 - backend/gateway-core/build.gradle.kts — добавлены tracing dependencies
@@ -534,19 +533,16 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Verification
 
-- [x] All ACs implemented (AC1-AC8, with AC7 partial)
+- [x] All ACs implemented (AC1-AC8)
 - [x] Tests pass (9 unit tests for TracingAttributesFilter)
-- [x] Pipeline green (#232)
+- [x] Pipeline green (#232, #233)
 - [x] Code follows project conventions
 - [x] MDC context propagation works in both services
-
-### Notes
-
-AC7 (Task 7.2) deferred — requires manual Grafana UI update for trace links. Jaeger datasource provisioned, but dashboard links need manual configuration.
+- [x] Trace data links added to Grafana dashboard
 
 ## Change Log
 
 | Date | Changes |
 |------|---------|
 | 2026-03-03 | Story implementation: OpenTelemetry tracing with Jaeger backend |
-| 2026-03-03 | Code review: Added MdcContextConfig to gateway-admin, fixed Task 7.2 status |
+| 2026-03-03 | Code review: Added MdcContextConfig to gateway-admin, added trace links to dashboard |
