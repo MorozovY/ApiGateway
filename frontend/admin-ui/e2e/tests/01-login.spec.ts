@@ -71,4 +71,15 @@ test.describe('Логин', () => {
     // Приветствие с username
     await expect(page.getByText(`Welcome, ${mockAdminUser.username}!`)).toBeVisible()
   })
+
+  // Story 15.1: проверка ссылки на Swagger UI
+  test('ссылка на Swagger API документацию присутствует на странице логина', async ({ page }) => {
+    // Открываем страницу логина
+    await page.goto('/login')
+
+    // Проверяем что ссылка на Swagger существует с правильным href
+    const swaggerLink = page.locator('a[href="/swagger-ui.html"]')
+    await expect(swaggerLink).toBeVisible()
+    await expect(swaggerLink).toContainText('Swagger')
+  })
 })

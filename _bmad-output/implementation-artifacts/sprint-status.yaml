@@ -20,7 +20,7 @@
 # - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
-updated: 2026-03-03  # Epic 14 done — all 6 stories completed
+updated: 2026-03-03  # Epic 15 added — UX Polish & Bug Fixes (4 stories)
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
@@ -112,3 +112,12 @@ development_status:
   14-5-distributed-tracing-integration: done                  # SP:5 — P2: Jaeger, OpenTelemetry
   14-6-e2e-test-coverage-expansion: done                   # SP:5 — P2: +16 E2E tests (RBAC, consumers, errors) — 71 total, 5 green pipelines
   epic-14-retrospective: done  # 2026-03-03
+
+  # Epic 15: UX Polish & Bug Fixes (4 stories)
+  # Source: Phase 4 planning session 2026-03-03
+  epic-15: in-progress
+  15-1-fix-swagger-link-login-page: review  # SP:2 — Bug: Traefik rule не матчит /swagger-ui.html
+  15-2-fix-guide-button: backlog                   # SP:2 — Bug: кнопка "Руководство" не работает
+  15-3-login-page-improvements: backlog            # SP:3 — UX: порядок логинов + сгенерированные пароли
+  15-4-tab-info-blocks: backlog                    # SP:5 — UX: инфо-блоки на 10 вкладках
+  epic-15-retrospective: optional
