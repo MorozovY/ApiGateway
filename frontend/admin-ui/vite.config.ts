@@ -1,10 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    // Включаем visualizer только при analyze mode (npm run build:analyze)
+    mode === 'analyze' &&
+      visualizer({
+        filename: 'dist/stats.html',
+        open: true,
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap', // или 'sunburst', 'network'
+      }),
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@/': `${path.resolve(__dirname, './src')}/`,
@@ -12,6 +24,25 @@ export default defineConfig({
       '@shared/': `${path.resolve(__dirname, './src/shared')}/`,
       '@layouts/': `${path.resolve(__dirname, './src/layouts')}/`,
     },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks — стабильные библиотеки, редко меняются, хорошо кэшируются
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Antd split: core отдельно от icons (icons ~100KB)
+          'vendor-antd': ['antd'],
+          'vendor-antd-icons': ['@ant-design/icons'],
+          'vendor-charts': ['@ant-design/charts'],
+          'vendor-utils': ['axios', 'dayjs', 'zod', '@tanstack/react-query'],
+          'vendor-auth': ['oidc-client-ts', 'react-oidc-context'],
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers'],
+        },
+      },
+    },
+    // Предупреждение если chunk > 500KB
+    chunkSizeWarningLimit: 500,
   },
   server: {
     port: 3000,
@@ -39,4 +70,4 @@ export default defineConfig({
       usePolling: true,
     },
   },
-})
+}))

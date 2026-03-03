@@ -26,6 +26,19 @@ revisions:
       - 'Grafana Dashboard Updates'
       - 'Phase 2 Implementation Sequence'
       - 'Phase 2 Architecture Validation'
+  - date: '2026-03-02'
+    author: 'Winston (Architect)'
+    description: 'Phase 3: Infrastructure Migration & CI/CD (Epic 13 completion)'
+    sections_updated:
+      - 'Infrastructure & Deployment'
+      - 'Production Deployment'
+      - 'Project Structure & Boundaries'
+    sections_added:
+      - 'Centralized Infrastructure'
+      - 'GitLab CI/CD Pipeline'
+      - 'Traefik Reverse Proxy'
+      - 'Vault Secrets Management'
+      - 'Phase 3 Architecture Summary'
 ---
 
 # Architecture Decision Document
@@ -231,16 +244,60 @@ npm create vite@latest frontend/admin-ui -- --template react-ts
 | **Forms** | React Hook Form + Zod | Performance + type-safe validation |
 | **Routing** | React Router v6 | Standard, nested routes |
 | **HTTP Client** | Axios | Interceptors, error handling |
+| **Code Splitting** | React.lazy + Suspense | Route-based lazy loading (Story 14.4) |
+| **Bundle Analysis** | rollup-plugin-visualizer | `npm run build:analyze` |
+
+#### Code Splitting Strategy (Story 14.4)
+
+**Route-based Lazy Loading:**
+- Auth компоненты (LoginPage, CallbackPage) загружаются синхронно — нужны при старте
+- Feature pages загружаются через `React.lazy()` при навигации
+- Prefetch на hover через `usePrefetch` hook для быстрой навигации
+
+**Vendor Chunks (vite.config.ts):**
+| Chunk | Содержимое | Размер (gzip) |
+|-------|------------|---------------|
+| vendor-react | react, react-dom, react-router-dom | ~53KB |
+| vendor-antd | antd, @ant-design/icons | ~359KB |
+| vendor-charts | @ant-design/charts | ~1KB |
+| vendor-utils | axios, dayjs, zod, react-query | ~27KB |
+| vendor-auth | oidc-client-ts, react-oidc-context | <1KB |
+| vendor-forms | react-hook-form, @hookform/resolvers | <1KB |
+| index (main) | app shell, routing, layouts | ~13KB |
+| feature-* | lazy-loaded feature pages | 1-5KB each |
+
+**Feature Chunks:**
+| Page | Chunk Size (gzip) |
+|------|-------------------|
+| DashboardPage | ~0.5KB |
+| RoutesPage | ~2.7KB |
+| RouteFormPage | ~2.7KB |
+| UsersPage | ~2.7KB |
+| ConsumersPage | ~4.5KB |
+| RateLimitsPage | ~3.6KB |
+| AuditPage | ~5.3KB |
+| MetricsPage | ~2.9KB |
+
+**Bundle Analysis:**
+```bash
+npm run build:analyze  # Создаёт dist/stats.html treemap
+```
 
 ### Infrastructure & Deployment
 
 | Решение | Выбор | Rationale |
 |---------|-------|-----------|
-| **Local Dev** | Docker Compose | Full stack locally |
-| **Container Registry** | Docker Hub | Standard, accessible |
-| **Logging Format** | JSON structured | Loki/ELK ready |
-| **Metrics Format** | Prometheus | Micrometer export |
+| **Local Dev** | Docker Compose + Centralized Infra | Сервисы локально, инфраструктура в infra проекте |
+| **Reverse Proxy** | Traefik 3.x | Автоматический routing, Let's Encrypt, Docker labels |
+| **Container Registry** | Nexus (local) + Docker Hub | Local для CI, public для mirror |
+| **CI/CD** | GitLab CI (local) | Полный контроль, Vault интеграция |
+| **Secrets** | HashiCorp Vault | Централизованное управление, AppRole auth |
+| **Logging Format** | JSON structured (Logstash) | Loki/ELK ready |
+| **Metrics Format** | Prometheus | Micrometer export, централизованный сбор |
 | **Health Checks** | Spring Actuator | /health, /ready endpoints |
+| **Database** | PostgreSQL (centralized) | Shared instance в infra проекте |
+| **Cache** | Redis (centralized) | Shared instance в infra проекте |
+| **Auth Provider** | Keycloak (centralized) | SSO, OAuth2/OIDC |
 
 ### Decision Impact Analysis
 
@@ -413,211 +470,195 @@ data class AuditEvent(
 
 ## Project Structure & Boundaries
 
-### Complete Project Directory Structure
+### Complete Project Directory Structure (актуально на 2026-03-02)
 
 ```
 api-gateway/
 ├── README.md
-├── docker-compose.yml
-├── docker-compose.dev.yml
+├── CLAUDE.md                              # Rules и conventions
+├── docker-compose.yml                     # External networks only
+├── docker-compose.override.yml            # Dev services (hot-reload)
+├── docker-compose.override.yml.example    # Template для разработчиков
 ├── .gitignore
 ├── .env.example
 │
 ├── backend/
-│   ├── build.gradle.kts                    # Root Gradle build
+│   ├── build.gradle.kts                   # Root Gradle build
 │   ├── settings.gradle.kts
 │   ├── gradle.properties
 │   │
-│   ├── gateway-common/                     # Shared code
+│   ├── gateway-common/                    # Shared code
 │   │   ├── build.gradle.kts
 │   │   └── src/main/kotlin/com/company/gateway/common/
-│   │       ├── model/                      # Domain entities
-│   │       │   ├── Route.kt
-│   │       │   ├── RateLimit.kt
-│   │       │   ├── User.kt
-│   │       │   └── AuditLog.kt
-│   │       ├── dto/                        # Shared DTOs
-│   │       │   ├── RouteDto.kt
-│   │       │   ├── RateLimitDto.kt
-│   │       │   └── PagedResponse.kt
-│   │       ├── exception/                  # Custom exceptions
-│   │       │   ├── ApiException.kt
-│   │       │   └── ErrorResponse.kt
-│   │       └── util/                       # Utilities
-│   │           ├── CorrelationId.kt
-│   │           └── JsonUtils.kt
+│   │       ├── model/                     # Domain entities
+│   │       ├── dto/                       # Shared DTOs
+│   │       ├── exception/                 # Custom exceptions
+│   │       └── util/                      # Utilities
 │   │
-│   ├── gateway-admin/                      # Admin API
+│   ├── gateway-admin/                     # Admin API (port 8081)
 │   │   ├── build.gradle.kts
 │   │   └── src/
 │   │       ├── main/
 │   │       │   ├── kotlin/com/company/gateway/admin/
 │   │       │   │   ├── AdminApplication.kt
-│   │       │   │   ├── config/
-│   │       │   │   │   ├── SecurityConfig.kt
-│   │       │   │   │   ├── R2dbcConfig.kt
-│   │       │   │   │   ├── RedisConfig.kt
-│   │       │   │   │   └── OpenApiConfig.kt
-│   │       │   │   ├── controller/
-│   │       │   │   │   ├── RouteController.kt
-│   │       │   │   │   ├── RateLimitController.kt
-│   │       │   │   │   ├── AuditController.kt
-│   │       │   │   │   ├── AuthController.kt
-│   │       │   │   │   └── MetricsController.kt
-│   │       │   │   ├── service/
-│   │       │   │   │   ├── RouteService.kt
-│   │       │   │   │   ├── RateLimitService.kt
-│   │       │   │   │   ├── AuditService.kt
-│   │       │   │   │   ├── AuthService.kt
-│   │       │   │   │   └── ApprovalService.kt
-│   │       │   │   ├── repository/
-│   │       │   │   │   ├── RouteRepository.kt
-│   │       │   │   │   ├── RateLimitRepository.kt
-│   │       │   │   │   ├── UserRepository.kt
-│   │       │   │   │   └── AuditLogRepository.kt
-│   │       │   │   ├── security/
-│   │       │   │   │   ├── JwtTokenProvider.kt
-│   │       │   │   │   ├── JwtAuthenticationFilter.kt
-│   │       │   │   │   └── RoleBasedAccessControl.kt
-│   │       │   │   └── exception/
-│   │       │   │       └── GlobalExceptionHandler.kt
+│   │       │   │   ├── client/            # HTTP clients (Prometheus, Keycloak)
+│   │       │   │   ├── config/            # Security, OpenAPI, Redis config
+│   │       │   │   ├── controller/        # 8 REST controllers
+│   │       │   │   ├── dto/               # Request/Response DTOs
+│   │       │   │   ├── exception/         # Error handling
+│   │       │   │   ├── properties/        # Configuration properties
+│   │       │   │   ├── publisher/         # Redis pub/sub publisher
+│   │       │   │   ├── repository/        # R2DBC repositories
+│   │       │   │   ├── security/          # JWT, Keycloak, RBAC
+│   │       │   │   └── service/           # 14 business services
 │   │       │   └── resources/
 │   │       │       ├── application.yml
-│   │       │       ├── application-dev.yml
 │   │       │       ├── application-prod.yml
-│   │       │       └── db/migration/
-│   │       │           ├── V1__create_users.sql
-│   │       │           ├── V2__create_routes.sql
-│   │       │           ├── V3__create_rate_limits.sql
-│   │       │           └── V4__create_audit_logs.sql
-│   │       └── test/kotlin/com/company/gateway/admin/
-│   │           ├── controller/
-│   │           ├── service/
-│   │           └── integration/
+│   │       │       ├── application-test.yml
+│   │       │       └── db/migration/      # 14 Flyway migrations (V1-V13)
+│   │       └── test/kotlin/               # 54 tests
 │   │
-│   └── gateway-core/                       # Gateway Runtime
+│   └── gateway-core/                      # Gateway Runtime (port 8080)
 │       ├── build.gradle.kts
 │       └── src/
 │           ├── main/
 │           │   ├── kotlin/com/company/gateway/core/
 │           │   │   ├── GatewayApplication.kt
-│           │   │   ├── config/
-│           │   │   │   ├── GatewayConfig.kt
-│           │   │   │   ├── RouteLocatorConfig.kt
-│           │   │   │   └── CacheConfig.kt
-│           │   │   ├── filter/
-│           │   │   │   ├── RateLimitFilter.kt
-│           │   │   │   ├── CorrelationIdFilter.kt
-│           │   │   │   └── LoggingFilter.kt
-│           │   │   ├── route/
-│           │   │   │   ├── DynamicRouteLocator.kt
-│           │   │   │   └── RouteRefreshService.kt
-│           │   │   └── cache/
-│           │   │       ├── RouteCacheManager.kt
-│           │   │       └── CaffeineFallback.kt
+│           │   │   ├── cache/             # Route cache, rate limit cache
+│           │   │   ├── config/            # Gateway, Security, Keycloak
+│           │   │   ├── controller/        # Health, debug endpoints
+│           │   │   ├── exception/         # Error handling
+│           │   │   ├── filter/            # 6 global filters
+│           │   │   ├── properties/        # Configuration properties
+│           │   │   ├── ratelimit/         # Token bucket (Caffeine + Redis)
+│           │   │   ├── repository/        # R2DBC repositories
+│           │   │   ├── route/             # Dynamic route loading
+│           │   │   └── util/              # Utilities
 │           │   └── resources/
 │           │       ├── application.yml
 │           │       └── application-dev.yml
-│           └── test/kotlin/com/company/gateway/core/
+│           └── test/kotlin/               # 25 tests
 │
 ├── frontend/
 │   └── admin-ui/
 │       ├── package.json
 │       ├── vite.config.ts
 │       ├── tsconfig.json
+│       ├── playwright.config.ts
 │       ├── index.html
-│       ├── .env.example
+│       ├── .env
+│       ├── e2e/                           # Playwright E2E tests (221 tests)
 │       └── src/
 │           ├── main.tsx
 │           ├── App.tsx
-│           ├── vite-env.d.ts
 │           ├── features/
-│           │   ├── auth/
-│           │   │   ├── components/
-│           │   │   │   ├── LoginForm.tsx
-│           │   │   │   └── ProtectedRoute.tsx
-│           │   │   ├── hooks/useAuth.ts
-│           │   │   ├── api/authApi.ts
-│           │   │   └── types/auth.types.ts
-│           │   ├── routes/
-│           │   │   ├── components/
-│           │   │   │   ├── RouteList.tsx
-│           │   │   │   ├── RouteForm.tsx
-│           │   │   │   ├── RouteCard.tsx
-│           │   │   │   └── RouteStatusBadge.tsx
-│           │   │   ├── hooks/
-│           │   │   │   ├── useRoutes.ts
-│           │   │   │   └── useRouteForm.ts
-│           │   │   ├── api/routesApi.ts
-│           │   │   └── types/route.types.ts
-│           │   ├── rate-limits/
-│           │   │   ├── components/
-│           │   │   │   ├── RateLimitList.tsx
-│           │   │   │   └── RateLimitForm.tsx
-│           │   │   ├── hooks/useRateLimits.ts
-│           │   │   ├── api/rateLimitsApi.ts
-│           │   │   └── types/rateLimit.types.ts
-│           │   ├── audit/
-│           │   │   ├── components/
-│           │   │   │   ├── AuditLogList.tsx
-│           │   │   │   └── AuditLogFilters.tsx
-│           │   │   ├── hooks/useAuditLogs.ts
-│           │   │   └── api/auditApi.ts
-│           │   └── approval/
-│           │       ├── components/
-│           │       │   ├── PendingApprovalsList.tsx
-│           │       │   └── ApprovalActions.tsx
-│           │       └── hooks/useApprovals.ts
+│           │   ├── approval/              # Approval workflow
+│           │   ├── audit/                 # Audit logs
+│           │   ├── auth/                  # OIDC/Keycloak auth
+│           │   ├── consumers/             # API consumer management
+│           │   ├── dashboard/             # Main dashboard
+│           │   ├── metrics/               # Monitoring & analytics
+│           │   ├── rate-limits/           # Rate limiting management
+│           │   ├── routes/                # Route CRUD
+│           │   ├── test/                  # Load generator
+│           │   └── users/                 # User management
 │           ├── shared/
-│           │   ├── components/
-│           │   │   ├── PageHeader.tsx
-│           │   │   ├── DataTable.tsx
-│           │   │   ├── ConfirmModal.tsx
-│           │   │   └── ErrorBoundary.tsx
-│           │   ├── hooks/
-│           │   │   ├── useApi.ts
-│           │   │   └── useNotification.ts
-│           │   └── utils/
-│           │       ├── axios.ts
-│           │       ├── formatDate.ts
-│           │       └── validation.ts
-│           ├── layouts/
-│           │   ├── MainLayout.tsx
-│           │   ├── AuthLayout.tsx
-│           │   └── Sidebar.tsx
-│           └── styles/global.css
+│           │   ├── components/            # Reusable components
+│           │   ├── constants/             # Constants
+│           │   ├── hooks/                 # Custom React hooks
+│           │   ├── providers/             # Context providers
+│           │   └── utils/                 # Utilities
+│           ├── layouts/                   # MainLayout, AuthLayout
+│           ├── test/                      # Test utilities
+│           └── styles/
 │
-└── docker/
-    ├── Dockerfile.gateway-admin
-    ├── Dockerfile.gateway-core
-    ├── Dockerfile.admin-ui
-    └── nginx/nginx.conf
+├── docker/
+│   ├── Dockerfile.gateway-core            # Production
+│   ├── Dockerfile.gateway-core.dev        # Development (hot-reload)
+│   ├── Dockerfile.gateway-admin           # Production
+│   ├── Dockerfile.gateway-admin.dev       # Development (hot-reload)
+│   ├── Dockerfile.admin-ui                # Production (nginx)
+│   ├── Dockerfile.admin-ui.dev            # Development (Vite HMR)
+│   ├── Dockerfile.admin-ui.ci             # CI build
+│   ├── keycloak/
+│   │   └── realm-export.json              # Keycloak realm config
+│   ├── postgres/
+│   │   └── init-keycloak-db.sql           # DB initialization
+│   └── gitlab/                            # Local GitLab CI infrastructure
+│       ├── docker-compose.yml             # GitLab, Nexus, Runners
+│       ├── .gitlab-ci.yml                 # CI/CD pipeline
+│       ├── README.md                      # Infrastructure docs
+│       ├── setup-nexus.ps1                # Nexus configuration
+│       ├── register-runners.sh            # Runner registration
+│       ├── vault-secrets.sh               # Vault secrets loader
+│       ├── deploy.sh                      # Deployment script
+│       └── rollback.sh                    # Rollback script
+│
+├── deploy/
+│   ├── docker-compose.ci-base.yml         # CI/CD deployment
+│   └── README.md
+│
+├── scripts/
+│   ├── seed-demo-data.sql                 # Demo routes и rate limits
+│   ├── seed-keycloak-consumers.sh         # Keycloak consumer setup
+│   └── *.ps1                              # PowerShell utilities
+│
+├── docs/
+│   ├── cache-sync.md                      # Redis pub/sub documentation
+│   ├── monitoring-alerts.md               # Alert rules documentation
+│   ├── rate-limiting.md                   # Rate limit algorithms
+│   ├── webflux-patterns.md                # Reactive patterns guide
+│   └── quick-start-guide.md               # Getting started
+│
+└── _bmad-output/
+    ├── planning-artifacts/
+    │   ├── architecture.md                # This document
+    │   └── *.md                           # Other planning docs
+    └── implementation-artifacts/
+        ├── sprint-status.yaml             # Current sprint status
+        └── *.md                           # Story implementations
 ```
 
 ### Architectural Boundaries
 
-**Service Boundaries:**
+**Service Boundaries (актуально на 2026-03-02):**
 
-| Service | Responsibility | Port | Dependencies |
-|---------|---------------|------|--------------|
-| **gateway-core** | Request routing, rate limiting | 8080 | PostgreSQL (read), Redis |
-| **gateway-admin** | Admin API, CRUD operations | 8081 | PostgreSQL (read/write), Redis |
-| **admin-ui** | User interface | 3000 | gateway-admin API |
+| Service | Responsibility | Port | Dependencies | Networks |
+|---------|---------------|------|--------------|----------|
+| **gateway-core** | Request routing, rate limiting, JWT validation | 8080 | PostgreSQL (read), Redis, Keycloak (JWKS) | traefik-net, postgres-net, redis-net, monitoring-net |
+| **gateway-admin** | Admin API, CRUD operations, Keycloak Admin | 8081 (8082 external) | PostgreSQL (read/write), Redis, Keycloak, Prometheus | traefik-net, postgres-net, redis-net, monitoring-net |
+| **admin-ui** | User interface (React SPA) | 3000 | gateway-admin API, Keycloak (OIDC) | traefik-net |
 
-**Data Flow:**
+**Централизованные сервисы (infra project):**
+
+| Service | Responsibility | Port | Consumers |
+|---------|---------------|------|-----------|
+| **PostgreSQL** | Primary database | 5432 | gateway-core, gateway-admin |
+| **Redis** | Cache + Pub/Sub | 6379 | gateway-core, gateway-admin |
+| **Keycloak** | OAuth2/OIDC provider | 8080 | admin-ui, gateway-admin, gateway-core |
+| **Traefik** | Reverse proxy, TLS | 80, 443 | All external traffic |
+| **Prometheus** | Metrics collection | 9090 | gateway-core, gateway-admin |
+| **Grafana** | Dashboards | 3000 | Operators |
+| **Vault** | Secrets management | 8200 | GitLab CI |
+
+**Data Flow (актуально — с Traefik):**
 ```
-# Admin Flow (через Nginx)
-User → Nginx → admin-ui (/) → gateway-admin (/api/v1/) → PostgreSQL
-                                                       → Redis (cache invalidation)
-                                                               ↓
-# Gateway Flow (через Nginx)
-External Request → Nginx → gateway-core (/api/) → Redis (rate limit) → Upstream Service
-                                                → Caffeine (route config)
+# Admin Flow (через Traefik)
+User → Traefik (HTTPS) → admin-ui (/) → gateway-admin (/api/v1/) → PostgreSQL
+                                                                 → Redis (cache invalidation)
+                                                                         ↓ pub/sub
+# Gateway Flow (через Traefik)                                           ↓
+External Request → Traefik → gateway-core (/api/) → Redis (rate limit) ← ─┘
+                                                  → Caffeine (route config)
+                                                  → Upstream Service
+# Auth Flow
+admin-ui → Keycloak (OIDC) → JWT token
+gateway-core → Keycloak (JWKS) → JWT validation
 ```
 
-**Production Data Flow (с Nginx):**
+**Production Data Flow (с Traefik и централизованной инфраструктурой):**
 ```
-Internet → DNS (gateway.ymorozov.ru) → Nginx:80/443
+Internet → DNS (gateway.ymorozov.ru) → Traefik:443 (TLS termination)
                                            │
            ┌───────────────────────────────┼───────────────────────────────┐
            │                               │                               │
@@ -625,12 +666,17 @@ Internet → DNS (gateway.ymorozov.ru) → Nginx:80/443
     admin-ui:3000               gateway-admin:8081              gateway-core:8080
     (React SPA)                  (Admin API)                    (Gateway Runtime)
            │                               │                               │
-           └───────────────────────────────┴───────────────────────────────┘
-                                           │
-                                    ┌──────┴──────┐
-                                    ▼             ▼
-                               PostgreSQL      Redis
-                                 :5432         :6379
+           │                               │                               │
+           ▼                               └───────────────┬───────────────┘
+    Keycloak:8080                                          │
+    (OIDC login)                           ┌───────────────┼───────────────┐
+                                           ▼               ▼               ▼
+                                      PostgreSQL        Redis         Keycloak
+                                        :5432           :6379          :8080
+                                                          │           (JWKS)
+                                                          ▼
+                                                    Prometheus:9090
+                                                    (scrape metrics)
 ```
 
 ### Requirements to Structure Mapping
@@ -737,11 +783,12 @@ redisTemplate.listenTo(ChannelTopic("route:cache:invalidate"))
 
 **Домен:** `gateway.ymorozov.ru`
 
-**Архитектура:**
-- Nginx служит reverse proxy с маршрутизацией запросов
+**Архитектура (после Epic 13):**
+- Traefik служит reverse proxy с автоматическим routing через Docker labels
+- TLS termination на уровне Traefik (Let's Encrypt)
 - Admin UI и Admin API доступны через root path (`/`)
 - Gateway Core API доступен через префикс `/api/`
-- Admin API v1 доступен через `/api/v1/`
+- Swagger UI доступен через `/swagger-ui.html`
 
 **URL маршрутизация:**
 
@@ -749,148 +796,117 @@ redisTemplate.listenTo(ChannelTopic("route:cache:invalidate"))
 |------|-----------------|----------|
 | `/` | admin-ui:3000 | React SPA (Admin UI) |
 | `/api/v1/*` | gateway-admin:8081 | Admin API (CRUD, аутентификация) |
+| `/swagger-ui.html` | gateway-admin:8081 | OpenAPI Swagger UI |
 | `/api/*` | gateway-core:8080 | Gateway Core (публичные маршруты) |
 
-### Nginx Reverse Proxy
+### Traefik Reverse Proxy (заменил Nginx в Epic 13.8)
 
-Nginx выполняет роль reverse proxy перед backend сервисами, обеспечивая:
-- Единую точку входа для всех запросов
-- Маршрутизацию по path prefix
-- Проброс заголовков (X-Real-IP, X-Forwarded-For, X-Forwarded-Proto)
-- WebSocket upgrade для hot-reload в development
+Traefik выполняет роль reverse proxy, обеспечивая:
+- Автоматический routing через Docker labels (без конфигурационных файлов)
+- Let's Encrypt TLS сертификаты (автоматическое обновление)
+- Health checks и circuit breaker
+- Middleware (rate limiting, headers, compression)
+- Dashboard для мониторинга
 
-**Конфигурация upstream:**
+**Docker labels конфигурация:**
 
-```nginx
-# docker/nginx/nginx.conf
+```yaml
+# docker-compose.override.yml
 
-upstream admin_ui {
-    server admin-ui:3000;
-}
+services:
+  admin-ui:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway-ui.rule=Host(`gateway.ymorozov.ru`)"
+      - "traefik.http.routers.gateway-ui.entrypoints=websecure"
+      - "traefik.http.routers.gateway-ui.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gateway-ui.loadbalancer.server.port=3000"
+      - "traefik.http.routers.gateway-ui.priority=1"
 
-upstream gateway_admin {
-    server gateway-admin:8081;
-}
+  gateway-admin:
+    labels:
+      - "traefik.enable=true"
+      # Admin API v1
+      - "traefik.http.routers.gateway-admin-api.rule=Host(`gateway.ymorozov.ru`) && PathPrefix(`/api/v1`)"
+      - "traefik.http.routers.gateway-admin-api.entrypoints=websecure"
+      - "traefik.http.routers.gateway-admin-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gateway-admin-api.loadbalancer.server.port=8081"
+      - "traefik.http.routers.gateway-admin-api.priority=10"
+      # Swagger UI
+      - "traefik.http.routers.gateway-swagger.rule=Host(`gateway.ymorozov.ru`) && PathPrefix(`/swagger-ui.html`)"
+      - "traefik.http.routers.gateway-swagger.priority=10"
 
-upstream gateway_core {
-    server gateway-core:8080;
-}
+  gateway-core:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway-core.rule=Host(`gateway.ymorozov.ru`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.gateway-core.entrypoints=websecure"
+      - "traefik.http.routers.gateway-core.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gateway-core.loadbalancer.server.port=8080"
+      - "traefik.http.routers.gateway-core.priority=5"
+      # Strip /api prefix
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.gateway-core.middlewares=strip-api"
 ```
 
-**Конфигурация server block:**
+**Traefik конфигурация (в infra проекте):**
 
-```nginx
-server {
-    listen 80;
-    server_name gateway.ymorozov.ru localhost 127.0.0.1 192.168.0.168;
+```yaml
+# traefik/traefik.yml
+api:
+  dashboard: true
 
-    client_max_body_size 10M;
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
 
-    # Logging
-    access_log /var/log/nginx/access.log;
-    error_log /var/log/nginx/error.log;
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@ymorozov.ru
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
 
-    # Admin API v1 (более специфичный путь — обрабатывается первым)
-    location /api/v1/ {
-        proxy_pass http://gateway_admin/api/v1/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # Gateway Core API
-    location /api/ {
-        proxy_pass http://gateway_core/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # Admin UI (React SPA)
-    location / {
-        proxy_pass http://admin_ui;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_connect_timeout 10s;
-        proxy_send_timeout 10s;
-        proxy_read_timeout 30s;
-    }
-
-    # Health check
-    location /nginx-health {
-        access_log off;
-        return 200 "healthy\n";
-        add_header Content-Type text/plain;
-    }
-}
+providers:
+  docker:
+    exposedByDefault: false
+    network: traefik-net
 ```
 
-**Проброс заголовков:**
+**Преимущества Traefik над Nginx:**
 
-| Заголовок | Значение | Назначение |
-|-----------|----------|------------|
-| `Host` | `$host` | Оригинальный Host для backend |
-| `X-Real-IP` | `$remote_addr` | IP клиента |
-| `X-Forwarded-For` | `$proxy_add_x_forwarded_for` | Цепочка proxy |
-| `X-Forwarded-Proto` | `$scheme` | Оригинальный протокол (http/https) |
+| Аспект | Nginx | Traefik |
+|--------|-------|---------|
+| Конфигурация | Статичные файлы | Docker labels (динамические) |
+| TLS сертификаты | Ручной certbot | Автоматический Let's Encrypt |
+| Service discovery | Manual upstream | Автоматический через Docker |
+| Hot reload | nginx -s reload | Автоматический |
+| Dashboard | Требует настройки | Встроенный |
 
 ### SSL/TLS Configuration
 
-**Текущее состояние:**
-- TLS termination происходит на внешнем уровне (VPN tunnel или reverse proxy провайдера)
-- Nginx в Docker слушает только HTTP (порт 80)
-- Внутренний трафик между контейнерами идёт по HTTP
+**Текущее состояние (после Epic 13.8):**
+- TLS termination на уровне Traefik
+- Let's Encrypt сертификаты с автоматическим обновлением
+- HTTP → HTTPS redirect автоматический
+- Внутренний трафик между контейнерами идёт по HTTP (внутри Docker network)
 
-**Production setup (при необходимости):**
+**TLS настройки:**
+- Provider: Let's Encrypt (ACME)
+- Challenge: HTTP-01
+- Auto-renewal: встроено в Traefik
+- TLS Version: 1.2+ (настраивается через Traefik middleware)
+- HSTS: через middleware headers
 
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name gateway.ymorozov.ru;
-
-    # SSL/TLS сертификаты (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/gateway.ymorozov.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/gateway.ymorozov.ru/privkey.pem;
-
-    # TLS настройки
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-    ssl_prefer_server_ciphers off;
-
-    # HSTS (опционально)
-    add_header Strict-Transport-Security "max-age=63072000" always;
-
-    # ... location блоки как выше ...
-}
-
-# HTTP → HTTPS redirect
-server {
-    listen 80;
-    server_name gateway.ymorozov.ru;
-    return 301 https://$server_name$request_uri;
-}
-```
-
-**Сертификаты:**
-- Provider: Let's Encrypt (certbot)
-- Auto-renewal: через cron или systemd timer
-- TLS Version: 1.2+ (TLS 1.3 рекомендуется)
-- Termination: на уровне Nginx
-
-### Deployment Topology
+### Deployment Topology (после Epic 13)
 
 ```
                     ┌─────────────────────────────────────┐
@@ -903,50 +919,79 @@ server {
                     └─────────────────────────────────────┘
                                      │
                                      ▼
-                    ┌─────────────────────────────────────┐
-                    │   Nginx (Reverse Proxy)             │
-                    │   Port: 80 (443 с TLS)              │
-                    │   - URL routing                     │
-                    │   - Header forwarding               │
-                    └─────────────────────────────────────┘
-                      │              │              │
-        ┌─────────────┘              │              └─────────────┐
-        ▼                            ▼                            ▼
-┌──────────────────┐    ┌──────────────────┐        ┌──────────────────┐
-│   admin-ui       │    │  gateway-admin   │        │   gateway-core   │
-│   :3000          │    │  :8081           │        │   :8080          │
-│   React SPA      │    │  Admin API +     │        │   Gateway        │
-│   (Vite)         │    │  Authentication  │        │   Runtime        │
-└──────────────────┘    └──────────────────┘        └──────────────────┘
-                                │                            │
-                                └─────────────┬──────────────┘
-                                              ▼
-                                ┌──────────────────────────────┐
-                                │         PostgreSQL           │
-                                │         :5432                │
-                                └──────────────────────────────┘
-                                              │
-                                ┌──────────────────────────────┐
-                                │           Redis              │
-                                │           :6379              │
-                                │   (Cache + Pub/Sub)          │
-                                └──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     CENTRALIZED INFRASTRUCTURE (infra project)          │
+│  ┌─────────────────────────────────────┐                                │
+│  │   Traefik (Reverse Proxy)           │                                │
+│  │   Port: 80, 443                     │                                │
+│  │   - Auto TLS (Let's Encrypt)        │                                │
+│  │   - Docker labels routing           │                                │
+│  │   - Load balancing                  │                                │
+│  └─────────────────────────────────────┘                                │
+│        │                                                                │
+│  ┌─────┴─────┬──────────────┬──────────────┬──────────────┐            │
+│  │           │              │              │              │            │
+│  ▼           ▼              ▼              ▼              ▼            │
+│ PostgreSQL  Redis       Keycloak     Prometheus      Grafana          │
+│ :5432       :6379       :8080        :9090           :3000             │
+│ (postgres-  (redis-     (traefik-    (monitoring-    (Keycloak        │
+│  net)        net)        net)         net)            SSO)             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              │ traefik-net          │                      │
+              ▼                      ▼                      ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   admin-ui       │    │  gateway-admin   │    │   gateway-core   │
+│   :3000          │    │  :8081           │    │   :8080          │
+│   React SPA      │    │  Admin API +     │    │   Gateway        │
+│   (Vite)         │    │  Keycloak Auth   │    │   Runtime        │
+│                  │    │  Swagger UI      │    │   JWT Validation │
+└──────────────────┘    └──────────────────┘    └──────────────────┘
+        │                       │                       │
+        │  ┌────────────────────┴───────────────────────┤
+        │  │                                            │
+        │  ▼ postgres-net                               ▼ redis-net
+        │  PostgreSQL ◄─────────────────────────────────► Redis
+        │  (R2DBC)                                      (Cache + Pub/Sub)
+        │                                               │
+        │  ▼ monitoring-net                             │
+        │  Prometheus ◄─────────────────────────────────┘
+        │  (scrape /actuator/prometheus)
+        │
+        └──► Keycloak (OIDC auth)
 ```
 
-**Docker Compose Production Stack:**
+**Docker Networks (External — из infra проекта):**
 
-| Service | Container | Port (internal) | Port (external) |
-|---------|-----------|-----------------|-----------------|
-| nginx | nginx | 80 | 80, 443 |
-| admin-ui | admin-ui | 3000 | — |
-| gateway-admin | gateway-admin | 8081 | — |
-| gateway-core | gateway-core | 8080 | — |
-| postgres | postgres | 5432 | 5432 (dev only) |
-| redis | redis | 6379 | 6379 (dev only) |
-| prometheus | prometheus | 9090 | 9090 (profile: monitoring) |
-| grafana | grafana | 3000 | 3001 (profile: monitoring) |
+| Network | Сервисы | Назначение |
+|---------|---------|------------|
+| `traefik-net` | Traefik, admin-ui, gateway-admin, gateway-core | Reverse proxy routing |
+| `postgres-net` | PostgreSQL, gateway-admin, gateway-core | Database access |
+| `redis-net` | Redis, gateway-admin, gateway-core | Cache и Pub/Sub |
+| `monitoring-net` | Prometheus, Grafana, gateway-admin, gateway-core | Metrics collection |
 
-**Примечание:** В production внешние порты PostgreSQL и Redis закрыты — доступ только внутри Docker network. Prometheus и Grafana запускаются с `--profile monitoring`.
+**Docker Compose Stack (ApiGateway project):**
+
+| Service | Container | Port (internal) | Port (external) | Network |
+|---------|-----------|-----------------|-----------------|---------|
+| admin-ui | admin-ui-dev | 3000 | 3000 | traefik-net |
+| gateway-admin | gateway-admin-dev | 8081 | 8082 | traefik-net, postgres-net, redis-net, monitoring-net |
+| gateway-core | gateway-core-dev | 8080 | 8080 | traefik-net, postgres-net, redis-net, monitoring-net |
+
+**Централизованная инфраструктура (infra project):**
+
+| Service | Port | Назначение |
+|---------|------|------------|
+| traefik | 80, 443 | Reverse proxy, TLS termination |
+| postgres (infra-postgres) | 5432 | Shared PostgreSQL instance |
+| redis | 6379 | Shared Redis instance |
+| keycloak | 8080 | OAuth2/OIDC provider |
+| prometheus | 9090 | Metrics collection |
+| grafana | 3000 | Dashboards (Keycloak SSO) |
+| vault | 8200 | Secrets management |
+
+**Примечание:** PostgreSQL, Redis, Keycloak, Prometheus, Grafana и Vault запущены в отдельном infra проекте. ApiGateway подключается к ним через external Docker networks.
 
 ## Architecture Validation Results
 
@@ -2298,5 +2343,541 @@ class KeycloakRoleConverter : Converter<Jwt, Flux<GrantedAuthority>> {
 | FR50-53 (Per-consumer Rate Limits) | RateLimitFilter, consumer_rate_limits table | ✅ |
 | FR54-59 (Consumer Management) | KeycloakAdminClient, Admin UI | ✅ |
 
-**Phase 2 Readiness:** READY FOR IMPLEMENTATION
+**Phase 2 Readiness:** ✅ IMPLEMENTED (Epic 12 completed)
+
+---
+
+## Phase 3: Infrastructure Migration & CI/CD (Epic 13)
+
+_Добавлено: 2026-03-02. Миграция на централизованную инфраструктуру и GitLab CI/CD._
+
+### Centralized Infrastructure
+
+#### Архитектурное решение
+
+**Проблема:** Каждый проект запускал свои PostgreSQL, Redis, Keycloak — дублирование ресурсов и сложность управления.
+
+**Решение:** Централизованная инфраструктура в отдельном `infra` проекте:
+
+```
+infra/
+├── docker-compose.yml           # Все shared сервисы
+├── traefik/                     # Reverse proxy config
+├── prometheus/                  # Monitoring config
+├── grafana/                     # Dashboards
+├── vault/                       # Secrets management
+└── keycloak/                    # OAuth2/OIDC provider
+```
+
+**Преимущества:**
+- Единый PostgreSQL instance для всех проектов
+- Единый Redis для кэширования
+- Централизованный Keycloak (SSO)
+- Общий Prometheus/Grafana stack
+- Vault для secrets management
+
+#### Docker Networks
+
+```yaml
+# Создаются в infra проекте, используются как external
+networks:
+  traefik-net:
+    external: true
+  postgres-net:
+    external: true
+  redis-net:
+    external: true
+  monitoring-net:
+    external: true
+```
+
+**Инициализация сетей:**
+
+```bash
+# Выполнить один раз перед первым запуском
+docker network create traefik-net 2>/dev/null || true
+docker network create postgres-net 2>/dev/null || true
+docker network create redis-net 2>/dev/null || true
+docker network create monitoring-net 2>/dev/null || true
+```
+
+#### Database Configuration
+
+**PostgreSQL в infra проекте:**
+
+```yaml
+# infra/docker-compose.yml
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: infra-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Из Vault
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - postgres-net
+```
+
+**Инициализация баз данных:**
+
+```sql
+-- infra/postgres/init/01-create-databases.sql
+CREATE DATABASE gateway;
+CREATE DATABASE keycloak;
+CREATE USER gateway WITH PASSWORD 'gateway_password';
+GRANT ALL PRIVILEGES ON DATABASE gateway TO gateway;
+```
+
+**Подключение из ApiGateway:**
+
+```yaml
+# application.yml
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://infra-postgres:5432/gateway
+    username: gateway
+    password: ${POSTGRES_PASSWORD}
+```
+
+### GitLab CI/CD Pipeline
+
+#### Локальная GitLab инфраструктура
+
+**Компоненты (docker/gitlab/):**
+
+| Компонент | Порт | Назначение |
+|-----------|------|------------|
+| GitLab CE | 8929 | Git repository, CI/CD |
+| Nexus Repository | 8081 | Docker registry, Maven/npm proxy |
+| GitLab Runners (x4) | — | Docker executor |
+| Vault | 8200 | Secrets management |
+
+**Архитектура CI/CD:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        GitLab CE                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    .gitlab-ci.yml                        │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │   │
+│  │  │  build  │→ │  test   │→ │ docker  │→ │ deploy  │    │   │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                                   │
+│              ┌───────────────┴───────────────┐                  │
+│              ▼                               ▼                  │
+│  ┌───────────────────┐           ┌───────────────────┐         │
+│  │   Runner Pool     │           │      Vault        │         │
+│  │  (Docker executor)│           │  (AppRole auth)   │         │
+│  │  - runner-1       │           │                   │         │
+│  │  - runner-2       │           │  secret/apigateway│         │
+│  │  - runner-3       │           │    /database      │         │
+│  │  - runner-4       │           │    /redis         │         │
+│  └───────────────────┘           │    /keycloak      │         │
+│              │                   └───────────────────┘         │
+│              ▼                                                  │
+│  ┌───────────────────┐                                         │
+│  │      Nexus        │                                         │
+│  │  - Docker images  │                                         │
+│  │  - npm cache      │                                         │
+│  │  - Gradle cache   │                                         │
+│  └───────────────────┘                                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Pipeline Stages
+
+```yaml
+# .gitlab-ci.yml
+stages:
+  - build
+  - test
+  - docker
+  - deploy
+  - sync
+
+# Build stage (~7 min)
+backend-build:
+  stage: build
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - backend/*/build/libs/*.jar
+
+frontend-build:
+  stage: build
+  script:
+    - cd frontend/admin-ui && npm ci && npm run build
+  artifacts:
+    paths:
+      - frontend/admin-ui/dist/
+
+# Test stage (~12 min)
+backend-test:
+  stage: test
+  services:
+    - postgres:16-alpine
+    - redis:7-alpine
+  script:
+    - ./gradlew test jacocoTestReport
+
+frontend-test:
+  stage: test
+  script:
+    - cd frontend/admin-ui && npm run test:run
+
+sast:
+  stage: test
+  script:
+    - semgrep --config auto
+  allow_failure: true  # TODO: Story 14.2 — сделать blocking
+
+# Docker stage (~2 min)
+docker-build:
+  stage: docker
+  script:
+    - docker build -f docker/Dockerfile.gateway-core -t gateway-core .
+    - docker build -f docker/Dockerfile.gateway-admin -t gateway-admin .
+    - docker build -f docker/Dockerfile.admin-ui -t admin-ui .
+    - docker push nexus:8082/gateway-core:$CI_COMMIT_SHA
+    - docker push nexus:8082/gateway-admin:$CI_COMMIT_SHA
+    - docker push nexus:8082/admin-ui:$CI_COMMIT_SHA
+
+# Deploy stages
+deploy-dev:
+  stage: deploy
+  environment: development
+  script:
+    - ./deploy/deploy.sh dev $CI_COMMIT_SHA
+  when: on_success
+
+deploy-test:
+  stage: deploy
+  environment: test
+  script:
+    - ./deploy/deploy.sh test $CI_COMMIT_SHA
+  when: manual
+
+deploy-prod:
+  stage: deploy
+  environment: production
+  script:
+    - ./deploy/deploy.sh prod $CI_COMMIT_SHA
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+# Sync to GitHub
+sync-to-github:
+  stage: sync
+  script:
+    - git push origin master
+  when: manual
+```
+
+#### Vault Integration
+
+**Secrets paths:**
+
+| Path | Secrets |
+|------|---------|
+| `secret/apigateway/database` | POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL |
+| `secret/apigateway/redis` | REDIS_HOST, REDIS_PORT, REDIS_URL |
+| `secret/apigateway/keycloak` | KEYCLOAK_ADMIN_USERNAME, KEYCLOAK_ADMIN_PASSWORD |
+| `secret/apigateway/jwt` | JWT_SECRET (для legacy auth) |
+
+**AppRole authentication:**
+
+```bash
+# CI/CD variables в GitLab
+VAULT_ADDR=http://vault:8200
+VAULT_ROLE_ID=<role-id>
+VAULT_SECRET_ID=<secret-id>  # masked, protected
+
+# В pipeline
+vault write auth/approle/login \
+  role_id=$VAULT_ROLE_ID \
+  secret_id=$VAULT_SECRET_ID
+
+export VAULT_TOKEN=$(vault write -field=token auth/approle/login ...)
+vault kv get -format=json secret/apigateway/database | jq -r '.data.data'
+```
+
+**Скрипт для локальной разработки:**
+
+```bash
+# docker/gitlab/vault-secrets.sh
+#!/bin/bash
+export $(vault kv get -format=json secret/apigateway/database | \
+  jq -r '.data.data | to_entries | .[] | "\(.key)=\(.value)"')
+export $(vault kv get -format=json secret/apigateway/redis | \
+  jq -r '.data.data | to_entries | .[] | "\(.key)=\(.value)"')
+```
+
+### Monitoring Migration (Story 13.11)
+
+#### Централизованный Prometheus
+
+**Scrape конфигурация (в infra проекте):**
+
+```yaml
+# infra/prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'apigateway-core'
+    static_configs:
+      - targets: ['gateway-core:8080']
+    metrics_path: /actuator/prometheus
+
+  - job_name: 'apigateway-admin'
+    static_configs:
+      - targets: ['gateway-admin:8081']
+    metrics_path: /actuator/prometheus
+```
+
+**Alert Rules:**
+
+```yaml
+# infra/prometheus/rules/apigateway.yml
+groups:
+  - name: apigateway
+    rules:
+      - alert: HighConsumerCardinality
+        expr: count(count by (consumer_id) (gateway_requests_total)) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High consumer cardinality (>1000)"
+
+      - alert: CriticalConsumerCardinality
+        expr: count(count by (consumer_id) (gateway_requests_total)) > 5000
+        for: 5m
+        labels:
+          severity: critical
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(gateway_errors_total[5m])) /
+          sum(rate(gateway_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate > 5%"
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 latency > 500ms"
+
+      - alert: GatewayDown
+        expr: up{job=~"apigateway-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gateway instance down"
+```
+
+#### Grafana Dashboard
+
+**Dashboard "API Gateway" (автоматически provisioned):**
+
+```json
+{
+  "title": "API Gateway",
+  "panels": [
+    {
+      "title": "Requests per Second",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(gateway_requests_total[5m]))",
+          "legendFormat": "Total RPS"
+        }
+      ]
+    },
+    {
+      "title": "Latency (P50, P95, P99)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "sum(rate(gateway_errors_total[5m])) / sum(rate(gateway_requests_total[5m])) * 100"
+        }
+      ]
+    },
+    {
+      "title": "Top Routes by Traffic",
+      "type": "table",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (route_path) (rate(gateway_requests_total[5m])))"
+        }
+      ]
+    },
+    {
+      "title": "Requests by Consumer",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (consumer_id) (rate(gateway_requests_total[5m]))",
+          "legendFormat": "{{consumer_id}}"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Database Migrations Summary
+
+**14 Flyway миграций (актуальный список):**
+
+| Migration | Description | Lines |
+|-----------|-------------|-------|
+| V1 | Create routes table | 27 |
+| V2 | Add updated_at trigger | 17 |
+| V3 | Create users table | 34 |
+| V3_1 | Seed admin user | 12 |
+| V4 | Create audit_logs | 29 |
+| V5 | Add description to routes | 6 |
+| V5_1 | Fix audit_logs FK cascade | 17 |
+| V6 | Add approval fields to routes | 23 |
+| V7 | Create rate_limits table | 34 |
+| V8 | Add rate_limit_id to routes | 8 |
+| V9 | Extend audit_logs (changes column) | 12 |
+| V10 | Add route auth fields (auth_required, allowed_consumers) | 19 |
+| V12 | Create consumer_rate_limits table | 35 |
+| V13 | Fix rate_limits FK cascade | 30 |
+
+**Total:** 303 lines SQL, 14 migrations
+
+### Current Technology Versions
+
+| Component | Version | Status |
+|-----------|---------|--------|
+| **Backend** | | |
+| Spring Boot | 3.4.2 | ✅ Current |
+| Spring Cloud | 2024.0.0 | ✅ Current |
+| Kotlin | 1.9.22 | ✅ Current |
+| Java | 21 (LTS) | ✅ Current |
+| PostgreSQL (R2DBC) | 1.0.4 | ✅ Current |
+| Redis Reactive | Latest | ✅ Current |
+| Flyway | Core | ✅ Current |
+| **Frontend** | | |
+| React | 18.2.0 | ✅ Current |
+| TypeScript | 5.3.3 | ✅ Strict mode |
+| Vite | 5.1.4 | ✅ Current |
+| React Query | 5.24.1 | ✅ TanStack v5 |
+| React Router | 6.22.1 | ✅ v6 |
+| Ant Design | 5.15.0 | ✅ Current |
+| **Infrastructure** | | |
+| Docker | 24+ | ✅ Current |
+| Traefik | 3.x | ✅ Current |
+| PostgreSQL | 16-alpine | ✅ Current |
+| Redis | 7-alpine | ✅ Current |
+| Keycloak | 24.0 | ✅ Current |
+| Prometheus | Latest | ✅ Current |
+| Grafana | Latest | ✅ Current |
+| HashiCorp Vault | Latest | ✅ Current |
+
+### Phase 3 Implementation Sequence (Completed)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 13.0 | Local GitLab setup | ✅ |
+| 13.1 | GitHub mirror configuration | ✅ |
+| 13.2 | CI/CD pipeline (build/test) | ✅ |
+| 13.3 | Docker image build & registry | ✅ |
+| 13.4 | Vault integration (secrets management) | ✅ |
+| 13.5 | Deployment pipeline (dev/test) | ✅ |
+| 13.6 | Production deployment (approval gates) | ✅ |
+| 13.7 | Security scanning (SAST) | ✅ |
+| 13.8 | Traefik routing (nginx → Traefik) | ✅ |
+| 13.9 | PostgreSQL migration to centralized infra | ✅ |
+| 13.10 | Redis migration to centralized infra | ✅ |
+| 13.11 | Monitoring migration (Prometheus/Grafana) | ✅ |
+| 13.12 | Docker compose cleanup & documentation | ✅ |
+
+### Phase 3 Architecture Validation
+
+**Decision Compatibility:**
+- Traefik + Docker labels — zero-config routing ✅
+- External networks — clean separation of concerns ✅
+- Vault + AppRole — secure CI/CD secrets ✅
+- Centralized Prometheus — single source of metrics ✅
+- GitLab CI + Nexus — full local control ✅
+
+**Infrastructure Benefits:**
+
+| Aspect | Before (Epic 12) | After (Epic 13) |
+|--------|------------------|-----------------|
+| Reverse Proxy | Nginx (manual config) | Traefik (auto-routing) |
+| TLS Certificates | Manual certbot | Auto Let's Encrypt |
+| Database | Per-project PostgreSQL | Shared PostgreSQL |
+| Cache | Per-project Redis | Shared Redis |
+| Secrets | .env files | HashiCorp Vault |
+| CI/CD | GitHub Actions | Local GitLab |
+| Container Registry | Docker Hub | Local Nexus |
+| Monitoring | Per-project stacks | Centralized Prometheus/Grafana |
+
+**Phase 3 Status:** ✅ COMPLETED (Epic 13 done)
+
+---
+
+## Next Phase: Technical Debt & Reliability (Epic 14)
+
+**Planned stories (from Architecture Audit 2026-03-01):**
+
+| Story | Description | Priority | SP |
+|-------|-------------|----------|---|
+| 14.1 | Fix reactive pipeline blocking calls | P0 | 3 |
+| 14.2 | SAST blocking mode & migration cleanup | P0 | 5 |
+| 14.3 | Custom metrics & SLI/SLO definition | P1 | 5 |
+| 14.4 | Frontend code splitting & performance | P1 | 5 |
+| 14.5 | Distributed tracing (Jaeger/OpenTelemetry) | P1 | 5 |
+
+**Total:** ~23 SP
+
+**Key improvements:**
+- Устранить синхронные вызовы в reactive pipeline (P0)
+- SAST в blocking режиме (P0)
+- Определить SLI/SLO для gateway
+- Code splitting для уменьшения bundle size
+- Distributed tracing для debug latency issues
+
+---
+
+_Последнее обновление: 2026-03-02 (Phase 3 completion)_
 

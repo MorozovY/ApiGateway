@@ -1,5 +1,6 @@
 // Публичный API feature approval
-export { ApprovalsPage } from './components/ApprovalsPage'
+// Примечание: ApprovalsPage НЕ экспортируется здесь — используется lazy loading
+// через LazyComponents.tsx (Story 14.4). Статический экспорт блокирует code splitting.
 export {
   usePendingRoutes,
   useApproveRoute,

@@ -1,5 +1,6 @@
 // Боковая панель навигации (Story 2.6 — Users, Story 4.6 — Badge, Story 6.5 — Metrics, Story 7.6 — Collapsible, Story 9.3 — Role-based filtering)
-import { useMemo } from 'react'
+// Story 14.4: Добавлен prefetch для lazy-загружаемых модулей
+import { useMemo, useCallback } from 'react'
 import { Layout, Menu, Badge } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -15,7 +16,8 @@ import {
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
-import type { ItemType } from 'antd/es/menu/interface'
+import { usePrefetch } from '@shared/hooks'
+import type { MenuItemType } from 'antd/es/menu/interface'
 import type { User } from '@features/auth'
 
 const { Sider } = Layout
@@ -52,7 +54,7 @@ interface SidebarProps {
  * Все возможные пункты меню (включая Users).
  * Порядок определяется ROLE_MENU_ACCESS при фильтрации.
  */
-const allMenuItems: ItemType[] = [
+const allMenuItems: MenuItemType[] = [
   {
     key: '/dashboard',
     icon: <DashboardOutlined />,
@@ -109,9 +111,18 @@ function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
+  const { prefetch } = usePrefetch()
 
   // Счётчик pending маршрутов для Badge (только для security/admin, enabled=false для developer)
   const pendingCount = usePendingRoutesCount()
+
+  // Обработчик hover для prefetch (Story 14.4, AC5)
+  const handleMouseEnter = useCallback(
+    (key: string) => {
+      prefetch(key)
+    },
+    [prefetch]
+  )
 
   // Формируем меню на основе роли пользователя (Story 9.3 — role-based filtering)
   const menuItems = useMemo(() => {
@@ -119,18 +130,22 @@ function Sidebar({ collapsed }: SidebarProps) {
     const allowedKeys = user?.role ? ROLE_MENU_ACCESS[user.role] : []
 
     // Фильтруем пункты меню по разрешённым ключам, сохраняя порядок из allowedKeys
-    const items: ItemType[] = allowedKeys
+    const items: MenuItemType[] = allowedKeys
       .map((key) => {
         // Находим пункт меню по ключу
-        const menuItem = allMenuItems.find(
-          (item) => item && 'key' in item && item.key === key
-        )
+        const menuItem = allMenuItems.find((item) => item.key === key)
         if (!menuItem) return null
 
+        // Добавляем onMouseEnter для prefetch (Story 14.4)
+        const itemWithPrefetch: MenuItemType = {
+          ...menuItem,
+          onMouseEnter: () => handleMouseEnter(key),
+        }
+
         // Добавляем Badge к пункту /approvals если есть pending маршруты
-        if (menuItem && 'key' in menuItem && menuItem.key === '/approvals' && pendingCount > 0) {
+        if (menuItem.key === '/approvals' && pendingCount > 0) {
           return {
-            ...menuItem,
+            ...itemWithPrefetch,
             label: (
               <Badge count={pendingCount} offset={[8, 0]} size="small">
                 Approvals
@@ -138,12 +153,12 @@ function Sidebar({ collapsed }: SidebarProps) {
             ),
           }
         }
-        return menuItem
+        return itemWithPrefetch
       })
-      .filter((item): item is ItemType => item !== null)
+      .filter((item): item is MenuItemType => item !== null)
 
     return items
-  }, [user?.role, pendingCount])
+  }, [user?.role, pendingCount, handleMouseEnter])
 
   // Определяем selectedKeys для поддержки nested paths (AC7)
   const selectedKeys = useMemo(() => {
