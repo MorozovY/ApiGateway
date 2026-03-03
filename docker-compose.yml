@@ -40,3 +40,7 @@ networks:
   # Создаётся в infra проекте: docker network create monitoring-net
   monitoring-net:
     external: true
+  # Внешняя сеть для подключения к Jaeger distributed tracing (Story 14.5)
+  # Создаётся: docker network create tracing-net
+  tracing-net:
+    external: true

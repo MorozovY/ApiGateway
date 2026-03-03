@@ -46,6 +46,16 @@ dependencies {
     // Prometheus Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // Distributed Tracing — OpenTelemetry bridge (Story 14.5)
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+
+    // Reactor Context → MDC propagation (Story 14.5)
+    implementation("io.micrometer:context-propagation")
+
+    // Structured JSON logging (Story 14.5)
+    implementation("net.logstash.logback:logstash-logback-encoder:8.0")
+
     // OpenAPI (2.7.0 для совместимости с Spring Boot 3.4.x)
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.7.0")
 

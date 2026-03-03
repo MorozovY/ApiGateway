@@ -103,6 +103,15 @@ management:
     metrics:
       export:
         enabled: true
+  # Distributed Tracing — OpenTelemetry (Story 14.5)
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://jaeger:4318/v1/traces}
 
 logging:
   level:

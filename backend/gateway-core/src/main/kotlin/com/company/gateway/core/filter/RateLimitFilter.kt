@@ -133,6 +133,9 @@ class RateLimitFilter(
         val limitType = checkResult.limitType ?: "route"
         rateLimitMetrics.recordDecision(decision, limitType)
 
+        // Сохраняем decision в exchange для TracingAttributesFilter (Story 14.5)
+        exchange.attributes[TracingAttributesFilter.RATELIMIT_DECISION_ATTRIBUTE] = decision
+
         // Записываем remaining tokens (sampled)
         val routeId = exchange.getAttribute<UUID>(ROUTE_ID_ATTRIBUTE)?.toString() ?: "unknown"
         val consumerId = exchange.getAttribute<String>(JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE)

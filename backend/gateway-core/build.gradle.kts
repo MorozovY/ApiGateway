@@ -43,6 +43,10 @@ dependencies {
     // Prometheus Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // Distributed Tracing — OpenTelemetry bridge (Story 14.5)
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+
     // Structured JSON logging (Story 1.6)
     implementation("net.logstash.logback:logstash-logback-encoder:8.0")
 
