@@ -41,7 +41,8 @@ class RouteService(
     private val routeRepository: RouteRepository,
     private val rateLimitRepository: RateLimitRepository,
     private val userRepository: UserRepository,
-    private val auditService: AuditService
+    private val auditService: AuditService,
+    private val routeMetrics: com.company.gateway.admin.metrics.RouteMetrics
 ) {
     private val logger = LoggerFactory.getLogger(RouteService::class.java)
 
@@ -127,7 +128,11 @@ class RouteService(
                     .map { rateLimitInfo -> RouteResponse.from(savedRoute, rateLimitInfo, username) }
                     .switchIfEmpty(Mono.defer { Mono.just(RouteResponse.from(savedRoute, null, username)) })
             }
-            .doOnSuccess { logger.info("Маршрут создан: path={}, userId={}", request.path, userId) }
+            .doOnSuccess {
+                routeMetrics.recordOperation("create", true)
+                logger.info("Маршрут создан: path={}, userId={}", request.path, userId)
+            }
+            .doOnError { routeMetrics.recordOperation("create", false) }
     }
 
     /**
@@ -297,7 +302,11 @@ class RouteService(
                             .defaultIfEmpty(RouteResponse.from(saved, null, null))
                     })
             }
-            .doOnSuccess { logger.info("Маршрут обновлён: id={}, userId={}", id, userId) }
+            .doOnSuccess {
+                routeMetrics.recordOperation("update", true)
+                logger.info("Маршрут обновлён: id={}, userId={}", id, userId)
+            }
+            .doOnError { routeMetrics.recordOperation("update", false) }
     }
 
     /**
@@ -387,7 +396,11 @@ class RouteService(
                     )
                     .then()
             }
-            .doOnSuccess { logger.info("Маршрут удалён: id={}, userId={}", id, userId) }
+            .doOnSuccess {
+                routeMetrics.recordOperation("delete", true)
+                logger.info("Маршрут удалён: id={}, userId={}", id, userId)
+            }
+            .doOnError { routeMetrics.recordOperation("delete", false) }
     }
 
     /**

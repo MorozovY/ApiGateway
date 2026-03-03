@@ -1,6 +1,7 @@
 package com.company.gateway.admin.service
 
 import com.company.gateway.admin.dto.RouteWithCreator
+import com.company.gateway.admin.metrics.RouteMetrics
 import com.company.gateway.admin.repository.RateLimitRepository
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
@@ -33,6 +34,7 @@ class RouteServiceTest {
     private lateinit var rateLimitRepository: RateLimitRepository
     private lateinit var userRepository: UserRepository
     private lateinit var auditService: AuditService
+    private lateinit var routeMetrics: RouteMetrics
     private lateinit var routeService: RouteService
 
     @BeforeEach
@@ -41,7 +43,8 @@ class RouteServiceTest {
         rateLimitRepository = mock()
         userRepository = mock()
         auditService = mock()
-        routeService = RouteService(routeRepository, rateLimitRepository, userRepository, auditService)
+        routeMetrics = mock()
+        routeService = RouteService(routeRepository, rateLimitRepository, userRepository, auditService, routeMetrics)
     }
 
     // ============================================

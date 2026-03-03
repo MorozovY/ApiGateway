@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class RateLimitService(
     private val tokenBucketScript: TokenBucketScript,
     private val localRateLimiter: LocalRateLimiter,
+    private val rateLimitMetrics: com.company.gateway.core.metrics.RateLimitMetrics,
     @Value("\${gateway.ratelimit.fallback-enabled:true}")
     private val fallbackEnabled: Boolean = true,
     @Value("\${gateway.ratelimit.redis-key-prefix:ratelimit}")
@@ -62,6 +63,9 @@ class RateLimitService(
             burstSize = rateLimit.burstSize
         )
             .doOnSuccess { result ->
+                // Записываем метрику cache hit для Redis (Story 14.3, AC3)
+                rateLimitMetrics.recordCacheHit("redis")
+
                 // Логируем результат проверки rate limit (DEBUG — ожидаемое событие при нагрузке)
                 if (!result.allowed) {
                     logger.debug("Rate limit exceeded: key={}, remaining={}, resetTime={}",
@@ -102,6 +106,9 @@ class RateLimitService(
             )
         }
 
+        // Записываем метрику cache hit для Caffeine fallback (Story 14.3, AC3)
+        rateLimitMetrics.recordCacheHit("caffeine")
+
         // Используем локальный rate limiter
         val result = localRateLimiter.checkRateLimit(
             key = bucketKey,
@@ -133,6 +140,9 @@ class RateLimitService(
             burstSize = consumerRateLimit.burstSize
         )
             .doOnSuccess { result ->
+                // Записываем метрику cache hit для Redis (Story 14.3, AC3)
+                rateLimitMetrics.recordCacheHit("redis")
+
                 if (!result.allowed) {
                     logger.debug("Consumer rate limit exceeded: consumerId={}, remaining={}, resetTime={}",
                         consumerId, result.remaining, result.resetTime)
@@ -243,6 +253,9 @@ class RateLimitService(
                 )
             )
         }
+
+        // Записываем метрику cache hit для Caffeine fallback (Story 14.3, AC3)
+        rateLimitMetrics.recordCacheHit("caffeine")
 
         // Используем локальный rate limiter
         val result = localRateLimiter.checkRateLimit(

@@ -4,6 +4,7 @@ import com.company.gateway.admin.exception.AccessDeniedException
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
+import com.company.gateway.admin.metrics.ApprovalMetrics
 import com.company.gateway.admin.publisher.RouteEventPublisher
 import com.company.gateway.admin.repository.RouteRepository
 import com.company.gateway.admin.repository.UserRepository
@@ -50,6 +51,7 @@ class ApprovalServiceTest {
     private lateinit var userRepository: UserRepository
     private lateinit var auditService: AuditService
     private lateinit var routeEventPublisher: RouteEventPublisher
+    private lateinit var approvalMetrics: ApprovalMetrics
     private lateinit var approvalService: ApprovalService
 
     private val userId = UUID.randomUUID()
@@ -63,7 +65,8 @@ class ApprovalServiceTest {
         userRepository = mock()
         auditService = mock()
         routeEventPublisher = mock()
-        approvalService = ApprovalService(routeRepository, userRepository, auditService, routeEventPublisher)
+        approvalMetrics = mock()
+        approvalService = ApprovalService(routeRepository, userRepository, auditService, routeEventPublisher, approvalMetrics)
 
         // Default mock для загрузки username создателя (Story 8.4)
         // Возвращаем пустой Mono — creatorUsername будет null

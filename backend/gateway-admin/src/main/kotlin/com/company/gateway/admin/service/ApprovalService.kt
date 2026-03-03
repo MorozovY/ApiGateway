@@ -34,7 +34,8 @@ class ApprovalService(
     private val routeRepository: RouteRepository,
     private val userRepository: UserRepository,
     private val auditService: AuditService,
-    private val routeEventPublisher: RouteEventPublisher
+    private val routeEventPublisher: RouteEventPublisher,
+    private val approvalMetrics: com.company.gateway.admin.metrics.ApprovalMetrics
 ) {
     private val logger = LoggerFactory.getLogger(ApprovalService::class.java)
 
@@ -136,6 +137,8 @@ class ApprovalService(
             }
             .map { RouteResponse.from(it, null, username) }  // Story 8.4: текущий пользователь — создатель
             .doOnSuccess {
+                // Записываем метрику действия submit
+                approvalMetrics.recordAction("submit", "developer")
                 logger.info(
                     "Маршрут отправлен на согласование: routeId={}, userId={}",
                     routeId, userId
@@ -288,6 +291,11 @@ class ApprovalService(
                 }
             }
             .flatMap { savedRoute ->
+                // Записываем метрику duration (Story 14.3, AC2)
+                if (savedRoute.submittedAt != null && savedRoute.approvedAt != null) {
+                    approvalMetrics.recordApprovalDuration(savedRoute.submittedAt!!, savedRoute.approvedAt!!)
+                }
+
                 // Загружаем username создателя маршрута — Story 8.4
                 if (savedRoute.createdBy != null) {
                     userRepository.findById(savedRoute.createdBy!!)
@@ -298,6 +306,8 @@ class ApprovalService(
                 }
             }
             .doOnSuccess {
+                // Записываем метрику действия
+                approvalMetrics.recordAction("approve", "security")
                 logger.info(
                     "Маршрут одобрен: routeId={}, approvedBy={}",
                     routeId, userId
@@ -388,6 +398,11 @@ class ApprovalService(
                 }
             }
             .flatMap { savedRoute ->
+                // Записываем метрику duration (Story 14.3, AC2)
+                if (savedRoute.submittedAt != null && savedRoute.rejectedAt != null) {
+                    approvalMetrics.recordApprovalDuration(savedRoute.submittedAt!!, savedRoute.rejectedAt!!)
+                }
+
                 // Загружаем username создателя маршрута — Story 8.4
                 if (savedRoute.createdBy != null) {
                     userRepository.findById(savedRoute.createdBy!!)
@@ -398,6 +413,8 @@ class ApprovalService(
                 }
             }
             .doOnSuccess {
+                // Записываем метрику действия
+                approvalMetrics.recordAction("reject", "security")
                 logger.info(
                     "Маршрут отклонён: routeId={}, rejectedBy={}, reason={}",
                     routeId, userId, reason

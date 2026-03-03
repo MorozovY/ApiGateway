@@ -3,6 +3,7 @@ package com.company.gateway.core.filter
 import com.company.gateway.common.model.ConsumerRateLimit
 import com.company.gateway.common.model.RateLimit
 import com.company.gateway.core.cache.ConsumerRateLimitCacheManager
+import com.company.gateway.core.metrics.RateLimitMetrics
 import com.company.gateway.core.ratelimit.RateLimitCheckResult
 import com.company.gateway.core.ratelimit.RateLimitResult
 import com.company.gateway.core.ratelimit.RateLimitService
@@ -49,6 +50,9 @@ class RateLimitFilterTest {
     private lateinit var consumerRateLimitCacheManager: ConsumerRateLimitCacheManager
 
     @Mock
+    private lateinit var rateLimitMetrics: RateLimitMetrics
+
+    @Mock
     private lateinit var chain: GatewayFilterChain
 
     private lateinit var filter: RateLimitFilter
@@ -65,7 +69,7 @@ class RateLimitFilterTest {
 
     @BeforeEach
     fun setUp() {
-        filter = RateLimitFilter(rateLimitService, consumerRateLimitCacheManager)
+        filter = RateLimitFilter(rateLimitService, consumerRateLimitCacheManager, rateLimitMetrics)
     }
 
     /**

@@ -31,7 +31,8 @@ import java.util.UUID
 @Component
 class RateLimitFilter(
     private val rateLimitService: RateLimitService,
-    private val consumerRateLimitCacheManager: ConsumerRateLimitCacheManager
+    private val consumerRateLimitCacheManager: ConsumerRateLimitCacheManager,
+    private val rateLimitMetrics: com.company.gateway.core.metrics.RateLimitMetrics
 ) : GlobalFilter, Ordered {
 
     private val logger = LoggerFactory.getLogger(RateLimitFilter::class.java)
@@ -127,6 +128,17 @@ class RateLimitFilter(
         chain: GatewayFilterChain,
         checkResult: RateLimitCheckResult
     ): Mono<Void> {
+        // Записываем метрику решения (Story 14.3, AC3)
+        val decision = if (checkResult.result.allowed) "allowed" else "denied"
+        val limitType = checkResult.limitType ?: "route"
+        rateLimitMetrics.recordDecision(decision, limitType)
+
+        // Записываем remaining tokens (sampled)
+        val routeId = exchange.getAttribute<UUID>(ROUTE_ID_ATTRIBUTE)?.toString() ?: "unknown"
+        val consumerId = exchange.getAttribute<String>(JwtAuthenticationFilter.CONSUMER_ID_ATTRIBUTE)
+            ?: ConsumerIdentityFilter.ANONYMOUS
+        rateLimitMetrics.recordRemainingTokens(routeId, consumerId, checkResult.result.remaining)
+
         return if (checkResult.result.allowed) {
             // Запрос разрешён — добавляем информационные заголовки и продолжаем
             addRateLimitHeaders(exchange, checkResult)

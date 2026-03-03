@@ -3,6 +3,7 @@ package com.company.gateway.core.cache
 import com.company.gateway.common.model.RateLimit
 import com.company.gateway.common.model.Route
 import com.company.gateway.common.model.RouteStatus
+import com.company.gateway.core.metrics.CacheMetrics
 import com.company.gateway.core.repository.RateLimitRepository
 import com.company.gateway.core.repository.RouteRepository
 import com.github.benmanes.caffeine.cache.Cache
@@ -51,6 +52,9 @@ class RouteCacheManagerTest {
     @Mock
     private lateinit var eventPublisher: ApplicationEventPublisher
 
+    @Mock
+    private lateinit var cacheMetrics: CacheMetrics
+
     private lateinit var cacheManager: RouteCacheManager
 
     @BeforeEach
@@ -60,7 +64,8 @@ class RouteCacheManagerTest {
             rateLimitRepository,
             caffeineRouteCache,
             caffeineRateLimitCache,
-            eventPublisher
+            eventPublisher,
+            cacheMetrics
         )
     }
 

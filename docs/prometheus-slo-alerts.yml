@@ -1,0 +1,173 @@
+# Prometheus Alert Rules for API Gateway SLO
+#
+# Story 14.3, AC8: Burn Rate Alerts
+#
+# Этот файл для reference. Production версия должна быть в infra проекте:
+# config/prometheus/alerts/slo-burn-rate.yml
+
+groups:
+  - name: api-gateway-slo
+    rules:
+      # ============================================
+      # Burn Rate Alerts (Multi-Window)
+      # ============================================
+
+      # Critical: 14.4x burn rate for 1h = 2% budget consumed in 1 hour
+      # Action: Page on-call immediately
+      - alert: SLOBurnRateCritical
+        expr: |
+          (
+            sum(rate(gateway_requests_total{status=~"5.."}[1h]))
+            /
+            sum(rate(gateway_requests_total[1h]))
+          ) > (14.4 * 0.001)
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SLO burn rate критический (14.4x за 1h)"
+          description: "Error budget сгорает слишком быстро. При текущей скорости весь budget будет исчерпан за ~2 часа. Burn rate: {{ $value | printf \"%.2f\" }}x"
+          # runbook_url: TODO: Создать runbook в wiki
+
+      # High: 6x burn rate for 6h = 10% budget consumed in 6 hours
+      # Action: Alert team, start investigation
+      - alert: SLOBurnRateHigh
+        expr: |
+          (
+            sum(rate(gateway_requests_total{status=~"5.."}[6h]))
+            /
+            sum(rate(gateway_requests_total[6h]))
+          ) > (6 * 0.001)
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SLO burn rate высокий (6x за 6h)"
+          description: "Error budget расходуется быстрее нормы. 10% budget consumed за 6 часов. Burn rate: {{ $value | printf \"%.2f\" }}x"
+          # runbook_url: TODO: Создать runbook в wiki
+
+      # Warning: 3x burn rate for 24h = 10% budget consumed in 24 hours
+      # Action: Notify, plan investigation
+      - alert: SLOBurnRateWarning
+        expr: |
+          (
+            sum(rate(gateway_requests_total{status=~"5.."}[24h]))
+            /
+            sum(rate(gateway_requests_total[24h]))
+          ) > (3 * 0.001)
+        for: 15m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "SLO burn rate повышен (3x за 24h)"
+          description: "Error budget расходуется быстрее желаемого. Burn rate: {{ $value | printf \"%.2f\" }}x"
+
+      # ============================================
+      # Latency SLO Alerts
+      # ============================================
+
+      # P95 latency exceeds 200ms target
+      - alert: LatencyP95High
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le)) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "P95 latency превышает SLO target (200ms)"
+          description: "P95 latency: {{ $value | printf \"%.3f\" }}s. Target: 0.2s"
+
+      # P99 latency exceeds 500ms target
+      - alert: LatencyP99Critical
+        expr: |
+          histogram_quantile(0.99, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "P99 latency превышает SLO target (500ms)"
+          description: "P99 latency: {{ $value | printf \"%.3f\" }}s. Target: 0.5s"
+
+      # ============================================
+      # Error Budget Alerts
+      # ============================================
+
+      # Error budget below 20%
+      - alert: ErrorBudgetLow
+        expr: |
+          (1 - (
+            (1 - sum(increase(gateway_requests_total{status!~"5.."}[30d])) / sum(increase(gateway_requests_total[30d])))
+            / 0.001
+          )) * 100 < 20
+        for: 30m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Error budget ниже 20%"
+          description: "Оставшийся error budget: {{ $value | printf \"%.1f\" }}%. Рекомендуется снизить риски до конца месяца."
+
+      # Error budget exhausted
+      - alert: ErrorBudgetExhausted
+        expr: |
+          (1 - (
+            (1 - sum(increase(gateway_requests_total{status!~"5.."}[30d])) / sum(increase(gateway_requests_total[30d])))
+            / 0.001
+          )) * 100 < 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Error budget исчерпан!"
+          description: "Месячный error budget исчерпан. SLO нарушен. Необходимо ввести feature freeze до восстановления."
+
+      # ============================================
+      # Gateway Health Alerts
+      # ============================================
+
+      # No metrics for 1 minute (gateway down)
+      - alert: GatewayDown
+        expr: |
+          absent(gateway_requests_total) or sum(rate(gateway_requests_total[1m])) == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Gateway не отвечает или нет трафика"
+          description: "Метрики gateway_requests_total отсутствуют более 1 минуты. Gateway может быть недоступен."
+
+      # High error rate (>5%)
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(gateway_requests_total{status=~"5.."}[5m])) / sum(rate(gateway_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Высокий error rate (>5%)"
+          description: "Error rate: {{ $value | printf \"%.2f\" }}%. Превышает порог 5%."
+
+      # ============================================
+      # Rate Limiting Alerts (Story 14.3)
+      # ============================================
+
+      # High rate of rate-limited requests
+      - alert: HighRateLimitDenials
+        expr: |
+          sum(rate(gateway_ratelimit_decisions_total{decision="denied"}[5m])) /
+          sum(rate(gateway_ratelimit_decisions_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Высокий процент rate-limited запросов (>10%)"
+          description: "{{ $value | printf \"%.1f\" }}% запросов отклоняются rate limiter'ом. Возможно, нужно пересмотреть лимиты."

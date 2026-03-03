@@ -2,6 +2,7 @@ package com.company.gateway.core.ratelimit
 
 import com.company.gateway.common.model.ConsumerRateLimit
 import com.company.gateway.common.model.RateLimit
+import com.company.gateway.core.metrics.RateLimitMetrics
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -36,6 +37,9 @@ class RateLimitServiceTest {
     @Mock
     private lateinit var localRateLimiter: LocalRateLimiter
 
+    @Mock
+    private lateinit var rateLimitMetrics: RateLimitMetrics
+
     private lateinit var service: RateLimitService
 
     private val testRouteId = UUID.randomUUID()
@@ -54,6 +58,7 @@ class RateLimitServiceTest {
         service = RateLimitService(
             tokenBucketScript = tokenBucketScript,
             localRateLimiter = localRateLimiter,
+            rateLimitMetrics = rateLimitMetrics,
             fallbackEnabled = true,
             redisKeyPrefix = "ratelimit"
         )
@@ -106,6 +111,7 @@ class RateLimitServiceTest {
         val serviceNoFallback = RateLimitService(
             tokenBucketScript = tokenBucketScript,
             localRateLimiter = localRateLimiter,
+            rateLimitMetrics = rateLimitMetrics,
             fallbackEnabled = false,
             redisKeyPrefix = "ratelimit"
         )

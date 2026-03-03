@@ -28,7 +28,8 @@ class RouteCacheManager(
     private val rateLimitRepository: RateLimitRepository,
     private val caffeineRouteCache: Cache<String, List<Route>>,
     private val caffeineRateLimitCache: Cache<UUID, RateLimit>,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val cacheMetrics: com.company.gateway.core.metrics.CacheMetrics
 ) {
     private val cachedRoutes = AtomicReference<List<Route>>(emptyList())
     private val cachedRateLimits = AtomicReference<Map<UUID, RateLimit>>(emptyMap())
@@ -51,8 +52,9 @@ class RouteCacheManager(
      * Обновляет кэш маршрутов и связанных rate limit политик.
      * Загружает все published маршруты, затем batch-загружает все уникальные rate limits.
      */
-    fun refreshCache(): Mono<Void> =
-        routeRepository.findByStatus(RouteStatus.PUBLISHED)
+    fun refreshCache(): Mono<Void> {
+        val startTime = System.currentTimeMillis()
+        return routeRepository.findByStatus(RouteStatus.PUBLISHED)
             .collectList()
             .flatMap { routes ->
                 // Собираем уникальные rateLimitId из маршрутов
@@ -81,6 +83,12 @@ class RouteCacheManager(
                     caffeineRateLimitCache.put(id, rateLimit)
                 }
 
+                // Записываем метрики (Story 14.3, AC4)
+                cacheMetrics.recordOperation("route", "refresh")
+                cacheMetrics.updateCacheSize("route", routes.size)
+                cacheMetrics.updateCacheSize("ratelimit", rateLimits.size)
+                cacheMetrics.recordRefreshDuration(java.time.Duration.ofMillis(System.currentTimeMillis() - startTime))
+
                 logger.info("Кэш обновлён: {} маршрутов, {} rate limit политик", routes.size, rateLimits.size)
 
                 // Уведомляем Spring Cloud Gateway о необходимости обновить маршруты
@@ -90,6 +98,7 @@ class RouteCacheManager(
             .doOnError { e ->
                 logger.error("Ошибка обновления кэша: {}", e.message, e)
             }
+    }
 
     /**
      * Возвращает список закэшированных маршрутов.
@@ -98,10 +107,17 @@ class RouteCacheManager(
         // Сначала пробуем in-memory AtomicReference (устанавливается при Redis событии или старте)
         val routes = cachedRoutes.get()
         if (routes.isNotEmpty()) {
+            cacheMetrics.recordOperation("route", "hit")
             return routes
         }
         // Fallback на Caffeine TTL кэш
-        return caffeineRouteCache.getIfPresent(ROUTE_CACHE_KEY) ?: emptyList()
+        val caffeineResult = caffeineRouteCache.getIfPresent(ROUTE_CACHE_KEY)
+        if (caffeineResult != null) {
+            cacheMetrics.recordOperation("route", "hit")
+            return caffeineResult
+        }
+        cacheMetrics.recordOperation("route", "miss")
+        return emptyList()
     }
 
     /**
@@ -111,10 +127,19 @@ class RouteCacheManager(
     fun getCachedRateLimit(id: UUID): RateLimit? {
         // Сначала пробуем in-memory AtomicReference
         val rateLimits = cachedRateLimits.get()
-        rateLimits[id]?.let { return it }
+        rateLimits[id]?.let {
+            cacheMetrics.recordOperation("ratelimit", "hit")
+            return it
+        }
 
         // Fallback на Caffeine кэш
-        return caffeineRateLimitCache.getIfPresent(id)
+        val caffeineResult = caffeineRateLimitCache.getIfPresent(id)
+        if (caffeineResult != null) {
+            cacheMetrics.recordOperation("ratelimit", "hit")
+            return caffeineResult
+        }
+        cacheMetrics.recordOperation("ratelimit", "miss")
+        return null
     }
 
     /**
@@ -186,8 +211,11 @@ class RouteCacheManager(
      * @param rateLimitId ID политики для загрузки
      * @return Mono<RateLimit> или empty Mono если политика не найдена
      */
-    fun loadRateLimitAsync(rateLimitId: UUID): Mono<RateLimit> =
-        rateLimitRepository.findById(rateLimitId)
+    fun loadRateLimitAsync(rateLimitId: UUID): Mono<RateLimit> {
+        // Записываем метрику cache miss (Story 14.3, AC4)
+        cacheMetrics.recordOperation("ratelimit", "miss")
+
+        return rateLimitRepository.findById(rateLimitId)
             .timeout(java.time.Duration.ofSeconds(5))
             .doOnNext { rateLimit ->
                 // Кэшируем загруженную политику для следующих запросов
@@ -197,6 +225,7 @@ class RouteCacheManager(
                 caffeineRateLimitCache.put(rateLimitId, rateLimit)
                 logger.info("Политика rate limit загружена асинхронно и закэширована: {}", rateLimitId)
             }
+    }
 
     /**
      * Синхронная загрузка политики — DEPRECATED, заменён на loadRateLimitAsync().
