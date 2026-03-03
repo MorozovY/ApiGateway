@@ -498,7 +498,7 @@ smoke-test-dev:
     - deploy-dev
 
 # Deploy to Test Environment (отдельный compose project)
-# Автоматически после smoke-test-dev
+# Manual trigger после smoke-test-dev
 deploy-test:
   stage: deploy
   extends: .docker-deploy
@@ -510,7 +510,8 @@ deploy-test:
     url: http://localhost:13000
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      when: on_success
+      when: manual
+      allow_failure: true
   script:
     - echo "=========================================="
     - echo "Deploying to TEST environment"
