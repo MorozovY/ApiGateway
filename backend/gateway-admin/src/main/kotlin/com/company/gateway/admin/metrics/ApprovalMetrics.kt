@@ -33,6 +33,15 @@ class ApprovalMetrics(
          * Измеряет время от submittedAt до approvedAt/rejectedAt.
          */
         const val METRIC_APPROVAL_DURATION = "gateway_approval_duration_seconds"
+
+        // Константы ролей для метрик (соответствуют Role enum в lowercase)
+        const val ROLE_DEVELOPER = "developer"
+        const val ROLE_SECURITY = "security"
+
+        // Константы действий
+        const val ACTION_SUBMIT = "submit"
+        const val ACTION_APPROVE = "approve"
+        const val ACTION_REJECT = "reject"
     }
 
     /**

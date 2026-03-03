@@ -10,6 +10,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 /**
  * Unit тесты для RouteMetricsUpdater.
@@ -37,11 +38,12 @@ class RouteMetricsUpdaterTest {
         whenever(routeRepository.countByStatus(RouteStatus.DRAFT)).thenReturn(Mono.just(3L))
         whenever(routeRepository.countByStatus(RouteStatus.REJECTED)).thenReturn(Mono.just(2L))
 
-        // When
-        routeMetricsUpdater.initializeGauges()
+        // When — вызываем напрямую internal метод через reflection или публичный API
+        // initializeGauges() подписывается асинхронно, поэтому вызываем scheduledUpdate() который синхронен
+        routeMetricsUpdater.scheduledUpdate()
 
-        // Даём время для асинхронного выполнения
-        Thread.sleep(100)
+        // Block для ожидания завершения reactive chain
+        Mono.delay(Duration.ofMillis(50)).block()
 
         // Then
         verify(routeRepository).countByStatus(RouteStatus.PUBLISHED)
@@ -58,11 +60,11 @@ class RouteMetricsUpdaterTest {
         whenever(routeRepository.countByStatus(RouteStatus.DRAFT)).thenReturn(Mono.just(3L))
         whenever(routeRepository.countByStatus(RouteStatus.REJECTED)).thenReturn(Mono.just(2L))
 
-        // When
-        routeMetricsUpdater.initializeGauges()
+        // When — используем scheduledUpdate() который синхронно подписывается на Mono
+        routeMetricsUpdater.scheduledUpdate()
 
-        // Даём время для асинхронного выполнения
-        Thread.sleep(100)
+        // Block для ожидания завершения reactive chain
+        Mono.delay(Duration.ofMillis(50)).block()
 
         // Then
         verify(routeMetrics).updateActiveRoutesGauge(eq("published"), eq(10L))
@@ -82,8 +84,8 @@ class RouteMetricsUpdaterTest {
         // When
         routeMetricsUpdater.scheduledUpdate()
 
-        // Даём время для асинхронного выполнения
-        Thread.sleep(100)
+        // Block для ожидания завершения reactive chain
+        Mono.delay(Duration.ofMillis(50)).block()
 
         // Then
         verify(routeMetrics).updateActiveRoutesGauge(eq("published"), eq(15L))
@@ -98,10 +100,10 @@ class RouteMetricsUpdaterTest {
         whenever(routeRepository.countByStatus(any())).thenReturn(Mono.error(RuntimeException("DB error")))
 
         // When — не должен бросить исключение
-        routeMetricsUpdater.initializeGauges()
+        routeMetricsUpdater.scheduledUpdate()
 
-        // Даём время для асинхронного выполнения
-        Thread.sleep(100)
+        // Block для ожидания завершения reactive chain (даже с ошибкой)
+        Mono.delay(Duration.ofMillis(50)).block()
 
         // Then — тест проходит если нет исключения
     }

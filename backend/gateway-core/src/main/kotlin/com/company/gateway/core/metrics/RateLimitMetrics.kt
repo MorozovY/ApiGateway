@@ -81,6 +81,10 @@ class RateLimitMetrics(
     /**
      * Атомарные счётчики для remaining tokens gauge.
      * Ключ: "routeId:consumerId"
+     *
+     * ВАЖНО: Gauges не очищаются при удалении маршрутов/consumers.
+     * При высоком turnover маршрутов может потребоваться периодическая очистка.
+     * TODO: Добавить scheduled cleanup для удалённых маршрутов (enhancement)
      */
     private val remainingTokensGauges = ConcurrentHashMap<String, AtomicLong>()
 

@@ -2,6 +2,11 @@ package com.company.gateway.admin.service
 
 import com.company.gateway.admin.dto.RouteResponse
 import com.company.gateway.admin.exception.AccessDeniedException
+import com.company.gateway.admin.metrics.ApprovalMetrics.Companion.ACTION_APPROVE
+import com.company.gateway.admin.metrics.ApprovalMetrics.Companion.ACTION_REJECT
+import com.company.gateway.admin.metrics.ApprovalMetrics.Companion.ACTION_SUBMIT
+import com.company.gateway.admin.metrics.ApprovalMetrics.Companion.ROLE_DEVELOPER
+import com.company.gateway.admin.metrics.ApprovalMetrics.Companion.ROLE_SECURITY
 import com.company.gateway.admin.exception.ConflictException
 import com.company.gateway.admin.exception.NotFoundException
 import com.company.gateway.admin.exception.ValidationException
@@ -138,7 +143,7 @@ class ApprovalService(
             .map { RouteResponse.from(it, null, username) }  // Story 8.4: текущий пользователь — создатель
             .doOnSuccess {
                 // Записываем метрику действия submit
-                approvalMetrics.recordAction("submit", "developer")
+                approvalMetrics.recordAction(ACTION_SUBMIT, ROLE_DEVELOPER)
                 logger.info(
                     "Маршрут отправлен на согласование: routeId={}, userId={}",
                     routeId, userId
@@ -307,7 +312,7 @@ class ApprovalService(
             }
             .doOnSuccess {
                 // Записываем метрику действия
-                approvalMetrics.recordAction("approve", "security")
+                approvalMetrics.recordAction(ACTION_APPROVE, ROLE_SECURITY)
                 logger.info(
                     "Маршрут одобрен: routeId={}, approvedBy={}",
                     routeId, userId
@@ -414,7 +419,7 @@ class ApprovalService(
             }
             .doOnSuccess {
                 // Записываем метрику действия
-                approvalMetrics.recordAction("reject", "security")
+                approvalMetrics.recordAction(ACTION_REJECT, ROLE_SECURITY)
                 logger.info(
                     "Маршрут отклонён: routeId={}, rejectedBy={}, reason={}",
                     routeId, userId, reason
