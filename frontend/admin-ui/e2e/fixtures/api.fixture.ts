@@ -1,5 +1,6 @@
 // E2E API Fixture — Mock API responses для изолированных тестов
 // Story 13.15: E2E тесты с чистого листа, CI-first подход
+// Story 14.6: Добавлены consumer API mocks и error simulation
 // Использует Playwright route interception вместо MSW
 
 import { type Page, type Route as PlaywrightRoute } from '@playwright/test'
@@ -177,6 +178,57 @@ export const mockAuditLogs = [
   },
 ]
 
+/**
+ * Mock consumers для тестов (Story 14.6, Task 2.1)
+ * Consumer — внешний клиент API с Client Credentials authentication
+ */
+export const mockConsumers = [
+  {
+    clientId: 'partner-service-001',
+    description: 'Partner Service Integration',
+    enabled: true,
+    createdTimestamp: 1705312800000, // 2024-01-15
+    rateLimit: {
+      id: 'crl-001',
+      consumerId: 'partner-service-001',
+      requestsPerSecond: 100,
+      burstSize: 20,
+      createdAt: '2026-01-15T10:00:00Z',
+      updatedAt: '2026-01-15T10:00:00Z',
+      createdBy: { id: 'test-admin-id-12345', username: 'admin' },
+    },
+  },
+  {
+    clientId: 'mobile-app-backend',
+    description: 'Mobile App Backend Service',
+    enabled: true,
+    createdTimestamp: 1705399200000, // 2024-01-16
+    rateLimit: null,
+  },
+  {
+    clientId: 'legacy-integration',
+    description: 'Legacy System Integration (deprecated)',
+    enabled: false,
+    createdTimestamp: 1704967200000, // 2024-01-11
+    rateLimit: {
+      id: 'crl-002',
+      consumerId: 'legacy-integration',
+      requestsPerSecond: 50,
+      burstSize: 10,
+      createdAt: '2026-01-11T10:00:00Z',
+      updatedAt: '2026-01-20T15:00:00Z',
+      createdBy: { id: 'test-admin-id-12345', username: 'admin' },
+    },
+  },
+  {
+    clientId: 'analytics-collector',
+    description: 'Analytics Data Collector',
+    enabled: true,
+    createdTimestamp: 1705572000000, // 2024-01-18
+    rateLimit: null,
+  },
+]
+
 // ========================================
 // API HANDLERS
 // ========================================
@@ -184,6 +236,10 @@ export const mockAuditLogs = [
 // Изменяемое состояние для тестов (создание/удаление)
 let routesState = [...mockRoutes]
 let rateLimitsState = [...mockRateLimits]
+let consumersState = [...mockConsumers]
+
+// Состояние симуляции ошибок (Story 14.6, Task 3)
+let errorSimulation: { statusCode: number; endpoint?: string } | null = null
 
 /**
  * Сбрасывает состояние mock данных в исходное
@@ -191,6 +247,8 @@ let rateLimitsState = [...mockRateLimits]
 export function resetMockState(): void {
   routesState = [...mockRoutes]
   rateLimitsState = [...mockRateLimits]
+  consumersState = [...mockConsumers]
+  errorSimulation = null
 }
 
 /**
@@ -204,6 +262,25 @@ async function handleApiRequest(
   const url = new URL(request.url())
   const method = request.method()
   const pathname = url.pathname
+
+  // ========================================
+  // ERROR SIMULATION (Story 14.6, Task 3)
+  // ========================================
+
+  // Проверяем, нужно ли симулировать ошибку
+  if (errorSimulation) {
+    const { statusCode, endpoint } = errorSimulation
+
+    // Если endpoint задан — проверяем совпадение; иначе применяем ко всем
+    if (!endpoint || pathname.includes(endpoint)) {
+      const errorBody = getErrorBody(statusCode)
+      return route.fulfill({
+        status: statusCode,
+        contentType: 'application/json',
+        body: JSON.stringify(errorBody),
+      })
+    }
+  }
 
   // Routes check-path API (для проверки уникальности path)
   if (pathname === '/api/v1/routes/check-path') {
@@ -415,6 +492,149 @@ async function handleApiRequest(
     }
   }
 
+  // ========================================
+  // CONSUMERS API (Story 14.6, Task 2.2-2.7)
+  // ========================================
+
+  // Consumers list: GET /api/v1/consumers
+  if (pathname === '/api/v1/consumers' && method === 'GET') {
+    const search = url.searchParams.get('search')
+    let filtered = consumersState
+
+    // Task 2.2: search/filter support
+    if (search) {
+      const s = search.toLowerCase()
+      filtered = filtered.filter((c) => c.clientId.toLowerCase().includes(s))
+    }
+
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: filtered,
+        total: filtered.length,
+        offset: 0,
+        limit: 100,
+      }),
+    })
+  }
+
+  // Task 2.3: Create consumer: POST /api/v1/consumers
+  if (pathname === '/api/v1/consumers' && method === 'POST') {
+    const body = JSON.parse(request.postData() || '{}')
+    const newConsumer = {
+      clientId: body.clientId,
+      description: body.description || null,
+      enabled: true,
+      createdTimestamp: Date.now(),
+      rateLimit: null,
+    }
+    consumersState.push(newConsumer)
+
+    // Response includes secret (показывается только один раз)
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        clientId: newConsumer.clientId,
+        clientSecret: 'mock-secret-' + Date.now(),
+        description: newConsumer.description,
+      }),
+    })
+  }
+
+  // Task 2.4: Rotate secret: POST /api/v1/consumers/:id/rotate-secret
+  const rotateSecretMatch = pathname.match(/^\/api\/v1\/consumers\/([^/]+)\/rotate-secret$/)
+  if (rotateSecretMatch && method === 'POST') {
+    const clientId = rotateSecretMatch[1]
+    const found = consumersState.find((c) => c.clientId === clientId)
+
+    if (!found) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Consumer not found' }),
+      })
+    }
+
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        clientId,
+        clientSecret: 'rotated-secret-' + Date.now(),
+      }),
+    })
+  }
+
+  // Task 2.5: Disable consumer: POST /api/v1/consumers/:id/disable
+  const disableMatch = pathname.match(/^\/api\/v1\/consumers\/([^/]+)\/disable$/)
+  if (disableMatch && method === 'POST') {
+    const clientId = disableMatch[1]
+    const found = consumersState.find((c) => c.clientId === clientId)
+
+    if (!found) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Consumer not found' }),
+      })
+    }
+
+    found.enabled = false
+    return route.fulfill({ status: 204 })
+  }
+
+  // Task 2.6: Enable consumer: POST /api/v1/consumers/:id/enable
+  const enableMatch = pathname.match(/^\/api\/v1\/consumers\/([^/]+)\/enable$/)
+  if (enableMatch && method === 'POST') {
+    const clientId = enableMatch[1]
+    const found = consumersState.find((c) => c.clientId === clientId)
+
+    if (!found) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Consumer not found' }),
+      })
+    }
+
+    found.enabled = true
+    return route.fulfill({ status: 204 })
+  }
+
+  // Task 2.7: Set rate limit: PUT /api/v1/consumers/:id/rate-limit
+  const rateLimitSetMatch = pathname.match(/^\/api\/v1\/consumers\/([^/]+)\/rate-limit$/)
+  if (rateLimitSetMatch && method === 'PUT') {
+    const clientId = rateLimitSetMatch[1]
+    const found = consumersState.find((c) => c.clientId === clientId)
+
+    if (!found) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Consumer not found' }),
+      })
+    }
+
+    const body = JSON.parse(request.postData() || '{}')
+    found.rateLimit = {
+      id: `crl-new-${Date.now()}`,
+      consumerId: clientId,
+      requestsPerSecond: body.requestsPerSecond,
+      burstSize: body.burstSize,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: { id: 'test-admin-id-12345', username: 'admin' },
+    }
+
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(found.rateLimit),
+    })
+  }
+
   // Audit API
   if (pathname === '/api/v1/audit') {
     return route.fulfill({
@@ -454,4 +674,94 @@ export function addMockRoute(route: typeof mockRoutes[0]): void {
  */
 export function getMockRoutes(): typeof mockRoutes {
   return [...routesState]
+}
+
+// ========================================
+// ERROR SIMULATION (Story 14.6, Task 3)
+// ========================================
+
+/**
+ * Генерирует тело ошибки для указанного статуса (RFC 7807)
+ */
+function getErrorBody(statusCode: number): object {
+  switch (statusCode) {
+    case 401:
+      return {
+        type: 'about:blank',
+        title: 'Unauthorized',
+        status: 401,
+        detail: 'Authentication required',
+      }
+    case 403:
+      return {
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Access denied. You do not have permission to perform this action.',
+      }
+    case 500:
+      return {
+        type: 'about:blank',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: 'An unexpected error occurred. Please try again later.',
+      }
+    default:
+      return {
+        type: 'about:blank',
+        title: 'Error',
+        status: statusCode,
+        detail: 'An error occurred',
+      }
+  }
+}
+
+/**
+ * Устанавливает симуляцию API ошибки (Story 14.6, Task 3.1)
+ * После вызова все API запросы будут возвращать указанный статус.
+ *
+ * @param page Playwright page
+ * @param statusCode HTTP статус код (401, 403, 500, etc.)
+ * @param endpoint опционально — только для указанного endpoint
+ */
+export async function simulateApiError(
+  page: Page,
+  statusCode: number,
+  endpoint?: string
+): Promise<void> {
+  errorSimulation = { statusCode, endpoint }
+}
+
+/**
+ * Симулирует network error (Story 14.6, Task 3.2)
+ * После вызова все API запросы будут abort'ить соединение.
+ *
+ * @param page Playwright page
+ * @param endpoint опционально — только для указанного endpoint
+ */
+export async function simulateNetworkError(
+  page: Page,
+  endpoint?: string
+): Promise<void> {
+  // Добавляем route который abort'ит запросы
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    if (!endpoint || pathname.includes(endpoint)) {
+      await route.abort('connectionfailed')
+    } else {
+      await route.continue()
+    }
+  })
+}
+
+/**
+ * Очищает симуляцию ошибок (Story 14.6, Task 3.3)
+ *
+ * @param page Playwright page
+ */
+export async function clearErrorSimulation(page: Page): Promise<void> {
+  errorSimulation = null
+  // Переинициализируем mock API без ошибок
+  await page.unrouteAll({ behavior: 'wait' })
+  await setupMockApi(page)
 }
