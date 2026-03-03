@@ -78,7 +78,8 @@ services:
       - "traefik.http.routers.gateway-admin-api${ROUTER_SUFFIX}.tls.certresolver=letsencrypt"
       - "traefik.http.routers.gateway-admin-api${ROUTER_SUFFIX}.service=gateway-admin${ROUTER_SUFFIX}"
       # --- Swagger UI Router ---
-      - "traefik.http.routers.gateway-admin-swagger${ROUTER_SUFFIX}.rule=Host(\`${TRAEFIK_HOST}\`) && (PathPrefix(\`/swagger-ui\`) || PathPrefix(\`/v3/api-docs\`) || PathPrefix(\`/webjars\`))"
+      # Story 15.1: Path('/swagger-ui.html') + PathPrefix('/api-docs') для OpenAPI config
+      - "traefik.http.routers.gateway-admin-swagger${ROUTER_SUFFIX}.rule=Host(\`${TRAEFIK_HOST}\`) && (Path(\`/swagger-ui.html\`) || PathPrefix(\`/swagger-ui\`) || PathPrefix(\`/v3/api-docs\`) || PathPrefix(\`/api-docs\`) || PathPrefix(\`/webjars\`))"
       - "traefik.http.routers.gateway-admin-swagger${ROUTER_SUFFIX}.entrypoints=websecure"
       - "traefik.http.routers.gateway-admin-swagger${ROUTER_SUFFIX}.tls.certresolver=letsencrypt"
       - "traefik.http.routers.gateway-admin-swagger${ROUTER_SUFFIX}.service=gateway-admin${ROUTER_SUFFIX}"

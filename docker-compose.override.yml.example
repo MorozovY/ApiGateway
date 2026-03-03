@@ -48,8 +48,8 @@ services:
       - "traefik.http.routers.gateway-admin-api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.gateway-admin-api.service=gateway-admin"
       # --- Swagger UI Router ---
-      # Story 15.1: Добавлен Path('/swagger-ui.html') для точного матча (PathPrefix не матчит .html)
-      - "traefik.http.routers.gateway-admin-swagger.rule=Host(`gateway.ymorozov.ru`) && (Path(`/swagger-ui.html`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`) || PathPrefix(`/webjars`))"
+      # Story 15.1: Path('/swagger-ui.html') + PathPrefix('/api-docs') для OpenAPI config
+      - "traefik.http.routers.gateway-admin-swagger.rule=Host(`gateway.ymorozov.ru`) && (Path(`/swagger-ui.html`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`) || PathPrefix(`/api-docs`) || PathPrefix(`/webjars`))"
       - "traefik.http.routers.gateway-admin-swagger.entrypoints=websecure"
       - "traefik.http.routers.gateway-admin-swagger.tls.certresolver=letsencrypt"
       - "traefik.http.routers.gateway-admin-swagger.service=gateway-admin"
