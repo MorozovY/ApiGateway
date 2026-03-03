@@ -137,6 +137,63 @@ git push origin master
 
 ---
 
+## Flyway Migration Convention (Story 14.2)
+
+### Формат именования
+
+| Аспект | Правило | Пример |
+|--------|---------|--------|
+| Формат | `V{N}__{description}.sql` | `V14__add_feature.sql` |
+| Нумерация | Последовательно от V14+ | V14, V15, V16 |
+| Subversions | **ЗАПРЕЩЕНЫ** | ~~V14_1__fix.sql~~ |
+| Пропуски | Допустимы, но избегать | OK: V14 → V16 (если V15 удалён) |
+| Откат | Отдельный файл | `V15__rollback_feature.sql` |
+
+### Текущее состояние миграций
+
+```
+V1__create_routes.sql
+V2__add_updated_at_trigger.sql
+V3__create_users.sql
+V3_1__seed_admin_user.sql          ← legacy subversion
+V4__create_audit_logs.sql
+V5__add_description_to_routes.sql
+V5_1__fix_audit_logs_fk_cascade.sql  ← legacy subversion
+V6__add_approval_fields.sql
+V7__create_rate_limits.sql
+V8__add_rate_limit_to_routes.sql
+V9__extend_audit_logs.sql
+V10__add_route_auth_fields.sql
+                                    ← V11 пропущен (minor)
+V12__add_consumer_rate_limits.sql
+V13__fix_rate_limits_fk_cascade.sql
+```
+
+### Правила
+
+1. **НЕ переименовывать** существующие миграции — `flyway_schema_history` хранит checksums
+2. **Новые миграции** начинаются с V14 и далее последовательно
+3. **Subversions (V14_1)** запрещены в новых миграциях
+4. **`out-of-order: false`** — строгий порядок выполнения (Story 14.1)
+
+### Создание новой миграции
+
+```bash
+# Создать файл миграции
+touch backend/gateway-admin/src/main/resources/db/migration/V14__add_new_feature.sql
+
+# Имя файла должно соответствовать шаблону:
+# V{НОМЕР}__{описание_на_английском}.sql
+```
+
+### Важно
+
+- Миграции **идемпотентны** — повторный запуск не должен ломать схему
+- `flyway_schema_history` — автоматически создаётся Flyway
+- При ошибке миграции — исправить и перезапустить (не менять номер!)
+
+---
+
 ## Secrets Management (Vault)
 
 **Story 13.4:** Secrets хранятся в HashiCorp Vault (централизованная инфраструктура).
@@ -477,4 +534,4 @@ docker-compose up -d     # OK — запуск/пересоздание конт
 
 ---
 
-*Последнее обновление: 2026-03-01 (Story 13.11 — Monitoring migration to centralized infra)*
+*Последнее обновление: 2026-03-02 (Story 14.2 — SAST Blocking Mode & Migration Convention)*

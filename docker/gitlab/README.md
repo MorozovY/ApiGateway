@@ -1052,25 +1052,34 @@ GitLab → CI/CD → Jobs → [security job] → Download artifacts
 }
 ```
 
-### Security Policy
+### Security Policy (Story 14.2)
 
 **Текущая настройка:**
-- `allow_failure: true` — security jobs не блокируют pipeline
-- Critical/High уязвимости отображаются в logs как warnings
-- Blocking mode можно включить изменив `allow_failure: false`
+- `allow_failure: false` — semgrep-sast **блокирует pipeline** при Critical/High уязвимостях
+- SAST запускается только на `master` branch и Merge Requests
+- Исключены: тесты, конфиги, docker, scripts, markdown файлы
 
-**Для включения blocking mode:**
+**Конфигурация в .gitlab-ci.yml:**
 ```yaml
-# В .gitlab-ci.yml добавить после include:
+# SAST Blocking Mode
 semgrep-sast:
   allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+    - if: $CI_MERGE_REQUEST_ID
+      when: always
+    - when: never
 
-spotbugs-sast:
-  allow_failure: false
-
-gemnasium-dependency_scanning:
-  allow_failure: false
+# Исключённые пути (уменьшение false positives)
+variables:
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, node_modules, dist, build, backend/**/build, **/*Test.kt, **/*Tests.kt, **/test/**, **/tests/**, docker/**, scripts/**, *.md, *.yml, *.yaml"
 ```
+
+**Rollback при блокировке легитимного кода:**
+1. Временно изменить `allow_failure: true`
+2. Добавить false positive в исключения
+3. Вернуть `allow_failure: false`
 
 ### Vulnerability Allowlist (опционально)
 

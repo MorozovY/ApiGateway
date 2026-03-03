@@ -19,6 +19,8 @@ spring:
     password: ${POSTGRES_PASSWORD:gateway}
     locations: classpath:db/migration
     baseline-on-migrate: true
+    # Story 14.1/14.2: Строгий порядок миграций (V1, V2, V3, V3_1, V4...)
+    # НЕ менять на true — subversions (V3_1, V5_1) должны выполняться в правильном порядке
     out-of-order: false
   data:
     redis:
