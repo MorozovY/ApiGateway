@@ -117,7 +117,7 @@ development_status:
   # Source: Phase 4 planning session 2026-03-03
   epic-15: in-progress
   15-1-fix-swagger-link-login-page: done  # SP:2 — Bug: Traefik rule не матчит /swagger-ui.html
-  15-2-fix-guide-button: in-progress                   # SP:2 — Bug: кнопка "Руководство" не работает
+  15-2-fix-guide-button: done                          # SP:2 — Bug: кнопка "Руководство" не работает
   15-3-login-page-improvements: backlog            # SP:3 — UX: порядок логинов + сгенерированные пароли
   15-4-tab-info-blocks: backlog                    # SP:5 — UX: инфо-блоки на 10 вкладках
   epic-15-retrospective: optional

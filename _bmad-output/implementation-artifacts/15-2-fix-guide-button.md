@@ -1,6 +1,6 @@
 # Story 15.2: Починить кнопку "Руководство" внутри системы
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -62,10 +62,10 @@ Vite автоматически включает содержимое `public/` 
   - [x] 1.2 Скопировать `docs/quick-start-guide.html` в public/docs/
   - [x] 1.3 Удалить `docs/quick-start-guide.html` из корня (дубликат)
 
-- [ ] Task 2: Проверить через CI/CD (AC: #1, #2)
-  - [ ] 2.1 Push изменений
-  - [ ] 2.2 Дождаться deploy
-  - [ ] 2.3 Проверить что https://gateway.ymorozov.ru/docs/quick-start-guide.html отдаёт документацию
+- [x] Task 2: Проверить через CI/CD (AC: #1, #2)
+  - [x] 2.1 Push изменений
+  - [x] 2.2 Дождаться deploy
+  - [x] 2.3 Проверить что https://gateway.ymorozov.ru/docs/quick-start-guide.html отдаёт документацию
 
 ## Dev Notes
 
@@ -89,8 +89,16 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+1. **Task 1 (перенос документации):** Файл `quick-start-guide.html` перемещён из `docs/` в `frontend/admin-ui/public/docs/`. Vite автоматически копирует содержимое `public/` в `dist/` при build.
+
+2. **Task 2 (CI/CD верификация):**
+   - Коммит `c849d2e` запушен в gitlab/master
+   - Docker job `docker-admin-ui` успешно собрал образ
+   - Backend docker jobs failed из-за DNS timeout (не влияет на frontend)
+   - Вручную обновлён контейнер `admin-ui-dev` на новый образ
+   - URL https://gateway.ymorozov.ru/docs/quick-start-guide.html проверен и работает
 
 ### File List
 
-_To be filled by dev agent_
+- `frontend/admin-ui/public/docs/quick-start-guide.html` (added)
+- `docs/quick-start-guide.html` (deleted)
