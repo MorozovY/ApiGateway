@@ -1,6 +1,6 @@
 # Story 15.1: Починить переход на Swagger со страницы входа
 
-Status: review
+Status: done
 
 ## Story
 
@@ -151,9 +151,10 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### File List
 
-- `docker-compose.override.yml` — добавлен `Path('/swagger-ui.html')` в Traefik Swagger router rule
+- `docker/gitlab/generate-compose.sh` — добавлены `Path('/swagger-ui.html')` и `PathPrefix('/api-docs')` в Traefik Swagger router
+- `docker-compose.override.yml.example` — то же исправление для локальной разработки
 - `frontend/admin-ui/e2e/tests/01-login.spec.ts` — добавлен E2E тест для Swagger link
 
 ### Change Log
 
-- 2026-03-03: Story 15.1 — исправлен Traefik routing для `/swagger-ui.html`, добавлен E2E тест
+- 2026-03-03: Story 15.1 — исправлен Traefik routing для `/swagger-ui.html` и `/api-docs/*`, добавлен E2E тест
