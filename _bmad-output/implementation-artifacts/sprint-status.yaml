@@ -106,7 +106,7 @@ development_status:
   # Updated: Epic 13 Retrospective 2026-03-02 — added Story 14-6
   epic-14: in-progress  # Total: ~28 SP
   14-1-fix-reactive-pipeline-blocking-calls: done  # SP:3 — P0: async DB calls, Flyway config
-  14-2-sast-blocking-mode-migration-cleanup: in-progress  # SP:5 — P0: SAST blocking, migration renumbering
+  14-2-sast-blocking-mode-migration-cleanup: review  # SP:5 — P0: SAST blocking, migration renumbering
   14-3-custom-metrics-sli-slo-definition: ready-for-dev     # SP:5 — P1: observability, SLO dashboard
   14-4-frontend-code-splitting-performance: ready-for-dev   # SP:5 — P1: React.lazy, bundle optimization
   14-5-distributed-tracing-integration: backlog             # SP:5 — P2: Jaeger, OpenTelemetry
