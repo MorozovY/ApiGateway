@@ -9,6 +9,7 @@ import { QuickStats } from './QuickStats'
 import { RecentActivity } from './RecentActivity'
 import { AdminStats } from './AdminStats'
 import { PendingApprovals } from './PendingApprovals'
+import { QuickActions } from './QuickActions'
 
 const { Title, Text } = Typography
 
@@ -67,6 +68,9 @@ export function DashboardPage() {
 
       {/* Дополнительная статистика для Admin (AC3) */}
       <AdminStats />
+
+      {/* Быстрые действия (AC1, AC2, AC3) */}
+      <QuickActions />
 
       {/* Последние действия (AC1, AC2) */}
       <RecentActivity limit={5} />

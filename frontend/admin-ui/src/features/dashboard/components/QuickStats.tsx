@@ -51,7 +51,7 @@ export function QuickStats() {
     return (
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {[1, 2, 3, 4].map((i) => (
-          <Col xs={12} sm={12} md={6} key={i}>
+          <Col xs={24} sm={12} md={6} key={i}>
             <Card>
               <div
                 style={{
@@ -96,7 +96,7 @@ export function QuickStats() {
   return (
     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
       {/* Черновики */}
-      <Col xs={12} sm={12} md={6}>
+      <Col xs={24} sm={12} md={6}>
         <Card
           hoverable
           onClick={() => handleCardClick('draft')}
@@ -112,7 +112,7 @@ export function QuickStats() {
       </Col>
 
       {/* На согласовании */}
-      <Col xs={12} sm={12} md={6}>
+      <Col xs={24} sm={12} md={6}>
         <Card
           hoverable
           onClick={() => handleCardClick('pending')}
@@ -128,7 +128,7 @@ export function QuickStats() {
       </Col>
 
       {/* Опубликованы */}
-      <Col xs={12} sm={12} md={6}>
+      <Col xs={24} sm={12} md={6}>
         <Card
           hoverable
           onClick={() => handleCardClick('published')}
@@ -144,7 +144,7 @@ export function QuickStats() {
       </Col>
 
       {/* Отклонены */}
-      <Col xs={12} sm={12} md={6}>
+      <Col xs={24} sm={12} md={6}>
         <Card
           hoverable
           onClick={() => handleCardClick('rejected')}

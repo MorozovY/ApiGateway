@@ -4,6 +4,7 @@ export { QuickStats } from './components/QuickStats'
 export { RecentActivity } from './components/RecentActivity'
 export { AdminStats } from './components/AdminStats'
 export { PendingApprovals } from './components/PendingApprovals'
+export { QuickActions } from './components/QuickActions'
 
 // Hooks
 export { useDashboardSummary, useRecentActivity } from './hooks/useDashboard'
