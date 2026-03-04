@@ -15,9 +15,10 @@ vi.mock('@shared/providers', () => ({
   useThemeContext: () => ({ isDark: false }),
 }))
 
-// Мок для ThemeSwitcher
+// Мок для shared components (ThemeSwitcher, PageBreadcrumbs)
 vi.mock('@shared/components', () => ({
   ThemeSwitcher: () => <button data-testid="theme-switcher">Theme</button>,
+  PageBreadcrumbs: () => null, // Story 16.6 — тестируется отдельно
 }))
 
 // Мок для ChangePasswordModal

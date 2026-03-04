@@ -1,4 +1,5 @@
-// MainLayout с header и sidebar (Story 9.4 — добавлен dropdown с Change Password, Story 10.7 — Quick Start Guide)
+// MainLayout с header, sidebar и breadcrumbs
+// (Story 9.4 — dropdown с Change Password, Story 10.7 — Quick Start Guide, Story 16.6 — breadcrumbs)
 import { Layout, Button, Space, Typography, Dropdown, Tooltip } from 'antd'
 import {
   LogoutOutlined,
@@ -14,7 +15,7 @@ import { useState } from 'react'
 import type { MenuProps } from 'antd'
 import Sidebar from './Sidebar'
 import { useAuth, ChangePasswordModal } from '@features/auth'
-import { ThemeSwitcher } from '@shared/components'
+import { ThemeSwitcher, PageBreadcrumbs } from '@shared/components'
 import { useThemeContext } from '@shared/providers'
 
 /**
@@ -123,6 +124,8 @@ function MainLayout() {
             </Dropdown>
           </Space>
         </Header>
+        {/* Story 16.6: Breadcrumbs между Header и Content */}
+        <PageBreadcrumbs />
         <Content style={{ margin: '24px', padding: '24px', background: contentBg }}>
           <Outlet />
         </Content>

@@ -1,2 +1,2 @@
 // Экспорт shared providers
-export { ThemeProvider, useThemeContext } from './ThemeProvider'
+export { ThemeProvider, useThemeContext, ThemeContext } from './ThemeProvider'

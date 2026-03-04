@@ -2,7 +2,8 @@
 import { createContext, useContext, ReactNode } from 'react'
 import { useTheme, UseThemeResult } from '../hooks/useTheme'
 
-const ThemeContext = createContext<UseThemeResult | null>(null)
+// Экспортируем для тестов
+export const ThemeContext = createContext<UseThemeResult | null>(null)
 
 interface ThemeProviderProps {
   children: ReactNode
