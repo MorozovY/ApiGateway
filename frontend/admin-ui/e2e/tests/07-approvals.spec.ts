@@ -116,7 +116,7 @@ test.describe('Approvals', () => {
     await row.getByRole('button', { name: /одобрить/i }).click()
 
     // Пустое состояние отображается
-    await expect(page.getByText(/нет маршрутов на согласовании/i)).toBeVisible()
+    await expect(page.getByText(/нет маршрутов на согласование/i)).toBeVisible()
   })
 
   test('кнопка Обновить перезагружает список', async ({ page }) => {
