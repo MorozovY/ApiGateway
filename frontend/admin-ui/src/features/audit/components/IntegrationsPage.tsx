@@ -1,4 +1,4 @@
-// Страница Integrations Report (Story 7.6, AC3, AC4, AC5, AC6, AC9)
+// Страница Integrations Report (Story 7.6, AC3, AC4, AC5, AC6, AC9; Story 15.4 — добавлен PageInfoBlock)
 import { useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Card, Button, Space, Typography, App } from 'antd'
@@ -8,6 +8,8 @@ import { isDeveloper } from '@shared/utils'
 import { useUpstreams } from '../hooks/useUpstreams'
 import { UpstreamsTable } from './UpstreamsTable'
 import { exportUpstreamReport } from '../utils/exportUpstreamReport'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 
 const { Title } = Typography
 
@@ -84,6 +86,9 @@ export function IntegrationsPage() {
           Обзор внешних сервисов (upstream) и маршрутов, которые к ним обращаются
         </Typography.Text>
       </div>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="integrations" {...PAGE_DESCRIPTIONS.integrations} />
 
       {/* Таблица upstream сервисов */}
       <UpstreamsTable />

@@ -1,10 +1,12 @@
-// Страница управления consumers (Story 12.9, AC1)
+// Страница управления consumers (Story 12.9, AC1; Story 15.4 — добавлен PageInfoBlock)
 import { useState } from 'react'
 import { Button, Input, Typography } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import ConsumersTable from './ConsumersTable'
 import CreateConsumerModal from './CreateConsumerModal'
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 
 const { Title } = Typography
 
@@ -41,6 +43,9 @@ function ConsumersPage() {
           Create Consumer
         </Button>
       </div>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="consumers" {...PAGE_DESCRIPTIONS.consumers} />
 
       {/* Поиск по client ID (AC9) */}
       <div style={{ marginBottom: 16 }}>

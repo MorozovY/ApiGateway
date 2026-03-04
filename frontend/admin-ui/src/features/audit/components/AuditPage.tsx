@@ -1,4 +1,4 @@
-// Страница аудит-логов (Story 7.5, AC1-AC7)
+// Страница аудит-логов (Story 7.5, AC1-AC7; Story 15.4 — добавлен PageInfoBlock)
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, Navigate } from 'react-router-dom'
 import { Card, Typography, Button, Space, Empty, Alert, App } from 'antd'
@@ -11,6 +11,8 @@ import { AuditFilterBar } from './AuditFilterBar'
 import { AuditLogsTable } from './AuditLogsTable'
 import { downloadAuditCsv } from '../utils/exportCsv'
 import { DEFAULT_PAGE_SIZE, AUDIT_ACTION_LABELS } from '../config/auditConfig'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import type { AuditFilter, AuditAction, AuditEntityType } from '../types/audit.types'
 
 /**
@@ -201,6 +203,9 @@ export function AuditPage() {
             Экспорт CSV
           </Button>
         </div>
+
+        {/* Инфо-блок (Story 15.4) */}
+        <PageInfoBlock pageKey="audit" {...PAGE_DESCRIPTIONS.audit} />
 
         {/* Панель фильтров (AC2) */}
         <AuditFilterBar

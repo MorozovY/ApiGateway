@@ -1,4 +1,4 @@
-// Страница детальных метрик (Story 6.5, AC5, Story 8.1)
+// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock)
 import { useState } from 'react'
 import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
 import { LinkOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -8,6 +8,8 @@ import { useMetricsSummary, useTopRoutes } from '../hooks/useMetrics'
 import TopRoutesTable from './TopRoutesTable'
 import HealthCheckSection from './HealthCheckSection'
 import { GRAFANA_DASHBOARD_URL } from '../config/metricsConfig'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import type { MetricsPeriod } from '../types/metrics.types'
 
 const { Text } = Typography
@@ -99,6 +101,9 @@ export function MetricsPage() {
     <div data-testid="metrics-page">
       {/* Story 8.1: Health Check секция перед Summary Cards */}
       <HealthCheckSection />
+
+      {/* Инфо-блок под HealthCheckSection (Story 15.4) */}
+      <PageInfoBlock pageKey="metrics" {...PAGE_DESCRIPTIONS.metrics} />
 
       {/* Header с Time Range Selector и Grafana кнопкой */}
       <Card style={{ marginBottom: 16 }}>

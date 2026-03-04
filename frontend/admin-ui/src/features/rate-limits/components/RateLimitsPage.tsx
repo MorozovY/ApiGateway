@@ -1,4 +1,4 @@
-// Страница управления Rate Limit политиками (Story 5.4, AC1-AC8)
+// Страница управления Rate Limit политиками (Story 5.4, AC1-AC8; Story 15.4 — добавлен PageInfoBlock)
 import { useState } from 'react'
 import { Button, Typography, App } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
@@ -8,6 +8,8 @@ import RateLimitRoutesModal from './RateLimitRoutesModal'
 import { useDeleteRateLimit } from '../hooks/useRateLimits'
 import { useAuth } from '@features/auth'
 import { isAdmin as isAdminFn } from '@shared/utils'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import type { RateLimit } from '../types/rateLimit.types'
 
 const { Title } = Typography
@@ -91,6 +93,9 @@ function RateLimitsPage() {
           </Button>
         )}
       </div>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="rateLimits" {...PAGE_DESCRIPTIONS.rateLimits} />
 
       <RateLimitsTable
         onEdit={isAdmin ? handleEdit : undefined}

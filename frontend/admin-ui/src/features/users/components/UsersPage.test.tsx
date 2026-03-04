@@ -64,7 +64,8 @@ describe('UsersPage', () => {
       },
     })
 
-    expect(screen.getByText('Users')).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — находим по role heading
+    expect(screen.getByRole('heading', { name: 'Users', level: 3 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add user/i })).toBeInTheDocument()
   })
 

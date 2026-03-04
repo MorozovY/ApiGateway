@@ -69,7 +69,8 @@ describe('RateLimitsPage', () => {
       },
     })
 
-    expect(screen.getByText('Rate Limit Policies')).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — находим по role heading
+    expect(screen.getByRole('heading', { name: 'Rate Limit Policies', level: 3 })).toBeInTheDocument()
   })
 
   it('показывает кнопку "New Policy" для admin (AC8)', async () => {

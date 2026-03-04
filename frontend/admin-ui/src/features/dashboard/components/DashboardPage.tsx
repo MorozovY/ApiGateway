@@ -1,6 +1,9 @@
+// Страница Dashboard (Story 15.4 — добавлен PageInfoBlock)
 import { Button, Card, Typography, Space } from 'antd'
 import { LogoutOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 
 const { Title, Text } = Typography
 
@@ -25,6 +28,9 @@ export function DashboardPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="dashboard" {...PAGE_DESCRIPTIONS.dashboard} />
+
       {/* Информация о пользователе */}
       <Card>
         <Title level={2}>Dashboard</Title>

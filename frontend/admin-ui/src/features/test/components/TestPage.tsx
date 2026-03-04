@@ -1,10 +1,12 @@
-// Главная страница Test с генератором нагрузки (Story 8.9)
+// Главная страница Test с генератором нагрузки (Story 8.9; Story 15.4 — добавлен PageInfoBlock)
 import { Space, Typography } from 'antd'
 import { ExperimentOutlined } from '@ant-design/icons'
 import { useLoadGenerator } from '../hooks/useLoadGenerator'
 import { LoadGeneratorForm } from './LoadGeneratorForm'
 import { LoadGeneratorProgress } from './LoadGeneratorProgress'
 import { LoadGeneratorSummary } from './LoadGeneratorSummary'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 
 const { Title } = Typography
 
@@ -33,6 +35,9 @@ export function TestPage() {
           Test Load Generator
         </Title>
       </Space>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="test" {...PAGE_DESCRIPTIONS.test} />
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <LoadGeneratorForm

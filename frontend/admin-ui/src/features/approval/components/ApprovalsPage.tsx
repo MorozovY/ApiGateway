@@ -1,4 +1,4 @@
-// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2)
+// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2; Story 15.4)
 import { useState, useMemo } from 'react'
 import {
   Table,
@@ -16,6 +16,8 @@ import {
 } from 'antd'
 import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -250,6 +252,9 @@ export function ApprovalsPage() {
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
         Согласование маршрутов
       </Typography.Title>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="approvals" {...PAGE_DESCRIPTIONS.approvals} />
 
       {/* Панель фильтров (Story 8.8) и кнопка Refresh (Story 10.2, AC3) */}
       <Space style={{ marginBottom: 16 }} wrap>

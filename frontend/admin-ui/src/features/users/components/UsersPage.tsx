@@ -1,9 +1,11 @@
-// Страница управления пользователями (Story 2.6, AC4; Story 8.3 — поиск)
+// Страница управления пользователями (Story 2.6, AC4; Story 8.3 — поиск; Story 15.4 — добавлен PageInfoBlock)
 import { useState } from 'react'
 import { Button, Typography } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import UsersTable from './UsersTable'
 import UserFormModal from './UserFormModal'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import type { User } from '../types/user.types'
 
 const { Title } = Typography
@@ -47,6 +49,9 @@ function UsersPage() {
           Add User
         </Button>
       </div>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="users" {...PAGE_DESCRIPTIONS.users} />
 
       <UsersTable onEdit={handleEdit} />
 

@@ -1,9 +1,11 @@
-// Страница управления маршрутами (Story 3.4)
+// Страница управления маршрутами (Story 3.4, Story 15.4 — добавлен PageInfoBlock)
 import { useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Typography, Button, Space, Tooltip } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { RoutesTable } from './RoutesTable'
+import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 
 const { Title } = Typography
 
@@ -54,6 +56,9 @@ export function RoutesPage() {
           </Button>
         </Tooltip>
       </Space>
+
+      {/* Инфо-блок (Story 15.4) */}
+      <PageInfoBlock pageKey="routes" {...PAGE_DESCRIPTIONS.routes} />
 
       {/* Таблица маршрутов */}
       <RoutesTable />

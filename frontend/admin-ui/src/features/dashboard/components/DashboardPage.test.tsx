@@ -53,7 +53,8 @@ describe('DashboardPage', () => {
     render(<DashboardPage />, { wrapper: createWrapper() })
 
     expect(screen.getByText(/testuser/)).toBeInTheDocument()
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    // Заголовок страницы (Title level={2}) — находим по role heading
+    expect(screen.getByRole('heading', { name: 'Dashboard', level: 2 })).toBeInTheDocument()
   })
 
   it('отображает роль пользователя', () => {
