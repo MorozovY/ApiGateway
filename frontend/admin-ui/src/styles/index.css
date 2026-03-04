@@ -43,4 +43,14 @@ body {
     align-items: center;
     justify-content: center;
   }
+
+  /* Touch-friendly: кастомные expand icons (AuditLogsTable) */
+  .ant-table-cell .anticon-expand,
+  .ant-table-cell .anticon-compress {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

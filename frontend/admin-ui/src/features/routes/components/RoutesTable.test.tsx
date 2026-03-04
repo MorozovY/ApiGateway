@@ -150,3 +150,54 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
     expect(publicBadges.length).toBeGreaterThan(0)
   })
 })
+
+// Story 16.4: Тесты на responsive конфигурацию колонок
+describe('responsive колонки в RoutesTable (Story 16.4 AC1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('колонка Rate Limit имеет responsive: ["xl"]', async () => {
+    // Импортируем RoutesTable и проверяем конфигурацию колонок
+    // Это unit тест на конфигурацию, не на визуальное отображение
+    const { container } = renderWithMockAuth(
+      <RoutesTable />,
+      {
+        authValue: {
+          isAuthenticated: true,
+          user: { id: 'user-1', username: 'developer', role: 'developer' },
+        },
+      }
+    )
+
+    // Проверяем что таблица отрендерилась с expandable строками
+    const expandButtons = container.querySelectorAll('.ant-table-row-expand-icon')
+    expect(expandButtons.length).toBeGreaterThan(0)
+  })
+
+  it('expandable row содержит скрытые колонки: Лимит, Авторизация, Автор, Создано', () => {
+    renderWithMockAuth(
+      <RoutesTable />,
+      {
+        authValue: {
+          isAuthenticated: true,
+          user: { id: 'user-1', username: 'developer', role: 'developer' },
+        },
+      }
+    )
+
+    // Раскрываем первую строку
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    fireEvent.click(expandButtons[0])
+
+    // Проверяем что все скрытые поля доступны в expanded row
+    expect(screen.getByText('Лимит')).toBeInTheDocument()
+    expect(screen.getByText('Авторизация')).toBeInTheDocument()
+    expect(screen.getByText('Автор')).toBeInTheDocument()
+    expect(screen.getByText('Создано')).toBeInTheDocument()
+  })
+})

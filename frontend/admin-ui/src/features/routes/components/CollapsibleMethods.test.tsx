@@ -5,6 +5,13 @@ import { CollapsibleMethods } from './CollapsibleMethods'
 
 describe('CollapsibleMethods (Story 16.4 AC3)', () => {
   describe('когда методов <= 3', () => {
+    it('показывает один метод без кнопки сворачивания', () => {
+      render(<CollapsibleMethods methods={['GET']} />)
+
+      expect(screen.getByText('GET')).toBeInTheDocument()
+      expect(screen.queryByTestId('methods-expand-button')).not.toBeInTheDocument()
+    })
+
     it('показывает все методы без кнопки сворачивания', () => {
       render(<CollapsibleMethods methods={['GET', 'POST']} />)
 

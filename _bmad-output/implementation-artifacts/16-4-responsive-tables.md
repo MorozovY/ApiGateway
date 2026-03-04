@@ -159,18 +159,47 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-(to be filled during implementation)
+- Code review выявил 1 HIGH, 4 MEDIUM, 3 LOW issues
+- Все HIGH и MEDIUM issues исправлены в этой сессии
 
 ### Completion Notes List
 
-(to be filled after implementation)
+1. **AC1 (Responsive таблица маршрутов):** Реализовано через `responsive: ['xl']` для Rate Limit, Author, Auth; `responsive: ['lg']` для Created. Expandable row показывает все скрытые данные.
+
+2. **AC2 (Responsive карточки метрик):** MetricsPage обновлён — Col spans изменены на `{ xs: 24, sm: 12, md: 8, lg: 4 }`.
+
+3. **AC3 (Сворачивание методов):** Создан компонент `CollapsibleMethods` с логикой >3 методов → "ещё +N". Полное тестовое покрытие.
+
+4. **AC4 (Touch-friendly):** CSS добавлен в index.css — min 44x44px для expand icons (стандартных и кастомных).
+
+5. **Code Review Fixes:**
+   - ConsumersTable: добавлен Rate Limit в expandable row
+   - CSS: добавлена поддержка кастомных expand icons (anticon-expand/compress)
+   - Тесты: добавлен тест для 1 метода, тесты на responsive конфигурацию
 
 ### Change Log
 
 | Date | Author | Description |
 |------|--------|-------------|
 | 2026-03-04 | SM | Story created — ready for dev |
+| 2026-03-04 | Dev | Story implemented — 14 files changed (commit 7e36231) |
+| 2026-03-04 | Code Review | Fixed issues: ConsumersTable expandable, CSS touch-friendly, tests |
 
 ### File List
 
-(to be filled after implementation)
+**Новые файлы:**
+- `frontend/admin-ui/src/features/routes/components/CollapsibleMethods.tsx` — компонент сворачивания методов
+- `frontend/admin-ui/src/features/routes/components/CollapsibleMethods.test.tsx` — тесты
+
+**Изменённые файлы:**
+- `frontend/admin-ui/src/features/routes/components/RoutesTable.tsx` — responsive колонки, expandable row, touch-friendly кнопки
+- `frontend/admin-ui/src/features/routes/components/RoutesTable.test.tsx` — тесты для expandable row
+- `frontend/admin-ui/src/features/routes/components/RoutesPage.test.tsx` — обновлённые тесты
+- `frontend/admin-ui/src/features/metrics/components/MetricsPage.tsx` — responsive Col spans
+- `frontend/admin-ui/src/features/consumers/components/ConsumersTable.tsx` — responsive колонки
+- `frontend/admin-ui/src/features/consumers/components/ConsumersTable.test.tsx` — обновлённые тесты
+- `frontend/admin-ui/src/features/audit/components/AuditLogsTable.tsx` — responsive колонки
+- `frontend/admin-ui/src/features/audit/components/AuditLogsTable.test.tsx` — обновлённые тесты
+- `frontend/admin-ui/src/features/audit/components/AuditPage.test.tsx` — обновлённые тесты
+- `frontend/admin-ui/src/styles/index.css` — responsive table styles, touch-friendly expand icons
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус story обновлён

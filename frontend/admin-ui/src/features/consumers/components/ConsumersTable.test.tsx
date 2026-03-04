@@ -123,9 +123,8 @@ describe('ConsumersTable', () => {
   })
 
   // Story 16.4: колонки "Лимит" и "Создано" скрыты на маленьких экранах
-  // Но ConsumersTable expandable row НЕ показывает rate limit — он показывает Description/Created/View Metrics
-  // Поэтому тестируем что expandable row работает
-  it('отображает expandable row с данными (AC1)', async () => {
+  // Expandable row показывает все скрытые данные: Description, Rate Limit, Created, View Metrics
+  it('отображает expandable row с данными включая Rate Limit (AC1, Story 16.4)', async () => {
     renderWithMockAuth(<ConsumersTable />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -144,13 +143,17 @@ describe('ConsumersTable', () => {
       fireEvent.click(expandButtons[0])
     }
 
-    // Проверяем что expanded row содержит данные (Description, Created, View Metrics)
+    // Проверяем что expanded row содержит все скрытые данные
     await waitFor(() => {
       expect(screen.getByText('Просмотр метрик')).toBeInTheDocument()
     })
+
+    // Story 16.4: проверяем что Rate Limit отображается в expanded row
+    // consumer-active имеет rateLimit: { requestsPerSecond: 100, burstSize: 150 }
+    expect(screen.getByText(/100 зап\/с, всплеск 150/)).toBeInTheDocument()
   })
 
-  it('проверяет expandable row при раскрытии (AC1)', async () => {
+  it('отображает "—" для Rate Limit в expandable row когда лимит не назначен (Story 16.4)', async () => {
     renderWithMockAuth(<ConsumersTable />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -162,7 +165,7 @@ describe('ConsumersTable', () => {
       expect(screen.getByText('consumer-disabled')).toBeInTheDocument()
     })
 
-    // Story 16.4: раскрываем row
+    // Story 16.4: раскрываем row для consumer-disabled (rateLimit: null)
     const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
     if (expandButtons.length > 1) {
       fireEvent.click(expandButtons[1])
@@ -170,9 +173,13 @@ describe('ConsumersTable', () => {
 
     // Проверяем что expanded row содержит данные
     await waitFor(() => {
-      // Expanded row показывает Description (если есть), Создан, Просмотр метрик
       expect(screen.getAllByText('Просмотр метрик').length).toBeGreaterThan(0)
     })
+
+    // Story 16.4: проверяем что для отсутствующего rate limit отображается "—"
+    // consumer-disabled имеет rateLimit: null
+    const dashes = screen.getAllByText('—')
+    expect(dashes.length).toBeGreaterThan(0)
   })
 
   it('показывает кнопки действий: Ротировать, Отключить/Включить, Лимит (AC3-5, AC8)', async () => {

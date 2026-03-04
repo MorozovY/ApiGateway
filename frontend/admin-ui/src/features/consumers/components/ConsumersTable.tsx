@@ -102,11 +102,18 @@ function ConsumersTable({ search }: ConsumersTableProps) {
   }
 
   // Expandable row render (AC6)
+  // Story 16.4: показываем скрытые данные (Rate Limit, Created) в expanded row
   const expandedRowRender = (consumer: Consumer) => {
     return (
       <div style={{ paddingLeft: 48 }}>
         <p>
           <strong>Описание:</strong> {consumer.description || '—'}
+        </p>
+        <p>
+          <strong>Лимит:</strong>{' '}
+          {consumer.rateLimit
+            ? `${consumer.rateLimit.requestsPerSecond} зап/с, всплеск ${consumer.rateLimit.burstSize}`
+            : '—'}
         </p>
         <p>
           <strong>Создан:</strong>{' '}
