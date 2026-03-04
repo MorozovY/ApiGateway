@@ -79,13 +79,13 @@ function UserFormModal({ open, user, onClose }: UserFormModalProps) {
 
   return (
     <Modal
-      title={isEditMode ? 'Edit User' : 'Add User'}
+      title={isEditMode ? 'Редактировать пользователя' : 'Новый пользователь'}
       open={open}
       onOk={handleSubmit}
       onCancel={handleCancel}
       confirmLoading={isLoading}
-      okText={isEditMode ? 'Save' : 'Create'}
-      cancelText="Cancel"
+      okText={isEditMode ? 'Сохранить' : 'Создать'}
+      cancelText="Отмена"
       destroyOnClose
     >
       <Form
@@ -97,14 +97,14 @@ function UserFormModal({ open, user, onClose }: UserFormModalProps) {
         {!isEditMode && (
           <Form.Item
             name="username"
-            label="Username"
+            label="Имя пользователя"
             rules={[
-              { required: true, message: 'Username обязателен' },
+              { required: true, message: 'Имя пользователя обязательно' },
               { min: 3, message: 'Минимум 3 символа' },
               { max: 50, message: 'Максимум 50 символов' },
             ]}
           >
-            <Input placeholder="Введите username" />
+            <Input placeholder="Введите имя пользователя" />
           </Form.Item>
         )}
 
@@ -125,7 +125,7 @@ function UserFormModal({ open, user, onClose }: UserFormModalProps) {
         {!isEditMode && (
           <Form.Item
             name="password"
-            label="Password"
+            label="Пароль"
             rules={[
               { required: true, message: 'Пароль обязателен' },
               { min: 8, message: 'Минимум 8 символов' },
@@ -138,7 +138,7 @@ function UserFormModal({ open, user, onClose }: UserFormModalProps) {
         {/* Role */}
         <Form.Item
           name="role"
-          label="Role"
+          label="Роль"
           rules={[{ required: true, message: 'Роль обязательна' }]}
         >
           <Select options={ROLE_OPTIONS} placeholder="Выберите роль" />

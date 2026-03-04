@@ -150,7 +150,7 @@ function Sidebar({ collapsed }: SidebarProps) {
             ...itemWithPrefetch,
             label: (
               <Badge count={pendingCount} offset={[8, 0]} size="small">
-                Согласования
+                {menuItem.label}
               </Badge>
             ),
           }

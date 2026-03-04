@@ -4,6 +4,7 @@ import { DashboardOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
+import { ROLE_LABELS, type UserRole } from '@shared/constants'
 
 const { Title, Text } = Typography
 
@@ -17,14 +18,9 @@ const { Title, Text } = Typography
 export function DashboardPage() {
   const { user } = useAuth()
 
-  // Форматирование роли для отображения на русском
+  // Форматирование роли для отображения на русском (Story 16.1 — использует централизованные ROLE_LABELS)
   const formatRole = (role: string) => {
-    const roleMap: Record<string, string> = {
-      admin: 'Администратор',
-      developer: 'Разработчик',
-      security: 'Безопасность',
-    }
-    return roleMap[role] || role.charAt(0).toUpperCase() + role.slice(1)
+    return ROLE_LABELS[role as UserRole] || role.charAt(0).toUpperCase() + role.slice(1)
   }
 
   return (

@@ -173,14 +173,16 @@
 |------|-----------|
 | `src/features/users/components/UsersPage.tsx` | Title, Button на русском |
 | `src/features/users/components/UsersTable.tsx` | Column titles на русском |
-| `src/features/users/components/UsersPage.test.tsx` | Обновлены тесты |
+| `src/features/users/components/UserFormModal.tsx` | Title, labels, buttons на русском |
+| `src/features/users/components/*.test.tsx` | Обновлены тесты |
 
 ### Features — Consumers
 | Файл | Изменения |
 |------|-----------|
-| `src/features/consumers/components/ConsumersPage.tsx` | Title, Button, placeholder на русском |
+| `src/features/consumers/components/ConsumersPage.tsx` | Title, Button, placeholder на русском, иконка UserSwitchOutlined |
 | `src/features/consumers/components/ConsumersTable.tsx` | Column titles, buttons на русском |
 | `src/features/consumers/components/ConsumerRateLimitModal.tsx` | Labels, buttons на русском |
+| `src/features/consumers/components/SecretModal.tsx` | "Copy" → "Копировать" |
 | `src/features/consumers/components/*.test.tsx` | Обновлены тесты |
 
 ### Features — Rate Limits
@@ -188,6 +190,7 @@
 |------|-----------|
 | `src/features/rate-limits/components/RateLimitsPage.tsx` | Title, Button на русском |
 | `src/features/rate-limits/components/RateLimitsTable.tsx` | Column titles на русском |
+| `src/features/rate-limits/components/RateLimitRoutesModal.tsx` | Заголовок на русском |
 | `src/features/rate-limits/components/*.test.tsx` | Обновлены тесты |
 
 ### Features — Approvals

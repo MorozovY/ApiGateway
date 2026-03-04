@@ -1,4 +1,4 @@
-// Тесты для SecretModal (Story 12.9, AC2, AC3)
+// Тесты для SecretModal (Story 12.9, AC2, AC3; Story 16.1 — локализация)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -30,7 +30,7 @@ describe('SecretModal', () => {
     expect(screen.getByText(/сохраните этот secret сейчас/i)).toBeInTheDocument()
   })
 
-  it('копирует secret в clipboard при клике на Copy', async () => {
+  it('копирует secret в clipboard при клике на Копировать', async () => {
     const user = userEvent.setup()
 
     // Spy на clipboard.writeText после userEvent.setup()
@@ -40,8 +40,8 @@ describe('SecretModal', () => {
       <SecretModal open={true} clientId={testClientId} secret={testSecret} onClose={mockOnClose} />
     )
 
-    // Ищем кнопку Copy по тексту (role может не работать из-за иконки)
-    const copyButton = screen.getByText('Copy')
+    // Ищем кнопку Копировать по тексту (role может не работать из-за иконки)
+    const copyButton = screen.getByText('Копировать')
     await user.click(copyButton)
 
     expect(writeTextSpy).toHaveBeenCalledWith(testSecret)

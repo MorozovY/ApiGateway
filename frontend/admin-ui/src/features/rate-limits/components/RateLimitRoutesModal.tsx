@@ -27,7 +27,7 @@ function RateLimitRoutesModal({ open, rateLimit, onClose }: RateLimitRoutesModal
 
   return (
     <Modal
-      title={`Routes using "${rateLimit?.name || ''}"`}
+      title={`Маршруты с лимитом "${rateLimit?.name || ''}"`}
       open={open}
       onCancel={onClose}
       footer={null}

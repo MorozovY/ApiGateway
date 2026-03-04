@@ -1,4 +1,4 @@
-// Тесты для UserFormModal компонента (Story 2.6)
+// Тесты для UserFormModal компонента (Story 2.6, Story 16.1 — локализация)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -36,25 +36,25 @@ describe('UserFormModal', () => {
   })
 
   describe('режим создания', () => {
-    it('рендерит форму с заголовком Add User', () => {
+    it('рендерит форму с заголовком Новый пользователь', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={null} onClose={mockOnClose} />,
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.getByText('Add User')).toBeInTheDocument()
+      expect(screen.getByText('Новый пользователь')).toBeInTheDocument()
     })
 
-    it('показывает все поля включая password', () => {
+    it('показывает все поля включая пароль', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={null} onClose={mockOnClose} />,
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.getByLabelText(/username/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/имя пользователя/i)).toBeInTheDocument()
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/role/i)).toBeInTheDocument()
+      expect(screen.getByLabelText('Пароль')).toBeInTheDocument()
+      expect(screen.getByLabelText('Роль')).toBeInTheDocument()
     })
 
     it('валидирует обязательные поля', async () => {
@@ -65,11 +65,11 @@ describe('UserFormModal', () => {
         { authValue: { isAuthenticated: true } }
       )
 
-      // Кликаем Create без заполнения полей
-      await user.click(screen.getByRole('button', { name: /create/i }))
+      // Кликаем Создать без заполнения полей
+      await user.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Username обязателен')).toBeInTheDocument()
+        expect(screen.getByText('Имя пользователя обязательно')).toBeInTheDocument()
       })
     })
 
@@ -81,15 +81,15 @@ describe('UserFormModal', () => {
         { authValue: { isAuthenticated: true } }
       )
 
-      // Заполняем username и password
-      await user.type(screen.getByLabelText(/username/i), 'newuser')
-      await user.type(screen.getByLabelText(/password/i), 'password123')
+      // Заполняем имя пользователя и пароль
+      await user.type(screen.getByLabelText(/имя пользователя/i), 'newuser')
+      await user.type(screen.getByLabelText('Пароль'), 'password123')
 
       // Вводим некорректный email
       await user.type(screen.getByLabelText(/email/i), 'invalid-email')
 
-      // Кликаем Create
-      await user.click(screen.getByRole('button', { name: /create/i }))
+      // Кликаем Создать
+      await user.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(screen.getByText('Некорректный формат email')).toBeInTheDocument()
@@ -105,12 +105,12 @@ describe('UserFormModal', () => {
       )
 
       // Заполняем поля с коротким паролем
-      await user.type(screen.getByLabelText(/username/i), 'newuser')
+      await user.type(screen.getByLabelText(/имя пользователя/i), 'newuser')
       await user.type(screen.getByLabelText(/email/i), 'test@example.com')
-      await user.type(screen.getByLabelText(/password/i), 'short')
+      await user.type(screen.getByLabelText('Пароль'), 'short')
 
-      // Кликаем Create
-      await user.click(screen.getByRole('button', { name: /create/i }))
+      // Кликаем Создать
+      await user.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(screen.getByText('Минимум 8 символов')).toBeInTheDocument()
@@ -126,12 +126,12 @@ describe('UserFormModal', () => {
       )
 
       // Заполняем форму
-      await user.type(screen.getByLabelText(/username/i), 'newuser')
+      await user.type(screen.getByLabelText(/имя пользователя/i), 'newuser')
       await user.type(screen.getByLabelText(/email/i), 'newuser@company.com')
-      await user.type(screen.getByLabelText(/password/i), 'password123')
+      await user.type(screen.getByLabelText('Пароль'), 'password123')
 
       // Выбираем роль (по умолчанию developer)
-      await user.click(screen.getByRole('button', { name: /create/i }))
+      await user.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(mockCreateUser).toHaveBeenCalledWith({
@@ -152,11 +152,11 @@ describe('UserFormModal', () => {
       )
 
       // Заполняем форму
-      await user.type(screen.getByLabelText(/username/i), 'newuser')
+      await user.type(screen.getByLabelText(/имя пользователя/i), 'newuser')
       await user.type(screen.getByLabelText(/email/i), 'newuser@company.com')
-      await user.type(screen.getByLabelText(/password/i), 'password123')
+      await user.type(screen.getByLabelText('Пароль'), 'password123')
 
-      await user.click(screen.getByRole('button', { name: /create/i }))
+      await user.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(mockOnClose).toHaveBeenCalled()
@@ -165,31 +165,31 @@ describe('UserFormModal', () => {
   })
 
   describe('режим редактирования', () => {
-    it('рендерит форму с заголовком Edit User', () => {
+    it('рендерит форму с заголовком Редактировать пользователя', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={testUser} onClose={mockOnClose} />,
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.getByText('Edit User')).toBeInTheDocument()
+      expect(screen.getByText('Редактировать пользователя')).toBeInTheDocument()
     })
 
-    it('не показывает поле username в режиме редактирования', () => {
+    it('не показывает поле имя пользователя в режиме редактирования', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={testUser} onClose={mockOnClose} />,
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.queryByLabelText(/username/i)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/имя пользователя/i)).not.toBeInTheDocument()
     })
 
-    it('не показывает поле password в режиме редактирования', () => {
+    it('не показывает поле пароль в режиме редактирования', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={testUser} onClose={mockOnClose} />,
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/^пароль$/i)).not.toBeInTheDocument()
     })
 
     it('показывает информационное сообщение о пароле', () => {
@@ -223,7 +223,7 @@ describe('UserFormModal', () => {
       await user.clear(emailInput)
       await user.type(emailInput, 'newemail@company.com')
 
-      await user.click(screen.getByRole('button', { name: /save/i }))
+      await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
       await waitFor(() => {
         expect(mockUpdateUser).toHaveBeenCalledWith('1', {
@@ -241,7 +241,7 @@ describe('UserFormModal', () => {
       )
 
       // Меняем только role
-      await user.click(screen.getByRole('button', { name: /save/i }))
+      await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
       await waitFor(() => {
         const callArgs = mockUpdateUser.mock.calls[0]
@@ -250,19 +250,19 @@ describe('UserFormModal', () => {
       })
     })
 
-    it('показывает кнопку Save вместо Create', () => {
+    it('показывает кнопку Сохранить вместо Создать', () => {
       renderWithMockAuth(
         <UserFormModal open={true} user={testUser} onClose={mockOnClose} />,
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /create/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /сохранить/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /создать/i })).not.toBeInTheDocument()
     })
   })
 
   describe('общее поведение', () => {
-    it('закрывает модальное окно при клике на Cancel', async () => {
+    it('закрывает модальное окно при клике на Отмена', async () => {
       const user = userEvent.setup()
 
       renderWithMockAuth(
@@ -270,7 +270,7 @@ describe('UserFormModal', () => {
         { authValue: { isAuthenticated: true } }
       )
 
-      await user.click(screen.getByRole('button', { name: /cancel/i }))
+      await user.click(screen.getByRole('button', { name: /отмена/i }))
 
       expect(mockOnClose).toHaveBeenCalled()
     })
@@ -281,7 +281,7 @@ describe('UserFormModal', () => {
         { authValue: { isAuthenticated: true } }
       )
 
-      expect(screen.queryByText('Add User')).not.toBeInTheDocument()
+      expect(screen.queryByText('Новый пользователь')).not.toBeInTheDocument()
     })
   })
 })

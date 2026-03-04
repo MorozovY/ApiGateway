@@ -55,7 +55,7 @@ function SecretModal({ open, clientId, secret, onClose }: SecretModalProps) {
       <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
         <Input.Password value={secret} readOnly data-testid="consumer-secret-display" />
         <Button icon={<CopyOutlined />} onClick={handleCopySecret} data-testid="copy-secret-button">
-          Copy
+          Копировать
         </Button>
       </Space.Compact>
 

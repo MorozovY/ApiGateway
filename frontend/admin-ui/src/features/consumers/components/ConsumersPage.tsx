@@ -1,7 +1,7 @@
 // Страница управления consumers (Story 12.9, AC1; Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { useState } from 'react'
 import { Button, Input, Typography, Space, Card } from 'antd'
-import { PlusOutlined, ApiOutlined } from '@ant-design/icons'
+import { PlusOutlined, UserSwitchOutlined } from '@ant-design/icons'
 import ConsumersTable from './ConsumersTable'
 import CreateConsumerModal from './CreateConsumerModal'
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue'
@@ -39,7 +39,7 @@ function ConsumersPage() {
       <div style={{ marginBottom: 24 }}>
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
-            <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <UserSwitchOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
               Потребители
             </Title>

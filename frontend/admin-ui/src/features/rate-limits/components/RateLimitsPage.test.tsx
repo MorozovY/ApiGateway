@@ -274,7 +274,8 @@ describe('RateLimitsPage', () => {
     await userEvent.click(usageButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/routes using "basic limit"/i)).toBeInTheDocument()
+      // Story 16.1 — локализация заголовка модального окна
+      expect(screen.getByText(/маршруты с лимитом "basic limit"/i)).toBeInTheDocument()
     })
   })
 
