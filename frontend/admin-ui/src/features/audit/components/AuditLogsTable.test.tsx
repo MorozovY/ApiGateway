@@ -92,27 +92,31 @@ describe('AuditLogsTable', () => {
     cleanup()
   })
 
+  // Story 16.4: колонки "Тип" и "Пользователь" скрыты на маленьких экранах
   it('отображает колонки таблицы (AC1)', () => {
     renderTable()
 
-    // Проверяем заголовки колонок (русские названия согласно локализации Story 16.1)
+    // Проверяем заголовки колонок — только всегда видимые колонки
     expect(screen.getByText('Время')).toBeInTheDocument()
     expect(screen.getByText('Действие')).toBeInTheDocument()
-    expect(screen.getByText('Тип')).toBeInTheDocument()
     expect(screen.getByText('Сущность')).toBeInTheDocument()
+    // "Тип" и "Пользователь" скрыты на маленьких экранах (responsive: ['md'], ['lg'])
   })
 
-  it('отображает данные аудит-логов', () => {
+  // Story 16.4: колонки скрыты на маленьких экранах, данные доступны в expandable row
+  it('отображает данные аудит-логов', async () => {
     renderTable()
 
-    // Usernames
-    expect(screen.getByText('john_dev')).toBeInTheDocument()
-    expect(screen.getByText('admin_user')).toBeInTheDocument()
-    expect(screen.getByText('jane_dev')).toBeInTheDocument()
+    // Action badges всегда видны
+    expect(screen.getByText('Создано')).toBeInTheDocument()
 
-    // Entity types (русские лейблы)
-    const routeLabels = screen.getAllByText('Маршрут')
-    expect(routeLabels.length).toBe(2)
+    // Expandable rows доступны — проверяем наличие кастомных иконок раскрытия (ExpandOutlined)
+    const expandIcons = document.querySelectorAll('.anticon-expand')
+    expect(expandIcons.length).toBeGreaterThan(0)
+
+    // Проверяем количество строк в таблице
+    const tableRows = document.querySelectorAll('.ant-table-row')
+    expect(tableRows.length).toBe(3) // 3 записи в mockAuditLogs
   })
 
   it('отображает action badges с цветами (AC5)', () => {

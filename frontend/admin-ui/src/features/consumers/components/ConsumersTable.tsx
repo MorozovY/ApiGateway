@@ -1,4 +1,4 @@
-// Таблица consumers с пагинацией и действиями (Story 12.9, AC1, AC4-9)
+// Таблица consumers с пагинацией и действиями (Story 12.9, AC1, AC4-9; Story 16.4 — responsive)
 import { useState } from 'react'
 import { Table, Tag, Button, Space, Popconfirm, Typography } from 'antd'
 import {
@@ -157,6 +157,8 @@ function ConsumersTable({ search }: ConsumersTableProps) {
     {
       title: 'Лимит',
       key: 'rateLimit',
+      // Story 16.4: скрываем на маленьких экранах
+      responsive: ['lg'],
       render: (_, record) => {
         if (!record.rateLimit) {
           return <Text type="secondary">—</Text>
@@ -172,6 +174,8 @@ function ConsumersTable({ search }: ConsumersTableProps) {
       title: 'Создано',
       dataIndex: 'createdTimestamp',
       key: 'created',
+      // Story 16.4: скрываем на маленьких экранах
+      responsive: ['md'],
       render: (timestamp: number) => new Date(timestamp).toLocaleDateString('ru-RU'),
       sorter: (a, b) => a.createdTimestamp - b.createdTimestamp,
     },

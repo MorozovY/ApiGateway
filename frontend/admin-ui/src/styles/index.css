@@ -21,3 +21,26 @@ body {
   align-items: center;
   min-height: 400px;
 }
+
+/* Story 16.4: Responsive table styles — минимизация горизонтального скролла */
+@media (max-width: 768px) {
+  /* Предотвращаем горизонтальный скролл на таблицах */
+  .ant-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Улучшаем читаемость ячеек на маленьких экранах */
+  .ant-table-cell {
+    word-break: break-word;
+  }
+
+  /* Touch-friendly: увеличиваем область клика для expand кнопок */
+  .ant-table-row-expand-icon {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

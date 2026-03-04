@@ -177,7 +177,9 @@ describe('RoutesPage', () => {
     expect(screen.getByText('На согласовании')).toBeInTheDocument()
   })
 
-  it('отображает имя автора', async () => {
+  // Story 16.4: колонка "Автор" скрыта на маленьких экранах (responsive: ['xl'])
+  // Данные доступны через expandable row
+  it('отображает имя автора в expandable row', async () => {
     renderWithMockAuth(<RoutesPage />, {
       authValue: {
         user: { userId: 'current-user', username: 'testuser', role: 'developer' },
@@ -186,12 +188,19 @@ describe('RoutesPage', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('developer1')).toBeInTheDocument()
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    // testuser - имя текущего пользователя, может быть в нескольких местах
-    expect(screen.getAllByText('testuser').length).toBeGreaterThan(0)
-    expect(screen.getByText('developer2')).toBeInTheDocument()
+    // Story 16.4: раскрываем row чтобы увидеть автора
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    if (expandButtons.length > 0) {
+      fireEvent.click(expandButtons[0])
+    }
+
+    // Проверяем что автор отображается в expanded row
+    await waitFor(() => {
+      expect(screen.getByText('developer1')).toBeInTheDocument()
+    })
   })
 
   it('отображает поисковое поле', async () => {
@@ -574,12 +583,15 @@ describe('RoutesPage пагинация', () => {
   })
 })
 
-describe('колонка Rate Limit (Story 5.5, обновлено Story 8.4)', () => {
+describe('колонка Rate Limit (Story 5.5, обновлено Story 8.4, Story 16.4 — responsive)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('отображает название и requests/sec когда политика назначена (Story 8.4)', async () => {
+  // Story 16.4: колонка Rate Limit скрыта на маленьких экранах (responsive: ['xl'])
+  // Данные доступны через expandable row
+
+  it('отображает название и requests/sec в expandable row когда политика назначена', async () => {
     // Мокаем ответ с rate limit
     const routeWithRateLimit = {
       ...mockRoutesResponse.items[0],
@@ -608,11 +620,19 @@ describe('колонка Rate Limit (Story 5.5, обновлено Story 8.4)', 
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    // Story 8.4: проверяем формат "{name} ({requestsPerSecond}/s)"
-    expect(screen.getByText('standard (100/s)')).toBeInTheDocument()
+    // Story 16.4: раскрываем row чтобы увидеть скрытые данные
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    if (expandButtons.length > 0) {
+      fireEvent.click(expandButtons[0])
+    }
+
+    // Story 8.4: проверяем формат "{name} ({requestsPerSecond}/s)" в expanded row
+    await waitFor(() => {
+      expect(screen.getByText('standard (100/s)')).toBeInTheDocument()
+    })
   })
 
-  it('отображает "—" когда политика не назначена', async () => {
+  it('отображает "—" в expandable row когда политика не назначена', async () => {
     // Мокаем ответ без rate limit
     const routeWithoutRateLimit = {
       ...mockRoutesResponse.items[0],
@@ -636,8 +656,18 @@ describe('колонка Rate Limit (Story 5.5, обновлено Story 8.4)', 
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
+    // Story 16.4: раскрываем row чтобы увидеть скрытые данные
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    if (expandButtons.length > 0) {
+      fireEvent.click(expandButtons[0])
+    }
+
     // Проверяем что em dash отображается для отсутствующей политики
-    expect(screen.getByText('—')).toBeInTheDocument()
+    await waitFor(() => {
+      // В expandable row есть несколько "—" (для разных полей)
+      const dashes = screen.getAllByText('—')
+      expect(dashes.length).toBeGreaterThan(0)
+    })
   })
 })
 

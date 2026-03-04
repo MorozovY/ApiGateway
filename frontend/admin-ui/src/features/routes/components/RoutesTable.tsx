@@ -1,7 +1,7 @@
-// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5; Story 8.8)
+// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5; Story 8.8; Story 16.4 — responsive)
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { Table, Button, Space, Popconfirm, Input, Select, Tooltip, Alert } from 'antd'
+import { Table, Button, Space, Popconfirm, Input, Select, Tooltip, Alert, Descriptions } from 'antd'
 import { Tag } from 'antd'
 import {
   EditOutlined,
@@ -12,6 +12,7 @@ import {
   LockOutlined,
   UnlockOutlined,
 } from '@ant-design/icons'
+import { CollapsibleMethods } from './CollapsibleMethods'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -67,8 +68,8 @@ function highlightSearchTerm(text: string, searchTerm: string | undefined): Reac
  */
 const SEARCH_DEBOUNCE_MS = 300
 
-// Импортируем shared константы для статусов и методов
-import { STATUS_COLORS, STATUS_LABELS, METHOD_COLORS } from '@shared/constants'
+// Импортируем shared константы для статусов (METHOD_COLORS используется в CollapsibleMethods)
+import { STATUS_COLORS, STATUS_LABELS } from '@shared/constants'
 
 /**
  * Опции для фильтра по статусу.
@@ -256,21 +257,16 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       title: 'Методы',
       dataIndex: 'methods',
       key: 'methods',
-      render: (methods: string[]) => (
-        <Space size={4} wrap>
-          {methods.map(method => (
-            <Tag key={method} color={METHOD_COLORS[method] || 'default'}>
-              {method}
-            </Tag>
-          ))}
-        </Space>
-      ),
+      // Story 16.4 AC3: сворачивание методов если >3
+      render: (methods: string[]) => <CollapsibleMethods methods={methods} />,
     },
     {
       title: 'Лимит',
       dataIndex: ['rateLimit', 'name'],
       key: 'rateLimit',
       // Story 8.4: отображаем "{name} ({requestsPerSecond}/s)"
+      // Story 16.4 AC1: скрываем на экранах < xl (1200px)
+      responsive: ['xl'],
       render: (_: unknown, record: Route) => {
         if (!record.rateLimit) {
           return '—'
@@ -289,10 +285,12 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
     },
     {
       // Story 12.7: Auth badge (Защищён/Публичный)
+      // Story 16.4 AC1: скрываем на экранах < xl (1200px)
       title: 'Авторизация',
       dataIndex: 'authRequired',
       key: 'authRequired',
       width: 120,
+      responsive: ['xl'],
       render: (authRequired: boolean) => (
         <Tag color={authRequired ? 'green' : 'default'}>
           {authRequired ? (
@@ -307,12 +305,16 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       title: 'Автор',
       dataIndex: 'creatorUsername',
       key: 'creatorUsername',
+      // Story 16.4 AC1: скрываем на экранах < xl (1200px)
+      responsive: ['xl'],
       render: (username: string | undefined) => username || '—',
     },
     {
       title: 'Создано',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      // Story 16.4 AC1: скрываем на экранах < lg (992px)
+      responsive: ['lg'],
       render: (createdAt: string) => (
         <Tooltip title={dayjs(createdAt).format('DD.MM.YYYY HH:mm')}>
           {dayjs(createdAt).fromNow()}
@@ -323,6 +325,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
     {
       title: 'Действия',
       key: 'actions',
+      // Story 16.4 AC4: touch-friendly размеры кнопок (min 44x44px)
       render: (_, record) => (
         <Space>
           {canModify(record) ? (
@@ -332,6 +335,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
                   type="text"
                   icon={<EditOutlined />}
                   onClick={() => onEdit?.(record) ?? navigate(`/routes/${record.id}/edit`)}
+                  style={{ minWidth: 44, minHeight: 44 }}
                 />
               </Tooltip>
               <Popconfirm
@@ -347,6 +351,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
                     danger
                     icon={<DeleteOutlined />}
                     loading={deleteMutation.isPending}
+                    style={{ minWidth: 44, minHeight: 44 }}
                   />
                 </Tooltip>
               </Popconfirm>
@@ -357,6 +362,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
                 type="text"
                 icon={<EyeOutlined />}
                 onClick={() => navigate(`/routes/${record.id}`)}
+                style={{ minWidth: 44, minHeight: 44 }}
               />
             </Tooltip>
           )}
@@ -367,6 +373,40 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
 
   // Проверка наличия активных фильтров (расширено в Story 7.6 для upstream)
   const hasActiveFilters = !!(params.search || params.status || params.upstream)
+
+  /**
+   * Story 16.4 AC1: Expandable row для просмотра скрытых данных на маленьких экранах.
+   *
+   * Показывает Rate Limit, Author, Created, Auth status.
+   */
+  const expandedRowRender = useCallback((record: Route) => {
+    return (
+      <Descriptions size="small" column={1} style={{ paddingLeft: 48 }}>
+        <Descriptions.Item label="Лимит">
+          {record.rateLimit
+            ? `${record.rateLimit.name} (${record.rateLimit.requestsPerSecond}/s)`
+            : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Авторизация">
+          <Tag color={record.authRequired ? 'green' : 'default'}>
+            {record.authRequired ? (
+              <><LockOutlined /> Защищён</>
+            ) : (
+              <><UnlockOutlined /> Публичный</>
+            )}
+          </Tag>
+        </Descriptions.Item>
+        <Descriptions.Item label="Автор">
+          {record.creatorUsername || '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Создано">
+          <Tooltip title={dayjs(record.createdAt).format('DD.MM.YYYY HH:mm')}>
+            <span>{dayjs(record.createdAt).fromNow()}</span>
+          </Tooltip>
+        </Descriptions.Item>
+      </Descriptions>
+    )
+  }, [])
 
   return (
     <div>
@@ -446,6 +486,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       )}
 
       {/* Таблица */}
+      {/* Story 16.4 AC1: expandable row для просмотра скрытых данных */}
       <Table
         dataSource={data?.items}
         columns={columns}
@@ -460,6 +501,10 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         onChange={handleTableChange}
+        expandable={{
+          expandedRowRender,
+          rowExpandable: () => true,
+        }}
       />
     </div>
   )

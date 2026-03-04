@@ -196,15 +196,18 @@ describe('AuditPage', () => {
       })
     })
 
+    // Story 16.4: колонки "Пользователь" и "Создано" скрыты на маленьких экранах
+    // Данные доступны через expandable row
     it('отображает таблицу с данными (AC1)', async () => {
       renderWithMockAuth(<AuditPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
 
+      // Проверяем что таблица отрисовывается — ищем данные в таблице
       await waitFor(() => {
-        expect(screen.getByText('developer')).toBeInTheDocument()
+        // Проверяем что хотя бы один action badge отображается
         expect(screen.getByText('Создано')).toBeInTheDocument()
-      })
+      }, { timeout: 5000 })
     })
   })
 

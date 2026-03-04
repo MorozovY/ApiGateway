@@ -20,7 +20,7 @@
 # - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
-updated: 2026-03-04  # Story 16.2 ready-for-dev — Dashboard content
+updated: 2026-03-04  # Story 16.9 ready-for-dev — OS-specific keyboard shortcuts
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
@@ -131,9 +131,9 @@ development_status:
   16-1-localization: done  # SP:5 — унификация языка интерфейса на русский, code review: 5 issues fixed
   16-2-dashboard-content: done  # SP:8 — наполнение Dashboard полезным контентом (backend + frontend)
   16-3-remove-duplicate-logout: done  # SP:2 — удаление дублирующегося Logout с Dashboard
-  16-4-responsive-tables: backlog  # SP:5 — responsive таблицы и карточки метрик
-  16-5-empty-states: backlog  # SP:3 — empty states для пустых таблиц
-  16-6-breadcrumbs: backlog  # SP:5 — breadcrumbs навигация
+  16-4-responsive-tables: done  # SP:5 — responsive таблицы и карточки метрик
+  16-5-empty-states: ready-for-dev  # SP:3 — empty states для пустых таблиц
+  16-6-breadcrumbs: ready-for-dev  # SP:5 — breadcrumbs навигация
   16-7-distinct-icons: done  # SP:2 — разные иконки для Routes и Consumers
-  16-8-auto-refresh-metrics: backlog  # SP:5 — auto-refresh метрик с индикатором
-  16-9-os-keyboard-shortcuts: backlog  # SP:3 — OS-specific keyboard shortcuts
+  16-8-auto-refresh-metrics: ready-for-dev  # SP:5 — auto-refresh метрик с индикатором
+  16-9-os-keyboard-shortcuts: ready-for-dev  # SP:3 — OS-specific keyboard shortcuts

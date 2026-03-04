@@ -1,4 +1,4 @@
-// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
+// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка, Story 16.4 — responsive cards)
 import { useState } from 'react'
 import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
 import { LinkOutlined, ReloadOutlined, InfoCircleOutlined, AreaChartOutlined } from '@ant-design/icons'
@@ -140,8 +140,9 @@ export function MetricsPage() {
       <HealthCheckSection />
 
       {/* Summary Metrics Cards */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={4}>
+      {/* Story 16.4 AC2: responsive spans — xs: 24, sm: 12, md: 8, lg: 4 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8} lg={4}>
           <Card data-testid="summary-card-total-requests">
             <Statistic
               title="Всего запросов"
@@ -150,7 +151,7 @@ export function MetricsPage() {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={8} lg={4}>
           <Card data-testid="summary-card-rps">
             <Statistic
               title="RPS"
@@ -160,7 +161,7 @@ export function MetricsPage() {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={8} lg={4}>
           <Card data-testid="summary-card-avg-latency">
             <Statistic
               title="Средняя задержка"
@@ -170,7 +171,7 @@ export function MetricsPage() {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={8} lg={4}>
           <Card data-testid="summary-card-p95">
             <Statistic
               title="P95 задержка"
@@ -180,7 +181,7 @@ export function MetricsPage() {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={8} lg={4}>
           <Card data-testid="summary-card-error-rate">
             <Statistic
               title="Ошибки"
@@ -191,7 +192,7 @@ export function MetricsPage() {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={8} lg={4}>
           <Card data-testid="summary-card-active-routes">
             <Statistic
               title="Активных маршрутов"

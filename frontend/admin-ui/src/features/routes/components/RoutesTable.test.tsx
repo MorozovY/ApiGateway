@@ -1,6 +1,6 @@
-// Тесты для колонки Auth в RoutesTable (Story 12.7)
+// Тесты для RoutesTable (Story 12.7, Story 16.4)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { screen, cleanup } from '@testing-library/react'
+import { screen, cleanup, fireEvent } from '@testing-library/react'
 import { renderWithMockAuth } from '../../../test/test-utils'
 import { RoutesTable } from './RoutesTable'
 import type { Route, RouteListResponse } from '../types/route.types'
@@ -83,7 +83,11 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
     cleanup()
   })
 
-  it('отображает заголовок колонки Авторизация', () => {
+  // Story 16.4: колонка Auth скрыта на маленьких экранах (responsive: ['xl'])
+  // Тесты на заголовок и badges убраны, т.к. в тестовом окружении ширина экрана маленькая
+  // Вместо этого проверяем отображение в expandable row
+
+  it('отображает expandable row с данными Auth', () => {
     renderWithMockAuth(
       <RoutesTable />,
       {
@@ -94,11 +98,19 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
       }
     )
 
-    // Проверяем наличие заголовка колонки (русское название согласно локализации Story 16.1)
+    // Находим кнопку раскрытия row (expand button)
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    expect(expandButtons.length).toBeGreaterThan(0)
+
+    // Раскрываем первую строку
+    fireEvent.click(expandButtons[0])
+
+    // Проверяем что данные Auth отображаются в expanded row
+    // Story 16.4 AC1: скрытые данные доступны через expandable row
     expect(screen.getByText('Авторизация')).toBeInTheDocument()
   })
 
-  it('отображает "Защищён" badge для authRequired=true', () => {
+  it('отображает "Защищён" badge в expanded row для authRequired=true', () => {
     renderWithMockAuth(
       <RoutesTable />,
       {
@@ -109,12 +121,16 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
       }
     )
 
-    // Проверяем наличие Защищён badge (может быть несколько элементов с этим текстом)
+    // Раскрываем первую строку (protected route)
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    fireEvent.click(expandButtons[0])
+
+    // Проверяем наличие Защищён badge в expanded row
     const protectedBadges = screen.getAllByText('Защищён')
     expect(protectedBadges.length).toBeGreaterThan(0)
   })
 
-  it('отображает "Публичный" badge для authRequired=false', () => {
+  it('отображает "Публичный" badge в expanded row для authRequired=false', () => {
     renderWithMockAuth(
       <RoutesTable />,
       {
@@ -125,7 +141,11 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
       }
     )
 
-    // Проверяем наличие Публичный badge (русское название согласно локализации Story 16.1)
+    // Раскрываем вторую строку (public route)
+    const expandButtons = document.querySelectorAll('.ant-table-row-expand-icon')
+    fireEvent.click(expandButtons[1])
+
+    // Проверяем наличие Публичный badge в expanded row
     const publicBadges = screen.getAllByText('Публичный')
     expect(publicBadges.length).toBeGreaterThan(0)
   })

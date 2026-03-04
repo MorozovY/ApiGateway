@@ -1,4 +1,4 @@
-// Таблица аудит-логов с expandable rows (Story 7.5, AC1, AC3, AC5)
+// Таблица аудит-логов с expandable rows (Story 7.5, AC1, AC3, AC5; Story 16.4 — responsive)
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Table, Tag, Typography, Descriptions, Skeleton } from 'antd'
@@ -58,7 +58,13 @@ export function AuditLogsTable({
    */
   const expandedRowRender = (record: AuditLogEntry) => (
     <div style={{ padding: '16px 0' }}>
-      <Descriptions column={3} size="small" style={{ marginBottom: 16 }}>
+      <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small" style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Тип сущности">
+          {ENTITY_TYPE_LABELS[record.entityType] || record.entityType}
+        </Descriptions.Item>
+        <Descriptions.Item label="Пользователь">
+          {record.user?.username || '—'}
+        </Descriptions.Item>
         <Descriptions.Item label="Entity ID">
           <Text code copyable>
             {record.entityId}
@@ -137,6 +143,8 @@ export function AuditLogsTable({
         dataIndex: 'entityType',
         key: 'entityType',
         width: 120,
+        // Story 16.4: скрываем на маленьких экранах
+        responsive: ['md'],
         render: (entityType: AuditLogEntry['entityType']) =>
           ENTITY_TYPE_LABELS[entityType] || entityType,
       },
@@ -151,6 +159,8 @@ export function AuditLogsTable({
         dataIndex: ['user', 'username'],
         key: 'user',
         width: 150,
+        // Story 16.4: скрываем на маленьких экранах
+        responsive: ['lg'],
       },
       Table.EXPAND_COLUMN,
     ],
