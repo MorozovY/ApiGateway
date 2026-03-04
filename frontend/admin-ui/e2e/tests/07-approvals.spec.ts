@@ -14,8 +14,8 @@ test.describe('Approvals', () => {
   test('страница согласования отображает pending маршруты', async ({ page }) => {
     await page.goto('/approvals')
 
-    // Заголовок страницы (Story 15.6: английские заголовки)
-    await expect(page.getByRole('heading', { name: 'Approvals' })).toBeVisible()
+    // Заголовок страницы
+    await expect(page.getByRole('heading', { name: 'Согласования' })).toBeVisible()
 
     // Pending маршрут из mock данных отображается
     const pendingRoute = mockRoutes.find((r) => r.status === 'pending')
@@ -28,10 +28,10 @@ test.describe('Approvals', () => {
     await page.goto('/approvals')
 
     // Проверяем заголовки колонок
-    await expect(page.getByRole('columnheader', { name: 'Path' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Upstream URL' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Methods' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Путь' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'URL сервиса' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Методы' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Действия' })).toBeVisible()
   })
 
   test('кнопка Approve одобряет маршрут', async ({ page }) => {
@@ -43,8 +43,8 @@ test.describe('Approvals', () => {
     // Находим строку с pending маршрутом
     const row = page.getByRole('row').filter({ hasText: pendingRoute.path })
 
-    // Нажимаем Approve
-    await row.getByRole('button', { name: /approve/i }).click()
+    // Нажимаем Одобрить
+    await row.getByRole('button', { name: /одобрить/i }).click()
 
     // После approve маршрут исчезает из списка (становится published)
     await expect(page.getByText(pendingRoute.path)).not.toBeVisible()
@@ -58,8 +58,8 @@ test.describe('Approvals', () => {
 
     const row = page.getByRole('row').filter({ hasText: pendingRoute.path })
 
-    // Нажимаем Reject
-    await row.getByRole('button', { name: /reject/i }).click()
+    // Нажимаем Отклонить
+    await row.getByRole('button', { name: /отклонить/i }).click()
 
     // Модальное окно появляется
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -73,10 +73,10 @@ test.describe('Approvals', () => {
     if (!pendingRoute) return
 
     const row = page.getByRole('row').filter({ hasText: pendingRoute.path })
-    await row.getByRole('button', { name: /reject/i }).click()
+    await row.getByRole('button', { name: /отклонить/i }).click()
 
-    // Пытаемся отклонить без причины
-    await page.getByRole('button', { name: /отклонить/i }).click()
+    // Пытаемся подтвердить отклонение без причины (кнопка "Отклонить" в модале)
+    await page.getByRole('dialog').getByRole('button', { name: /отклонить/i }).click()
 
     // Ошибка валидации
     await expect(page.getByText(/укажите причину/i)).toBeVisible()
@@ -89,13 +89,13 @@ test.describe('Approvals', () => {
     if (!pendingRoute) return
 
     const row = page.getByRole('row').filter({ hasText: pendingRoute.path })
-    await row.getByRole('button', { name: /reject/i }).click()
+    await row.getByRole('button', { name: /отклонить/i }).click()
 
     // Вводим причину
     await page.getByRole('textbox').fill('Security requirements not met')
 
-    // Подтверждаем
-    await page.getByRole('button', { name: /отклонить/i }).click()
+    // Подтверждаем нажатием кнопки "Отклонить" в модальном окне (okText в Modal)
+    await page.getByRole('dialog').getByRole('button', { name: /отклонить/i }).click()
 
     // Ждём закрытия модального окна
     await expect(page.getByRole('dialog')).not.toBeVisible()
@@ -113,7 +113,7 @@ test.describe('Approvals', () => {
     if (!pendingRoute) return
 
     const row = page.getByRole('row').filter({ hasText: pendingRoute.path })
-    await row.getByRole('button', { name: /approve/i }).click()
+    await row.getByRole('button', { name: /одобрить/i }).click()
 
     // Пустое состояние отображается
     await expect(page.getByText(/нет маршрутов на согласовании/i)).toBeVisible()

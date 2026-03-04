@@ -68,7 +68,7 @@ export function IntegrationsPage() {
           <Space>
             <ClusterOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
-              Integrations Report
+              Интеграции
             </Title>
           </Space>
 
@@ -79,7 +79,7 @@ export function IntegrationsPage() {
             onClick={handleExport}
             disabled={!data?.upstreams?.length}
           >
-            Export Report
+            Экспорт отчёта
           </Button>
         </Space>
       </div>

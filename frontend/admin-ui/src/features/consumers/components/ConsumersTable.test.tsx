@@ -26,7 +26,7 @@ const mockEnableConsumer = consumersApi.enableConsumer as ReturnType<typeof vi.f
 const mockConsumers: Consumer[] = [
   {
     clientId: 'consumer-active',
-    description: 'Active Consumer',
+    description: 'Активен Consumer',
     enabled: true,
     createdTimestamp: 1706784000000,
     rateLimit: {
@@ -36,7 +36,7 @@ const mockConsumers: Consumer[] = [
   },
   {
     clientId: 'consumer-disabled',
-    description: 'Disabled Consumer',
+    description: 'Отключён Consumer',
     enabled: false,
     createdTimestamp: 1706870400000,
     rateLimit: null,
@@ -62,15 +62,15 @@ describe('ConsumersTable', () => {
       },
     })
 
-    // Ждём загрузки данных
+    // Ждём загрузки данных (русские названия согласно локализации Story 16.1)
     await waitFor(() => {
-      expect(screen.getByText('Client ID')).toBeInTheDocument()
+      expect(screen.getByText('ID клиента')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Status')).toBeInTheDocument()
-    expect(screen.getByText('Rate Limit')).toBeInTheDocument()
-    expect(screen.getByText('Created')).toBeInTheDocument()
-    expect(screen.getByText('Actions')).toBeInTheDocument()
+    expect(screen.getByText('Статус')).toBeInTheDocument()
+    expect(screen.getByText('Лимит')).toBeInTheDocument()
+    expect(screen.getByText('Создано')).toBeInTheDocument()
+    expect(screen.getByText('Действия')).toBeInTheDocument()
   })
 
   it('отображает consumers в таблице (AC1)', async () => {
@@ -88,7 +88,7 @@ describe('ConsumersTable', () => {
     expect(screen.getByText('consumer-disabled')).toBeInTheDocument()
   })
 
-  it('показывает Status tag "Active" для enabled consumer (AC1)', async () => {
+  it('показывает Status tag "Активен" для enabled consumer (AC1)', async () => {
     renderWithMockAuth(<ConsumersTable />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -97,15 +97,15 @@ describe('ConsumersTable', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Active')).toBeInTheDocument()
+      expect(screen.getByText('Активен')).toBeInTheDocument()
     })
 
     // Проверяем зелёный tag
-    const activeTag = screen.getByText('Active')
+    const activeTag = screen.getByText('Активен')
     expect(activeTag).toBeInTheDocument()
   })
 
-  it('показывает Status tag "Disabled" для disabled consumer (AC1)', async () => {
+  it('показывает Status tag "Отключён" для disabled consumer (AC1)', async () => {
     renderWithMockAuth(<ConsumersTable />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -114,11 +114,11 @@ describe('ConsumersTable', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Disabled')).toBeInTheDocument()
+      expect(screen.getByText('Отключён')).toBeInTheDocument()
     })
 
     // Проверяем серый tag
-    const disabledTag = screen.getByText('Disabled')
+    const disabledTag = screen.getByText('Отключён')
     expect(disabledTag).toBeInTheDocument()
   })
 
@@ -130,8 +130,9 @@ describe('ConsumersTable', () => {
       },
     })
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByText('100 req/s, burst 150')).toBeInTheDocument()
+      expect(screen.getByText('100 зап/с, всплеск 150')).toBeInTheDocument()
     })
   })
 
@@ -152,7 +153,7 @@ describe('ConsumersTable', () => {
     expect(rateLimitCells.length).toBeGreaterThan(0)
   })
 
-  it('показывает кнопки действий: Rotate Secret, Disable/Enable, Set Rate Limit (AC3-5, AC8)', async () => {
+  it('показывает кнопки действий: Ротировать, Отключить/Включить, Лимит (AC3-5, AC8)', async () => {
     renderWithMockAuth(<ConsumersTable />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -160,16 +161,17 @@ describe('ConsumersTable', () => {
       },
     })
 
+    // Русские названия кнопок согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /rotate secret/i }).length).toBeGreaterThan(0)
+      expect(screen.getAllByRole('button', { name: /ротировать/i }).length).toBeGreaterThan(0)
     })
 
-    expect(screen.getByRole('button', { name: /disable/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /enable/i })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /set rate limit/i }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /отключить/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /включить/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /лимит/i }).length).toBeGreaterThan(0)
   })
 
-  it('вызывает rotateSecret при подтверждении Rotate Secret (AC3)', async () => {
+  it('вызывает rotateSecret при подтверждении Ротировать (AC3)', async () => {
     const user = userEvent.setup()
     mockRotateSecret.mockResolvedValue({
       clientId: 'consumer-active',
@@ -187,8 +189,8 @@ describe('ConsumersTable', () => {
       expect(screen.getByText('consumer-active')).toBeInTheDocument()
     })
 
-    // Кликаем на Rotate Secret
-    const rotateButtons = screen.getAllByRole('button', { name: /rotate secret/i })
+    // Кликаем на Ротировать (русское название согласно локализации Story 16.1)
+    const rotateButtons = screen.getAllByRole('button', { name: /ротировать/i })
     await user.click(rotateButtons[0])
 
     // Подтверждаем в Popconfirm
@@ -200,7 +202,7 @@ describe('ConsumersTable', () => {
     })
   })
 
-  it('вызывает disableConsumer при подтверждении Disable (AC4)', async () => {
+  it('вызывает disableConsumer при подтверждении Отключить (AC4)', async () => {
     const user = userEvent.setup()
     mockDisableConsumer.mockResolvedValue(undefined)
 
@@ -215,8 +217,8 @@ describe('ConsumersTable', () => {
       expect(screen.getByText('consumer-active')).toBeInTheDocument()
     })
 
-    // Кликаем на Disable для active consumer
-    const disableButton = screen.getByRole('button', { name: /disable/i })
+    // Кликаем на Отключить для active consumer (русское название согласно локализации Story 16.1)
+    const disableButton = screen.getByRole('button', { name: /отключить/i })
     await user.click(disableButton)
 
     // Подтверждаем в Popconfirm
@@ -228,7 +230,7 @@ describe('ConsumersTable', () => {
     })
   })
 
-  it('вызывает enableConsumer при клике на Enable (AC5)', async () => {
+  it('вызывает enableConsumer при клике на Включить (AC5)', async () => {
     const user = userEvent.setup()
     mockEnableConsumer.mockResolvedValue(undefined)
 
@@ -243,8 +245,8 @@ describe('ConsumersTable', () => {
       expect(screen.getByText('consumer-disabled')).toBeInTheDocument()
     })
 
-    // Кликаем на Enable для disabled consumer
-    const enableButton = screen.getByRole('button', { name: /enable/i })
+    // Кликаем на Включить для disabled consumer (русское название согласно локализации Story 16.1)
+    const enableButton = screen.getByRole('button', { name: /включить/i })
     await user.click(enableButton)
 
     await waitFor(() => {
@@ -252,7 +254,7 @@ describe('ConsumersTable', () => {
     })
   })
 
-  it('открывает rate limit modal при клике на Set Rate Limit (AC8)', async () => {
+  it('открывает rate limit modal при клике на Лимит (AC8)', async () => {
     const user = userEvent.setup()
 
     renderWithMockAuth(<ConsumersTable />, {
@@ -266,13 +268,13 @@ describe('ConsumersTable', () => {
       expect(screen.getByText('consumer-active')).toBeInTheDocument()
     })
 
-    // Кликаем на Set Rate Limit
-    const rateLimitButtons = screen.getAllByRole('button', { name: /set rate limit/i })
+    // Кликаем на Лимит (русское название согласно локализации Story 16.1)
+    const rateLimitButtons = screen.getAllByRole('button', { name: /лимит/i })
     await user.click(rateLimitButtons[0])
 
-    // Модальное окно должно открыться (title содержит "Rate Limit для consumer-active")
+    // Модальное окно должно открыться (title содержит "Лимит для consumer-active")
     await waitFor(() => {
-      expect(screen.getByText(/rate limit для/i)).toBeInTheDocument()
+      expect(screen.getByText(/лимит для/i)).toBeInTheDocument()
     })
   })
 

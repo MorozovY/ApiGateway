@@ -25,7 +25,7 @@ describe('CreateConsumerModal', () => {
     vi.clearAllMocks()
   })
 
-  it('рендерит модальное окно с заголовком Create Consumer (AC2)', () => {
+  it('рендерит модальное окно с заголовком Новый потребитель (AC2)', () => {
     renderWithMockAuth(<CreateConsumerModal open={true} onClose={mockOnClose} />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -33,10 +33,11 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    expect(screen.getByText('Create Consumer')).toBeInTheDocument()
+    // Русское название согласно локализации Story 16.1
+    expect(screen.getByText('Новый потребитель')).toBeInTheDocument()
   })
 
-  it('показывает форму с полями Client ID и Description (AC2)', () => {
+  it('показывает форму с полями ID клиента и Описание (AC2)', () => {
     renderWithMockAuth(<CreateConsumerModal open={true} onClose={mockOnClose} />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -44,8 +45,9 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    expect(screen.getByLabelText(/client id/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
+    // Русские названия согласно локализации Story 16.1
+    expect(screen.getByLabelText(/id клиента/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/описание/i)).toBeInTheDocument()
   })
 
   it('показывает Alert с предупреждением о secret (AC2)', () => {
@@ -56,7 +58,8 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    expect(screen.getByText(/consumer authentication/i)).toBeInTheDocument()
+    // Русское название согласно локализации Story 16.1
+    expect(screen.getByText(/аутентификация потребителя/i)).toBeInTheDocument()
     expect(
       screen.getByText(/secret будет показан только один раз после создания/i)
     ).toBeInTheDocument()
@@ -73,11 +76,11 @@ describe('CreateConsumerModal', () => {
     })
 
     // Кликаем Create без заполнения Client ID
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/client id обязателен/i)).toBeInTheDocument()
+      expect(screen.getByText(/id клиента обязателен/i)).toBeInTheDocument()
     })
   })
 
@@ -91,17 +94,17 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const clientIdInput = screen.getByLabelText(/client id/i)
+    const clientIdInput = screen.getByLabelText(/id клиента/i)
 
     // Вводим невалидный Client ID (заглавные буквы)
     await user.type(clientIdInput, 'Consumer-A')
 
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     await waitFor(() => {
       expect(
-        screen.getByText(/client id должен содержать только lowercase буквы/i)
+        screen.getByText(/id клиента должен содержать только lowercase буквы/i)
       ).toBeInTheDocument()
     })
   })
@@ -116,16 +119,16 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const clientIdInput = screen.getByLabelText(/client id/i)
+    const clientIdInput = screen.getByLabelText(/id клиента/i)
 
     // Вводим слишком короткий Client ID (2 символа)
     await user.type(clientIdInput, 'ab')
 
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/client id должен быть от 3 до 63 символов/i)).toBeInTheDocument()
+      expect(screen.getByText(/id клиента должен быть от 3 до 63 символов/i)).toBeInTheDocument()
     })
   })
 
@@ -144,10 +147,10 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const clientIdInput = screen.getByLabelText(/client id/i)
+    const clientIdInput = screen.getByLabelText(/id клиента/i)
     await user.type(clientIdInput, 'company-a')
 
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     await waitFor(() => {
@@ -173,13 +176,13 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const clientIdInput = screen.getByLabelText(/client id/i)
-    const descriptionInput = screen.getByLabelText(/description/i)
+    const clientIdInput = screen.getByLabelText(/id клиента/i)
+    const descriptionInput = screen.getByLabelText(/описание/i)
 
     await user.type(clientIdInput, 'partner-api')
     await user.type(descriptionInput, 'Partner API Consumer')
 
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     await waitFor(() => {
@@ -205,10 +208,10 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const clientIdInput = screen.getByLabelText(/client id/i)
+    const clientIdInput = screen.getByLabelText(/id клиента/i)
     await user.type(clientIdInput, 'new-consumer')
 
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     // Ждём открытия SecretModal (title = "Client Secret")
@@ -231,7 +234,7 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const cancelButton = screen.getByRole('button', { name: /cancel/i })
+    const cancelButton = screen.getByRole('button', { name: /отмена/i })
     await user.click(cancelButton)
 
     expect(mockOnClose).toHaveBeenCalled()
@@ -252,10 +255,10 @@ describe('CreateConsumerModal', () => {
       },
     })
 
-    const clientIdInput = screen.getByLabelText(/client id/i)
+    const clientIdInput = screen.getByLabelText(/id клиента/i)
     await user.type(clientIdInput, 'test-consumer')
 
-    const createButton = screen.getByRole('button', { name: /create/i })
+    const createButton = screen.getByRole('button', { name: /создать/i })
     await user.click(createButton)
 
     // Ждём успешного создания и закрытия формы

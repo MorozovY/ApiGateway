@@ -60,52 +60,52 @@ const allMenuItems: MenuItemType[] = [
   {
     key: '/dashboard',
     icon: <DashboardOutlined />,
-    label: 'Dashboard',
+    label: 'Главная',
   },
   {
     key: '/users',
     icon: <TeamOutlined />,
-    label: 'Users',
+    label: 'Пользователи',
   },
   {
     key: '/consumers',
     icon: <UserSwitchOutlined />,
-    label: 'Consumers',
+    label: 'Потребители',
   },
   {
     key: '/routes',
     icon: <ApiOutlined />,
-    label: 'Routes',
+    label: 'Маршруты',
   },
   {
     key: '/rate-limits',
     icon: <SafetyOutlined />,
-    label: 'Rate Limits',
+    label: 'Лимиты',
   },
   {
     key: '/approvals',
     icon: <CheckCircleOutlined />,
-    label: 'Approvals',
+    label: 'Согласования',
   },
   {
     key: '/audit',
     icon: <AuditOutlined />,
-    label: 'Audit Logs',
+    label: 'Аудит',
   },
   {
     key: '/audit/integrations',
     icon: <ClusterOutlined />,
-    label: 'Integrations',
+    label: 'Интеграции',
   },
   {
     key: '/metrics',
     icon: <AreaChartOutlined />,
-    label: 'Metrics',
+    label: 'Метрики',
   },
   {
     key: '/test',
     icon: <ExperimentOutlined />,
-    label: 'Test',
+    label: 'Тестирование',
   },
 ]
 
@@ -150,7 +150,7 @@ function Sidebar({ collapsed }: SidebarProps) {
             ...itemWithPrefetch,
             label: (
               <Badge count={pendingCount} offset={[8, 0]} size="small">
-                Approvals
+                Согласования
               </Badge>
             ),
           }

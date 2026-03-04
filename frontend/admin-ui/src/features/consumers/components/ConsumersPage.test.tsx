@@ -51,7 +51,7 @@ describe('ConsumersPage', () => {
     mockFetchConsumers.mockResolvedValue(mockConsumerListResponse)
   })
 
-  it('рендерит заголовок и кнопку Create Consumer', async () => {
+  it('рендерит заголовок и кнопку Новый потребитель', async () => {
     renderWithMockAuth(<ConsumersPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -59,9 +59,9 @@ describe('ConsumersPage', () => {
       },
     })
 
-    // Заголовок страницы (Title level={3}) — находим по role heading
-    expect(screen.getByRole('heading', { name: 'Consumers', level: 3 })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /create consumer/i })).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — находим по role heading (русские названия согласно локализации Story 16.1)
+    expect(screen.getByRole('heading', { name: 'Потребители', level: 3 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /новый потребитель/i })).toBeInTheDocument()
   })
 
   it('рендерит search input с placeholder', () => {
@@ -72,11 +72,12 @@ describe('ConsumersPage', () => {
       },
     })
 
-    const searchInput = screen.getByPlaceholderText(/search by client id/i)
+    // Русский placeholder согласно локализации Story 16.1
+    const searchInput = screen.getByPlaceholderText(/поиск по client id/i)
     expect(searchInput).toBeInTheDocument()
   })
 
-  it('открывает CreateConsumerModal при клике на кнопку Create', async () => {
+  it('открывает CreateConsumerModal при клике на кнопку Новый потребитель', async () => {
     const user = userEvent.setup()
 
     renderWithMockAuth(<ConsumersPage />, {
@@ -86,12 +87,12 @@ describe('ConsumersPage', () => {
       },
     })
 
-    const createButton = screen.getByRole('button', { name: /create consumer/i })
+    const createButton = screen.getByRole('button', { name: /новый потребитель/i })
     await user.click(createButton)
 
     // Модальное окно должно открыться (ищем modal dialog с заголовком)
     await waitFor(() => {
-      expect(screen.getByRole('dialog', { name: /create consumer/i })).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: /новый потребитель/i })).toBeInTheDocument()
     })
   })
 
@@ -105,7 +106,7 @@ describe('ConsumersPage', () => {
       },
     })
 
-    const searchInput = screen.getByPlaceholderText(/search by client id/i)
+    const searchInput = screen.getByPlaceholderText(/поиск по client id/i)
 
     // Вводим текст в search
     await user.type(searchInput, 'consumer-a')

@@ -95,8 +95,8 @@ describe('AuditLogsTable', () => {
   it('отображает колонки таблицы (AC1)', () => {
     renderTable()
 
-    // Проверяем заголовки колонок
-    expect(screen.getByText('Timestamp')).toBeInTheDocument()
+    // Проверяем заголовки колонок (русские названия согласно локализации Story 16.1)
+    expect(screen.getByText('Время')).toBeInTheDocument()
     expect(screen.getByText('Действие')).toBeInTheDocument()
     expect(screen.getByText('Тип')).toBeInTheDocument()
     expect(screen.getByText('Сущность')).toBeInTheDocument()

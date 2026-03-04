@@ -46,7 +46,7 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
     cleanup()
   })
 
-  it('отображает label поля Rate Limit Policy', () => {
+  it('отображает label поля Политика лимитирования', () => {
     renderWithMockAuth(
       <RouteForm
         onSubmit={mockOnSubmit}
@@ -57,8 +57,8 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
       { authValue: { isAuthenticated: true } }
     )
 
-    // Проверяем label поля
-    expect(screen.getByText('Rate Limit Policy')).toBeInTheDocument()
+    // Проверяем label поля (русское название согласно локализации Story 16.1)
+    expect(screen.getByText('Политика лимитирования')).toBeInTheDocument()
   })
 
   it('отображает dropdown с политиками rate limit при клике', async () => {
@@ -75,14 +75,14 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
     )
 
     // Находим и кликаем на Select
-    const selectTrigger = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const selectTrigger = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.click(selectTrigger)
 
     // Проверяем наличие опций в открывшемся dropdown (AC1: "None" + все доступные политики)
     await waitFor(() => {
-      expect(screen.getByText('None')).toBeInTheDocument()
-      expect(screen.getByText('standard (100/sec)')).toBeInTheDocument()
-      expect(screen.getByText('premium (1000/sec)')).toBeInTheDocument()
+      expect(screen.getByText('Нет')).toBeInTheDocument()
+      expect(screen.getByText('standard (100/сек)')).toBeInTheDocument()
+      expect(screen.getByText('premium (1000/сек)')).toBeInTheDocument()
     })
   })
 
@@ -100,12 +100,12 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
     )
 
     // Находим и кликаем на Select
-    const selectTrigger = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const selectTrigger = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.click(selectTrigger)
 
     // "None" должен быть доступен в dropdown (AC3: опция для отсутствия rate limit)
     await waitFor(() => {
-      expect(screen.getByText('None')).toBeInTheDocument()
+      expect(screen.getByText('Нет')).toBeInTheDocument()
     })
   })
 
@@ -123,18 +123,18 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
     )
 
     // Находим и кликаем на Select
-    const selectTrigger = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const selectTrigger = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.click(selectTrigger)
 
     // Выбираем политику (AC2: выбор политики для назначения маршруту)
     await waitFor(() => {
-      expect(screen.getByText('standard (100/sec)')).toBeInTheDocument()
+      expect(screen.getByText('standard (100/сек)')).toBeInTheDocument()
     })
-    await user.click(screen.getByText('standard (100/sec)'))
+    await user.click(screen.getByText('standard (100/сек)'))
 
     // Проверяем что политика выбрана и отображается в поле
     await waitFor(() => {
-      const elements = screen.getAllByTitle('standard (100/sec)')
+      const elements = screen.getAllByTitle('standard (100/сек)')
       expect(elements.length).toBeGreaterThan(0)
     })
   })
@@ -152,13 +152,13 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
       { authValue: { isAuthenticated: true } }
     )
 
-    const selectTrigger = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const selectTrigger = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.click(selectTrigger)
 
     // Проверяем формат: "name (requestsPerSecond/sec)" (AC1)
     await waitFor(() => {
-      expect(screen.getByText('standard (100/sec)')).toBeInTheDocument()
-      expect(screen.getByText('premium (1000/sec)')).toBeInTheDocument()
+      expect(screen.getByText('standard (100/сек)')).toBeInTheDocument()
+      expect(screen.getByText('premium (1000/сек)')).toBeInTheDocument()
     })
   })
 
@@ -196,7 +196,7 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
 
     // Проверяем что select инициализирован с правильной политикой (режим редактирования)
     await waitFor(() => {
-      const elements = screen.getAllByTitle('premium (1000/sec)')
+      const elements = screen.getAllByTitle('premium (1000/сек)')
       expect(elements.length).toBeGreaterThan(0)
     })
   })
@@ -229,7 +229,7 @@ describe('поле Rate Limit Policy (Story 5.5)', () => {
     )
 
     // Проверяем что поле не имеет выбранного значения (placeholder отображается)
-    const selectTrigger = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const selectTrigger = screen.getByRole('combobox', { name: /политика лимитирования/i })
     expect(selectTrigger).toBeInTheDocument()
     // В Ant Design Select без значения показывается placeholder
     expect(screen.getByText('Выберите политику (опционально)')).toBeInTheDocument()
@@ -280,15 +280,15 @@ describe('интеграция Rate Limit с onSubmit (Story 5.5)', () => {
     )
 
     // Выбираем Rate Limit Policy
-    const rateLimitSelect = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const rateLimitSelect = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.click(rateLimitSelect)
     await waitFor(() => {
-      expect(screen.getByText('standard (100/sec)')).toBeInTheDocument()
+      expect(screen.getByText('standard (100/сек)')).toBeInTheDocument()
     })
-    await user.click(screen.getByText('standard (100/sec)'))
+    await user.click(screen.getByText('standard (100/сек)'))
 
     // Submit формы
-    await user.click(screen.getByRole('button', { name: /save as draft/i }))
+    await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
     // Проверяем что onSubmit вызван с правильным rateLimitId
     await waitFor(() => {
@@ -335,15 +335,15 @@ describe('интеграция Rate Limit с onSubmit (Story 5.5)', () => {
     )
 
     // Выбираем "None" в Rate Limit Policy
-    const rateLimitSelect = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const rateLimitSelect = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.click(rateLimitSelect)
     await waitFor(() => {
-      expect(screen.getByText('None')).toBeInTheDocument()
+      expect(screen.getByText('Нет')).toBeInTheDocument()
     })
-    await user.click(screen.getByText('None'))
+    await user.click(screen.getByText('Нет'))
 
     // Submit формы
-    await user.click(screen.getByRole('button', { name: /save as draft/i }))
+    await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
     // Проверяем что onSubmit вызван с rateLimitId: null
     await waitFor(() => {
@@ -385,7 +385,7 @@ describe('интеграция Rate Limit с onSubmit (Story 5.5)', () => {
     )
 
     // Submit формы без изменения Rate Limit (остаётся null)
-    await user.click(screen.getByRole('button', { name: /save as draft/i }))
+    await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
     // Проверяем что onSubmit вызван с rateLimitId: null
     await waitFor(() => {
@@ -433,12 +433,12 @@ describe('интеграция Rate Limit с onSubmit (Story 5.5)', () => {
 
     // Ждём пока форма инициализируется с политикой
     await waitFor(() => {
-      const elements = screen.getAllByTitle('standard (100/sec)')
+      const elements = screen.getAllByTitle('standard (100/сек)')
       expect(elements.length).toBeGreaterThan(0)
     })
 
     // Очищаем выбор через кнопку clear (X) — наводим на Select чтобы показать кнопку
-    const rateLimitSelect = screen.getByRole('combobox', { name: /rate limit policy/i })
+    const rateLimitSelect = screen.getByRole('combobox', { name: /политика лимитирования/i })
     await user.hover(rateLimitSelect)
 
     // Находим и кликаем кнопку очистки
@@ -447,7 +447,7 @@ describe('интеграция Rate Limit с onSubmit (Story 5.5)', () => {
     await user.click(clearButton!)
 
     // Submit формы
-    await user.click(screen.getByRole('button', { name: /save as draft/i }))
+    await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
     // Проверяем что onSubmit вызван с rateLimitId: null после очистки
     await waitFor(() => {
@@ -498,7 +498,8 @@ describe('loading state Rate Limit (Story 5.5)', () => {
     // Если spinner нет, проверяем атрибут loading на Select
     if (!loadingSpinner) {
       // Проверяем что компонент рендерится корректно даже в loading state
-      expect(screen.getByText('Rate Limit Policy')).toBeInTheDocument()
+      // (русское название согласно локализации Story 16.1)
+      expect(screen.getByText('Политика лимитирования')).toBeInTheDocument()
     }
   })
 })
@@ -521,7 +522,7 @@ describe('поля Authentication (Story 12.7)', () => {
     cleanup()
   })
 
-  it('отображает switch Authentication Required', () => {
+  it('отображает switch Требуется авторизация', () => {
     renderWithMockAuth(
       <RouteForm
         onSubmit={mockOnSubmit}
@@ -532,12 +533,12 @@ describe('поля Authentication (Story 12.7)', () => {
       { authValue: { isAuthenticated: true } }
     )
 
-    // Проверяем наличие label и switch
-    expect(screen.getByText('Authentication Required')).toBeInTheDocument()
+    // Проверяем наличие label и switch (русское название согласно локализации Story 16.1)
+    expect(screen.getByText('Требуется авторизация')).toBeInTheDocument()
     expect(screen.getByTestId('auth-required-switch')).toBeInTheDocument()
   })
 
-  it('отображает поле Allowed Consumers', () => {
+  it('отображает поле Разрешённые потребители', () => {
     renderWithMockAuth(
       <RouteForm
         onSubmit={mockOnSubmit}
@@ -548,8 +549,8 @@ describe('поля Authentication (Story 12.7)', () => {
       { authValue: { isAuthenticated: true } }
     )
 
-    // Проверяем наличие label
-    expect(screen.getByText('Allowed Consumers')).toBeInTheDocument()
+    // Проверяем наличие label (русское название согласно локализации Story 16.1)
+    expect(screen.getByText('Разрешённые потребители')).toBeInTheDocument()
   })
 
   it('authRequired по умолчанию включён (true)', () => {
@@ -599,7 +600,7 @@ describe('поля Authentication (Story 12.7)', () => {
     )
 
     // Submit формы
-    await user.click(screen.getByRole('button', { name: /save as draft/i }))
+    await user.click(screen.getByRole('button', { name: /сохранить/i }))
 
     // Проверяем что onSubmit вызван с authRequired
     await waitFor(() => {

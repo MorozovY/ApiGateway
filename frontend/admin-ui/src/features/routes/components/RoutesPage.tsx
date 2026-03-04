@@ -49,7 +49,7 @@ export function RoutesPage() {
           <Space>
             <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
-              Routes
+              Маршруты
             </Title>
           </Space>
           <Tooltip title="Ctrl+N">
@@ -58,7 +58,7 @@ export function RoutesPage() {
               icon={<PlusOutlined />}
               onClick={handleCreateRoute}
             >
-              New Route
+              Новый маршрут
             </Button>
           </Tooltip>
         </Space>

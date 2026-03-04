@@ -14,36 +14,36 @@ test.describe('Создание маршрута', () => {
   test('кнопка New Route ведёт на форму создания', async ({ page }) => {
     await page.goto('/routes')
 
-    // Кликаем "New Route"
-    await page.getByRole('button', { name: /new route/i }).click()
+    // Кликаем "Новый маршрут"
+    await page.getByRole('button', { name: /новый маршрут/i }).click()
 
     // Переход на страницу создания
     await expect(page).toHaveURL('/routes/new')
 
     // Заголовок страницы
-    await expect(page.getByRole('heading', { name: 'Create Route' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Создание маршрута' })).toBeVisible()
   })
 
   test('форма создания отображает все поля', async ({ page }) => {
     await page.goto('/routes/new')
 
-    // Проверяем наличие полей
-    await expect(page.getByLabel('Path')).toBeVisible()
+    // Проверяем наличие полей (Story 16.1: некоторые технические термины оставлены на английском)
+    await expect(page.getByLabel('Путь')).toBeVisible()
     await expect(page.getByLabel('Upstream URL')).toBeVisible()
-    await expect(page.getByLabel('HTTP Methods')).toBeVisible()
-    await expect(page.getByLabel('Rate Limit Policy')).toBeVisible()
-    await expect(page.getByLabel('Description')).toBeVisible()
+    await expect(page.getByLabel('HTTP методы')).toBeVisible()
+    await expect(page.getByLabel('Политика лимитирования')).toBeVisible()
+    await expect(page.getByLabel('Описание')).toBeVisible()
 
     // Кнопки
-    await expect(page.getByRole('button', { name: /save as draft/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /cancel/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /сохранить/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /отмена/i })).toBeVisible()
   })
 
   test('создание маршрута → появление в списке', async ({ page }) => {
     await page.goto('/routes/new')
 
-    // Заполняем форму
-    await page.getByLabel('Path').fill('api/v1/new-service')
+    // Заполняем форму (Story 16.1: Upstream URL — технический термин, оставлен на английском)
+    await page.getByLabel('Путь').fill('api/v1/new-service')
     await page.getByLabel('Upstream URL').fill('http://new-service.local:8080')
 
     // Выбираем методы — используем locator для multiselect
@@ -56,10 +56,10 @@ test.describe('Создание маршрута', () => {
     await page.keyboard.press('Escape')
 
     // Опциональные поля
-    await page.getByLabel('Description').fill('New test service')
+    await page.getByLabel('Описание').fill('New test service')
 
     // Сохраняем
-    await page.getByRole('button', { name: /save as draft/i }).click()
+    await page.getByRole('button', { name: /сохранить/i }).click()
 
     // Редирект на страницу деталей созданного маршрута
     await expect(page).toHaveURL(/\/routes\/route-new-/)
@@ -75,7 +75,7 @@ test.describe('Создание маршрута', () => {
     await page.goto('/routes/new')
 
     // Пытаемся сохранить пустую форму
-    await page.getByRole('button', { name: /save as draft/i }).click()
+    await page.getByRole('button', { name: /сохранить/i }).click()
 
     // Сообщения об ошибках
     await expect(page.getByText('Path обязателен')).toBeVisible()
@@ -86,8 +86,8 @@ test.describe('Создание маршрута', () => {
   test('Cancel возвращает к списку маршрутов', async ({ page }) => {
     await page.goto('/routes/new')
 
-    // Нажимаем Cancel
-    await page.getByRole('button', { name: /cancel/i }).click()
+    // Нажимаем Отмена
+    await page.getByRole('button', { name: /отмена/i }).click()
 
     // Возврат к списку
     await expect(page).toHaveURL('/routes')
@@ -96,14 +96,14 @@ test.describe('Создание маршрута', () => {
   test('создание маршрута со статусом draft', async ({ page }) => {
     await page.goto('/routes/new')
 
-    // Минимальное заполнение
-    await page.getByLabel('Path').fill('api/v1/draft-test')
+    // Минимальное заполнение (Story 16.1: Upstream URL — технический термин)
+    await page.getByLabel('Путь').fill('api/v1/draft-test')
     await page.getByLabel('Upstream URL').fill('http://draft-service.local:8080')
     await page.getByTestId('methods-select').click()
     await page.locator('.ant-select-item-option-content').filter({ hasText: 'GET' }).click()
     await page.keyboard.press('Escape')
 
-    await page.getByRole('button', { name: /save as draft/i }).click()
+    await page.getByRole('button', { name: /сохранить/i }).click()
 
     // Переход на страницу деталей
     await expect(page).toHaveURL(/\/routes\/route-new-/)

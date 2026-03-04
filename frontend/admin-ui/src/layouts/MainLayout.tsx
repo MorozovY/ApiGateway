@@ -93,7 +93,7 @@ function MainLayout() {
                 data-testid="sidebar-collapse-button"
               />
             </Tooltip>
-            <span style={{ fontSize: 16 }}>Admin Panel</span>
+            <span style={{ fontSize: 16 }}>Панель управления</span>
           </Space>
           {/* Правая часть: руководство, тема, пользователь */}
           <Space>

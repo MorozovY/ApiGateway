@@ -104,7 +104,7 @@ function UsersTable({ onEdit }: UsersTableProps) {
   // Определение колонок таблицы
   const columns: ColumnsType<User> = [
     {
-      title: 'Username',
+      title: 'Пользователь',
       dataIndex: 'username',
       key: 'username',
       sorter: (a, b) => a.username.localeCompare(b.username),
@@ -115,40 +115,40 @@ function UsersTable({ onEdit }: UsersTableProps) {
       key: 'email',
     },
     {
-      title: 'Role',
+      title: 'Роль',
       dataIndex: 'role',
       key: 'role',
       render: (role: UserRole) => (
         <Tag color={ROLE_COLORS[role]}>{ROLE_LABELS[role]}</Tag>
       ),
       filters: [
-        { text: 'Developer', value: 'developer' },
-        { text: 'Security', value: 'security' },
-        { text: 'Admin', value: 'admin' },
+        { text: 'Разработчик', value: 'developer' },
+        { text: 'Безопасность', value: 'security' },
+        { text: 'Администратор', value: 'admin' },
       ],
       onFilter: (value, record) => record.role === value,
     },
     {
-      title: 'Status',
+      title: 'Статус',
       dataIndex: 'isActive',
       key: 'isActive',
       render: (isActive: boolean) => (
         <Tag color={isActive ? 'green' : 'default'}>
-          {isActive ? 'Active' : 'Inactive'}
+          {isActive ? 'Активен' : 'Неактивен'}
         </Tag>
       ),
       filters: [
-        { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
+        { text: 'Активен', value: true },
+        { text: 'Неактивен', value: false },
       ],
       onFilter: (value, record) => record.isActive === value,
     },
     {
-      title: 'Actions',
+      title: 'Действия',
       key: 'actions',
       render: (_, record) => (
         <Space>
-          {/* Edit доступен только для активных пользователей.
+          {/* Редактирование доступно только для активных пользователей.
               Деактивированных можно только просматривать. */}
           <Button
             type="text"
@@ -156,7 +156,7 @@ function UsersTable({ onEdit }: UsersTableProps) {
             onClick={() => onEdit(record)}
             disabled={!record.isActive}
           >
-            Edit
+            Редактировать
           </Button>
           {record.isActive && (
             <Popconfirm
@@ -172,7 +172,7 @@ function UsersTable({ onEdit }: UsersTableProps) {
                 icon={<StopOutlined />}
                 loading={deactivateMutation.isPending && deactivateMutation.variables === record.id}
               >
-                Deactivate
+                Деактивировать
               </Button>
             </Popconfirm>
           )}

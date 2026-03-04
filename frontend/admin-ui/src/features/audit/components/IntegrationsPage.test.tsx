@@ -75,8 +75,9 @@ describe('IntegrationsPage', () => {
     it('показывает страницу для security роли', async () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: securityAuth })
 
+      // Используем getByRole для точного поиска заголовка (в PageInfoBlock тоже есть "Интеграции")
       await waitFor(() => {
-        expect(screen.getByText('Integrations Report')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Интеграции', level: 3 })).toBeInTheDocument()
       })
 
       expect(mockNavigateComponent).not.toHaveBeenCalled()
@@ -85,8 +86,9 @@ describe('IntegrationsPage', () => {
     it('показывает страницу для admin роли', async () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: adminAuth })
 
+      // Используем getByRole для точного поиска заголовка (в PageInfoBlock тоже есть "Интеграции")
       await waitFor(() => {
-        expect(screen.getByText('Integrations Report')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Интеграции', level: 3 })).toBeInTheDocument()
       })
 
       expect(mockNavigateComponent).not.toHaveBeenCalled()
@@ -97,8 +99,9 @@ describe('IntegrationsPage', () => {
     it('отображает заголовок и PageInfoBlock', async () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: adminAuth })
 
+      // Используем getByRole для точного поиска заголовка (в PageInfoBlock тоже есть "Интеграции")
       await waitFor(() => {
-        expect(screen.getByText('Integrations Report')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Интеграции', level: 3 })).toBeInTheDocument()
       })
 
       // Story 15.4: описание теперь в PageInfoBlock
@@ -125,10 +128,10 @@ describe('IntegrationsPage', () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: adminAuth })
 
       await waitFor(() => {
-        expect(screen.getByText('Export Report')).toBeInTheDocument()
+        expect(screen.getByText('Экспорт отчёта')).toBeInTheDocument()
       })
 
-      await user.click(screen.getByText('Export Report'))
+      await user.click(screen.getByText('Экспорт отчёта'))
 
       await waitFor(() => {
         // Story 10.9: exportUpstreamReport теперь принимает messageApi вторым аргументом
@@ -145,10 +148,10 @@ describe('IntegrationsPage', () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: adminAuth })
 
       await waitFor(() => {
-        expect(screen.getByText('Export Report')).toBeInTheDocument()
+        expect(screen.getByText('Экспорт отчёта')).toBeInTheDocument()
       })
 
-      const exportButton = screen.getByText('Export Report').closest('button')
+      const exportButton = screen.getByText('Экспорт отчёта').closest('button')
       expect(exportButton).toBeDisabled()
     })
   })

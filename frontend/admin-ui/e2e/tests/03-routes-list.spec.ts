@@ -15,10 +15,10 @@ test.describe('Список маршрутов', () => {
     await page.goto('/routes')
 
     // Заголовок страницы
-    await expect(page.getByRole('heading', { name: 'Routes' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Маршруты' })).toBeVisible()
 
     // Кнопка создания
-    await expect(page.getByRole('button', { name: /new route/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /новый маршрут/i })).toBeVisible()
 
     // Таблица загружена — проверяем наличие path из mock данных
     await expect(page.getByRole('link', { name: mockRoutes[0].path })).toBeVisible()
@@ -28,12 +28,12 @@ test.describe('Список маршрутов', () => {
     await page.goto('/routes')
 
     // Проверяем заголовки колонок
-    await expect(page.getByRole('columnheader', { name: 'Path' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Upstream URL' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Methods' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Status' })).toBeVisible()
-    // exact: true чтобы не путать с "Author"
-    await expect(page.getByRole('columnheader', { name: 'Auth', exact: true })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Путь' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'URL сервиса' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Методы' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Статус' })).toBeVisible()
+    // exact: true чтобы не путать с "Автор"
+    await expect(page.getByRole('columnheader', { name: 'Авторизация' })).toBeVisible()
   })
 
   test('отображает правильное количество маршрутов', async ({ page }) => {

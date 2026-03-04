@@ -220,7 +220,7 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       {/* Поле Path */}
       <Form.Item
         name="path"
-        label="Path"
+        label="Путь"
         validateStatus={pathError ? 'error' : isCheckingPath ? 'validating' : undefined}
         help={pathError || undefined}
         rules={[
@@ -255,7 +255,7 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       {/* Поле Methods */}
       <Form.Item
         name="methods"
-        label="HTTP Methods"
+        label="HTTP методы"
         rules={[{ required: true, message: 'Выберите минимум один метод' }]}
       >
         <Select
@@ -269,7 +269,7 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       {/* Поле выбора политики Rate Limit (Story 5.5) */}
       <Form.Item
         name="rateLimitId"
-        label="Rate Limit Policy"
+        label="Политика лимитирования"
         data-testid="rate-limit-form-item"
       >
         <Select
@@ -278,10 +278,10 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
           loading={rateLimitsLoading}
           data-testid="rate-limit-select"
           options={[
-            { value: '', label: 'None' },
+            { value: '', label: 'Нет' },
             ...(rateLimitsData?.items || []).map((policy) => ({
               value: policy.id,
-              label: `${policy.name} (${policy.requestsPerSecond}/sec)`,
+              label: `${policy.name} (${policy.requestsPerSecond}/сек)`,
             })),
           ]}
         />
@@ -292,8 +292,8 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
         name="authRequired"
         label={
           <Space>
-            <span>Authentication Required</span>
-            <Tooltip title="Если включено, маршрут требует валидный JWT токен. Public маршруты доступны без аутентификации.">
+            <span>Требуется авторизация</span>
+            <Tooltip title="Если включено, маршрут требует валидный JWT токен. Публичные маршруты доступны без аутентификации.">
               <QuestionCircleOutlined style={{ color: '#999' }} />
             </Tooltip>
           </Space>
@@ -303,8 +303,8 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
         data-testid="auth-required-form-item"
       >
         <Switch
-          checkedChildren={<><LockOutlined /> Protected</>}
-          unCheckedChildren={<><UnlockOutlined /> Public</>}
+          checkedChildren={<><LockOutlined /> Защищён</>}
+          unCheckedChildren={<><UnlockOutlined /> Публичный</>}
           data-testid="auth-required-switch"
         />
       </Form.Item>
@@ -314,8 +314,8 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
         name="allowedConsumers"
         label={
           <Space>
-            <span>Allowed Consumers</span>
-            <Tooltip title="Оставьте пустым для доступа всем consumers. Укажите client_id для ограничения доступа (whitelist).">
+            <span>Разрешённые потребители</span>
+            <Tooltip title="Оставьте пустым для доступа всем потребителям. Укажите client_id для ограничения доступа (whitelist).">
               <QuestionCircleOutlined style={{ color: '#999' }} />
             </Tooltip>
           </Space>
@@ -332,7 +332,7 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       </Form.Item>
 
       {/* Поле Description */}
-      <Form.Item name="description" label="Description">
+      <Form.Item name="description" label="Описание">
         <Input.TextArea rows={3} placeholder="Описание маршрута (опционально)" />
       </Form.Item>
 
@@ -340,9 +340,9 @@ export const RouteForm = forwardRef<RouteFormRef, RouteFormProps>(function Route
       <Form.Item>
         <Space>
           <Button type="primary" htmlType="submit" loading={isSubmitting}>
-            Save as Draft
+            Сохранить
           </Button>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={onCancel}>Отмена</Button>
         </Space>
       </Form.Item>
     </Form>

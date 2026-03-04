@@ -206,11 +206,11 @@ describe('UpstreamsTable', () => {
         expect(screen.getByText('/api/users')).toBeInTheDocument()
       })
 
-      // Проверяем заголовки колонок
-      expect(screen.getByText('Path')).toBeInTheDocument()
+      // Проверяем заголовки колонок (русские названия согласно локализации Story 16.1)
+      expect(screen.getByText('Путь')).toBeInTheDocument()
       expect(screen.getByText('Статус')).toBeInTheDocument()
       expect(screen.getByText('Методы')).toBeInTheDocument()
-      expect(screen.getByText('Rate Limit')).toBeInTheDocument()
+      expect(screen.getByText('Лимит')).toBeInTheDocument()
 
       // Проверяем данные маршрутов
       expect(screen.getByText('Опубликован')).toBeInTheDocument() // status tag

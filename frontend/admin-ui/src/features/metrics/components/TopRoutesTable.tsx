@@ -12,13 +12,13 @@ import type { TopRoute } from '../types/metrics.types'
  */
 const columns: ColumnsType<TopRoute> = [
   {
-    title: 'Path',
+    title: 'Путь',
     dataIndex: 'path',
     key: 'path',
     ellipsis: true,
   },
   {
-    title: 'Total Requests',
+    title: 'Всего запросов',
     dataIndex: 'value',
     key: 'value',
     render: (value: number) => value?.toFixed(0) ?? '0',

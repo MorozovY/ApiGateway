@@ -94,7 +94,7 @@ export function RouteFormPage() {
       <Space style={{ marginBottom: 24 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={handleCancel} type="text" />
         <Title level={2} style={{ margin: 0 }}>
-          {isEditMode ? 'Edit Route' : 'Create Route'}
+          {isEditMode ? 'Редактирование маршрута' : 'Создание маршрута'}
         </Title>
       </Space>
 

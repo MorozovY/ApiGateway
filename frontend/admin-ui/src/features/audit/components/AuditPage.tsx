@@ -188,7 +188,7 @@ export function AuditPage() {
             <Space>
               <AuditOutlined style={{ fontSize: 24, color: '#1890ff' }} />
               <Title level={3} style={{ margin: 0 }}>
-                Audit Logs
+                Журнал аудита
               </Title>
             </Space>
             <Button
@@ -198,7 +198,7 @@ export function AuditPage() {
               disabled={!data?.total || isExporting}
               loading={isExporting}
             >
-              Export CSV
+              Экспорт CSV
             </Button>
           </Space>
         </div>

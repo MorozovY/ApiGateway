@@ -99,13 +99,13 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
 
   return (
     <Modal
-      title={isEditMode ? 'Edit Policy' : 'New Policy'}
+      title={isEditMode ? 'Редактировать лимит' : 'Новый лимит'}
       open={open}
       onOk={handleSubmit}
       onCancel={handleCancel}
       confirmLoading={isLoading}
-      okText={isEditMode ? 'Save' : 'Create'}
-      cancelText="Cancel"
+      okText={isEditMode ? 'Сохранить' : 'Создать'}
+      cancelText="Отмена"
       destroyOnHidden
     >
       <Form
@@ -116,37 +116,37 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
           burstSize: 20,
         }}
       >
-        {/* Name — обязательное, уникальное */}
+        {/* Название — обязательное, уникальное */}
         <Form.Item
           name="name"
-          label="Name"
+          label="Название"
           rules={[
-            { required: true, message: 'Name обязателен' },
+            { required: true, message: 'Название обязательно' },
             { min: 1, message: 'Минимум 1 символ' },
             { max: 100, message: 'Максимум 100 символов' },
           ]}
         >
-          <Input placeholder="Введите название политики" data-testid="policy-name-input" />
+          <Input placeholder="Введите название лимита" data-testid="policy-name-input" />
         </Form.Item>
 
-        {/* Description — опциональное */}
+        {/* Описание — опциональное */}
         <Form.Item
           name="description"
-          label="Description"
+          label="Описание"
           rules={[{ max: 500, message: 'Максимум 500 символов' }]}
         >
           <Input.TextArea
-            placeholder="Описание политики (опционально)"
+            placeholder="Описание лимита (опционально)"
             rows={2}
           />
         </Form.Item>
 
-        {/* Requests per Second — обязательное, число >= 1 */}
+        {/* Запросов в секунду — обязательное, число >= 1 */}
         <Form.Item
           name="requestsPerSecond"
-          label="Requests per Second"
+          label="Запросов/сек"
           rules={[
-            { required: true, message: 'Requests per second обязателен' },
+            { required: true, message: 'Количество запросов в секунду обязательно' },
             { type: 'number', min: 1, message: 'Минимум 1' },
           ]}
         >
@@ -158,13 +158,13 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
           />
         </Form.Item>
 
-        {/* Burst Size — обязательное, число >= requestsPerSecond */}
+        {/* Размер всплеска — обязательное, число >= requestsPerSecond */}
         <Form.Item
           name="burstSize"
-          label="Burst Size"
+          label="Размер всплеска"
           dependencies={['requestsPerSecond']}
           rules={[
-            { required: true, message: 'Burst size обязателен' },
+            { required: true, message: 'Размер всплеска обязателен' },
             { type: 'number', min: 1, message: 'Минимум 1' },
             { validator: validateBurstSize },
           ]}
@@ -172,7 +172,7 @@ function RateLimitFormModal({ open, rateLimit, onClose }: RateLimitFormModalProp
           <InputNumber
             min={1}
             style={{ width: '100%' }}
-            placeholder="Размер burst (максимум токенов)"
+            placeholder="Размер всплеска (максимум токенов)"
             data-testid="policy-burst-input"
           />
         </Form.Item>

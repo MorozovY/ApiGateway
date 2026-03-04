@@ -251,8 +251,8 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
 
         <Descriptions column={1} bordered>
           {/* Configuration секция */}
-          <Descriptions.Item label="Upstream URL">{route.upstreamUrl}</Descriptions.Item>
-          <Descriptions.Item label="HTTP Methods">
+          <Descriptions.Item label="URL сервиса">{route.upstreamUrl}</Descriptions.Item>
+          <Descriptions.Item label="HTTP методы">
             <Space size={4} wrap>
               {route.methods.map(method => (
                 <Tag key={method} color={METHOD_COLORS[method] || 'default'}>
@@ -281,22 +281,22 @@ export function RouteDetailsCard({ route }: RouteDetailsCardProps) {
           {/* Rate Limit секция (Story 5.5) */}
           {route.rateLimit ? (
             <>
-              <Descriptions.Item label="Rate Limit Policy">
+              <Descriptions.Item label="Политика лимитирования">
                 <strong>{route.rateLimit.name}</strong>
               </Descriptions.Item>
-              <Descriptions.Item label="Requests per Second">
+              <Descriptions.Item label="Запросов в секунду">
                 {route.rateLimit.requestsPerSecond}
               </Descriptions.Item>
-              <Descriptions.Item label="Burst Size">
+              <Descriptions.Item label="Размер всплеска">
                 {route.rateLimit.burstSize}
               </Descriptions.Item>
             </>
           ) : (
-            <Descriptions.Item label="Rate Limit">
+            <Descriptions.Item label="Лимитирование">
               <Space direction="vertical" size={4}>
-                <span style={{ color: '#8c8c8c' }}>No rate limiting configured</span>
+                <span style={{ color: '#8c8c8c' }}>Лимитирование не настроено</span>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Consider adding rate limiting for production routes
+                  Рекомендуется добавить лимитирование для production маршрутов
                 </Typography.Text>
               </Space>
             </Descriptions.Item>

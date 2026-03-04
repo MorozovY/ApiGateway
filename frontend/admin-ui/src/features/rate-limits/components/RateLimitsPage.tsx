@@ -88,13 +88,13 @@ function RateLimitsPage() {
           <Space>
             <SafetyOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
-              Rate Limits
+              Лимиты трафика
             </Title>
           </Space>
-          {/* Кнопка "New Policy" только для admin (AC8) */}
+          {/* Кнопка "Новый лимит" только для admin (AC8) */}
           {isAdmin && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-              New Policy
+              Новый лимит
             </Button>
           )}
         </Space>

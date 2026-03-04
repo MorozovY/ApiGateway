@@ -350,15 +350,15 @@ describe('RouteDetailsPage', () => {
         initialEntries: ['/routes/route-1'],
       })
 
+      // Русские названия согласно локализации Story 16.1
       await waitFor(() => {
-        expect(screen.getByText('Rate Limit Policy')).toBeInTheDocument()
         expect(screen.getByText('standard')).toBeInTheDocument()
         expect(screen.getByText('100')).toBeInTheDocument()
         expect(screen.getByText('150')).toBeInTheDocument()
       })
     })
 
-    it('отображает сообщение "No rate limiting configured" если не назначен', async () => {
+    it('отображает сообщение "Лимитирование не настроено" если не назначен', async () => {
       // Story 5.5: маршрут без rate limit
       mockRouteData = { ...mockRoute, rateLimitId: null, rateLimit: null }
 
@@ -371,9 +371,9 @@ describe('RouteDetailsPage', () => {
         expect(screen.getByText('/api/orders')).toBeInTheDocument()
       })
 
-      // Story 5.5: секция Rate Limit всегда отображается, но с сообщением о её отсутствии
-      expect(screen.getByText('No rate limiting configured')).toBeInTheDocument()
-      expect(screen.getByText('Consider adding rate limiting for production routes')).toBeInTheDocument()
+      // Story 5.5: секция Rate Limit всегда отображается, но с сообщением о её отсутствии (русские названия согласно локализации Story 16.1)
+      expect(screen.getByText('Лимитирование не настроено')).toBeInTheDocument()
+      expect(screen.getByText('Рекомендуется добавить лимитирование для production маршрутов')).toBeInTheDocument()
     })
   })
 

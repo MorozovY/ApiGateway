@@ -35,7 +35,7 @@ function ExpandedRoutes({ host }: { host: string }) {
 
   const routeColumns: ColumnsType<Route> = [
     {
-      title: 'Path',
+      title: 'Путь',
       dataIndex: 'path',
       key: 'path',
       width: 250,
@@ -62,7 +62,7 @@ function ExpandedRoutes({ host }: { host: string }) {
       render: (methods: string[]) => methods?.join(', ') || '—',
     },
     {
-      title: 'Rate Limit',
+      title: 'Лимит',
       key: 'rateLimit',
       width: 150,
       render: (_: unknown, record: Route) => record.rateLimit?.name || '—',
@@ -112,7 +112,7 @@ export function UpstreamsTable() {
   // Table.EXPAND_COLUMN используется для позиционирования expand icon справа
   const columns: ColumnsType<UpstreamSummary> = [
     {
-      title: 'Upstream Host',
+      title: 'Хост сервиса',
       dataIndex: 'host',
       key: 'host',
       sorter: (a, b) => a.host.localeCompare(b.host),

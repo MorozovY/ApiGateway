@@ -363,19 +363,19 @@ describe('секция Rate Limit (Story 5.5)', () => {
       expect(screen.getByText('150')).toBeInTheDocument()
     })
 
-    // Проверяем labels
-    expect(screen.getByText('Rate Limit Policy')).toBeInTheDocument()
-    expect(screen.getByText('Requests per Second')).toBeInTheDocument()
-    expect(screen.getByText('Burst Size')).toBeInTheDocument()
+    // Проверяем labels (русские названия согласно локализации Story 16.1)
+    expect(screen.getByText('Запросов в секунду')).toBeInTheDocument()
+    expect(screen.getByText('Размер всплеска')).toBeInTheDocument()
   })
 
-  it('отображает "No rate limiting configured" когда политика не назначена', async () => {
+  it('отображает "Лимитирование не настроено" когда политика не назначена', async () => {
     renderWithMockAuth(<RouteDetailsCard route={mockRouteWithoutRateLimit} />, {
       authValue: { isAuthenticated: true, user: mockUser },
     })
 
+    // Русское сообщение согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByText('No rate limiting configured')).toBeInTheDocument()
+      expect(screen.getByText('Лимитирование не настроено')).toBeInTheDocument()
     })
   })
 
@@ -384,9 +384,10 @@ describe('секция Rate Limit (Story 5.5)', () => {
       authValue: { isAuthenticated: true, user: mockUser },
     })
 
+    // Русское сообщение согласно локализации Story 16.1
     await waitFor(() => {
       expect(
-        screen.getByText('Consider adding rate limiting for production routes')
+        screen.getByText('Рекомендуется добавить лимитирование для production маршрутов')
       ).toBeInTheDocument()
     })
   })

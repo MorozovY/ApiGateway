@@ -61,7 +61,7 @@ describe('RateLimitsPage', () => {
     mockGetRoutesByRateLimitId.mockResolvedValue([])
   })
 
-  it('рендерит заголовок "Rate Limits" (AC1, Story 15.6)', async () => {
+  it('рендерит заголовок "Лимиты трафика" (AC1, Story 15.6)', async () => {
     renderWithMockAuth(<RateLimitsPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -69,11 +69,11 @@ describe('RateLimitsPage', () => {
       },
     })
 
-    // Заголовок страницы (Title level={3}) — Story 15.6 унификация заголовков
-    expect(screen.getByRole('heading', { name: 'Rate Limits', level: 3 })).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — Story 15.6 унификация заголовков (русские названия согласно локализации Story 16.1)
+    expect(screen.getByRole('heading', { name: 'Лимиты трафика', level: 3 })).toBeInTheDocument()
   })
 
-  it('показывает кнопку "New Policy" для admin (AC8)', async () => {
+  it('показывает кнопку "Новый лимит" для admin (AC8)', async () => {
     renderWithMockAuth(<RateLimitsPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -81,10 +81,10 @@ describe('RateLimitsPage', () => {
       },
     })
 
-    expect(screen.getByRole('button', { name: /new policy/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /новый лимит/i })).toBeInTheDocument()
   })
 
-  it('скрывает кнопку "New Policy" для developer (AC8)', async () => {
+  it('скрывает кнопку "Новый лимит" для developer (AC8)', async () => {
     renderWithMockAuth(<RateLimitsPage />, {
       authValue: {
         user: { userId: '1', username: 'developer', role: 'developer' },
@@ -92,10 +92,10 @@ describe('RateLimitsPage', () => {
       },
     })
 
-    expect(screen.queryByRole('button', { name: /new policy/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /новый лимит/i })).not.toBeInTheDocument()
   })
 
-  it('скрывает кнопку "New Policy" для security (AC8)', async () => {
+  it('скрывает кнопку "Новый лимит" для security (AC8)', async () => {
     renderWithMockAuth(<RateLimitsPage />, {
       authValue: {
         user: { userId: '1', username: 'security', role: 'security' },
@@ -103,7 +103,7 @@ describe('RateLimitsPage', () => {
       },
     })
 
-    expect(screen.queryByRole('button', { name: /new policy/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /новый лимит/i })).not.toBeInTheDocument()
   })
 
   it('показывает таблицу с политиками (AC1)', async () => {
@@ -121,7 +121,7 @@ describe('RateLimitsPage', () => {
     expect(screen.getByText('Premium Limit')).toBeInTheDocument()
   })
 
-  it('открывает модальное окно создания при клике на "New Policy"', async () => {
+  it('открывает модальное окно создания при клике на "Новый лимит"', async () => {
     renderWithMockAuth(<RateLimitsPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -134,12 +134,12 @@ describe('RateLimitsPage', () => {
       expect(screen.getByText('Basic Limit')).toBeInTheDocument()
     })
 
-    await userEvent.click(screen.getByRole('button', { name: /new policy/i }))
+    await userEvent.click(screen.getByRole('button', { name: /новый лимит/i }))
 
     // Модальное окно появляется с заголовком — проверяем в document.body
     await waitFor(() => {
       const modalTitle = document.querySelector('.ant-modal-title')
-      expect(modalTitle).toHaveTextContent('New Policy')
+      expect(modalTitle).toHaveTextContent('Новый лимит')
     })
   })
 
@@ -222,7 +222,7 @@ describe('RateLimitsPage', () => {
     await userEvent.click(editButton!)
 
     await waitFor(() => {
-      expect(screen.getByText('Edit Policy')).toBeInTheDocument()
+      expect(screen.getByText('Редактировать лимит')).toBeInTheDocument()
     })
   })
 

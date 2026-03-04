@@ -62,8 +62,8 @@ describe('TestPage', () => {
   it('отображает заголовок страницы (Story 15.6)', async () => {
     render(<TestPage />, { wrapper: createWrapper() })
 
-    // Story 15.6: унификация заголовков — "Test" вместо "Test Load Generator"
-    expect(screen.getByRole('heading', { name: 'Test', level: 3 })).toBeInTheDocument()
+    // Story 15.6: унификация заголовков — "Тестирование" (русское название согласно локализации Story 16.1)
+    expect(screen.getByRole('heading', { name: 'Тестирование', level: 3 })).toBeInTheDocument()
     expect(screen.getByTestId('test-page')).toBeInTheDocument()
   })
 

@@ -12,17 +12,17 @@ test.describe('Consumers List', () => {
     await setupMockApi(page)
   })
 
-  test('таблица consumers отображает колонки Client ID, Status, Rate Limit, Actions', async ({ page }) => {
+  test('таблица consumers отображает колонки ID клиента, Статус, Лимит, Действия', async ({ page }) => {
     await page.goto('/consumers')
 
-    // Ждём загрузки страницы — заголовок Consumers
-    await expect(page.locator('h3').filter({ hasText: /consumers/i })).toBeVisible()
+    // Ждём загрузки страницы — заголовок Потребители (Story 16.1)
+    await expect(page.locator('h3').filter({ hasText: 'Потребители' })).toBeVisible()
 
-    // Проверяем заголовки колонок
-    await expect(page.getByRole('columnheader', { name: 'Client ID' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Status' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Rate Limit' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible()
+    // Проверяем заголовки колонок (Story 16.1 — локализация)
+    await expect(page.getByRole('columnheader', { name: 'ID клиента' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Статус' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Лимит' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Действия' })).toBeVisible()
 
     // Проверяем что mock данные отображаются
     const activeConsumer = mockConsumers.find((c) => c.enabled)
@@ -48,33 +48,33 @@ test.describe('Consumers List', () => {
     await expect(page.getByRole('cell', { name: 'mobile-app-backend' })).not.toBeVisible()
   })
 
-  test('фильтр по статусу Active/Disabled работает', async ({ page }) => {
+  test('фильтр по статусу Активен/Отключён работает', async ({ page }) => {
     await page.goto('/consumers')
 
     // Ждём загрузки данных
     await expect(page.getByRole('cell', { name: mockConsumers[0].clientId })).toBeVisible()
 
-    // Находим колонку Status и кликаем на фильтр
-    const statusHeader = page.getByRole('columnheader', { name: 'Status' })
+    // Находим колонку Статус и кликаем на фильтр (Story 16.1)
+    const statusHeader = page.getByRole('columnheader', { name: 'Статус' })
     await statusHeader.locator('.ant-table-filter-trigger').click()
 
     // Ждём появления dropdown меню фильтра
     const filterDropdown = page.locator('.ant-table-filter-dropdown')
     await expect(filterDropdown).toBeVisible()
 
-    // Выбираем Disabled в dropdown фильтре (не в таблице)
-    await filterDropdown.getByText('Disabled').click()
+    // Выбираем Отключён в dropdown фильтре (Story 16.1)
+    await filterDropdown.getByText('Отключён').click()
 
     // Подтверждаем фильтр
     await filterDropdown.getByRole('button', { name: 'OK' }).click()
 
-    // Disabled consumer должен быть виден
+    // Отключённый consumer должен быть виден
     const disabledConsumer = mockConsumers.find((c) => !c.enabled)
     if (disabledConsumer) {
       await expect(page.getByRole('cell', { name: disabledConsumer.clientId })).toBeVisible()
     }
 
-    // Active consumers не должны быть видны
+    // Активные consumers не должны быть видны
     const activeConsumer = mockConsumers.find((c) => c.enabled)
     if (activeConsumer) {
       await expect(page.getByRole('cell', { name: activeConsumer.clientId })).not.toBeVisible()

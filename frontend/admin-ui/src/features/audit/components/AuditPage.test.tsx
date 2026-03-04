@@ -135,7 +135,7 @@ describe('AuditPage', () => {
 
       // Developer не должен видеть контент страницы — редирект через <Navigate>
       await waitFor(() => {
-        expect(screen.queryByText('Audit Logs')).not.toBeInTheDocument()
+        expect(screen.queryByText('Журнал аудита')).not.toBeInTheDocument()
       })
     })
 
@@ -146,7 +146,7 @@ describe('AuditPage', () => {
 
       await waitFor(() => {
         // Story 15.6: унификация заголовков — ищем по роли heading
-        expect(screen.getByRole('heading', { name: 'Audit Logs', level: 3 })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Журнал аудита', level: 3 })).toBeInTheDocument()
       })
     })
 
@@ -157,7 +157,7 @@ describe('AuditPage', () => {
 
       await waitFor(() => {
         // Story 15.6: унификация заголовков — ищем по роли heading
-        expect(screen.getByRole('heading', { name: 'Audit Logs', level: 3 })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Журнал аудита', level: 3 })).toBeInTheDocument()
       })
     })
   })
@@ -170,7 +170,7 @@ describe('AuditPage', () => {
 
       await waitFor(() => {
         // Story 15.6: унификация заголовков — ищем по роли heading
-        expect(screen.getByRole('heading', { name: 'Audit Logs', level: 3 })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Журнал аудита', level: 3 })).toBeInTheDocument()
       })
     })
 
@@ -180,7 +180,7 @@ describe('AuditPage', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('Export CSV')).toBeInTheDocument()
+        expect(screen.getByText('Экспорт CSV')).toBeInTheDocument()
       })
     })
 
@@ -248,7 +248,7 @@ describe('AuditPage', () => {
       })
 
       await waitFor(() => {
-        const exportButton = screen.getByText('Export CSV').closest('button')
+        const exportButton = screen.getByText('Экспорт CSV').closest('button')
         expect(exportButton).toBeDisabled()
       })
     })
@@ -259,7 +259,7 @@ describe('AuditPage', () => {
       })
 
       await waitFor(() => {
-        const exportButton = screen.getByText('Export CSV').closest('button')
+        const exportButton = screen.getByText('Экспорт CSV').closest('button')
         expect(exportButton).not.toBeDisabled()
       })
     })
@@ -270,10 +270,10 @@ describe('AuditPage', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('Export CSV')).toBeInTheDocument()
+        expect(screen.getByText('Экспорт CSV')).toBeInTheDocument()
       })
 
-      const exportButton = screen.getByText('Export CSV').closest('button')!
+      const exportButton = screen.getByText('Экспорт CSV').closest('button')!
       fireEvent.click(exportButton)
 
       await waitFor(() => {
@@ -301,7 +301,7 @@ describe('AuditPage', () => {
 
       await waitFor(() => {
         // Story 15.6: унификация заголовков — ищем по роли heading
-        expect(screen.getByRole('heading', { name: 'Audit Logs', level: 3 })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Журнал аудита', level: 3 })).toBeInTheDocument()
       })
 
       // Компонент должен успешно отрендериться, невалидные значения отфильтрованы

@@ -17,14 +17,14 @@ test.describe('RBAC Developer', () => {
 
     // Ждём загрузки sidebar через locator
     const sidebar = page.locator('.ant-layout-sider')
-    await expect(sidebar.getByText('Dashboard')).toBeVisible()
+    await expect(sidebar.getByText('Главная')).toBeVisible()
 
     // Users не должен отображаться для developer
-    await expect(sidebar.getByText('Users')).not.toBeVisible()
+    await expect(sidebar.getByText('Пользователи')).not.toBeVisible()
 
     // Проверяем что другие пункты видимы (Routes, Metrics)
-    await expect(sidebar.getByText('Routes')).toBeVisible()
-    await expect(sidebar.getByText('Metrics')).toBeVisible()
+    await expect(sidebar.getByText('Маршруты')).toBeVisible()
+    await expect(sidebar.getByText('Метрики')).toBeVisible()
   })
 
   test('Developer не видит Rate Limits в sidebar', async ({ page }) => {
@@ -32,16 +32,16 @@ test.describe('RBAC Developer', () => {
 
     // Ждём загрузки sidebar
     const sidebar = page.locator('.ant-layout-sider')
-    await expect(sidebar.getByText('Dashboard')).toBeVisible()
+    await expect(sidebar.getByText('Главная')).toBeVisible()
 
     // Rate Limits не должен отображаться для developer
-    await expect(sidebar.getByText('Rate Limits')).not.toBeVisible()
+    await expect(sidebar.getByText('Лимиты')).not.toBeVisible()
 
     // Также не должно быть Consumers (только для admin)
-    await expect(sidebar.getByText('Consumers')).not.toBeVisible()
+    await expect(sidebar.getByText('Потребители')).not.toBeVisible()
 
     // Approvals также не доступен для developer
-    await expect(sidebar.getByText('Approvals')).not.toBeVisible()
+    await expect(sidebar.getByText('Согласования')).not.toBeVisible()
   })
 
   test('Developer redirect из /approvals', async ({ page }) => {

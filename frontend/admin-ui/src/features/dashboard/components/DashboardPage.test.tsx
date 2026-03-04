@@ -53,17 +53,18 @@ describe('DashboardPage', () => {
     render(<DashboardPage />, { wrapper: createWrapper() })
 
     expect(screen.getByText(/testuser/)).toBeInTheDocument()
-    // Заголовок страницы (Title level={3}) — Story 15.6 унификация заголовков
-    expect(screen.getByRole('heading', { name: 'Dashboard', level: 3 })).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — Story 15.6 унификация заголовков, Story 16.1 локализация
+    expect(screen.getByRole('heading', { name: 'Главная', level: 3 })).toBeInTheDocument()
   })
 
-  it('отображает роль пользователя', () => {
+  it('отображает роль пользователя на русском', () => {
     render(<DashboardPage />, { wrapper: createWrapper() })
 
-    expect(screen.getByText(/Admin/)).toBeInTheDocument()
+    // Story 16.1: роли локализованы на русский
+    expect(screen.getByText(/Администратор/)).toBeInTheDocument()
   })
 
-  it('отображает роль Developer для developer пользователя', () => {
+  it('отображает роль Разработчик для developer пользователя', () => {
     const developerAuth: AuthContextType = {
       ...mockAuthContext,
       user: { ...mockUser, role: 'developer' },
@@ -71,7 +72,8 @@ describe('DashboardPage', () => {
 
     render(<DashboardPage />, { wrapper: createWrapper(developerAuth) })
 
-    expect(screen.getByText(/Developer/)).toBeInTheDocument()
+    // Story 16.1: роли локализованы на русский
+    expect(screen.getByText(/Разработчик/)).toBeInTheDocument()
   })
 
   it('НЕ отображает MetricsWidget на dashboard (AC1, Story 8.2)', () => {

@@ -119,13 +119,13 @@ describe('Страница согласования маршрутов (Approval
       expect(screen.getByText('/api/payments')).toBeInTheDocument()
     })
 
-    // Проверяем наличие колонок
-    expect(screen.getByText('Path')).toBeInTheDocument()
-    expect(screen.getByText('Upstream URL')).toBeInTheDocument()
-    expect(screen.getByText('Methods')).toBeInTheDocument()
-    expect(screen.getByText('Submitted By')).toBeInTheDocument()
-    expect(screen.getByText('Submitted At')).toBeInTheDocument()
-    expect(screen.getByText('Actions')).toBeInTheDocument()
+    // Проверяем наличие колонок (русские названия согласно локализации Story 16.1)
+    expect(screen.getByText('Путь')).toBeInTheDocument()
+    expect(screen.getByText('URL сервиса')).toBeInTheDocument()
+    expect(screen.getByText('Методы')).toBeInTheDocument()
+    expect(screen.getByText('Отправил')).toBeInTheDocument()
+    expect(screen.getByText('Отправлено')).toBeInTheDocument()
+    expect(screen.getByText('Действия')).toBeInTheDocument()
 
     // Проверяем данные маршрутов
     expect(screen.getByText('developer-user')).toBeInTheDocument()
@@ -143,8 +143,8 @@ describe('Страница согласования маршрутов (Approval
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    // Кликаем кнопку Approve для первого маршрута
-    const approveButtons = screen.getAllByRole('button', { name: /approve/i })
+    // Кликаем кнопку Одобрить для первого маршрута (русское название согласно локализации Story 16.1)
+    const approveButtons = screen.getAllByRole('button', { name: /одобрить/i })
     const firstApproveButton = approveButtons[0]
     expect(firstApproveButton).toBeInTheDocument()
     fireEvent.click(firstApproveButton!)
@@ -168,7 +168,7 @@ describe('Страница согласования маршрутов (Approval
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    const approveButtons = screen.getAllByRole('button', { name: /approve/i })
+    const approveButtons = screen.getAllByRole('button', { name: /одобрить/i })
     fireEvent.click(approveButtons[0]!)
 
     await waitFor(() => {
@@ -185,8 +185,8 @@ describe('Страница согласования маршрутов (Approval
       expect(screen.getByText('/api/orders')).toBeInTheDocument()
     })
 
-    // Кликаем кнопку Reject
-    const rejectButtons = screen.getAllByRole('button', { name: /reject/i })
+    // Кликаем кнопку Отклонить (русское название согласно локализации Story 16.1)
+    const rejectButtons = screen.getAllByRole('button', { name: /отклонить/i })
     fireEvent.click(rejectButtons[0]!)
 
     await waitFor(() => {
@@ -207,7 +207,7 @@ describe('Страница согласования маршрутов (Approval
     })
 
     // Открываем модальное окно
-    const rejectButtons = screen.getAllByRole('button', { name: /reject/i })
+    const rejectButtons = screen.getAllByRole('button', { name: /отклонить/i })
     fireEvent.click(rejectButtons[0]!)
 
     await waitFor(() => {
@@ -243,7 +243,7 @@ describe('Страница согласования маршрутов (Approval
     })
 
     // Открываем модальное окно
-    const rejectButtons = screen.getAllByRole('button', { name: /reject/i })
+    const rejectButtons = screen.getAllByRole('button', { name: /отклонить/i })
     fireEvent.click(rejectButtons[0]!)
 
     await waitFor(() => {
@@ -284,7 +284,7 @@ describe('Страница согласования маршрутов (Approval
       expect(pathElements.length).toBeGreaterThan(1)
       // Описание маршрута присутствует только в Drawer (не в таблице)
       expect(screen.getByText('Order service')).toBeInTheDocument()
-      // Кнопки Approve/Reject в Drawer используют русские названия (в таблице — английские)
+      // Кнопки Одобрить/Отклонить в Drawer
       expect(screen.getByRole('button', { name: /^одобрить$/i })).toBeInTheDocument()
       expect(screen.getAllByRole('button', { name: /^отклонить$/i }).length).toBeGreaterThan(0)
     })
@@ -410,13 +410,13 @@ describe('Страница согласования маршрутов (Approval
       })
     })
 
-    it('placeholder показывает "Search by path, upstream..." (AC2)', async () => {
+    it('placeholder показывает "Поиск по path, upstream..." (AC2)', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search by path, upstream...')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('Поиск по path, upstream...')).toBeInTheDocument()
       })
     })
   })
@@ -475,7 +475,7 @@ describe('Страница согласования маршрутов (Approval
       expect(searchInput).toHaveValue('')
     })
 
-    it('показывает кнопку "Clear filters" при активном поиске', async () => {
+    it('показывает кнопку "Сбросить фильтры" при активном поиске', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
@@ -485,7 +485,7 @@ describe('Страница согласования маршрутов (Approval
       })
 
       // Изначально кнопка не видна
-      expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+      expect(screen.queryByText('Сбросить фильтры')).not.toBeInTheDocument()
 
       // Вводим текст в поле поиска
       const searchInput = screen.getByTestId('search-input')
@@ -493,25 +493,25 @@ describe('Страница согласования маршрутов (Approval
 
       // Кнопка появляется
       await waitFor(() => {
-        expect(screen.getByText('Clear filters')).toBeInTheDocument()
+        expect(screen.getByText('Сбросить фильтры')).toBeInTheDocument()
       })
     })
   })
 
   // Story 10.2: Real-time updates с auto-refresh и кнопкой Refresh
   describe('Real-time updates (Story 10.2)', () => {
-    it('кнопка "Refresh" отображается рядом с поиском (AC3)', async () => {
+    it('кнопка "Обновить" отображается рядом с поиском (AC3)', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
 
       await waitFor(() => {
         expect(screen.getByTestId('refresh-button')).toBeInTheDocument()
-        expect(screen.getByText('Refresh')).toBeInTheDocument()
+        expect(screen.getByText('Обновить')).toBeInTheDocument()
       })
     })
 
-    it('клик на кнопку "Refresh" вызывает refetch (AC3)', async () => {
+    it('клик на кнопку "Обновить" вызывает refetch (AC3)', async () => {
       mockRefetch = vi.fn().mockResolvedValue({ data: mockPendingRoutes })
 
       renderWithMockAuth(<ApprovalsPage />, {
@@ -529,7 +529,7 @@ describe('Страница согласования маршрутов (Approval
       expect(mockRefetch).toHaveBeenCalledTimes(1)
     })
 
-    it('кнопка "Refresh" показывает loading state во время fetch (AC3)', async () => {
+    it('кнопка "Обновить" показывает loading state во время fetch (AC3)', async () => {
       mockIsFetching = true
 
       renderWithMockAuth(<ApprovalsPage />, {
@@ -546,7 +546,7 @@ describe('Страница согласования маршрутов (Approval
       })
     })
 
-    it('кнопка "Refresh" disabled во время загрузки — предотвращает двойной клик (AC3)', async () => {
+    it('кнопка "Обновить" disabled во время загрузки — предотвращает двойной клик (AC3)', async () => {
       mockIsFetching = true
 
       renderWithMockAuth(<ApprovalsPage />, {
@@ -559,7 +559,7 @@ describe('Страница согласования маршрутов (Approval
       })
     })
 
-    it('кнопка "Refresh" enabled когда нет загрузки', async () => {
+    it('кнопка "Обновить" enabled когда нет загрузки', async () => {
       mockIsFetching = false
 
       renderWithMockAuth(<ApprovalsPage />, {

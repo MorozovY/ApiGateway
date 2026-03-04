@@ -234,7 +234,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
   // Определение колонок таблицы
   const columns: ColumnsType<Route> = useMemo(() => [
     {
-      title: 'Path',
+      title: 'Путь',
       dataIndex: 'path',
       key: 'path',
       render: (path: string, record: Route) => (
@@ -245,7 +245,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       sorter: (a, b) => a.path.localeCompare(b.path),
     },
     {
-      title: 'Upstream URL',
+      title: 'URL сервиса',
       dataIndex: 'upstreamUrl',
       key: 'upstreamUrl',
       ellipsis: true,
@@ -253,7 +253,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       render: (upstreamUrl: string) => highlightSearchTerm(upstreamUrl, params.search),
     },
     {
-      title: 'Methods',
+      title: 'Методы',
       dataIndex: 'methods',
       key: 'methods',
       render: (methods: string[]) => (
@@ -267,7 +267,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       ),
     },
     {
-      title: 'Rate Limit',
+      title: 'Лимит',
       dataIndex: ['rateLimit', 'name'],
       key: 'rateLimit',
       // Story 8.4: отображаем "{name} ({requestsPerSecond}/s)"
@@ -280,7 +280,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       width: 180,
     },
     {
-      title: 'Status',
+      title: 'Статус',
       dataIndex: 'status',
       key: 'status',
       render: (status: RouteStatus) => (
@@ -288,29 +288,29 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       ),
     },
     {
-      // Story 12.7: Auth badge (Protected/Public)
-      title: 'Auth',
+      // Story 12.7: Auth badge (Защищён/Публичный)
+      title: 'Авторизация',
       dataIndex: 'authRequired',
       key: 'authRequired',
-      width: 100,
+      width: 120,
       render: (authRequired: boolean) => (
         <Tag color={authRequired ? 'green' : 'default'}>
           {authRequired ? (
-            <><LockOutlined /> Protected</>
+            <><LockOutlined /> Защищён</>
           ) : (
-            <><UnlockOutlined /> Public</>
+            <><UnlockOutlined /> Публичный</>
           )}
         </Tag>
       ),
     },
     {
-      title: 'Author',
+      title: 'Автор',
       dataIndex: 'creatorUsername',
       key: 'creatorUsername',
       render: (username: string | undefined) => username || '—',
     },
     {
-      title: 'Created',
+      title: 'Создано',
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (createdAt: string) => (
@@ -321,7 +321,7 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
       sorter: (a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix(),
     },
     {
-      title: 'Actions',
+      title: 'Действия',
       key: 'actions',
       render: (_, record) => (
         <Space>

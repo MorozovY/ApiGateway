@@ -51,11 +51,11 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
         { consumerId, data: values },
         {
           onSuccess: () => {
-            message.success('Rate limit updated successfully')
+            message.success('Лимит успешно обновлён')
             onClose()
           },
           onError: (error: Error) => {
-            message.error(`Failed to update rate limit: ${error.message}`)
+            message.error(`Ошибка обновления лимита: ${error.message}`)
           },
         }
       )
@@ -68,12 +68,12 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
   const handleDelete = () => {
     deleteRateLimitMutation.mutate(consumerId, {
       onSuccess: () => {
-        message.success('Rate limit removed successfully')
+        message.success('Лимит успешно удалён')
         form.resetFields()
         onClose()
       },
       onError: (error: Error) => {
-        message.error(`Failed to remove rate limit: ${error.message}`)
+        message.error(`Ошибка удаления лимита: ${error.message}`)
       },
     })
   }
@@ -86,17 +86,17 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
 
   return (
     <Modal
-      title={`Rate Limit для ${consumerId}`}
+      title={`Лимит для ${consumerId}`}
       open={open}
       onCancel={handleCancel}
       footer={[
         currentRateLimit && (
           <Button key="delete" danger onClick={handleDelete} loading={deleteRateLimitMutation.isPending}>
-            Remove Rate Limit
+            Удалить лимит
           </Button>
         ),
         <Button key="cancel" onClick={handleCancel}>
-          Cancel
+          Отмена
         </Button>,
         <Button
           key="submit"
@@ -104,18 +104,18 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
           onClick={handleSubmit}
           loading={setRateLimitMutation.isPending}
         >
-          {currentRateLimit ? 'Update' : 'Set'} Rate Limit
+          {currentRateLimit ? 'Обновить' : 'Установить'}
         </Button>,
       ]}
       destroyOnClose
     >
       {isLoading ? (
-        <div>Loading...</div>
+        <div>Загрузка...</div>
       ) : (
         <>
           <Alert
-            message="Per-consumer Rate Limit"
-            description="Rate limit применяется глобально для всех маршрутов этого consumer. Token Bucket алгоритм с Redis."
+            message="Персональный лимит"
+            description="Лимит применяется глобально для всех маршрутов этого потребителя. Token Bucket алгоритм с Redis."
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -124,7 +124,7 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
           <Form form={form} layout="vertical">
             <Form.Item
               name="requestsPerSecond"
-              label="Requests per Second"
+              label="Запросов в секунду"
               rules={[
                 { required: true, message: 'Укажите лимит запросов в секунду' },
                 { type: 'number', min: 1, max: 10000, message: 'Должно быть от 1 до 10000' },
@@ -141,9 +141,9 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
 
             <Form.Item
               name="burstSize"
-              label="Burst Size"
+              label="Размер всплеска"
               rules={[
-                { required: true, message: 'Укажите burst size' },
+                { required: true, message: 'Укажите размер всплеска' },
                 { type: 'number', min: 1, max: 50000, message: 'Должно быть от 1 до 50000' },
               ]}
               tooltip="Максимальное количество токенов в bucket (позволяет кратковременные пики нагрузки)"
@@ -160,7 +160,7 @@ function ConsumerRateLimitModal({ open, consumerId, onClose }: ConsumerRateLimit
 
           {currentRateLimit && (
             <Alert
-              message={`Текущий rate limit: ${currentRateLimit.requestsPerSecond} req/s, burst ${currentRateLimit.burstSize}`}
+              message={`Текущий лимит: ${currentRateLimit.requestsPerSecond} зап/с, всплеск ${currentRateLimit.burstSize}`}
               type="success"
               style={{ marginTop: 16 }}
             />

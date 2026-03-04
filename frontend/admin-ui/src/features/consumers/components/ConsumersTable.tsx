@@ -106,10 +106,10 @@ function ConsumersTable({ search }: ConsumersTableProps) {
     return (
       <div style={{ paddingLeft: 48 }}>
         <p>
-          <strong>Description:</strong> {consumer.description || '—'}
+          <strong>Описание:</strong> {consumer.description || '—'}
         </p>
         <p>
-          <strong>Created:</strong>{' '}
+          <strong>Создан:</strong>{' '}
           {new Date(consumer.createdTimestamp).toLocaleString('ru-RU', {
             year: 'numeric',
             month: '2-digit',
@@ -126,7 +126,7 @@ function ConsumersTable({ search }: ConsumersTableProps) {
             onClick={() => handleViewMetrics(consumer.clientId)}
             style={{ padding: 0 }}
           >
-            View Metrics
+            Просмотр метрик
           </Button>
         </p>
       </div>
@@ -136,26 +136,26 @@ function ConsumersTable({ search }: ConsumersTableProps) {
   // Определение колонок (AC1)
   const columns: ColumnsType<Consumer> = [
     {
-      title: 'Client ID',
+      title: 'ID клиента',
       dataIndex: 'clientId',
       key: 'clientId',
       sorter: (a, b) => a.clientId.localeCompare(b.clientId),
     },
     {
-      title: 'Status',
+      title: 'Статус',
       dataIndex: 'enabled',
       key: 'status',
       render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>{enabled ? 'Active' : 'Disabled'}</Tag>
+        <Tag color={enabled ? 'green' : 'default'}>{enabled ? 'Активен' : 'Отключён'}</Tag>
       ),
       filters: [
-        { text: 'Active', value: true },
-        { text: 'Disabled', value: false },
+        { text: 'Активен', value: true },
+        { text: 'Отключён', value: false },
       ],
       onFilter: (value, record) => record.enabled === value,
     },
     {
-      title: 'Rate Limit',
+      title: 'Лимит',
       key: 'rateLimit',
       render: (_, record) => {
         if (!record.rateLimit) {
@@ -163,24 +163,24 @@ function ConsumersTable({ search }: ConsumersTableProps) {
         }
         return (
           <Text>
-            {record.rateLimit.requestsPerSecond} req/s, burst {record.rateLimit.burstSize}
+            {record.rateLimit.requestsPerSecond} зап/с, всплеск {record.rateLimit.burstSize}
           </Text>
         )
       },
     },
     {
-      title: 'Created',
+      title: 'Создано',
       dataIndex: 'createdTimestamp',
       key: 'created',
       render: (timestamp: number) => new Date(timestamp).toLocaleDateString('ru-RU'),
       sorter: (a, b) => a.createdTimestamp - b.createdTimestamp,
     },
     {
-      title: 'Actions',
+      title: 'Действия',
       key: 'actions',
       render: (_, record) => (
         <Space size="small">
-          {/* Rotate Secret (AC3) */}
+          {/* Ротация Secret (AC3) */}
           <Popconfirm
             title="Ротировать secret?"
             description="Старый secret станет невалидным."
@@ -193,11 +193,11 @@ function ConsumersTable({ search }: ConsumersTableProps) {
               icon={<KeyOutlined />}
               loading={rotateSecretMutation.isPending}
             >
-              Rotate Secret
+              Ротировать
             </Button>
           </Popconfirm>
 
-          {/* Disable / Enable (AC4, AC5) */}
+          {/* Отключить / Включить (AC4, AC5) */}
           {record.enabled ? (
             <Popconfirm
               title="Деактивировать consumer?"
@@ -212,7 +212,7 @@ function ConsumersTable({ search }: ConsumersTableProps) {
                 loading={disableMutation.isPending}
                 danger
               >
-                Disable
+                Отключить
               </Button>
             </Popconfirm>
           ) : (
@@ -222,17 +222,17 @@ function ConsumersTable({ search }: ConsumersTableProps) {
               onClick={() => handleEnable(record.clientId)}
               loading={enableMutation.isPending}
             >
-              Enable
+              Включить
             </Button>
           )}
 
-          {/* Set Rate Limit (AC8) */}
+          {/* Установить Rate Limit (AC8) */}
           <Button
             size="small"
             icon={<ThunderboltOutlined />}
             onClick={() => handleSetRateLimit(record.clientId)}
           >
-            Set Rate Limit
+            Лимит
           </Button>
         </Space>
       ),
@@ -251,7 +251,7 @@ function ConsumersTable({ search }: ConsumersTableProps) {
           pageSize: pagination.pageSize,
           total: data?.total || 0,
           showSizeChanger: true,
-          showTotal: (total) => `Total ${total} consumers`,
+          showTotal: (total) => `Всего ${total} потребителей`,
         }}
         onChange={handleTableChange}
         expandable={{

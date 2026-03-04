@@ -94,10 +94,11 @@ describe('RoutesPage', () => {
       },
     })
 
-    expect(screen.getByRole('heading', { name: /routes/i })).toBeInTheDocument()
+    // Русское название согласно локализации Story 16.1
+    expect(screen.getByRole('heading', { name: /маршруты/i })).toBeInTheDocument()
   })
 
-  it('отображает кнопку New Route', async () => {
+  it('отображает кнопку Новый маршрут', async () => {
     renderWithMockAuth(<RoutesPage />, {
       authValue: {
         user: { userId: 'current-user', username: 'testuser', role: 'developer' },
@@ -105,11 +106,11 @@ describe('RoutesPage', () => {
       },
     })
 
-    const newButton = screen.getByRole('button', { name: /new route/i })
+    const newButton = screen.getByRole('button', { name: /новый маршрут/i })
     expect(newButton).toBeInTheDocument()
   })
 
-  it('переходит на страницу создания маршрута при клике на New Route', async () => {
+  it('переходит на страницу создания маршрута при клике на Новый маршрут', async () => {
     const user = userEvent.setup()
 
     renderWithMockAuth(<RoutesPage />, {
@@ -119,7 +120,7 @@ describe('RoutesPage', () => {
       },
     })
 
-    const newButton = screen.getByRole('button', { name: /new route/i })
+    const newButton = screen.getByRole('button', { name: /новый маршрут/i })
     await user.click(newButton)
 
     expect(mockNavigate).toHaveBeenCalledWith('/routes/new')

@@ -37,7 +37,7 @@ describe('RateLimitFormModal', () => {
   })
 
   describe('режим создания (AC2)', () => {
-    it('отображает заголовок "New Policy" в режиме создания', () => {
+    it('отображает заголовок "Новый лимит" в режиме создания', () => {
       renderWithMockAuth(
         <RateLimitFormModal open={true} rateLimit={null} onClose={() => {}} />,
         {
@@ -48,7 +48,8 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      expect(screen.getByText('New Policy')).toBeInTheDocument()
+      // Русское название согласно локализации Story 16.1
+      expect(screen.getByText('Новый лимит')).toBeInTheDocument()
     })
 
     it('отображает все поля формы (AC2)', () => {
@@ -62,13 +63,14 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      expect(screen.getByLabelText('Name')).toBeInTheDocument()
-      expect(screen.getByLabelText('Description')).toBeInTheDocument()
-      expect(screen.getByLabelText('Requests per Second')).toBeInTheDocument()
-      expect(screen.getByLabelText('Burst Size')).toBeInTheDocument()
+      // Русские названия согласно локализации Story 16.1
+      expect(screen.getByLabelText('Название')).toBeInTheDocument()
+      expect(screen.getByLabelText('Описание')).toBeInTheDocument()
+      expect(screen.getByLabelText('Запросов/сек')).toBeInTheDocument()
+      expect(screen.getByLabelText('Размер всплеска')).toBeInTheDocument()
     })
 
-    it('имеет кнопку Create', () => {
+    it('имеет кнопку Создать', () => {
       renderWithMockAuth(
         <RateLimitFormModal open={true} rateLimit={null} onClose={() => {}} />,
         {
@@ -79,10 +81,11 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
+      // Русское название согласно локализации Story 16.1
+      expect(screen.getByRole('button', { name: /создать/i })).toBeInTheDocument()
     })
 
-    it('валидирует что name обязателен (AC2)', async () => {
+    it('валидирует что название обязательно (AC2)', async () => {
       renderWithMockAuth(
         <RateLimitFormModal open={true} rateLimit={null} onClose={() => {}} />,
         {
@@ -93,11 +96,11 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      // Кликаем Create без заполнения name
-      await userEvent.click(screen.getByRole('button', { name: /create/i }))
+      // Кликаем Создать без заполнения названия
+      await userEvent.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Name обязателен')).toBeInTheDocument()
+        expect(screen.getByText('Название обязательно')).toBeInTheDocument()
       })
     })
 
@@ -112,17 +115,17 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      // Заполняем имя и очищаем requestsPerSecond
-      await userEvent.type(screen.getByLabelText('Name'), 'Test Policy')
+      // Заполняем название и очищаем requestsPerSecond
+      await userEvent.type(screen.getByLabelText('Название'), 'Test Policy')
 
-      const requestsInput = screen.getByLabelText('Requests per Second')
+      const requestsInput = screen.getByLabelText('Запросов/сек')
       await userEvent.clear(requestsInput)
 
-      // Кликаем Create — валидация должна сработать
-      await userEvent.click(screen.getByRole('button', { name: /create/i }))
+      // Кликаем Создать — валидация должна сработать
+      await userEvent.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Requests per second обязателен')).toBeInTheDocument()
+        expect(screen.getByText('Количество запросов в секунду обязательно')).toBeInTheDocument()
       })
     })
 
@@ -138,17 +141,17 @@ describe('RateLimitFormModal', () => {
       )
 
       // Заполняем форму с burstSize < requestsPerSecond
-      await userEvent.type(screen.getByLabelText('Name'), 'Test Policy')
+      await userEvent.type(screen.getByLabelText('Название'), 'Test Policy')
 
-      const requestsInput = screen.getByLabelText('Requests per Second')
+      const requestsInput = screen.getByLabelText('Запросов/сек')
       await userEvent.clear(requestsInput)
       await userEvent.type(requestsInput, '50')
 
-      const burstInput = screen.getByLabelText('Burst Size')
+      const burstInput = screen.getByLabelText('Размер всплеска')
       await userEvent.clear(burstInput)
       await userEvent.type(burstInput, '10')
 
-      await userEvent.click(screen.getByRole('button', { name: /create/i }))
+      await userEvent.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(screen.getByText('Burst size должен быть не меньше requests/sec')).toBeInTheDocument()
@@ -168,19 +171,19 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      // Заполняем форму
-      await userEvent.type(screen.getByLabelText('Name'), 'New Policy')
-      await userEvent.type(screen.getByLabelText('Description'), 'Test description')
+      // Заполняем форму (русские названия согласно локализации Story 16.1)
+      await userEvent.type(screen.getByLabelText('Название'), 'New Policy')
+      await userEvent.type(screen.getByLabelText('Описание'), 'Test description')
 
-      const requestsInput = screen.getByLabelText('Requests per Second')
+      const requestsInput = screen.getByLabelText('Запросов/сек')
       await userEvent.clear(requestsInput)
       await userEvent.type(requestsInput, '25')
 
-      const burstInput = screen.getByLabelText('Burst Size')
+      const burstInput = screen.getByLabelText('Размер всплеска')
       await userEvent.clear(burstInput)
       await userEvent.type(burstInput, '50')
 
-      await userEvent.click(screen.getByRole('button', { name: /create/i }))
+      await userEvent.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(mockCreateRateLimit).toHaveBeenCalledWith({
@@ -205,18 +208,18 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      // Заполняем форму
-      await userEvent.type(screen.getByLabelText('Name'), 'New Policy')
+      // Заполняем форму (русские названия согласно локализации Story 16.1)
+      await userEvent.type(screen.getByLabelText('Название'), 'New Policy')
 
-      const requestsInput = screen.getByLabelText('Requests per Second')
+      const requestsInput = screen.getByLabelText('Запросов/сек')
       await userEvent.clear(requestsInput)
       await userEvent.type(requestsInput, '25')
 
-      const burstInput = screen.getByLabelText('Burst Size')
+      const burstInput = screen.getByLabelText('Размер всплеска')
       await userEvent.clear(burstInput)
       await userEvent.type(burstInput, '50')
 
-      await userEvent.click(screen.getByRole('button', { name: /create/i }))
+      await userEvent.click(screen.getByRole('button', { name: /создать/i }))
 
       await waitFor(() => {
         expect(onClose).toHaveBeenCalled()
@@ -225,7 +228,7 @@ describe('RateLimitFormModal', () => {
   })
 
   describe('режим редактирования (AC4)', () => {
-    it('отображает заголовок "Edit Policy" в режиме редактирования', () => {
+    it('отображает заголовок "Редактировать лимит" в режиме редактирования', () => {
       renderWithMockAuth(
         <RateLimitFormModal open={true} rateLimit={mockRateLimit} onClose={() => {}} />,
         {
@@ -236,7 +239,8 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      expect(screen.getByText('Edit Policy')).toBeInTheDocument()
+      // Русское название согласно локализации Story 16.1
+      expect(screen.getByText('Редактировать лимит')).toBeInTheDocument()
     })
 
     it('заполняет форму текущими значениями (AC4)', async () => {
@@ -259,7 +263,7 @@ describe('RateLimitFormModal', () => {
       expect(screen.getByDisplayValue('20')).toBeInTheDocument()
     })
 
-    it('имеет кнопку Save', () => {
+    it('имеет кнопку Сохранить', () => {
       renderWithMockAuth(
         <RateLimitFormModal open={true} rateLimit={mockRateLimit} onClose={() => {}} />,
         {
@@ -270,7 +274,8 @@ describe('RateLimitFormModal', () => {
         }
       )
 
-      expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
+      // Русское название согласно локализации Story 16.1
+      expect(screen.getByRole('button', { name: /сохранить/i })).toBeInTheDocument()
     })
 
     it('вызывает updateRateLimit с изменёнными данными (AC4)', async () => {
@@ -291,12 +296,12 @@ describe('RateLimitFormModal', () => {
         expect(screen.getByDisplayValue('Basic Limit')).toBeInTheDocument()
       })
 
-      // Меняем название
-      const nameInput = screen.getByLabelText('Name')
+      // Меняем название (русское название согласно локализации Story 16.1)
+      const nameInput = screen.getByLabelText('Название')
       await userEvent.clear(nameInput)
       await userEvent.type(nameInput, 'Updated Limit')
 
-      await userEvent.click(screen.getByRole('button', { name: /save/i }))
+      await userEvent.click(screen.getByRole('button', { name: /сохранить/i }))
 
       await waitFor(() => {
         expect(mockUpdateRateLimit).toHaveBeenCalledWith(mockRateLimit.id, {
@@ -306,7 +311,7 @@ describe('RateLimitFormModal', () => {
     })
   })
 
-  it('вызывает onClose при нажатии Cancel', async () => {
+  it('вызывает onClose при нажатии Отмена', async () => {
     const onClose = vi.fn()
 
     renderWithMockAuth(
@@ -319,7 +324,8 @@ describe('RateLimitFormModal', () => {
       }
     )
 
-    await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
+    // Русское название согласно локализации Story 16.1
+    await userEvent.click(screen.getByRole('button', { name: /отмена/i }))
 
     expect(onClose).toHaveBeenCalled()
   })

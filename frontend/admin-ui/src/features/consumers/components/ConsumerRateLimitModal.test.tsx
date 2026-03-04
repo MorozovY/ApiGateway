@@ -35,7 +35,7 @@ describe('ConsumerRateLimitModal', () => {
     mockGetConsumerRateLimit.mockResolvedValue(null)
   })
 
-  it('рендерит модальное окно с заголовком "Rate Limit для {consumerId}" (AC8)', async () => {
+  it('рендерит модальное окно с заголовком "Лимит для {consumerId}" (AC8)', async () => {
     renderWithMockAuth(
       <ConsumerRateLimitModal open={true} consumerId={testConsumerId} onClose={mockOnClose} />,
       {
@@ -46,12 +46,13 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByText(`Rate Limit для ${testConsumerId}`)).toBeInTheDocument()
+      expect(screen.getByText(`Лимит для ${testConsumerId}`)).toBeInTheDocument()
     })
   })
 
-  it('показывает форму с полями Requests per Second и Burst Size (AC8)', async () => {
+  it('показывает форму с полями Запросов в секунду и Размер всплеска (AC8)', async () => {
     renderWithMockAuth(
       <ConsumerRateLimitModal open={true} consumerId={testConsumerId} onClose={mockOnClose} />,
       {
@@ -62,14 +63,15 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русские названия согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByLabelText(/requests per second/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/запросов в секунду/i)).toBeInTheDocument()
     })
 
-    expect(screen.getByLabelText(/burst size/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/размер всплеска/i)).toBeInTheDocument()
   })
 
-  it('показывает кнопку "Set Rate Limit" если rate limit отсутствует (AC8)', async () => {
+  it('показывает кнопку "Установить" если rate limit отсутствует (AC8)', async () => {
     mockGetConsumerRateLimit.mockResolvedValue(null)
 
     renderWithMockAuth(
@@ -82,12 +84,13 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /set rate limit/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /установить/i })).toBeInTheDocument()
     })
   })
 
-  it('показывает кнопку "Update Rate Limit" если rate limit существует (AC8)', async () => {
+  it('показывает кнопку "Обновить" если rate limit существует (AC8)', async () => {
     const existingRateLimit: ConsumerRateLimitResponse = {
       requestsPerSecond: 100,
       burstSize: 150,
@@ -104,12 +107,13 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /update rate limit/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /обновить/i })).toBeInTheDocument()
     })
   })
 
-  it('показывает кнопку "Remove Rate Limit" если rate limit существует (AC8)', async () => {
+  it('показывает кнопку "Удалить лимит" если rate limit существует (AC8)', async () => {
     const existingRateLimit: ConsumerRateLimitResponse = {
       requestsPerSecond: 100,
       burstSize: 150,
@@ -126,8 +130,9 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /remove rate limit/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /удалить лимит/i })).toBeInTheDocument()
     })
   })
 
@@ -148,16 +153,17 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русские названия согласно локализации Story 16.1
     await waitFor(() => {
-      const rpsInput = screen.getByLabelText(/requests per second/i) as HTMLInputElement
-      const burstInput = screen.getByLabelText(/burst size/i) as HTMLInputElement
+      const rpsInput = screen.getByLabelText(/запросов в секунду/i) as HTMLInputElement
+      const burstInput = screen.getByLabelText(/размер всплеска/i) as HTMLInputElement
 
       expect(rpsInput.value).toBe('200')
       expect(burstInput.value).toBe('300')
     })
   })
 
-  it('валидирует Requests per Second — required (AC8)', async () => {
+  it('валидирует Запросов в секунду — required (AC8)', async () => {
     const user = userEvent.setup()
     mockGetConsumerRateLimit.mockResolvedValue(null)
 
@@ -171,11 +177,12 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /set rate limit/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /установить/i })).toBeInTheDocument()
     })
 
-    const setButton = screen.getByRole('button', { name: /set rate limit/i })
+    const setButton = screen.getByRole('button', { name: /установить/i })
     await user.click(setButton)
 
     await waitFor(() => {
@@ -183,7 +190,7 @@ describe('ConsumerRateLimitModal', () => {
     })
   })
 
-  it('валидирует Burst Size — required (AC8)', async () => {
+  it('валидирует Размер всплеска — required (AC8)', async () => {
     const user = userEvent.setup()
     mockGetConsumerRateLimit.mockResolvedValue(null)
 
@@ -197,15 +204,16 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /set rate limit/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /установить/i })).toBeInTheDocument()
     })
 
-    const setButton = screen.getByRole('button', { name: /set rate limit/i })
+    const setButton = screen.getByRole('button', { name: /установить/i })
     await user.click(setButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/укажите burst size/i)).toBeInTheDocument()
+      expect(screen.getByText(/укажите размер всплеска/i)).toBeInTheDocument()
     })
   })
 
@@ -227,18 +235,19 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русские названия согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByLabelText(/requests per second/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/запросов в секунду/i)).toBeInTheDocument()
     })
 
-    const rpsInput = screen.getByLabelText(/requests per second/i)
-    const burstInput = screen.getByLabelText(/burst size/i)
+    const rpsInput = screen.getByLabelText(/запросов в секунду/i)
+    const burstInput = screen.getByLabelText(/размер всплеска/i)
 
     // Вводим значения
     await user.type(rpsInput, '150')
     await user.type(burstInput, '200')
 
-    const setButton = screen.getByRole('button', { name: /set rate limit/i })
+    const setButton = screen.getByRole('button', { name: /установить/i })
     await user.click(setButton)
 
     await waitFor(() => {
@@ -249,7 +258,7 @@ describe('ConsumerRateLimitModal', () => {
     })
   })
 
-  it('вызывает deleteConsumerRateLimit при клике на Remove Rate Limit (AC8)', async () => {
+  it('вызывает deleteConsumerRateLimit при клике на Удалить лимит (AC8)', async () => {
     const user = userEvent.setup()
     const existingRateLimit: ConsumerRateLimitResponse = {
       requestsPerSecond: 100,
@@ -268,11 +277,12 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /remove rate limit/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /удалить лимит/i })).toBeInTheDocument()
     })
 
-    const removeButton = screen.getByRole('button', { name: /remove rate limit/i })
+    const removeButton = screen.getByRole('button', { name: /удалить лимит/i })
     await user.click(removeButton)
 
     await waitFor(() => {
@@ -280,7 +290,7 @@ describe('ConsumerRateLimitModal', () => {
     })
   })
 
-  it('закрывает модальное окно при клике Cancel (AC8)', async () => {
+  it('закрывает модальное окно при клике Отмена (AC8)', async () => {
     const user = userEvent.setup()
     mockGetConsumerRateLimit.mockResolvedValue(null)
 
@@ -294,11 +304,12 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /отмена/i })).toBeInTheDocument()
     })
 
-    const cancelButton = screen.getByRole('button', { name: /cancel/i })
+    const cancelButton = screen.getByRole('button', { name: /отмена/i })
     await user.click(cancelButton)
 
     expect(mockOnClose).toHaveBeenCalled()
@@ -323,18 +334,19 @@ describe('ConsumerRateLimitModal', () => {
       }
     )
 
+    // Русские названия согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByLabelText(/requests per second/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/запросов в секунду/i)).toBeInTheDocument()
     }, { timeout: 5000 })
 
-    const rpsInput = screen.getByLabelText(/requests per second/i)
-    const burstInput = screen.getByLabelText(/burst size/i)
+    const rpsInput = screen.getByLabelText(/запросов в секунду/i)
+    const burstInput = screen.getByLabelText(/размер всплеска/i)
 
     // Вводим значения
     await user.type(rpsInput, '50')
     await user.type(burstInput, '75')
 
-    const setButton = screen.getByRole('button', { name: /set rate limit/i })
+    const setButton = screen.getByRole('button', { name: /установить/i })
     await user.click(setButton)
 
     // Увеличен таймаут для CI — форма Ant Design может быть медленной

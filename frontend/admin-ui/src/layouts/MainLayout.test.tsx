@@ -157,10 +157,10 @@ describe('MainLayout', () => {
   })
 
   describe('Header elements', () => {
-    it('отображает заголовок Admin Panel', () => {
+    it('отображает заголовок Панель управления', () => {
       renderWithMockAuth(<MainLayout />, { authValue: adminAuth })
 
-      expect(screen.getByText('Admin Panel')).toBeInTheDocument()
+      expect(screen.getByText('Панель управления')).toBeInTheDocument()
     })
 
     it('отображает ThemeSwitcher', () => {

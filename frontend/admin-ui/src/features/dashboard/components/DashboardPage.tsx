@@ -17,9 +17,14 @@ const { Title, Text } = Typography
 export function DashboardPage() {
   const { user } = useAuth()
 
-  // Форматирование роли для отображения
+  // Форматирование роли для отображения на русском
   const formatRole = (role: string) => {
-    return role.charAt(0).toUpperCase() + role.slice(1)
+    const roleMap: Record<string, string> = {
+      admin: 'Администратор',
+      developer: 'Разработчик',
+      security: 'Безопасность',
+    }
+    return roleMap[role] || role.charAt(0).toUpperCase() + role.slice(1)
   }
 
   return (
@@ -29,7 +34,7 @@ export function DashboardPage() {
         <Space>
           <DashboardOutlined style={{ fontSize: 24, color: '#1890ff' }} />
           <Title level={3} style={{ margin: 0 }}>
-            Dashboard
+            Главная
           </Title>
         </Space>
       </div>
@@ -39,11 +44,11 @@ export function DashboardPage() {
 
       {/* Информация о пользователе */}
       <Text>
-        Welcome, <strong>{user?.username ?? 'User'}</strong>!
+        Добро пожаловать, <strong>{user?.username ?? 'Пользователь'}</strong>!
       </Text>
       <br />
       <Text type="secondary">
-        Role: {user?.role ? formatRole(user.role) : 'Unknown'}
+        Роль: {user?.role ? formatRole(user.role) : 'Неизвестно'}
       </Text>
     </Card>
   )

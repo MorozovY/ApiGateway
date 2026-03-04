@@ -114,12 +114,12 @@ export function AuditLogsTable({
   const columns: ColumnsType<AuditLogEntry> = useMemo(
     () => [
       {
-        title: 'Timestamp',
+        title: 'Время',
         dataIndex: 'timestamp',
         key: 'timestamp',
         width: 180,
         render: (timestamp: string) =>
-          dayjs(timestamp).format('MMM D, YYYY, HH:mm'),
+          dayjs(timestamp).format('DD.MM.YYYY, HH:mm'),
       },
       {
         title: 'Действие',

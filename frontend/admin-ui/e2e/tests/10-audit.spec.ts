@@ -41,7 +41,7 @@ test.describe('Audit Logs', () => {
     await page.goto('/dashboard')
 
     const sidebar = page.locator('.ant-layout-sider')
-    await sidebar.getByText('Audit Logs').click()
+    await sidebar.getByText('Аудит').click()
 
     await expect(page).toHaveURL('/audit')
   })

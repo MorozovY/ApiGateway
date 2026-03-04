@@ -1,4 +1,4 @@
-// Unit тесты для Sidebar (Story 7.6, AC7; Story 9.3 — Role-based menu filtering)
+// Unit тесты для Sidebar (Story 7.6, AC7; Story 9.3 — Role-based menu filtering; Story 16.1 — локализация на русский)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderWithMockAuth } from '../test/test-utils'
@@ -35,28 +35,28 @@ describe('Sidebar', () => {
   })
 
   describe('Navigation items (AC7)', () => {
-    it('показывает Integrations пункт для security роли', async () => {
+    it('показывает Интеграции пункт для security роли', async () => {
       renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: securityAuth })
 
-      expect(screen.getByText('Integrations')).toBeInTheDocument()
+      expect(screen.getByText('Интеграции')).toBeInTheDocument()
     })
 
-    it('показывает Integrations пункт для admin роли', async () => {
+    it('показывает Интеграции пункт для admin роли', async () => {
       renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: adminAuth })
 
-      expect(screen.getByText('Integrations')).toBeInTheDocument()
+      expect(screen.getByText('Интеграции')).toBeInTheDocument()
     })
 
-    it('НЕ показывает Integrations для developer роли', async () => {
+    it('НЕ показывает Интеграции для developer роли', async () => {
       renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-      expect(screen.queryByText('Integrations')).not.toBeInTheDocument()
+      expect(screen.queryByText('Интеграции')).not.toBeInTheDocument()
     })
 
-    it('показывает Audit Logs пункт', async () => {
+    it('показывает Аудит пункт', async () => {
       renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: adminAuth })
 
-      expect(screen.getByText('Audit Logs')).toBeInTheDocument()
+      expect(screen.getByText('Аудит')).toBeInTheDocument()
     })
   })
 
@@ -76,73 +76,73 @@ describe('Sidebar', () => {
 
   describe('Role-based menu visibility (Story 9.3)', () => {
     describe('AC1 — Developer видит только доступные пункты', () => {
-      it('показывает Dashboard, Routes, Metrics для developer', () => {
+      it('показывает Главная, Маршруты, Метрики для developer', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-        expect(screen.getByText('Dashboard')).toBeInTheDocument()
-        expect(screen.getByText('Routes')).toBeInTheDocument()
-        expect(screen.getByText('Metrics')).toBeInTheDocument()
+        expect(screen.getByText('Главная')).toBeInTheDocument()
+        expect(screen.getByText('Маршруты')).toBeInTheDocument()
+        expect(screen.getByText('Метрики')).toBeInTheDocument()
       })
 
-      it('НЕ показывает Rate Limits для developer', () => {
+      it('НЕ показывает Лимиты для developer', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-        expect(screen.queryByText('Rate Limits')).not.toBeInTheDocument()
+        expect(screen.queryByText('Лимиты')).not.toBeInTheDocument()
       })
 
-      it('НЕ показывает Approvals для developer', () => {
+      it('НЕ показывает Согласования для developer', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-        expect(screen.queryByText('Approvals')).not.toBeInTheDocument()
+        expect(screen.queryByText('Согласования')).not.toBeInTheDocument()
       })
 
-      it('НЕ показывает Audit Logs для developer', () => {
+      it('НЕ показывает Аудит для developer', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-        expect(screen.queryByText('Audit Logs')).not.toBeInTheDocument()
+        expect(screen.queryByText('Аудит')).not.toBeInTheDocument()
       })
 
-      it('НЕ показывает Test для developer', () => {
+      it('НЕ показывает Тестирование для developer', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-        expect(screen.queryByText('Test')).not.toBeInTheDocument()
+        expect(screen.queryByText('Тестирование')).not.toBeInTheDocument()
       })
 
-      it('НЕ показывает Users для developer', () => {
+      it('НЕ показывает Пользователи для developer', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: developerAuth })
 
-        expect(screen.queryByText('Users')).not.toBeInTheDocument()
+        expect(screen.queryByText('Пользователи')).not.toBeInTheDocument()
       })
     })
 
     describe('AC2 — Security видит расширенный набор меню', () => {
-      it('показывает Dashboard, Routes, Approvals, Audit, Integrations, Metrics для security', () => {
+      it('показывает Главная, Маршруты, Согласования, Аудит, Интеграции, Метрики для security', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: securityAuth })
 
-        expect(screen.getByText('Dashboard')).toBeInTheDocument()
-        expect(screen.getByText('Routes')).toBeInTheDocument()
-        expect(screen.getByText('Approvals')).toBeInTheDocument()
-        expect(screen.getByText('Audit Logs')).toBeInTheDocument()
-        expect(screen.getByText('Integrations')).toBeInTheDocument()
-        expect(screen.getByText('Metrics')).toBeInTheDocument()
+        expect(screen.getByText('Главная')).toBeInTheDocument()
+        expect(screen.getByText('Маршруты')).toBeInTheDocument()
+        expect(screen.getByText('Согласования')).toBeInTheDocument()
+        expect(screen.getByText('Аудит')).toBeInTheDocument()
+        expect(screen.getByText('Интеграции')).toBeInTheDocument()
+        expect(screen.getByText('Метрики')).toBeInTheDocument()
       })
 
-      it('НЕ показывает Users для security', () => {
+      it('НЕ показывает Пользователи для security', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: securityAuth })
 
-        expect(screen.queryByText('Users')).not.toBeInTheDocument()
+        expect(screen.queryByText('Пользователи')).not.toBeInTheDocument()
       })
 
-      it('НЕ показывает Rate Limits для security', () => {
+      it('НЕ показывает Лимиты для security', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: securityAuth })
 
-        expect(screen.queryByText('Rate Limits')).not.toBeInTheDocument()
+        expect(screen.queryByText('Лимиты')).not.toBeInTheDocument()
       })
 
-      it('НЕ показывает Test для security', () => {
+      it('НЕ показывает Тестирование для security', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: securityAuth })
 
-        expect(screen.queryByText('Test')).not.toBeInTheDocument()
+        expect(screen.queryByText('Тестирование')).not.toBeInTheDocument()
       })
     })
 
@@ -150,15 +150,16 @@ describe('Sidebar', () => {
       it('показывает все пункты меню для admin', () => {
         renderWithMockAuth(<Sidebar collapsed={false} />, { authValue: adminAuth })
 
-        expect(screen.getByText('Dashboard')).toBeInTheDocument()
-        expect(screen.getByText('Users')).toBeInTheDocument()
-        expect(screen.getByText('Routes')).toBeInTheDocument()
-        expect(screen.getByText('Rate Limits')).toBeInTheDocument()
-        expect(screen.getByText('Approvals')).toBeInTheDocument()
-        expect(screen.getByText('Audit Logs')).toBeInTheDocument()
-        expect(screen.getByText('Integrations')).toBeInTheDocument()
-        expect(screen.getByText('Metrics')).toBeInTheDocument()
-        expect(screen.getByText('Test')).toBeInTheDocument()
+        expect(screen.getByText('Главная')).toBeInTheDocument()
+        expect(screen.getByText('Пользователи')).toBeInTheDocument()
+        expect(screen.getByText('Потребители')).toBeInTheDocument()
+        expect(screen.getByText('Маршруты')).toBeInTheDocument()
+        expect(screen.getByText('Лимиты')).toBeInTheDocument()
+        expect(screen.getByText('Согласования')).toBeInTheDocument()
+        expect(screen.getByText('Аудит')).toBeInTheDocument()
+        expect(screen.getByText('Интеграции')).toBeInTheDocument()
+        expect(screen.getByText('Метрики')).toBeInTheDocument()
+        expect(screen.getByText('Тестирование')).toBeInTheDocument()
       })
     })
   })

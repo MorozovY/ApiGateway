@@ -47,11 +47,11 @@ function UsersPage() {
           <Space>
             <TeamOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
-              Users
+              Пользователи
             </Title>
           </Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            Add User
+            Новый пользователь
           </Button>
         </Space>
       </div>

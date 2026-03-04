@@ -35,7 +35,7 @@ export function TestPage() {
           <Space align="center">
             <ExperimentOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
-              Test
+              Тестирование
             </Title>
           </Space>
         </div>

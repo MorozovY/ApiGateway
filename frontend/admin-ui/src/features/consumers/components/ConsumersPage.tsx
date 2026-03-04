@@ -41,11 +41,11 @@ function ConsumersPage() {
           <Space>
             <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Title level={3} style={{ margin: 0 }}>
-              Consumers
+              Потребители
             </Title>
           </Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} data-testid="create-consumer-button">
-            Create Consumer
+            Новый потребитель
           </Button>
         </Space>
       </div>
@@ -56,7 +56,7 @@ function ConsumersPage() {
       {/* Поиск по client ID (AC9) */}
       <div style={{ marginBottom: 16 }}>
         <Input.Search
-          placeholder="Search by client ID..."
+          placeholder="Поиск по client ID..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           allowClear

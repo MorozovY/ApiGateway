@@ -31,16 +31,16 @@ test.describe('Users', () => {
   test('таблица содержит колонки Username, Email, Role', async ({ page }) => {
     await page.goto('/users')
 
-    await expect(page.getByRole('columnheader', { name: /username/i })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /пользователь/i })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: /email/i })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: /role/i })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /роль/i })).toBeVisible()
   })
 
   test('навигация на Users через Sidebar', async ({ page }) => {
     await page.goto('/dashboard')
 
     const sidebar = page.locator('.ant-layout-sider')
-    await sidebar.getByText('Users').click()
+    await sidebar.getByText('Пользователи').click()
 
     await expect(page).toHaveURL('/users')
   })

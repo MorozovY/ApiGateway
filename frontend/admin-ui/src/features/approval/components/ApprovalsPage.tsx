@@ -170,7 +170,7 @@ export function ApprovalsPage() {
   // Определение колонок таблицы (AC1)
   const columns: ColumnsType<PendingRoute> = [
     {
-      title: 'Path',
+      title: 'Путь',
       dataIndex: 'path',
       key: 'path',
       // Кликабельный path — открывает Drawer (AC6), подсветка поиска (Story 8.7)
@@ -181,7 +181,7 @@ export function ApprovalsPage() {
       ),
     },
     {
-      title: 'Upstream URL',
+      title: 'URL сервиса',
       dataIndex: 'upstreamUrl',
       key: 'upstreamUrl',
       ellipsis: true,
@@ -189,7 +189,7 @@ export function ApprovalsPage() {
       render: (upstreamUrl: string) => highlightSearchTerm(upstreamUrl, searchText),
     },
     {
-      title: 'Methods',
+      title: 'Методы',
       dataIndex: 'methods',
       key: 'methods',
       render: (methods: string[]) => (
@@ -203,13 +203,13 @@ export function ApprovalsPage() {
       ),
     },
     {
-      title: 'Submitted By',
+      title: 'Отправил',
       dataIndex: 'creatorUsername',
       key: 'creatorUsername',
       render: (username: string | undefined) => username || '—',
     },
     {
-      title: 'Submitted At',
+      title: 'Отправлено',
       dataIndex: 'submittedAt',
       key: 'submittedAt',
       render: (submittedAt: string) => (
@@ -220,7 +220,7 @@ export function ApprovalsPage() {
       sorter: (a, b) => dayjs(a.submittedAt).unix() - dayjs(b.submittedAt).unix(),
     },
     {
-      title: 'Actions',
+      title: 'Действия',
       key: 'actions',
       render: (_, record: PendingRoute) => (
         <Space>
@@ -232,7 +232,7 @@ export function ApprovalsPage() {
             loading={approveMutation.isPending}
             onClick={() => handleApprove(record.id)}
           >
-            Approve
+            Одобрить
           </Button>
           {/* Отклонение с модальным окном (AC3) */}
           <Button
@@ -241,7 +241,7 @@ export function ApprovalsPage() {
             icon={<CloseOutlined />}
             onClick={() => handleOpenRejectModal(record)}
           >
-            Reject
+            Отклонить
           </Button>
         </Space>
       ),
@@ -256,7 +256,7 @@ export function ApprovalsPage() {
           <Space>
             <CheckCircleOutlined style={{ fontSize: 24, color: '#1890ff' }} />
             <Typography.Title level={3} style={{ margin: 0 }}>
-              Approvals
+              Согласования
             </Typography.Title>
           </Space>
           {/* Кнопка ручного обновления (AC3) */}
@@ -267,7 +267,7 @@ export function ApprovalsPage() {
             disabled={isFetching}
             data-testid="refresh-button"
           >
-            Refresh
+            Обновить
           </Button>
         </Space>
       </div>
@@ -278,7 +278,7 @@ export function ApprovalsPage() {
       {/* Панель фильтров (Story 8.8) */}
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
-          placeholder="Search by path, upstream..."
+          placeholder="Поиск по path, upstream..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -292,7 +292,7 @@ export function ApprovalsPage() {
             icon={<CloseCircleOutlined />}
             onClick={() => setSearchText('')}
           >
-            Clear filters
+            Сбросить фильтры
           </Button>
         )}
       </Space>

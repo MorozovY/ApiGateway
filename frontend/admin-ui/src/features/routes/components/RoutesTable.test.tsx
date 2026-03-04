@@ -83,7 +83,7 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
     cleanup()
   })
 
-  it('отображает заголовок колонки Auth', () => {
+  it('отображает заголовок колонки Авторизация', () => {
     renderWithMockAuth(
       <RoutesTable />,
       {
@@ -94,11 +94,11 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
       }
     )
 
-    // Проверяем наличие заголовка колонки
-    expect(screen.getByText('Auth')).toBeInTheDocument()
+    // Проверяем наличие заголовка колонки (русское название согласно локализации Story 16.1)
+    expect(screen.getByText('Авторизация')).toBeInTheDocument()
   })
 
-  it('отображает "Protected" badge для authRequired=true', () => {
+  it('отображает "Защищён" badge для authRequired=true', () => {
     renderWithMockAuth(
       <RoutesTable />,
       {
@@ -109,12 +109,12 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
       }
     )
 
-    // Проверяем наличие Protected badge (может быть несколько элементов с этим текстом)
-    const protectedBadges = screen.getAllByText('Protected')
+    // Проверяем наличие Защищён badge (может быть несколько элементов с этим текстом)
+    const protectedBadges = screen.getAllByText('Защищён')
     expect(protectedBadges.length).toBeGreaterThan(0)
   })
 
-  it('отображает "Public" badge для authRequired=false', () => {
+  it('отображает "Публичный" badge для authRequired=false', () => {
     renderWithMockAuth(
       <RoutesTable />,
       {
@@ -125,8 +125,8 @@ describe('колонка Auth в RoutesTable (Story 12.7)', () => {
       }
     )
 
-    // Проверяем наличие Public badge
-    const publicBadges = screen.getAllByText('Public')
+    // Проверяем наличие Публичный badge (русское название согласно локализации Story 16.1)
+    const publicBadges = screen.getAllByText('Публичный')
     expect(publicBadges.length).toBeGreaterThan(0)
   })
 })

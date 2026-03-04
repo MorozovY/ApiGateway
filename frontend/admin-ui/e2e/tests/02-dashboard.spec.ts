@@ -16,10 +16,10 @@ test.describe('Dashboard', () => {
     await page.goto('/dashboard')
 
     // Приветствие с именем пользователя
-    await expect(page.getByText(`Welcome, ${mockAdminUser.username}!`)).toBeVisible()
+    await expect(page.getByText(`Добро пожаловать, ${mockAdminUser.username}!`)).toBeVisible()
 
-    // Роль пользователя
-    await expect(page.getByText(/Role:\s*Admin/i)).toBeVisible()
+    // Роль пользователя (Story 16.1: локализация на русский)
+    await expect(page.getByText(/Роль:\s*Администратор/i)).toBeVisible()
   })
 
   // Story 16.3: тест для кнопки Logout удалён — Logout теперь доступен через user dropdown в header
@@ -42,8 +42,8 @@ test.describe('Dashboard', () => {
 
     // Проверяем наличие основных пунктов меню (через текст в sidebar)
     const sidebar = page.locator('.ant-layout-sider')
-    await expect(sidebar.getByText('Dashboard')).toBeVisible()
-    await expect(sidebar.getByText('Routes')).toBeVisible()
+    await expect(sidebar.getByText('Главная')).toBeVisible()
+    await expect(sidebar.getByText('Маршруты')).toBeVisible()
   })
 
   test('Sidebar показывает admin-only пункты для admin', async ({ page }) => {
@@ -52,12 +52,12 @@ test.describe('Dashboard', () => {
     const sidebar = page.locator('.ant-layout-sider')
 
     // Admin видит Users и Rate Limits (admin-only)
-    await expect(sidebar.getByText('Users')).toBeVisible()
-    await expect(sidebar.getByText('Rate Limits')).toBeVisible()
+    await expect(sidebar.getByText('Пользователи')).toBeVisible()
+    await expect(sidebar.getByText('Лимиты')).toBeVisible()
 
     // Admin также видит Approvals и Audit (security + admin)
-    await expect(sidebar.getByText('Approvals')).toBeVisible()
-    await expect(sidebar.getByText('Audit Logs')).toBeVisible()
+    await expect(sidebar.getByText('Согласования')).toBeVisible()
+    await expect(sidebar.getByText('Аудит')).toBeVisible()
   })
 
   test('навигация на Routes через Sidebar', async ({ page }) => {
@@ -65,7 +65,7 @@ test.describe('Dashboard', () => {
 
     // Кликаем на Routes в меню
     const sidebar = page.locator('.ant-layout-sider')
-    await sidebar.getByText('Routes').click()
+    await sidebar.getByText('Маршруты').click()
 
     // URL изменился
     await expect(page).toHaveURL('/routes')

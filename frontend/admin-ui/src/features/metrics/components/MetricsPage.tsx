@@ -65,8 +65,8 @@ export function MetricsPage() {
     return (
       <Card>
         <Alert
-          message="Metrics unavailable"
-          description={summaryErrorData?.message || 'Could not load metrics data'}
+          message="Метрики недоступны"
+          description={summaryErrorData?.message || 'Не удалось загрузить данные метрик'}
           type="warning"
           showIcon
           action={
@@ -76,7 +76,7 @@ export function MetricsPage() {
               icon={<ReloadOutlined />}
               data-testid="metrics-page-retry-button"
             >
-              Retry
+              Повторить
             </Button>
           }
           data-testid="metrics-page-error"
@@ -91,7 +91,7 @@ export function MetricsPage() {
       <Card data-testid="metrics-page-loading">
         <div style={{ textAlign: 'center', padding: '48px' }}>
           <Spin size="large" />
-          <div style={{ marginTop: 16 }}>Loading metrics...</div>
+          <div style={{ marginTop: 16 }}>Загрузка метрик...</div>
         </div>
       </Card>
     )
@@ -106,7 +106,7 @@ export function MetricsPage() {
             <Space>
               <AreaChartOutlined style={{ fontSize: 24, color: '#1890ff' }} />
               <Typography.Title level={3} style={{ margin: 0 }}>
-                Metrics
+                Метрики
               </Typography.Title>
             </Space>
             <Button
@@ -116,7 +116,7 @@ export function MetricsPage() {
               icon={<LinkOutlined />}
               data-testid="open-grafana-button"
             >
-              Open in Grafana
+              Открыть в Grafana
             </Button>
           </Space>
         </div>
@@ -126,7 +126,7 @@ export function MetricsPage() {
 
         {/* Time Range Selector */}
         <div style={{ marginTop: 16 }}>
-          <span style={{ marginRight: 12, fontWeight: 500 }}>Time Range:</span>
+          <span style={{ marginRight: 12, fontWeight: 500 }}>Период:</span>
           <Segmented
             options={periodOptions}
             value={period}
@@ -144,7 +144,7 @@ export function MetricsPage() {
         <Col span={4}>
           <Card data-testid="summary-card-total-requests">
             <Statistic
-              title="Total Requests"
+              title="Всего запросов"
               value={summary?.totalRequests ?? 0}
               valueStyle={{ fontSize: 24 }}
             />
@@ -163,9 +163,9 @@ export function MetricsPage() {
         <Col span={4}>
           <Card data-testid="summary-card-avg-latency">
             <Statistic
-              title="Avg Latency"
+              title="Средняя задержка"
               value={summary?.avgLatencyMs ?? 0}
-              suffix="ms"
+              suffix="мс"
               valueStyle={{ fontSize: 24 }}
             />
           </Card>
@@ -173,9 +173,9 @@ export function MetricsPage() {
         <Col span={4}>
           <Card data-testid="summary-card-p95">
             <Statistic
-              title="P95 Latency"
+              title="P95 задержка"
               value={summary?.p95LatencyMs ?? 0}
-              suffix="ms"
+              suffix="мс"
               valueStyle={{ fontSize: 24 }}
             />
           </Card>
@@ -183,7 +183,7 @@ export function MetricsPage() {
         <Col span={4}>
           <Card data-testid="summary-card-error-rate">
             <Statistic
-              title="Error Rate"
+              title="Ошибки"
               value={(summary?.errorRate ?? 0) * 100}
               precision={2}
               suffix="%"
@@ -194,7 +194,7 @@ export function MetricsPage() {
         <Col span={4}>
           <Card data-testid="summary-card-active-routes">
             <Statistic
-              title="Active Routes"
+              title="Активных маршрутов"
               value={summary?.activeRoutes ?? 0}
               valueStyle={{ fontSize: 24 }}
             />
@@ -203,14 +203,14 @@ export function MetricsPage() {
       </Row>
 
       {/* Top Routes Table */}
-      <Card title="Top Routes by Requests">
+      <Card title="Топ маршрутов по запросам">
         {/* AC6: Индикатор для developer роли — видит только свои маршруты */}
         {isDeveloper && (
           <Alert
             message={
               <Space>
                 <InfoCircleOutlined />
-                <Text>Showing only routes you created</Text>
+                <Text>Показаны только созданные вами маршруты</Text>
               </Space>
             }
             type="info"

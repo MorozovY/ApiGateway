@@ -24,8 +24,8 @@ test.describe('Редактирование маршрута', () => {
     // Переход на страницу редактирования
     await expect(page).toHaveURL(`/routes/${draftRoute.id}/edit`)
 
-    // Заголовок "Edit Route"
-    await expect(page.getByRole('heading', { name: 'Edit Route' })).toBeVisible()
+    // Заголовок "Редактирование маршрута"
+    await expect(page.getByRole('heading', { name: 'Редактирование маршрута' })).toBeVisible()
   })
 
   test('форма редактирования заполнена текущими данными', async ({ page }) => {
@@ -33,9 +33,9 @@ test.describe('Редактирование маршрута', () => {
 
     await page.goto(`/routes/${draftRoute.id}/edit`)
 
-    // Проверяем заполненные поля (без "/" в начале path)
+    // Проверяем заполненные поля (без "/" в начале path, Story 16.1: Upstream URL — технический термин)
     const pathValue = draftRoute.path.startsWith('/') ? draftRoute.path.slice(1) : draftRoute.path
-    await expect(page.getByLabel('Path')).toHaveValue(pathValue)
+    await expect(page.getByLabel('Путь')).toHaveValue(pathValue)
     await expect(page.getByLabel('Upstream URL')).toHaveValue(draftRoute.upstreamUrl)
   })
 
@@ -45,14 +45,14 @@ test.describe('Редактирование маршрута', () => {
     await page.goto(`/routes/${draftRoute.id}/edit`)
 
     // Ждём загрузки формы
-    await expect(page.getByLabel('Description')).toBeVisible()
+    await expect(page.getByLabel('Описание')).toBeVisible()
 
     // Изменяем description
-    await page.getByLabel('Description').clear()
-    await page.getByLabel('Description').fill('Updated description for test')
+    await page.getByLabel('Описание').clear()
+    await page.getByLabel('Описание').fill('Updated description for test')
 
     // Сохраняем
-    await page.getByRole('button', { name: /save as draft/i }).click()
+    await page.getByRole('button', { name: /сохранить/i }).click()
 
     // Переход на страницу деталей (с увеличенным таймаутом)
     await expect(page).toHaveURL(`/routes/${draftRoute.id}`, { timeout: 10000 })
@@ -64,10 +64,10 @@ test.describe('Редактирование маршрута', () => {
     await page.goto(`/routes/${draftRoute.id}/edit`)
 
     // Изменяем description
-    await page.getByLabel('Description').fill('This should not be saved')
+    await page.getByLabel('Описание').fill('This should not be saved')
 
-    // Нажимаем Cancel
-    await page.getByRole('button', { name: /cancel/i }).click()
+    // Нажимаем Отмена
+    await page.getByRole('button', { name: /отмена/i }).click()
 
     // Возврат к списку
     await expect(page).toHaveURL('/routes')

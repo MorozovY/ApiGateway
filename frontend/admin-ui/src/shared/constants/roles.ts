@@ -12,12 +12,12 @@ export type UserRole = 'developer' | 'security' | 'admin'
 export const ROLES: readonly UserRole[] = ['developer', 'security', 'admin'] as const
 
 /**
- * Опции ролей для форм и фильтров.
+ * Опции ролей для форм и фильтров (на русском, Story 16.1).
  */
 export const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'developer', label: 'Developer' },
-  { value: 'security', label: 'Security' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'developer', label: 'Разработчик' },
+  { value: 'security', label: 'Безопасность' },
+  { value: 'admin', label: 'Администратор' },
 ]
 
 /**
@@ -30,10 +30,10 @@ export const ROLE_COLORS: Record<UserRole, string> = {
 }
 
 /**
- * Метки ролей для отображения.
+ * Метки ролей для отображения (на русском, Story 16.1).
  */
 export const ROLE_LABELS: Record<UserRole, string> = {
-  developer: 'Developer',
-  security: 'Security',
-  admin: 'Admin',
+  developer: 'Разработчик',
+  security: 'Безопасность',
+  admin: 'Администратор',
 }

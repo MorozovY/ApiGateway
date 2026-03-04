@@ -84,7 +84,7 @@ describe('RouteFormPage', () => {
   })
 
   describe('режим создания', () => {
-    it('отображает форму создания маршрута с заголовком "Create Route"', () => {
+    it('отображает форму создания маршрута с заголовком "Создание маршрута"', () => {
       mockParamsValue = {}
 
       renderWithMockAuth(<RouteFormPage />, {
@@ -92,7 +92,8 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/new'],
       })
 
-      expect(screen.getByText('Create Route')).toBeInTheDocument()
+      // Русское название согласно локализации Story 16.1
+      expect(screen.getByText('Создание маршрута')).toBeInTheDocument()
     })
 
     it('отображает все обязательные поля формы', () => {
@@ -103,14 +104,14 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/new'],
       })
 
-      // Проверяем наличие полей по label
-      expect(screen.getByText('Path')).toBeInTheDocument()
+      // Проверяем наличие полей по label (русские названия согласно локализации Story 16.1)
+      expect(screen.getByText('Путь')).toBeInTheDocument()
       expect(screen.getByText('Upstream URL')).toBeInTheDocument()
-      expect(screen.getByText('HTTP Methods')).toBeInTheDocument()
-      expect(screen.getByText('Description')).toBeInTheDocument()
+      expect(screen.getByText('HTTP методы')).toBeInTheDocument()
+      expect(screen.getByText('Описание')).toBeInTheDocument()
     })
 
-    it('отображает кнопки "Save as Draft" и "Cancel"', () => {
+    it('отображает кнопки "Сохранить" и "Cancel"', () => {
       mockParamsValue = {}
 
       renderWithMockAuth(<RouteFormPage />, {
@@ -118,8 +119,8 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/new'],
       })
 
-      expect(screen.getByRole('button', { name: /Save as Draft/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Сохранить/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Отмена/i })).toBeInTheDocument()
     })
   })
 
@@ -144,7 +145,7 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/test-route-id/edit'],
       })
 
-      expect(screen.getByText('Edit Route')).toBeInTheDocument()
+      expect(screen.getByText('Редактирование маршрута')).toBeInTheDocument()
     })
 
     it('заполняет поля формы текущими значениями маршрута', async () => {
@@ -185,7 +186,7 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/new'],
       })
 
-      const submitButton = screen.getByRole('button', { name: /Save as Draft/i })
+      const submitButton = screen.getByRole('button', { name: /Сохранить/i })
       await userEvent.click(submitButton)
 
       await waitFor(() => {
@@ -218,7 +219,7 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/new'],
       })
 
-      const submitButton = screen.getByRole('button', { name: /Save as Draft/i })
+      const submitButton = screen.getByRole('button', { name: /Сохранить/i })
       await userEvent.click(submitButton)
 
       await waitFor(() => {
@@ -261,7 +262,7 @@ describe('RouteFormPage', () => {
       })
 
       // Кнопка должна иметь loading state
-      const submitButton = screen.getByRole('button', { name: /Save as Draft/i })
+      const submitButton = screen.getByRole('button', { name: /Сохранить/i })
       expect(submitButton).toHaveClass('ant-btn-loading')
     })
 
@@ -275,7 +276,7 @@ describe('RouteFormPage', () => {
       })
 
       // Пытаемся отправить пустую форму
-      const submitButton = screen.getByRole('button', { name: /Save as Draft/i })
+      const submitButton = screen.getByRole('button', { name: /Сохранить/i })
       await userEvent.click(submitButton)
 
       // Форма не должна быть отправлена — показываются ошибки валидации
@@ -330,7 +331,7 @@ describe('RouteFormPage', () => {
         await new Promise((resolve) => setTimeout(resolve, 100))
       })
 
-      const submitButton = screen.getByRole('button', { name: /Save as Draft/i })
+      const submitButton = screen.getByRole('button', { name: /Сохранить/i })
       await act(async () => {
         await userEvent.click(submitButton)
       })
@@ -356,7 +357,7 @@ describe('RouteFormPage', () => {
         initialEntries: ['/routes/new'],
       })
 
-      const cancelButton = screen.getByRole('button', { name: /Cancel/i })
+      const cancelButton = screen.getByRole('button', { name: /Отмена/i })
       await userEvent.click(cancelButton)
 
       expect(mockNavigate).toHaveBeenCalledWith('/routes')

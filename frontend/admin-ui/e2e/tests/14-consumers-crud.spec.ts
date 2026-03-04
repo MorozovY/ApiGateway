@@ -15,21 +15,21 @@ test.describe('Consumers CRUD', () => {
   test('создание consumer показывает модальное окно с секретом', async ({ page }) => {
     await page.goto('/consumers')
 
-    // Ждём загрузки страницы
-    await expect(page.locator('h3').filter({ hasText: /consumers/i })).toBeVisible()
+    // Ждём загрузки страницы (Story 16.1)
+    await expect(page.locator('h3').filter({ hasText: 'Потребители' })).toBeVisible()
 
-    // Нажимаем Create Consumer
+    // Нажимаем Новый потребитель
     await page.getByTestId('create-consumer-button').click()
 
-    // Проверяем что модальное окно Create Consumer открылось
-    await expect(page.getByRole('dialog', { name: 'Create Consumer' })).toBeVisible()
+    // Проверяем что модальное окно Новый потребитель открылось (Story 16.1)
+    await expect(page.getByRole('dialog', { name: 'Новый потребитель' })).toBeVisible()
 
     // Заполняем форму
     await page.getByTestId('consumer-client-id-input').fill('test-new-consumer')
     await page.getByTestId('consumer-description-input').fill('Test consumer description')
 
-    // Нажимаем Create
-    await page.getByRole('button', { name: /^create$/i }).click()
+    // Нажимаем Создать (Story 16.1)
+    await page.getByRole('button', { name: 'Создать' }).click()
 
     // Должен появиться modal с secret (название "Client Secret")
     const secretDialog = page.getByRole('dialog', { name: 'Client Secret' })
@@ -51,19 +51,19 @@ test.describe('Consumers CRUD', () => {
     // Находим строку с первым consumer
     const consumerRow = page.getByRole('row').filter({ hasText: mockConsumers[0].clientId })
 
-    // Нажимаем Set Rate Limit
-    await consumerRow.getByRole('button', { name: /set rate limit/i }).click()
+    // Нажимаем Лимит (Story 16.1)
+    await consumerRow.getByRole('button', { name: 'Лимит' }).click()
 
-    // Проверяем что модальное окно rate limit открылось
-    // Заголовок содержит "Rate Limit для <clientId>"
-    const rateLimitDialog = page.getByRole('dialog').filter({ hasText: /rate limit/i })
+    // Проверяем что модальное окно лимит открылось (Story 16.1)
+    // Заголовок: "Лимит для <clientId>"
+    const rateLimitDialog = page.getByRole('dialog').filter({ hasText: /лимит для/i })
     await expect(rateLimitDialog).toBeVisible()
 
-    // Проверяем наличие кнопки "Set Rate Limit" (submit)
-    await expect(rateLimitDialog.getByRole('button', { name: /set rate limit/i })).toBeVisible()
+    // Проверяем наличие кнопки "Установить" (Story 16.1)
+    await expect(rateLimitDialog.getByRole('button', { name: 'Установить' })).toBeVisible()
 
-    // Проверяем наличие кнопки Cancel
-    await expect(rateLimitDialog.getByRole('button', { name: /cancel/i })).toBeVisible()
+    // Проверяем наличие кнопки Отмена (Story 16.1)
+    await expect(rateLimitDialog.getByRole('button', { name: 'Отмена' })).toBeVisible()
   })
 
   test('деактивация consumer показывает подтверждение', async ({ page }) => {
@@ -78,16 +78,16 @@ test.describe('Consumers CRUD', () => {
 
     const consumerRow = page.getByRole('row').filter({ hasText: activeConsumer.clientId })
 
-    // Нажимаем Disable
-    await consumerRow.getByRole('button', { name: /disable/i }).click()
+    // Нажимаем Отключить (Story 16.1)
+    await consumerRow.getByRole('button', { name: 'Отключить' }).click()
 
-    // Должен появиться Popconfirm с текстом о деактивации
+    // Должен появиться Popconfirm с текстом о деактивации (Story 16.1)
     await expect(page.getByText(/деактивировать consumer/i)).toBeVisible()
 
     // Подтверждаем
-    await page.getByRole('button', { name: /да/i }).click()
+    await page.getByRole('button', { name: 'Да' }).click()
 
-    // После деактивации статус должен измениться на Disabled
-    await expect(consumerRow.getByText('Disabled')).toBeVisible()
+    // После деактивации статус должен измениться на Отключён (Story 16.1)
+    await expect(consumerRow.getByText('Отключён')).toBeVisible()
   })
 })

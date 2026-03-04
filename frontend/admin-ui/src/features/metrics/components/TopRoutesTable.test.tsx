@@ -60,11 +60,12 @@ describe('TopRoutesTable', () => {
     expect(screen.getByText('/api/payments')).toBeInTheDocument()
   })
 
-  it('отображает заголовки колонок (Story 7.0: Path и Total Requests)', () => {
+  it('отображает заголовки колонок (Story 7.0: Путь и Всего запросов)', () => {
     render(<TopRoutesTable data={mockTopRoutes} />)
 
-    expect(screen.getByText('Path')).toBeInTheDocument()
-    expect(screen.getByText('Total Requests')).toBeInTheDocument()
+    // Русские названия согласно локализации Story 16.1
+    expect(screen.getByText('Путь')).toBeInTheDocument()
+    expect(screen.getByText('Всего запросов')).toBeInTheDocument()
   })
 
   it('отображает значения value как целые числа', () => {

@@ -95,13 +95,13 @@ describe('RateLimitsTable', () => {
       expect(screen.getByText('Basic Limit')).toBeInTheDocument()
     })
 
-    // Проверяем заголовки колонок
-    expect(screen.getByText('Name')).toBeInTheDocument()
-    expect(screen.getByText('Description')).toBeInTheDocument()
-    expect(screen.getByText('Requests/sec')).toBeInTheDocument()
-    expect(screen.getByText('Burst Size')).toBeInTheDocument()
-    expect(screen.getByText('Used By')).toBeInTheDocument()
-    expect(screen.getByText('Actions')).toBeInTheDocument()
+    // Проверяем заголовки колонок (русские названия согласно локализации Story 16.1)
+    expect(screen.getByText('Название')).toBeInTheDocument()
+    expect(screen.getByText('Описание')).toBeInTheDocument()
+    expect(screen.getByText('Запросов/сек')).toBeInTheDocument()
+    expect(screen.getByText('Размер всплеска')).toBeInTheDocument()
+    expect(screen.getByText('Используется')).toBeInTheDocument()
+    expect(screen.getByText('Действия')).toBeInTheDocument()
   })
 
   it('отображает значения requestsPerSecond и burstSize', async () => {

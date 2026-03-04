@@ -53,17 +53,17 @@ function CreateConsumerModal({ open, onClose }: CreateConsumerModalProps) {
   return (
     <>
       <Modal
-        title="Create Consumer"
+        title="Новый потребитель"
         open={open}
         onOk={handleSubmit}
         onCancel={handleCancel}
         confirmLoading={createMutation.isPending}
-        okText="Create"
-        cancelText="Cancel"
+        okText="Создать"
+        cancelText="Отмена"
         destroyOnClose
       >
         <Alert
-          message="Consumer Authentication"
+          message="Аутентификация потребителя"
           description="Consumer использует Client Credentials flow для аутентификации. Secret будет показан только один раз после создания."
           type="info"
           showIcon
@@ -73,17 +73,17 @@ function CreateConsumerModal({ open, onClose }: CreateConsumerModalProps) {
         <Form form={form} layout="vertical">
           <Form.Item
             name="clientId"
-            label="Client ID"
+            label="ID клиента"
             rules={[
-              { required: true, message: 'Client ID обязателен' },
+              { required: true, message: 'ID клиента обязателен' },
               {
                 pattern: /^[a-z0-9](-?[a-z0-9])*$/,
-                message: 'Client ID должен содержать только lowercase буквы, цифры и дефисы (без leading/trailing дефиса)',
+                message: 'ID клиента должен содержать только lowercase буквы, цифры и дефисы (без leading/trailing дефиса)',
               },
               {
                 min: 3,
                 max: 63,
-                message: 'Client ID должен быть от 3 до 63 символов',
+                message: 'ID клиента должен быть от 3 до 63 символов',
               },
             ]}
           >
@@ -92,11 +92,11 @@ function CreateConsumerModal({ open, onClose }: CreateConsumerModalProps) {
 
           <Form.Item
             name="description"
-            label="Description"
+            label="Описание"
             rules={[
               {
                 max: 255,
-                message: 'Description не должно превышать 255 символов',
+                message: 'Описание не должно превышать 255 символов',
               },
             ]}
           >

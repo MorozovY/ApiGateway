@@ -1,4 +1,4 @@
-// Конфигурация описаний страниц для PageInfoBlock (Story 15.4)
+// Конфигурация описаний страниц для PageInfoBlock (Story 15.4, Story 16.1 — локализация)
 import type { PageDescription } from '../components/PageInfoBlock'
 
 /**
@@ -26,33 +26,33 @@ export type PageKey =
  */
 export const PAGE_DESCRIPTIONS: Record<PageKey, PageDescription> = {
   dashboard: {
-    title: 'Dashboard',
+    title: 'Главная',
     description: 'Главная страница с обзором системы',
     features: [
       'Приветствие с именем пользователя',
       'Отображение текущей роли',
-      'Быстрый выход из системы (Logout)',
+      'Быстрый выход из системы',
     ],
   },
 
   routes: {
-    title: 'Routes',
+    title: 'Маршруты',
     description: 'Управление маршрутами API Gateway',
     features: [
       'Создание и редактирование маршрутов',
       'Публикация маршрутов для согласования',
-      'Фильтрация по статусу (draft, pending, published, rejected)',
-      'Поиск по path и upstream URL',
+      'Фильтрация по статусу (черновик, на согласовании, опубликован, отклонён)',
+      'Поиск по пути и URL сервиса',
       'Ctrl+N для быстрого создания нового маршрута',
     ],
   },
 
   metrics: {
-    title: 'Metrics',
+    title: 'Метрики',
     description: 'Мониторинг производительности и трафика',
     features: [
-      'Обзор ключевых метрик: RPS, latency, error rate',
-      'Top routes по количеству запросов',
+      'Обзор ключевых метрик: RPS, задержка, частота ошибок',
+      'Топ маршрутов по количеству запросов',
       'Выбор временного периода (5m, 15m, 1h, 6h, 24h)',
       'Health check статус сервисов',
       'Ссылка на Grafana для детального анализа',
@@ -60,7 +60,7 @@ export const PAGE_DESCRIPTIONS: Record<PageKey, PageDescription> = {
   },
 
   approvals: {
-    title: 'Approvals',
+    title: 'Согласования',
     description: 'Согласование маршрутов перед публикацией',
     features: [
       'Список маршрутов, ожидающих одобрения',
@@ -72,7 +72,7 @@ export const PAGE_DESCRIPTIONS: Record<PageKey, PageDescription> = {
   },
 
   audit: {
-    title: 'Audit Logs',
+    title: 'Журнал аудита',
     description: 'Журнал всех изменений в системе',
     features: [
       'История всех действий пользователей',
@@ -83,7 +83,7 @@ export const PAGE_DESCRIPTIONS: Record<PageKey, PageDescription> = {
   },
 
   integrations: {
-    title: 'Integrations',
+    title: 'Интеграции',
     description: 'Отчёт по upstream интеграциям',
     features: [
       'Список всех внешних сервисов (upstream)',
@@ -94,41 +94,41 @@ export const PAGE_DESCRIPTIONS: Record<PageKey, PageDescription> = {
   },
 
   users: {
-    title: 'Users',
+    title: 'Пользователи',
     description: 'Управление пользователями и ролями',
     features: [
       'Список пользователей системы',
       'Создание новых пользователей',
-      'Назначение ролей (admin, security, developer)',
+      'Назначение ролей (администратор, безопасность, разработчик)',
       'Редактирование профилей',
     ],
   },
 
   consumers: {
-    title: 'Consumers',
-    description: 'Управление API consumers',
+    title: 'Потребители',
+    description: 'Управление API потребителями',
     features: [
-      'Список API consumers (клиентов)',
-      'Создание новых consumers в Keycloak',
-      'Генерация client secrets',
-      'Настройка rate limit per-consumer',
-      'Поиск по client ID',
+      'Список API потребителей (клиентов)',
+      'Создание новых потребителей в Keycloak',
+      'Генерация секретных ключей',
+      'Настройка лимитов для потребителей',
+      'Поиск по ID клиента',
     ],
   },
 
   rateLimits: {
-    title: 'Rate Limits',
+    title: 'Лимиты трафика',
     description: 'Настройка политик ограничения трафика',
     features: [
-      'Создание политик rate limit',
-      'Настройка requests/period для каждой политики',
+      'Создание политик лимитирования',
+      'Настройка запросов в секунду для каждой политики',
       'Просмотр маршрутов, использующих политику',
-      'Редактирование и удаление политик (только admin)',
+      'Редактирование и удаление политик (только администратор)',
     ],
   },
 
   test: {
-    title: 'Test',
+    title: 'Тестирование',
     description: 'Генератор нагрузки для тестирования',
     features: [
       'Выбор опубликованного маршрута',

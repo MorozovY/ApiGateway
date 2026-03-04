@@ -56,7 +56,7 @@ describe('UsersPage', () => {
     mockFetchUsers.mockResolvedValue(mockUserListResponse)
   })
 
-  it('рендерит заголовок и кнопку Add User', async () => {
+  it('рендерит заголовок и кнопку Новый пользователь', async () => {
     renderWithMockAuth(<UsersPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -64,9 +64,9 @@ describe('UsersPage', () => {
       },
     })
 
-    // Заголовок страницы (Title level={3}) — находим по role heading
-    expect(screen.getByRole('heading', { name: 'Users', level: 3 })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /add user/i })).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — находим по role heading (русские названия согласно локализации Story 16.1)
+    expect(screen.getByRole('heading', { name: 'Пользователи', level: 3 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /новый пользователь/i })).toBeInTheDocument()
   })
 
   it('рендерит таблицу с пользователями', async () => {
@@ -78,7 +78,7 @@ describe('UsersPage', () => {
     })
 
     // Ждём загрузку данных — проверяем email вместо username
-    // чтобы избежать конфликта с Admin badge
+    // чтобы избежать конфликта с Администратор badge
     await waitFor(() => {
       expect(screen.getByText('admin@company.com')).toBeInTheDocument()
     })
@@ -111,15 +111,16 @@ describe('UsersPage', () => {
       },
     })
 
+    // Русские названия ролей согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByText('Admin')).toBeInTheDocument()
+      expect(screen.getByText('Администратор')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Developer')).toBeInTheDocument()
-    expect(screen.getByText('Security')).toBeInTheDocument()
+    expect(screen.getByText('Разработчик')).toBeInTheDocument()
+    expect(screen.getByText('Безопасность')).toBeInTheDocument()
   })
 
-  it('отображает статус Active/Inactive', async () => {
+  it('отображает статус Активен/Неактивен', async () => {
     renderWithMockAuth(<UsersPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -127,11 +128,12 @@ describe('UsersPage', () => {
       },
     })
 
+    // Русские названия согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getAllByText('Active')).toHaveLength(2) // admin и developer1
+      expect(screen.getAllByText('Активен')).toHaveLength(2) // admin и developer1
     })
 
-    expect(screen.getByText('Inactive')).toBeInTheDocument() // security1
+    expect(screen.getByText('Неактивен')).toBeInTheDocument() // security1
   })
 
   it('вызывает обработчик клика при нажатии Add User', async () => {
@@ -145,7 +147,7 @@ describe('UsersPage', () => {
     })
 
     // Проверяем что кнопка существует и кликабельна
-    const addButton = screen.getByRole('button', { name: /add user/i })
+    const addButton = screen.getByRole('button', { name: /новый пользователь/i })
     expect(addButton).toBeEnabled()
     await user.click(addButton)
 
@@ -157,7 +159,7 @@ describe('UsersPage', () => {
     })
   })
 
-  it('отображает кнопки Edit и Deactivate для каждой строки', async () => {
+  it('отображает кнопки Edit и Деактивировать для каждой строки', async () => {
     renderWithMockAuth(<UsersPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -169,8 +171,8 @@ describe('UsersPage', () => {
       expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(3)
     })
 
-    // Deactivate только для активных пользователей (2 из 3)
-    expect(screen.getAllByRole('button', { name: /deactivate/i })).toHaveLength(2)
+    // Деактивировать только для активных пользователей (2 из 3) (русское название согласно локализации Story 16.1)
+    expect(screen.getAllByRole('button', { name: /деактивировать/i })).toHaveLength(2)
   })
 
   it('показывает пагинацию с общим количеством', async () => {
@@ -194,8 +196,9 @@ describe('UsersPage', () => {
       },
     })
 
+    // Русское название согласно локализации Story 16.1
     await waitFor(() => {
-      expect(screen.getByText('Inactive')).toBeInTheDocument()
+      expect(screen.getByText('Неактивен')).toBeInTheDocument()
     })
 
     // security1 (isActive: false) — 3 кнопки Edit, но одна disabled

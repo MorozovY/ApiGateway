@@ -14,8 +14,8 @@ test.describe('Rate Limits', () => {
   test('страница rate limits доступна для admin', async ({ page }) => {
     await page.goto('/rate-limits')
 
-    // Заголовок страницы
-    await expect(page.getByRole('heading', { name: /rate limit/i })).toBeVisible()
+    // Заголовок страницы (Story 16.1 — локализация)
+    await expect(page.getByRole('heading', { name: 'Лимиты трафика' })).toBeVisible()
   })
 
   test('таблица отображает список политик', async ({ page }) => {
@@ -33,15 +33,15 @@ test.describe('Rate Limits', () => {
     await page.goto('/rate-limits')
 
     // Проверяем заголовки колонок
-    await expect(page.getByRole('columnheader', { name: /name/i })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: /requests/i })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /название/i })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /запросов/i })).toBeVisible()
   })
 
   test('навигация на Rate Limits через Sidebar', async ({ page }) => {
     await page.goto('/dashboard')
 
     const sidebar = page.locator('.ant-layout-sider')
-    await sidebar.getByText('Rate Limits').click()
+    await sidebar.getByText('Лимиты').click()
 
     await expect(page).toHaveURL('/rate-limits')
   })
@@ -49,7 +49,7 @@ test.describe('Rate Limits', () => {
   test('кнопка создания новой политики видна', async ({ page }) => {
     await page.goto('/rate-limits')
 
-    // Кнопка New/Create
-    await expect(page.getByRole('button', { name: /new|create|создать/i })).toBeVisible()
+    // Кнопка Новый лимит
+    await expect(page.getByRole('button', { name: /новый лимит/i })).toBeVisible()
   })
 })

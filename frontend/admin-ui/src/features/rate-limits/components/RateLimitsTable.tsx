@@ -97,34 +97,34 @@ function RateLimitsTable({
   // Определение колонок таблицы
   const columns: ColumnsType<RateLimit> = [
     {
-      title: 'Name',
+      title: 'Название',
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Description',
+      title: 'Описание',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
       render: (description: string | null) => description || '—',
     },
     {
-      title: 'Requests/sec',
+      title: 'Запросов/сек',
       dataIndex: 'requestsPerSecond',
       key: 'requestsPerSecond',
       align: 'right',
       sorter: (a, b) => a.requestsPerSecond - b.requestsPerSecond,
     },
     {
-      title: 'Burst Size',
+      title: 'Размер всплеска',
       dataIndex: 'burstSize',
       key: 'burstSize',
       align: 'right',
       sorter: (a, b) => a.burstSize - b.burstSize,
     },
     {
-      title: 'Used By',
+      title: 'Используется',
       dataIndex: 'usageCount',
       key: 'usageCount',
       align: 'right',
@@ -146,7 +146,7 @@ function RateLimitsTable({
       },
     },
     {
-      title: 'Actions',
+      title: 'Действия',
       key: 'actions',
       render: (_, record) => {
         // Если нет прав на редактирование/удаление — не показываем actions (AC8)

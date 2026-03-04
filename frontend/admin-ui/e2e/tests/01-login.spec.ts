@@ -55,7 +55,7 @@ test.describe('Логин', () => {
     await expect(page).toHaveURL('/dashboard')
 
     // Dashboard отображается
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Главная' })).toBeVisible()
   })
 
   test('авторизованный пользователь сразу видит Dashboard', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('Логин', () => {
     await expect(page).toHaveURL('/dashboard')
 
     // Приветствие с username
-    await expect(page.getByText(`Welcome, ${mockAdminUser.username}!`)).toBeVisible()
+    await expect(page.getByText(`Добро пожаловать, ${mockAdminUser.username}!`)).toBeVisible()
   })
 
   // Story 15.1: проверка ссылки на Swagger UI

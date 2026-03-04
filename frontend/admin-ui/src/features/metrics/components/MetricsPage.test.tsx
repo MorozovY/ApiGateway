@@ -129,7 +129,8 @@ describe('MetricsPage', () => {
     render(<MetricsPage />, { wrapper: createWrapper() })
 
     expect(screen.getByTestId('metrics-page-loading')).toBeInTheDocument()
-    expect(screen.getByText('Loading metrics...')).toBeInTheDocument()
+    // Русские названия согласно локализации Story 16.1
+    expect(screen.getByText('Загрузка метрик...')).toBeInTheDocument()
 
     // Резолвим чтобы тест не зависал
     resolvePromise!(mockSummary)
@@ -171,11 +172,12 @@ describe('MetricsPage', () => {
       expect(screen.getByTestId('metrics-page-error')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Metrics unavailable')).toBeInTheDocument()
+    // Русские названия согласно локализации Story 16.1
+    expect(screen.getByText('Метрики недоступны')).toBeInTheDocument()
     expect(screen.getByTestId('metrics-page-retry-button')).toBeInTheDocument()
   })
 
-  it('кнопка Open in Grafana имеет правильный URL', async () => {
+  it('кнопка Открыть в Grafana имеет правильный URL', async () => {
     render(<MetricsPage />, { wrapper: createWrapper() })
 
     await waitFor(() => {
@@ -217,8 +219,8 @@ describe('MetricsPage', () => {
       expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
     })
 
-    // Проверяем что таблица отображается (заголовки колонок)
-    expect(screen.getByText('Path')).toBeInTheDocument()
+    // Проверяем что таблица отображается (заголовки колонок — русские названия согласно локализации Story 16.1)
+    expect(screen.getByText('Путь')).toBeInTheDocument()
     // RPS есть в нескольких местах - в summary card и в таблице
     expect(screen.getAllByText('RPS').length).toBeGreaterThan(0)
   })
@@ -245,9 +247,9 @@ describe('MetricsPage', () => {
         expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
       })
 
-      // Developer видит notice что показаны только его маршруты
+      // Developer видит notice что показаны только его маршруты (русские названия согласно локализации Story 16.1)
       expect(screen.getByTestId('developer-routes-notice')).toBeInTheDocument()
-      expect(screen.getByText('Showing only routes you created')).toBeInTheDocument()
+      expect(screen.getByText('Показаны только созданные вами маршруты')).toBeInTheDocument()
     })
   })
 })
