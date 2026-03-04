@@ -2,7 +2,38 @@
 import { test, expect } from '@playwright/test'
 import { login, apiRequest } from './helpers/auth'
 
+/**
+ * Story 15.5: Хранилище для cleanup diagnostic маршрутов.
+ */
+const createdRouteIds: string[] = []
+
 test.describe('DIAGNOSTIC: Auth Flow', () => {
+  // Story 15.5: Cleanup diagnostic маршрутов после всех тестов
+  test.afterAll(async ({ browser }) => {
+    // Создаём новый контекст для cleanup (afterAll не имеет page)
+    const context = await browser.newContext()
+    const page = await context.newPage()
+
+    try {
+      // Логинимся для cleanup
+      await login(page, 'test-developer', 'Test1234!', '/routes')
+
+      for (const routeId of createdRouteIds) {
+        const response = await apiRequest(page, 'DELETE', `/api/v1/routes/${routeId}`)
+        // 200, 204 — успех; 404 — уже удалён через global-teardown
+        if (![200, 204, 404].includes(response.status())) {
+          console.warn(`[DIAGNOSTIC Cleanup] Не удалось удалить маршрут ${routeId}: ${response.status()}`)
+        }
+      }
+    } catch {
+      // Игнорируем ошибки cleanup
+      console.warn('[DIAGNOSTIC Cleanup] Ошибка при очистке маршрутов')
+    } finally {
+      createdRouteIds.length = 0
+      await context.close()
+    }
+  })
+
   test('проверяет что JWT token работает для API calls', async ({ page }) => {
     const TIMESTAMP = Date.now()
 
@@ -53,6 +84,10 @@ test.describe('DIAGNOSTIC: Auth Flow', () => {
       console.log(`[DIAGNOSTIC] Create route error: ${errorText}`)
     }
     expect(createResponse.ok()).toBeTruthy()
+
+    // Story 15.5: Регистрируем маршрут для cleanup
+    const routeData = await createResponse.json() as { id: string }
+    createdRouteIds.push(routeData.id)
 
     console.log('[DIAGNOSTIC] Step 7: Check that response is JSON')
     const data = await response.json()

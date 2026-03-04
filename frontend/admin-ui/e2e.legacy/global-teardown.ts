@@ -39,10 +39,12 @@ function loadEnvFile(): void {
  * Очистка тестовых данных в БД после прогона E2E тестов.
  *
  * Удаляет все данные созданные во время тестов:
- * - routes: path LIKE '/e2e-%'
+ * - routes: path LIKE '/e2e-%' ИЛИ '/diagnostic-%'
  * - rate_limits: name LIKE 'e2e-%'
  * - users: username LIKE 'e2e-%'
  * - audit_logs: entity_id совпадает с тестовыми routes/rate_limits
+ *
+ * Story 15.5: Добавлен паттерн '/diagnostic-%' для очистки диагностических маршрутов.
  *
  * Порядок удаления учитывает FK constraints.
  *
@@ -64,10 +66,11 @@ async function cleanupTestData(): Promise<void> {
     console.log('[E2E Teardown] Очистка тестовых данных после прогона...')
 
     // --- Удаление audit_logs для тестовых сущностей ---
-    // Удаляем по changes (содержит /e2e-% паттерн) или по тестовым username
+    // Story 15.5: Удаляем по changes (содержит /e2e-% или /diagnostic-% паттерн) или по тестовым username
     const auditLogsResult = await pool.query(`
       DELETE FROM audit_logs
       WHERE changes LIKE '%/e2e-%'
+        OR changes LIKE '%/diagnostic-%'
         OR changes LIKE '%"e2e-%'
         OR username IN ('test-developer', 'test-admin', 'test-security')
     `).catch((err: { code?: string }) => {
@@ -79,17 +82,21 @@ async function cleanupTestData(): Promise<void> {
     console.log(`[E2E Teardown] Удалено audit_logs: ${auditLogsResult.rowCount ?? 0}`)
 
     // --- Удаление route_versions ---
-    await pool.query(`
+    // Story 15.5: Добавлен паттерн '/diagnostic-%'
+    const routeVersionsResult = await pool.query(`
       DELETE FROM route_versions
-      WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%')
+      WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%' OR path LIKE '/diagnostic-%')
     `).catch((err: { code?: string }) => {
       if (err.code !== '42P01') {
         console.warn('[E2E Teardown] Ошибка при удалении route_versions:', err)
       }
+      return { rowCount: 0 }
     })
+    console.log(`[E2E Teardown] Удалено route_versions: ${routeVersionsResult.rowCount ?? 0}`)
 
     // --- Удаление маршрутов ---
-    const routesResult = await pool.query(`DELETE FROM routes WHERE path LIKE '/e2e-%'`)
+    // Story 15.5: Добавлен паттерн '/diagnostic-%'
+    const routesResult = await pool.query(`DELETE FROM routes WHERE path LIKE '/e2e-%' OR path LIKE '/diagnostic-%'`)
     console.log(`[E2E Teardown] Удалено маршрутов (по path): ${routesResult.rowCount ?? 0}`)
 
     // Удаляем маршруты которые ссылаются на E2E политики

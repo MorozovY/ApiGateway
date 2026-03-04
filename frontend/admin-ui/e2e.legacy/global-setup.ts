@@ -183,19 +183,19 @@ async function cleanupTestData(): Promise<void> {
   try {
     console.log('[E2E Cleanup] Очистка тестовых данных...')
 
-    // Удаляем route_versions если существует (route_versions -> routes FK)
+    // Story 15.5: Удаляем route_versions для e2e и diagnostic маршрутов
     // Игнорируем ошибку 42P01 (table does not exist), логируем другие
     await pool.query(`
       DELETE FROM route_versions
-      WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%')
+      WHERE route_id IN (SELECT id FROM routes WHERE path LIKE '/e2e-%' OR path LIKE '/diagnostic-%')
     `).catch((err: { code?: string }) => {
       if (err.code !== '42P01') {
         console.warn('[E2E Cleanup] Ошибка при удалении route_versions:', err)
       }
     })
 
-    // Удаляем маршруты с E2E паттерном в path
-    const routesResult = await pool.query(`DELETE FROM routes WHERE path LIKE '/e2e-%'`)
+    // Story 15.5: Удаляем маршруты с E2E и diagnostic паттернами в path
+    const routesResult = await pool.query(`DELETE FROM routes WHERE path LIKE '/e2e-%' OR path LIKE '/diagnostic-%'`)
     console.log(`[E2E Cleanup] Удалено маршрутов (по path): ${routesResult.rowCount ?? 0}`)
 
     // Удаляем маршруты которые ссылаются на E2E политики (по rate_limit_id)

@@ -3,8 +3,14 @@ import { login, apiRequest } from './helpers/auth'
 
 /**
  * Уникальный суффикс для изоляции маршрутов между тест-ранами.
+ * Генерируется per-test для изоляции.
  */
-const TIMESTAMP = Date.now()
+let TIMESTAMP: number
+
+/**
+ * Хранилище для cleanup ресурсов после тестов (Story 15.5).
+ */
+const createdRouteIds: string[] = []
 
 /**
  * Вспомогательная функция заполнения формы маршрута.
@@ -42,15 +48,40 @@ async function fillRouteForm(page: Page, routePath: string, upstreamUrl: string)
  *
  * Все тесты используют только SPA-навигацию после первоначального login(),
  * чтобы не сбрасывать React-состояние (AuthContext) при page.goto().
+ *
+ * Story 15.5: Добавлен afterEach cleanup для удаления созданных маршрутов.
  */
 test.describe('Epic 3: Route Management', () => {
   test.beforeEach(async ({ page }) => {
+    // Генерируем уникальный timestamp для каждого теста
+    TIMESTAMP = Date.now()
+
     // Переходим на /routes через returnUrl механизм
     await login(page, 'test-developer', 'Test1234!', '/routes')
     await expect(page.locator('h2:has-text("Routes")')).toBeVisible()
 
     // Ждём инициализации AuthContext — user menu button появляется после setTokenGetter
     await expect(page.locator('[data-testid="user-menu-button"]')).toBeVisible({ timeout: 5000 })
+  })
+
+  // Story 15.5: Cleanup созданных маршрутов после каждого теста
+  test.afterEach(async ({ page }) => {
+    try {
+      // Используем текущую сессию для удаления (developer может удалять draft маршруты)
+      for (const routeId of createdRouteIds) {
+        const response = await apiRequest(page, 'DELETE', `/api/v1/routes/${routeId}`)
+        // 200, 204 — успех; 404 — уже удалён (в тесте delete или через global-teardown)
+        if (![200, 204, 404].includes(response.status())) {
+          console.warn(`[E2E Cleanup] Не удалось удалить маршрут ${routeId}: ${response.status()}`)
+        }
+      }
+    } catch {
+      // Игнорируем ошибки cleanup — тесты не должны падать из-за cleanup
+      console.warn('[E2E Cleanup] Ошибка при очистке маршрутов')
+    } finally {
+      // Очищаем список
+      createdRouteIds.length = 0
+    }
   })
 
   test('Developer создаёт маршрут (draft) через форму', async ({ page }) => {
@@ -66,6 +97,13 @@ test.describe('Epic 3: Route Management', () => {
     // После сохранения — редирект на страницу деталей маршрута (SPA)
     await expect(page).toHaveURL(/\/routes\/[a-f0-9-]+$/, { timeout: 10_000 })
 
+    // Story 15.5: Извлекаем ID маршрута для cleanup
+    const url = page.url()
+    const routeId = url.split('/routes/')[1]
+    if (routeId) {
+      createdRouteIds.push(routeId)
+    }
+
     // Маршрут создан и отображается на странице деталей
     await expect(page.locator(`text=/${routePath}`)).toBeVisible()
   })
@@ -78,6 +116,13 @@ test.describe('Epic 3: Route Management', () => {
     await fillRouteForm(page, routePath, 'http://original-service.local:8000')
     await page.locator('button:has-text("Save as Draft")').click()
     await expect(page).toHaveURL(/\/routes\/[a-f0-9-]+$/, { timeout: 10_000 })
+
+    // Story 15.5: Извлекаем ID маршрута для cleanup
+    const createUrl = page.url()
+    const routeId = createUrl.split('/routes/')[1]
+    if (routeId) {
+      createdRouteIds.push(routeId)
+    }
 
     // Открываем редактирование (SPA-навигация через кнопку на детальной странице)
     await page.locator('button:has-text("Редактировать")').click()
@@ -104,11 +149,25 @@ test.describe('Epic 3: Route Management', () => {
     await page.locator('button:has-text("Save as Draft")').click()
     await expect(page).toHaveURL(/\/routes\/[a-f0-9-]+$/, { timeout: 10_000 })
 
+    // Story 15.5: Извлекаем ID оригинального маршрута для cleanup
+    const createUrl = page.url()
+    const originalRouteId = createUrl.split('/routes/')[1]
+    if (originalRouteId) {
+      createdRouteIds.push(originalRouteId)
+    }
+
     // Клонируем маршрут (SPA-навигация)
     await page.locator('button:has-text("Клонировать")').click()
 
     // Ожидаем редиректа на редактирование клона
     await expect(page).toHaveURL(/\/routes\/.*\/edit/, { timeout: 10_000 })
+
+    // Story 15.5: Извлекаем ID клонированного маршрута для cleanup
+    const cloneUrl = page.url()
+    const cloneRouteId = cloneUrl.split('/routes/')[1]?.replace('/edit', '')
+    if (cloneRouteId) {
+      createdRouteIds.push(cloneRouteId)
+    }
 
     // Форма клона содержит upstream URL из оригинала
     await expect(page.locator('input[placeholder="http://service:8080"]')).toHaveValue(
@@ -126,6 +185,10 @@ test.describe('Epic 3: Route Management', () => {
       methods: ['GET', 'POST'],
     })
     expect(createResponse.ok()).toBeTruthy()
+
+    // Story 15.5: Маршрут будет удалён в тесте, но добавляем в cleanup на случай падения теста
+    const routeData = await createResponse.json() as { id: string }
+    createdRouteIds.push(routeData.id)
 
     // Перезагружаем страницу чтобы увидеть новый маршрут
     await page.reload()
