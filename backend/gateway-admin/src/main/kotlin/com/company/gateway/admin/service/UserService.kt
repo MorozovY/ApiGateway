@@ -441,12 +441,17 @@ class UserService(
     }
 
     /**
-     * Сброс паролей демо-пользователей на дефолтные (Story 9.5).
+     * Сброс паролей демо-пользователей на дефолтные (Story 9.5, обновлено Story 15.3).
      *
      * Сбрасывает пароли для существующих пользователей или создаёт новых:
-     * - developer → developer123 (Role.DEVELOPER)
-     * - security → security123 (Role.SECURITY)
-     * - admin → admin123 (Role.ADMIN)
+     * - admin → Admin@Pass!2026 (Role.ADMIN)
+     * - security → Secure#Pass2026 (Role.SECURITY)
+     * - developer → Dev!Pass#2026x (Role.DEVELOPER)
+     *
+     * Пароли соответствуют требованиям:
+     * - Минимум 12 символов
+     * - Буквы верхнего и нижнего регистра
+     * - Цифры и спецсимволы
      *
      * При keycloak.enabled=true сбрасывает пароли через Keycloak Admin API.
      * При keycloak.enabled=false сбрасывает пароли в локальной БД.
@@ -456,9 +461,9 @@ class UserService(
     fun resetDemoPasswords(): Mono<List<String>> {
         // Данные демо-пользователей: username -> (password, role, email)
         val demoUsers = mapOf(
-            "developer" to DemoUser("developer123", Role.DEVELOPER, "developer@example.com"),
-            "security" to DemoUser("security123", Role.SECURITY, "security@example.com"),
-            "admin" to DemoUser("admin123", Role.ADMIN, "admin@example.com")
+            "admin" to DemoUser("Admin@Pass!2026", Role.ADMIN, "admin@example.com"),
+            "security" to DemoUser("Secure#Pass2026", Role.SECURITY, "security@example.com"),
+            "developer" to DemoUser("Dev!Pass#2026x", Role.DEVELOPER, "developer@example.com")
         )
 
         // Выбираем стратегию сброса паролей в зависимости от режима

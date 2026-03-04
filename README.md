@@ -174,9 +174,9 @@ cp .env.example .env
 
 | Пользователь | Пароль | Роль |
 |--------------|--------|------|
-| admin@example.com | admin123 | admin-ui:admin |
-| dev@example.com | dev123 | admin-ui:developer |
-| security@example.com | security123 | admin-ui:security |
+| admin@example.com | Admin@Pass!2026 | admin-ui:admin |
+| security@example.com | Secure#Pass2026 | admin-ui:security |
+| dev@example.com | Dev!Pass#2026x | admin-ui:developer |
 
 ### API Consumer (для тестирования)
 

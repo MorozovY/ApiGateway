@@ -753,25 +753,25 @@ class AuthControllerIntegrationTest {
             .jsonPath("$.users").isArray
             .jsonPath("$.users.length()").isEqualTo(3)
 
-        // Проверяем, что теперь можно войти с дефолтными паролями
+        // Story 15.3: Проверяем, что теперь можно войти с новыми сложными паролями
         webTestClient.post()
             .uri("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(LoginRequest("developer", "developer123"))
+            .bodyValue(LoginRequest("developer", "Dev!Pass#2026x"))
             .exchange()
             .expectStatus().isOk
 
         webTestClient.post()
             .uri("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(LoginRequest("security", "security123"))
+            .bodyValue(LoginRequest("security", "Secure#Pass2026"))
             .exchange()
             .expectStatus().isOk
 
         webTestClient.post()
             .uri("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(LoginRequest("admin", "admin123"))
+            .bodyValue(LoginRequest("admin", "Admin@Pass!2026"))
             .exchange()
             .expectStatus().isOk
     }
@@ -803,25 +803,25 @@ class AuthControllerIntegrationTest {
             .jsonPath("$.users").isArray
             .jsonPath("$.users.length()").isEqualTo(3)
 
-        // Проверяем, что созданные пользователи могут войти
+        // Story 15.3: Проверяем, что созданные пользователи могут войти с новыми паролями
         webTestClient.post()
             .uri("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(LoginRequest("developer", "developer123"))
+            .bodyValue(LoginRequest("developer", "Dev!Pass#2026x"))
             .exchange()
             .expectStatus().isOk
 
         webTestClient.post()
             .uri("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(LoginRequest("security", "security123"))
+            .bodyValue(LoginRequest("security", "Secure#Pass2026"))
             .exchange()
             .expectStatus().isOk
 
         webTestClient.post()
             .uri("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(LoginRequest("admin", "admin123"))
+            .bodyValue(LoginRequest("admin", "Admin@Pass!2026"))
             .exchange()
             .expectStatus().isOk
     }

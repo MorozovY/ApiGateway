@@ -53,13 +53,14 @@ describe('DemoCredentials', () => {
       expect(screen.getByText('🔐 Демо-доступ')).toBeInTheDocument()
     })
 
-    it('отображает три набора credentials', () => {
+    it('отображает три набора credentials в правильном порядке (admin → security → developer)', () => {
       renderWithMockAuth(<DemoCredentials />)
 
       expect(screen.getByTestId('demo-credentials-table')).toBeInTheDocument()
-      expect(screen.getByText('developer / developer123')).toBeInTheDocument()
-      expect(screen.getByText('security / security123')).toBeInTheDocument()
-      expect(screen.getByText('admin / admin123')).toBeInTheDocument()
+      // Story 15.3: порядок admin → security → developer, новые пароли
+      expect(screen.getByText('admin / Admin@Pass!2026')).toBeInTheDocument()
+      expect(screen.getByText('security / Secure#Pass2026')).toBeInTheDocument()
+      expect(screen.getByText('developer / Dev!Pass#2026x')).toBeInTheDocument()
     })
 
     it('отображает роли пользователей', () => {
@@ -81,7 +82,8 @@ describe('DemoCredentials', () => {
 
       await user.click(screen.getByTestId('demo-login-developer'))
 
-      expect(mockOnSelect).toHaveBeenCalledWith('developer', 'developer123')
+      // Story 15.3: новый пароль
+      expect(mockOnSelect).toHaveBeenCalledWith('developer', 'Dev!Pass#2026x')
     })
 
     it('вызывает onSelect при клике на логин admin', async () => {
@@ -92,7 +94,8 @@ describe('DemoCredentials', () => {
 
       await user.click(screen.getByTestId('demo-login-admin'))
 
-      expect(mockOnSelect).toHaveBeenCalledWith('admin', 'admin123')
+      // Story 15.3: новый пароль
+      expect(mockOnSelect).toHaveBeenCalledWith('admin', 'Admin@Pass!2026')
     })
 
     it('вызывает onSelect при клике на логин security', async () => {
@@ -103,7 +106,8 @@ describe('DemoCredentials', () => {
 
       await user.click(screen.getByTestId('demo-login-security'))
 
-      expect(mockOnSelect).toHaveBeenCalledWith('security', 'security123')
+      // Story 15.3: новый пароль
+      expect(mockOnSelect).toHaveBeenCalledWith('security', 'Secure#Pass2026')
     })
   })
 

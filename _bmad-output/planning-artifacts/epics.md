@@ -17,6 +17,11 @@ revisions:
     description: 'Phase 3: Epic 13 — GitLab CI/CD & Secrets Management'
     stories_added: 7
     frs_covered: 'FR60-FR72'
+  - date: '2026-03-03'
+    author: 'Yury'
+    description: 'Phase 4: Epic 15 — UX Polish & Bug Fixes'
+    stories_added: 4
+    frs_covered: 'UX improvements, bug fixes'
 ---
 
 # ApiGateway - Epic Breakdown
@@ -3593,5 +3598,131 @@ So that vulnerabilities are caught before deployment (FR70, FR71).
 **Then** Critical vulnerabilities block pipeline
 **And** High vulnerabilities generate warning
 **And** exceptions can be added to `.vulnerability-allowlist.yml`
+
+---
+
+## Epic 15: UX Polish & Bug Fixes
+
+**Goal:** Исправление broken links на странице входа, улучшение onboarding UX с инфо-блоками на вкладках, повышение безопасности демо-аккаунтов.
+
+**Source:** Phase 4 (2026-03-03) — UX improvements, bug fixes
+
+**Stories:** 4
+
+**Key Capabilities:**
+- Исправление сломанных ссылок (Swagger, Руководство)
+- Улучшение страницы входа (порядок логинов, сложные пароли)
+- Инфо-блоки с описанием функционала на каждой вкладке
+
+---
+
+### Story 15.1: Починить переход на Swagger со страницы входа
+
+As a **Developer**,
+I want the Swagger link on the login page to work correctly,
+So that I can access API documentation before logging in.
+
+**Acceptance Criteria:**
+
+**Given** пользователь находится на странице входа
+**When** пользователь кликает на ссылку "Swagger"
+**Then** открывается страница Swagger UI (/swagger-ui.html)
+**And** страница загружается без ошибок
+
+**Given** ссылка на Swagger
+**When** проверяется URL
+**Then** URL соответствует актуальному расположению Swagger UI
+**And** учитывается текущее окружение (dev/prod)
+
+---
+
+### Story 15.2: Починить кнопку "Руководство" внутри системы
+
+As a **User**,
+I want the "Guide" button to work correctly,
+So that I can access system documentation when needed.
+
+**Acceptance Criteria:**
+
+**Given** пользователь авторизован в системе
+**When** пользователь кликает на кнопку "Руководство"
+**Then** открывается страница с документацией
+**And** документация соответствует текущей версии системы
+
+**Given** кнопка "Руководство"
+**When** проверяется её расположение и видимость
+**Then** кнопка доступна из любой вкладки системы
+**And** иконка и текст кнопки понятны пользователю
+
+---
+
+### Story 15.3: Улучшения страницы входа
+
+As a **Security Engineer**,
+I want demo accounts to have secure generated passwords and logical ordering,
+So that the login page looks professional and follows security best practices.
+
+**Acceptance Criteria:**
+
+**Given** страница входа с демо-аккаунтами
+**When** пользователь просматривает список логинов
+**Then** порядок отображения: admin → security → developer
+**And** порядок соответствует иерархии ролей
+
+**Given** демо-аккаунты
+**When** проверяются пароли
+**Then** каждый аккаунт имеет уникальный сгенерированный пароль
+**And** пароли содержат минимум 12 символов
+**And** пароли содержат буквы, цифры и спецсимволы
+
+**Given** seed script для сброса данных
+**When** скрипт выполняется
+**Then** пароли демо-аккаунтов соответствуют отображаемым на UI
+**And** bcrypt хэши корректно генерируются
+
+**Given** документация
+**When** проверяется актуальность
+**Then** новые пароли задокументированы в соответствующих файлах
+
+---
+
+### Story 15.4: Инфо-блоки с описанием вкладок
+
+As a **New User**,
+I want to see a description of each tab's purpose and capabilities,
+So that I can quickly understand what functionality is available.
+
+**Acceptance Criteria:**
+
+**Given** пользователь открывает любую вкладку системы
+**When** страница загружается
+**Then** отображается инфо-блок в верхней части страницы
+**And** инфо-блок содержит краткое описание назначения вкладки
+**And** инфо-блок содержит список ключевых возможностей
+
+**Given** инфо-блок на вкладке
+**When** пользователь взаимодействует с ним
+**Then** блок можно свернуть/развернуть
+**And** состояние сохраняется в localStorage
+
+**Given** 10 вкладок системы
+**When** добавляются инфо-блоки
+**Then** описания предоставлены для всех вкладок:
+- Dashboard: обзор системы, ключевые метрики
+- Routes: управление маршрутами API Gateway
+- Metrics: мониторинг производительности и трафика
+- Approvals: согласование маршрутов перед публикацией
+- Audit Logs: журнал всех изменений в системе
+- Integrations: отчёт по upstream интеграциям
+- Users: управление пользователями и ролями
+- Consumers: управление API consumers
+- Rate Limits: настройка политик ограничения трафика
+- Test: генератор нагрузки для тестирования
+
+**Given** дизайн инфо-блока
+**When** блок отображается
+**Then** стиль соответствует Ant Design guidelines
+**And** блок не мешает основному контенту страницы
+**And** блок адаптивен для мобильных устройств
 
 ---

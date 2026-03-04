@@ -244,7 +244,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "admin123",
+          "value": "Admin@Pass!2026",
           "temporary": false
         }
       ],
@@ -263,7 +263,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "dev123",
+          "value": "Dev!Pass#2026x",
           "temporary": false
         }
       ],
@@ -282,7 +282,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "security123",
+          "value": "Secure#Pass2026",
           "temporary": false
         }
       ],

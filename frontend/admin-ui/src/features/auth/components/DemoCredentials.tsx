@@ -8,25 +8,27 @@ const { Text, Link } = Typography
 
 /**
  * Данные демо-пользователей.
+ * Порядок: admin → security → developer (от высшей роли к низшей)
+ * Пароли: минимум 12 символов, буквы, цифры, спецсимволы (Story 15.3)
  */
 const DEMO_CREDENTIALS = [
   {
-    username: 'developer',
-    password: 'developer123',
-    role: 'Developer',
-    features: 'Dashboard, Routes, Metrics, Test',
+    username: 'admin',
+    password: 'Admin@Pass!2026',
+    role: 'Admin',
+    features: 'Все разделы',
   },
   {
     username: 'security',
-    password: 'security123',
+    password: 'Secure#Pass2026',
     role: 'Security',
     features: 'Dashboard, Routes, Approvals, Audit, Integrations, Metrics',
   },
   {
-    username: 'admin',
-    password: 'admin123',
-    role: 'Admin',
-    features: 'Все разделы',
+    username: 'developer',
+    password: 'Dev!Pass#2026x',
+    role: 'Developer',
+    features: 'Dashboard, Routes, Metrics, Test',
   },
 ]
 
