@@ -94,16 +94,16 @@ describe('IntegrationsPage', () => {
   })
 
   describe('Page content (AC3)', () => {
-    it('отображает заголовок и описание', async () => {
+    it('отображает заголовок и PageInfoBlock', async () => {
       renderWithMockAuth(<IntegrationsPage />, { authValue: adminAuth })
 
       await waitFor(() => {
         expect(screen.getByText('Integrations Report')).toBeInTheDocument()
       })
 
-      expect(
-        screen.getByText(/Обзор внешних сервисов.*upstream.*маршрутов/i)
-      ).toBeInTheDocument()
+      // Story 15.4: описание теперь в PageInfoBlock
+      expect(screen.getByTestId('page-info-block')).toBeInTheDocument()
+      expect(screen.getByText(/Отчёт по upstream интеграциям/i)).toBeInTheDocument()
     })
 
     it('отображает таблицу upstream сервисов', async () => {

@@ -1,6 +1,6 @@
 # Story 15.4: Инфо-блоки с описанием вкладок
 
-Status: review
+Status: done
 
 ## Story
 
@@ -259,7 +259,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-- Все 707 unit-тестов прошли успешно
+- Все 716 unit-тестов прошли успешно (после code review)
 - Сборка production успешна (npm run build)
 - TypeScript компиляция без ошибок
 
@@ -288,15 +288,18 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - frontend/admin-ui/src/shared/components/PageInfoBlock.tsx
 - frontend/admin-ui/src/shared/components/PageInfoBlock.test.tsx
 - frontend/admin-ui/src/shared/config/pageDescriptions.ts
+- frontend/admin-ui/src/shared/config/pageDescriptions.test.ts (code review)
 
 **Изменённые файлы:**
+- frontend/admin-ui/src/shared/components/index.ts (code review — добавлен экспорт)
 - frontend/admin-ui/src/features/dashboard/components/DashboardPage.tsx
 - frontend/admin-ui/src/features/dashboard/components/DashboardPage.test.tsx
 - frontend/admin-ui/src/features/routes/components/RoutesPage.tsx
 - frontend/admin-ui/src/features/metrics/components/MetricsPage.tsx
 - frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx
 - frontend/admin-ui/src/features/audit/components/AuditPage.tsx
-- frontend/admin-ui/src/features/audit/components/IntegrationsPage.tsx
+- frontend/admin-ui/src/features/audit/components/IntegrationsPage.tsx (code review — удалено дублирование)
+- frontend/admin-ui/src/features/audit/components/IntegrationsPage.test.tsx (code review)
 - frontend/admin-ui/src/features/users/components/UsersPage.tsx
 - frontend/admin-ui/src/features/users/components/UsersPage.test.tsx
 - frontend/admin-ui/src/features/consumers/components/ConsumersPage.tsx
@@ -304,3 +307,32 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - frontend/admin-ui/src/features/rate-limits/components/RateLimitsPage.tsx
 - frontend/admin-ui/src/features/rate-limits/components/RateLimitsPage.test.tsx
 - frontend/admin-ui/src/features/test/components/TestPage.tsx
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-03-04
+**Outcome:** ✅ APPROVED (with fixes applied)
+
+### Issues Found and Fixed
+
+| Severity | Issue | Fix Applied |
+|----------|-------|-------------|
+| HIGH | DashboardPage: PageInfoBlock перед заголовком (нарушение паттерна) | Перемещён после заголовка внутрь Card |
+| HIGH | PageInfoBlock не экспортирован в index.ts | Добавлен экспорт в shared/components/index.ts |
+| HIGH | Отсутствовал тест на responsive (AC4) | Добавлены 3 responsive теста |
+| MEDIUM | pageKey имел тип string вместо PageKey | Изменён тип на строгий PageKey |
+| MEDIUM | IntegrationsPage: дублирующее описание | Удалён избыточный Typography.Text |
+| MEDIUM | Отсутствовал тест для pageDescriptions.ts | Создан pageDescriptions.test.ts |
+
+### Test Results After Fixes
+
+- **Total tests:** 716 (было 707)
+- **All passing:** ✅
+- **TypeScript:** ✅ No errors
+
+### Change Log
+
+| Date | Author | Change |
+|------|--------|--------|
+| 2026-03-04 | AI Code Review | Fixed 6 issues (3 HIGH, 3 MEDIUM), added 9 new tests |

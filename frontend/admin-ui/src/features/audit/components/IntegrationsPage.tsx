@@ -82,9 +82,6 @@ export function IntegrationsPage() {
             Export Report
           </Button>
         </Space>
-        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-          Обзор внешних сервисов (upstream) и маршрутов, которые к ним обращаются
-        </Typography.Text>
       </div>
 
       {/* Инфо-блок (Story 15.4) */}

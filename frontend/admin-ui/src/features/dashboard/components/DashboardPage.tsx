@@ -28,12 +28,12 @@ export function DashboardPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {/* Инфо-блок (Story 15.4) */}
-      <PageInfoBlock pageKey="dashboard" {...PAGE_DESCRIPTIONS.dashboard} />
-
       {/* Информация о пользователе */}
       <Card>
         <Title level={2}>Dashboard</Title>
+
+        {/* Инфо-блок после заголовка (Story 15.4) */}
+        <PageInfoBlock pageKey="dashboard" {...PAGE_DESCRIPTIONS.dashboard} />
         <Text>
           Welcome, <strong>{user?.username ?? 'User'}</strong>!
         </Text>

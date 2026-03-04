@@ -2,4 +2,7 @@
 export { ThemeSwitcher } from './ThemeSwitcher'
 export { LoadingFallback } from './LoadingFallback'
 export { LazyErrorBoundary } from './LazyErrorBoundary'
+export { FilterChips } from './FilterChips'
+export { PageInfoBlock } from './PageInfoBlock'
+export type { PageInfoBlockProps, PageDescription } from './PageInfoBlock'
 export * from './LazyComponents'

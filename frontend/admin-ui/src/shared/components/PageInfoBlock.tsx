@@ -2,6 +2,7 @@
 import { Collapse, Space, Typography, theme } from 'antd'
 import { InfoCircleOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import { useCallback, useState, useEffect } from 'react'
+import type { PageKey } from '../config/pageDescriptions'
 
 const { Text } = Typography
 
@@ -22,7 +23,7 @@ export interface PageDescription {
  */
 export interface PageInfoBlockProps extends PageDescription {
   /** Уникальный ключ страницы для сохранения состояния в localStorage */
-  pageKey: string
+  pageKey: PageKey
 }
 
 /** Префикс ключа в localStorage */
@@ -32,7 +33,7 @@ const STORAGE_KEY_PREFIX = 'pageInfoBlock_'
  * Получает состояние collapse из localStorage.
  * По умолчанию блок развёрнут для новых пользователей.
  */
-function getStoredState(pageKey: string): boolean {
+function getStoredState(pageKey: PageKey): boolean {
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${pageKey}`)
     // Если значение не сохранено — блок развёрнут (для новых пользователей)
@@ -47,7 +48,7 @@ function getStoredState(pageKey: string): boolean {
 /**
  * Сохраняет состояние collapse в localStorage.
  */
-function setStoredState(pageKey: string, expanded: boolean): void {
+function setStoredState(pageKey: PageKey, expanded: boolean): void {
   try {
     localStorage.setItem(
       `${STORAGE_KEY_PREFIX}${pageKey}`,

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ConfigProvider } from 'antd'
 import { PageInfoBlock } from './PageInfoBlock'
+import type { PageKey } from '../config/pageDescriptions'
 
 // Мок localStorage
 const localStorageMock = (() => {
@@ -30,7 +31,7 @@ function renderWithConfig(ui: React.ReactElement) {
 
 describe('PageInfoBlock', () => {
   const defaultProps = {
-    pageKey: 'test-page',
+    pageKey: 'dashboard' as PageKey,
     title: 'Test Page',
     description: 'Описание тестовой страницы',
     features: [
@@ -85,7 +86,7 @@ describe('PageInfoBlock', () => {
 
     await waitFor(() => {
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'pageInfoBlock_test-page',
+        'pageInfoBlock_dashboard',
         'collapsed'
       )
     })
@@ -104,7 +105,7 @@ describe('PageInfoBlock', () => {
 
     await waitFor(() => {
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'pageInfoBlock_test-page',
+        'pageInfoBlock_dashboard',
         'expanded'
       )
     })
@@ -205,5 +206,40 @@ describe('PageInfoBlock', () => {
     // И должен отрендериться в развёрнутом состоянии (default)
     const infoBlock = screen.getByTestId('page-info-block')
     expect(infoBlock).toHaveAttribute('data-expanded', 'true')
+  })
+
+  // ============================================
+  // AC4: Responsive / Mobile адаптивность
+  // ============================================
+
+  it('не имеет фиксированной ширины (AC4 — responsive)', () => {
+    renderWithConfig(<PageInfoBlock {...defaultProps} />)
+
+    const infoBlock = screen.getByTestId('page-info-block')
+    const style = window.getComputedStyle(infoBlock)
+
+    // Компонент не должен иметь фиксированную ширину
+    // которая сломает отображение на мобильных устройствах
+    expect(style.width).not.toMatch(/^\d+px$/)
+  })
+
+  it('использует Ant Design Collapse (AC4 — адаптивный компонент)', () => {
+    renderWithConfig(<PageInfoBlock {...defaultProps} />)
+
+    const infoBlock = screen.getByTestId('page-info-block')
+
+    // Ant Design Collapse добавляет класс ant-collapse
+    expect(infoBlock.classList.contains('ant-collapse')).toBe(true)
+  })
+
+  it('features список использует ul без горизонтального overflow', () => {
+    renderWithConfig(<PageInfoBlock {...defaultProps} />)
+
+    const featuresList = screen.getByTestId('page-info-features')
+    expect(featuresList.tagName).toBe('UL')
+
+    // Проверяем что список не имеет свойств, которые могут сломать mobile view
+    const style = window.getComputedStyle(featuresList)
+    expect(style.whiteSpace).not.toBe('nowrap')
   })
 })
