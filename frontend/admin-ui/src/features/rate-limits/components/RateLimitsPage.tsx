@@ -1,7 +1,7 @@
-// Страница управления Rate Limit политиками (Story 5.4, AC1-AC8; Story 15.4 — добавлен PageInfoBlock)
+// Страница управления Rate Limit политиками (Story 5.4, AC1-AC8; Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { useState } from 'react'
-import { Button, Typography, App } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Button, Typography, App, Space, Card } from 'antd'
+import { PlusOutlined, SafetyOutlined } from '@ant-design/icons'
 import RateLimitsTable from './RateLimitsTable'
 import RateLimitFormModal from './RateLimitFormModal'
 import RateLimitRoutesModal from './RateLimitRoutesModal'
@@ -81,17 +81,23 @@ function RateLimitsPage() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          Rate Limit Policies
-        </Title>
-        {/* Кнопка "New Policy" только для admin (AC8) */}
-        {isAdmin && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            New Policy
-          </Button>
-        )}
+    <Card>
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <SafetyOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              Rate Limits
+            </Title>
+          </Space>
+          {/* Кнопка "New Policy" только для admin (AC8) */}
+          {isAdmin && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+              New Policy
+            </Button>
+          )}
+        </Space>
       </div>
 
       {/* Инфо-блок (Story 15.4) */}
@@ -115,7 +121,7 @@ function RateLimitsPage() {
         rateLimit={selectedRateLimit}
         onClose={handleRoutesModalClose}
       />
-    </div>
+    </Card>
   )
 }
 

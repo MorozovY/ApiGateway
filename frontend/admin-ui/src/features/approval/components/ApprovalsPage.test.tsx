@@ -410,13 +410,13 @@ describe('Страница согласования маршрутов (Approval
       })
     })
 
-    it('placeholder показывает "Поиск по path, upstream..." (AC2)', async () => {
+    it('placeholder показывает "Search by path, upstream..." (AC2)', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Поиск по path, upstream...')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('Search by path, upstream...')).toBeInTheDocument()
       })
     })
   })
@@ -475,7 +475,7 @@ describe('Страница согласования маршрутов (Approval
       expect(searchInput).toHaveValue('')
     })
 
-    it('показывает кнопку "Сбросить фильтры" при активном поиске', async () => {
+    it('показывает кнопку "Clear filters" при активном поиске', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
@@ -485,7 +485,7 @@ describe('Страница согласования маршрутов (Approval
       })
 
       // Изначально кнопка не видна
-      expect(screen.queryByText('Сбросить фильтры')).not.toBeInTheDocument()
+      expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
 
       // Вводим текст в поле поиска
       const searchInput = screen.getByTestId('search-input')
@@ -493,25 +493,25 @@ describe('Страница согласования маршрутов (Approval
 
       // Кнопка появляется
       await waitFor(() => {
-        expect(screen.getByText('Сбросить фильтры')).toBeInTheDocument()
+        expect(screen.getByText('Clear filters')).toBeInTheDocument()
       })
     })
   })
 
   // Story 10.2: Real-time updates с auto-refresh и кнопкой Refresh
   describe('Real-time updates (Story 10.2)', () => {
-    it('кнопка "Обновить" отображается рядом с поиском (AC3)', async () => {
+    it('кнопка "Refresh" отображается рядом с поиском (AC3)', async () => {
       renderWithMockAuth(<ApprovalsPage />, {
         authValue: { isAuthenticated: true, user: securityUser },
       })
 
       await waitFor(() => {
         expect(screen.getByTestId('refresh-button')).toBeInTheDocument()
-        expect(screen.getByText('Обновить')).toBeInTheDocument()
+        expect(screen.getByText('Refresh')).toBeInTheDocument()
       })
     })
 
-    it('клик на кнопку "Обновить" вызывает refetch (AC3)', async () => {
+    it('клик на кнопку "Refresh" вызывает refetch (AC3)', async () => {
       mockRefetch = vi.fn().mockResolvedValue({ data: mockPendingRoutes })
 
       renderWithMockAuth(<ApprovalsPage />, {
@@ -522,14 +522,14 @@ describe('Страница согласования маршрутов (Approval
         expect(screen.getByText('/api/orders')).toBeInTheDocument()
       })
 
-      // Кликаем кнопку Обновить
+      // Кликаем кнопку Refresh
       const refreshButton = screen.getByTestId('refresh-button')
       fireEvent.click(refreshButton)
 
       expect(mockRefetch).toHaveBeenCalledTimes(1)
     })
 
-    it('кнопка "Обновить" показывает loading state во время fetch (AC3)', async () => {
+    it('кнопка "Refresh" показывает loading state во время fetch (AC3)', async () => {
       mockIsFetching = true
 
       renderWithMockAuth(<ApprovalsPage />, {
@@ -546,7 +546,7 @@ describe('Страница согласования маршрутов (Approval
       })
     })
 
-    it('кнопка "Обновить" disabled во время загрузки — предотвращает двойной клик (AC3)', async () => {
+    it('кнопка "Refresh" disabled во время загрузки — предотвращает двойной клик (AC3)', async () => {
       mockIsFetching = true
 
       renderWithMockAuth(<ApprovalsPage />, {
@@ -559,7 +559,7 @@ describe('Страница согласования маршрутов (Approval
       })
     })
 
-    it('кнопка "Обновить" enabled когда нет загрузки', async () => {
+    it('кнопка "Refresh" enabled когда нет загрузки', async () => {
       mockIsFetching = false
 
       renderWithMockAuth(<ApprovalsPage />, {

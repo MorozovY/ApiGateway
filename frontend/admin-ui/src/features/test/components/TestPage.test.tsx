@@ -59,10 +59,11 @@ describe('TestPage', () => {
     mockFetchRoutes.mockResolvedValue(mockRoutes)
   })
 
-  it('отображает заголовок страницы', async () => {
+  it('отображает заголовок страницы (Story 15.6)', async () => {
     render(<TestPage />, { wrapper: createWrapper() })
 
-    expect(screen.getByText('Test Load Generator')).toBeInTheDocument()
+    // Story 15.6: унификация заголовков — "Test" вместо "Test Load Generator"
+    expect(screen.getByRole('heading', { name: 'Test', level: 3 })).toBeInTheDocument()
     expect(screen.getByTestId('test-page')).toBeInTheDocument()
   })
 

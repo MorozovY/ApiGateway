@@ -2,7 +2,7 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, Navigate } from 'react-router-dom'
 import { Card, Typography, Button, Space, Empty, Alert, App } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
+import { DownloadOutlined, AuditOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { isDeveloper } from '@shared/utils'
 import { useAuditLogs } from '../hooks/useAuditLogs'
@@ -182,26 +182,25 @@ export function AuditPage() {
   return (
     <Card>
       <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Header с заголовком и кнопкой экспорта */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <Title level={4} style={{ margin: 0 }}>
-            Аудит-логи
-          </Title>
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={handleExport}
-            disabled={!data?.total || isExporting}
-            loading={isExporting}
-          >
-            Экспорт CSV
-          </Button>
+        {/* Заголовок страницы (Story 15.6 — унификация) */}
+        <div style={{ marginBottom: 24 }}>
+          <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Space>
+              <AuditOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+              <Title level={3} style={{ margin: 0 }}>
+                Audit Logs
+              </Title>
+            </Space>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={handleExport}
+              disabled={!data?.total || isExporting}
+              loading={isExporting}
+            >
+              Export CSV
+            </Button>
+          </Space>
         </div>
 
         {/* Инфо-блок (Story 15.4) */}

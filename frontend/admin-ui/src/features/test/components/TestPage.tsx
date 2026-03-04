@@ -1,5 +1,5 @@
-// Главная страница Test с генератором нагрузки (Story 8.9; Story 15.4 — добавлен PageInfoBlock)
-import { Space, Typography } from 'antd'
+// Главная страница Test с генератором нагрузки (Story 8.9; Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
+import { Space, Typography, Card } from 'antd'
 import { ExperimentOutlined } from '@ant-design/icons'
 import { useLoadGenerator } from '../hooks/useLoadGenerator'
 import { LoadGeneratorForm } from './LoadGeneratorForm'
@@ -29,15 +29,20 @@ export function TestPage() {
 
   return (
     <div data-testid="test-page">
-      <Space align="center" style={{ marginBottom: 24 }}>
-        <ExperimentOutlined style={{ fontSize: 24 }} />
-        <Title level={2} style={{ margin: 0 }}>
-          Test Load Generator
-        </Title>
-      </Space>
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 24 }}>
+          <Space align="center">
+            <ExperimentOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              Test
+            </Title>
+          </Space>
+        </div>
 
-      {/* Инфо-блок (Story 15.4) */}
-      <PageInfoBlock pageKey="test" {...PAGE_DESCRIPTIONS.test} />
+        {/* Инфо-блок (Story 15.4) */}
+        <PageInfoBlock pageKey="test" {...PAGE_DESCRIPTIONS.test} />
+      </Card>
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <LoadGeneratorForm

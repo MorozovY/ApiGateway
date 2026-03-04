@@ -1,7 +1,7 @@
-// Страница управления consumers (Story 12.9, AC1; Story 15.4 — добавлен PageInfoBlock)
+// Страница управления consumers (Story 12.9, AC1; Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { useState } from 'react'
-import { Button, Input, Typography } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Button, Input, Typography, Space, Card } from 'antd'
+import { PlusOutlined, ApiOutlined } from '@ant-design/icons'
 import ConsumersTable from './ConsumersTable'
 import CreateConsumerModal from './CreateConsumerModal'
 import { useDebouncedValue } from '@shared/hooks/useDebouncedValue'
@@ -34,14 +34,20 @@ function ConsumersPage() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          Consumers
-        </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} data-testid="create-consumer-button">
-          Create Consumer
-        </Button>
+    <Card>
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              Consumers
+            </Title>
+          </Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} data-testid="create-consumer-button">
+            Create Consumer
+          </Button>
+        </Space>
       </div>
 
       {/* Инфо-блок (Story 15.4) */}
@@ -62,7 +68,7 @@ function ConsumersPage() {
       <ConsumersTable search={debouncedSearch} />
 
       <CreateConsumerModal open={isCreateModalOpen} onClose={handleModalClose} />
-    </div>
+    </Card>
   )
 }
 

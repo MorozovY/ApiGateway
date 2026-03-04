@@ -61,7 +61,7 @@ describe('RateLimitsPage', () => {
     mockGetRoutesByRateLimitId.mockResolvedValue([])
   })
 
-  it('рендерит заголовок "Rate Limit Policies" (AC1)', async () => {
+  it('рендерит заголовок "Rate Limits" (AC1, Story 15.6)', async () => {
     renderWithMockAuth(<RateLimitsPage />, {
       authValue: {
         user: { userId: '1', username: 'admin', role: 'admin' },
@@ -69,8 +69,8 @@ describe('RateLimitsPage', () => {
       },
     })
 
-    // Заголовок страницы (Title level={3}) — находим по role heading
-    expect(screen.getByRole('heading', { name: 'Rate Limit Policies', level: 3 })).toBeInTheDocument()
+    // Заголовок страницы (Title level={3}) — Story 15.6 унификация заголовков
+    expect(screen.getByRole('heading', { name: 'Rate Limits', level: 3 })).toBeInTheDocument()
   })
 
   it('показывает кнопку "New Policy" для admin (AC8)', async () => {

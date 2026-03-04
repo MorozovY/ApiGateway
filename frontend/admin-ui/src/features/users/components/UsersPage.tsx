@@ -1,7 +1,7 @@
-// Страница управления пользователями (Story 2.6, AC4; Story 8.3 — поиск; Story 15.4 — добавлен PageInfoBlock)
+// Страница управления пользователями (Story 2.6, AC4; Story 8.3 — поиск; Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { useState } from 'react'
-import { Button, Typography } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Button, Typography, Space, Card } from 'antd'
+import { PlusOutlined, TeamOutlined } from '@ant-design/icons'
 import UsersTable from './UsersTable'
 import UserFormModal from './UserFormModal'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
@@ -40,14 +40,20 @@ function UsersPage() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          Users
-        </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          Add User
-        </Button>
+    <Card>
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <TeamOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              Users
+            </Title>
+          </Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            Add User
+          </Button>
+        </Space>
       </div>
 
       {/* Инфо-блок (Story 15.4) */}
@@ -60,7 +66,7 @@ function UsersPage() {
         user={editingUser}
         onClose={handleModalClose}
       />
-    </div>
+    </Card>
   )
 }
 

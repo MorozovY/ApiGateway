@@ -1,8 +1,8 @@
-// Страница управления маршрутами (Story 3.4, Story 15.4 — добавлен PageInfoBlock)
+// Страница управления маршрутами (Story 3.4, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Typography, Button, Space, Tooltip } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, ApiOutlined } from '@ant-design/icons'
 import { RoutesTable } from './RoutesTable'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
@@ -43,19 +43,26 @@ export function RoutesPage() {
 
   return (
     <Card>
-      {/* Заголовок страницы с кнопкой создания */}
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={2} style={{ margin: 0 }}>Routes</Title>
-        <Tooltip title="Ctrl+N">
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateRoute}
-          >
-            New Route
-          </Button>
-        </Tooltip>
-      </Space>
+      {/* Заголовок страницы с кнопкой создания (Story 15.6 — унификация) */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              Routes
+            </Title>
+          </Space>
+          <Tooltip title="Ctrl+N">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateRoute}
+            >
+              New Route
+            </Button>
+          </Tooltip>
+        </Space>
+      </div>
 
       {/* Инфо-блок (Story 15.4) */}
       <PageInfoBlock pageKey="routes" {...PAGE_DESCRIPTIONS.routes} />

@@ -13,8 +13,9 @@ import {
   Empty,
   Tooltip,
   Typography,
+  Card,
 } from 'antd'
-import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
@@ -248,18 +249,36 @@ export function ApprovalsPage() {
   ]
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Typography.Title level={3} style={{ marginBottom: 24 }}>
-        Согласование маршрутов
-      </Typography.Title>
+    <Card>
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <CheckCircleOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              Approvals
+            </Typography.Title>
+          </Space>
+          {/* Кнопка ручного обновления (AC3) */}
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            loading={isFetching}
+            disabled={isFetching}
+            data-testid="refresh-button"
+          >
+            Refresh
+          </Button>
+        </Space>
+      </div>
 
       {/* Инфо-блок (Story 15.4) */}
       <PageInfoBlock pageKey="approvals" {...PAGE_DESCRIPTIONS.approvals} />
 
-      {/* Панель фильтров (Story 8.8) и кнопка Refresh (Story 10.2, AC3) */}
+      {/* Панель фильтров (Story 8.8) */}
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
-          placeholder="Поиск по path, upstream..."
+          placeholder="Search by path, upstream..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -267,23 +286,13 @@ export function ApprovalsPage() {
           style={{ width: 280 }}
           data-testid="search-input"
         />
-        {/* Кнопка ручного обновления (AC3) */}
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => refetch()}
-          loading={isFetching}
-          disabled={isFetching}
-          data-testid="refresh-button"
-        >
-          Обновить
-        </Button>
         {searchText && (
           <Button
             type="text"
             icon={<CloseCircleOutlined />}
             onClick={() => setSearchText('')}
           >
-            Сбросить фильтры
+            Clear filters
           </Button>
         )}
       </Space>
@@ -418,6 +427,6 @@ export function ApprovalsPage() {
           </Descriptions>
         )}
       </Drawer>
-    </div>
+    </Card>
   )
 }

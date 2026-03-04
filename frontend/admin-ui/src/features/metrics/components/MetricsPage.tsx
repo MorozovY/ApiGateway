@@ -1,7 +1,7 @@
-// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock)
+// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { useState } from 'react'
 import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
-import { LinkOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { LinkOutlined, ReloadOutlined, InfoCircleOutlined, AreaChartOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { isDeveloper as isDeveloperFn } from '@shared/utils'
 import { useMetricsSummary, useTopRoutes } from '../hooks/useMetrics'
@@ -99,35 +99,45 @@ export function MetricsPage() {
 
   return (
     <div data-testid="metrics-page">
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 24 }}>
+          <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Space>
+              <AreaChartOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+              <Typography.Title level={3} style={{ margin: 0 }}>
+                Metrics
+              </Typography.Title>
+            </Space>
+            <Button
+              type="primary"
+              href={GRAFANA_DASHBOARD_URL}
+              target="_blank"
+              icon={<LinkOutlined />}
+              data-testid="open-grafana-button"
+            >
+              Open in Grafana
+            </Button>
+          </Space>
+        </div>
+
+        {/* Инфо-блок (Story 15.4) */}
+        <PageInfoBlock pageKey="metrics" {...PAGE_DESCRIPTIONS.metrics} />
+
+        {/* Time Range Selector */}
+        <div style={{ marginTop: 16 }}>
+          <span style={{ marginRight: 12, fontWeight: 500 }}>Time Range:</span>
+          <Segmented
+            options={periodOptions}
+            value={period}
+            onChange={(value) => setPeriod(value as MetricsPeriod)}
+            data-testid="time-range-selector"
+          />
+        </div>
+      </Card>
+
       {/* Story 8.1: Health Check секция перед Summary Cards */}
       <HealthCheckSection />
-
-      {/* Инфо-блок под HealthCheckSection (Story 15.4) */}
-      <PageInfoBlock pageKey="metrics" {...PAGE_DESCRIPTIONS.metrics} />
-
-      {/* Header с Time Range Selector и Grafana кнопкой */}
-      <Card style={{ marginBottom: 16 }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ marginRight: 12, fontWeight: 500 }}>Time Range:</span>
-            <Segmented
-              options={periodOptions}
-              value={period}
-              onChange={(value) => setPeriod(value as MetricsPeriod)}
-              data-testid="time-range-selector"
-            />
-          </div>
-          <Button
-            type="primary"
-            href={GRAFANA_DASHBOARD_URL}
-            target="_blank"
-            icon={<LinkOutlined />}
-            data-testid="open-grafana-button"
-          >
-            Open in Grafana
-          </Button>
-        </Space>
-      </Card>
 
       {/* Summary Metrics Cards */}
       <Row gutter={16} style={{ marginBottom: 16 }}>

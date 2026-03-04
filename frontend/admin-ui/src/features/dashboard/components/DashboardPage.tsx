@@ -1,6 +1,6 @@
-// Страница Dashboard (Story 15.4 — добавлен PageInfoBlock)
+// Страница Dashboard (Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
 import { Button, Card, Typography, Space } from 'antd'
-import { LogoutOutlined } from '@ant-design/icons'
+import { LogoutOutlined, DashboardOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
@@ -27,33 +27,40 @@ export function DashboardPage() {
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {/* Информация о пользователе */}
-      <Card>
-        <Title level={2}>Dashboard</Title>
+    <Card>
+      {/* Заголовок страницы (Story 15.6 — унификация) */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <DashboardOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              Dashboard
+            </Title>
+          </Space>
+          <Button
+            type="primary"
+            danger
+            icon={<LogoutOutlined />}
+            onClick={handleLogout}
+            loading={isLoading}
+            data-testid="logout-button"
+          >
+            Logout
+          </Button>
+        </Space>
+      </div>
 
-        {/* Инфо-блок после заголовка (Story 15.4) */}
-        <PageInfoBlock pageKey="dashboard" {...PAGE_DESCRIPTIONS.dashboard} />
-        <Text>
-          Welcome, <strong>{user?.username ?? 'User'}</strong>!
-        </Text>
-        <br />
-        <Text type="secondary">
-          Role: {user?.role ? formatRole(user.role) : 'Unknown'}
-        </Text>
-        <br />
-        <br />
-        <Button
-          type="primary"
-          danger
-          icon={<LogoutOutlined />}
-          onClick={handleLogout}
-          loading={isLoading}
-          data-testid="logout-button"
-        >
-          Logout
-        </Button>
-      </Card>
-    </Space>
+      {/* Инфо-блок после заголовка (Story 15.4) */}
+      <PageInfoBlock pageKey="dashboard" {...PAGE_DESCRIPTIONS.dashboard} />
+
+      {/* Информация о пользователе */}
+      <Text>
+        Welcome, <strong>{user?.username ?? 'User'}</strong>!
+      </Text>
+      <br />
+      <Text type="secondary">
+        Role: {user?.role ? formatRole(user.role) : 'Unknown'}
+      </Text>
+    </Card>
   )
 }
