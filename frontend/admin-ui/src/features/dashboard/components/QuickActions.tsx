@@ -6,7 +6,7 @@
  * - SECURITY: "Согласования", "Журнал аудита"
  * - ADMIN: все основные действия
  */
-import { Card, Space, Button, Typography } from 'antd'
+import { Card, Space, Button } from 'antd'
 import {
   PlusOutlined,
   UnorderedListOutlined,
@@ -19,8 +19,6 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@features/auth'
-
-const { Text } = Typography
 
 /**
  * Конфигурация действий для каждой роли

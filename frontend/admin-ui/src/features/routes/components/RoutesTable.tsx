@@ -1,4 +1,4 @@
-// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5; Story 8.8; Story 16.4 — responsive)
+// Таблица маршрутов с пагинацией, фильтрацией и поиском (Story 3.4, расширена в Story 5.5; Story 8.8; Story 16.4 — responsive; Story 16.5 — empty state)
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Table, Button, Space, Popconfirm, Input, Select, Tooltip, Alert, Descriptions } from 'antd'
@@ -22,6 +22,7 @@ import type { Route, RouteStatus, RouteListParams } from '../types/route.types'
 import { useAuth } from '@features/auth'
 import { pluralizeRoutes, canModify as canModifyFn } from '@shared/utils'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
+import { EmptyState } from '@shared/components/EmptyState'
 
 // Настройка dayjs для относительного времени
 dayjs.extend(relativeTime)
@@ -487,11 +488,24 @@ export function RoutesTable({ onEdit }: RoutesTableProps) {
 
       {/* Таблица */}
       {/* Story 16.4 AC1: expandable row для просмотра скрытых данных */}
+      {/* Story 16.5 AC1: кастомный empty state */}
       <Table
         dataSource={data?.items}
         columns={columns}
         rowKey="id"
         loading={isLoading}
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="Маршруты ещё не созданы"
+              description="Создайте первый маршрут для начала работы"
+              action={{
+                label: 'Создать маршрут',
+                onClick: () => navigate('/routes/new'),
+              }}
+            />
+          ),
+        }}
         pagination={{
           current: currentPage,
           pageSize: params.limit,

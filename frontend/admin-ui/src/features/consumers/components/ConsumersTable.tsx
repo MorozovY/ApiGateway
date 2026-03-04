@@ -1,4 +1,4 @@
-// Таблица consumers с пагинацией и действиями (Story 12.9, AC1, AC4-9; Story 16.4 — responsive)
+// Таблица consumers с пагинацией и действиями (Story 12.9, AC1, AC4-9; Story 16.4 — responsive; Story 16.5 — empty state)
 import { useState } from 'react'
 import { Table, Tag, Button, Space, Popconfirm, Typography } from 'antd'
 import {
@@ -14,11 +14,14 @@ import { useConsumers, useRotateSecret, useDisableConsumer, useEnableConsumer } 
 import type { Consumer } from '../types/consumer.types'
 import SecretModal from './SecretModal'
 import ConsumerRateLimitModal from './ConsumerRateLimitModal'
+import { EmptyState } from '@shared/components/EmptyState'
 
 const { Text } = Typography
 
 interface ConsumersTableProps {
   search?: string
+  /** Callback для открытия модального окна создания consumer (Story 16.5) */
+  onCreateClick?: () => void
 }
 
 /**
@@ -32,7 +35,7 @@ const DEFAULT_PAGE_SIZE = 20
  * Колонки: Client ID, Status, Rate Limit, Created, Actions
  * Expandable row для details (description, created date, "View Metrics" link)
  */
-function ConsumersTable({ search }: ConsumersTableProps) {
+function ConsumersTable({ search, onCreateClick }: ConsumersTableProps) {
   const navigate = useNavigate()
 
   // Состояние пагинации
@@ -252,11 +255,24 @@ function ConsumersTable({ search }: ConsumersTableProps) {
 
   return (
     <>
+      {/* Story 16.5 AC4: кастомный empty state с CTA */}
       <Table<Consumer>
         columns={columns}
         dataSource={data?.items || []}
         loading={isLoading}
         rowKey="clientId"
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="Потребители ещё не созданы"
+              description="Создайте первого потребителя для начала работы"
+              action={onCreateClick ? {
+                label: 'Создать потребителя',
+                onClick: onCreateClick,
+              } : undefined}
+            />
+          ),
+        }}
         pagination={{
           current: pagination.current,
           pageSize: pagination.pageSize,
