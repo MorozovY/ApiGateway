@@ -1,4 +1,4 @@
-// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2; Story 15.4)
+// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2; Story 15.4; Story 16.5 — empty state)
 import { useState, useMemo } from 'react'
 import {
   Table,
@@ -10,7 +10,6 @@ import {
   Input,
   Drawer,
   Descriptions,
-  Empty,
   Tooltip,
   Typography,
   Card,
@@ -19,6 +18,7 @@ import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, Relo
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
+import { EmptyState } from '@shared/components/EmptyState'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -311,17 +311,18 @@ export function ApprovalsPage() {
       />
 
       {/* Таблица pending маршрутов (AC1) */}
+      {/* Story 16.5 AC2: кастомный empty state с позитивным тоном */}
       <Table<PendingRoute>
         dataSource={filteredRoutes}
         columns={columns}
         rowKey="id"
         loading={isLoading}
         locale={{
-          // Пустое состояние (AC7)
           emptyText: (
-            <Empty
-              description="Нет маршрутов на согласовании"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            <EmptyState
+              icon={<CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />}
+              title="Нет маршрутов на согласование"
+              description="Все маршруты обработаны"
             />
           ),
         }}

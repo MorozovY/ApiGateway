@@ -1,4 +1,4 @@
-// Тесты для AuditPage (Story 7.5, AC1-AC7)
+// Тесты для AuditPage (Story 7.5, AC1-AC7; Story 16.5 AC3 — empty state)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import { renderWithMockAuth } from '../../../test/test-utils'
@@ -211,7 +211,7 @@ describe('AuditPage', () => {
     })
   })
 
-  describe('Empty State (AC7)', () => {
+  describe('Empty State (AC7, Story 16.5 AC3)', () => {
     it('показывает empty state при отсутствии данных', async () => {
       mockAuditData = { items: [], total: 0, offset: 0, limit: 20 }
 
@@ -219,9 +219,24 @@ describe('AuditPage', () => {
         authValue: { isAuthenticated: true, user: securityUser },
       })
 
+      // Story 16.5 AC3: новый текст empty state
       await waitFor(() => {
-        expect(screen.getByText('Нет записей для выбранных фильтров')).toBeInTheDocument()
-        expect(screen.getByText('Попробуйте изменить параметры фильтрации')).toBeInTheDocument()
+        expect(screen.getByText('Записи не найдены')).toBeInTheDocument()
+        expect(screen.getByText('Попробуйте изменить параметры фильтра')).toBeInTheDocument()
+      })
+    })
+
+    it('empty state содержит кнопку "Сбросить фильтры" (Story 16.5 AC3)', async () => {
+      mockAuditData = { items: [], total: 0, offset: 0, limit: 20 }
+
+      renderWithMockAuth(<AuditPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      await waitFor(() => {
+        // Ищем кнопку в empty state
+        const resetButton = screen.getByRole('button', { name: 'Сбросить фильтры' })
+        expect(resetButton).toBeInTheDocument()
       })
     })
   })

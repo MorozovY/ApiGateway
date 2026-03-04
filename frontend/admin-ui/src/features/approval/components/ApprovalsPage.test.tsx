@@ -290,15 +290,17 @@ describe('Страница согласования маршрутов (Approval
     })
   })
 
-  it('пустое состояние при отсутствии pending маршрутов', async () => {
+  it('пустое состояние при отсутствии pending маршрутов (Story 16.5 AC2)', async () => {
     mockPendingRoutesData = []
 
     renderWithMockAuth(<ApprovalsPage />, {
       authValue: { isAuthenticated: true, user: securityUser },
     })
 
+    // Story 16.5 AC2: обновлённый empty state с позитивным тоном
     await waitFor(() => {
-      expect(screen.getByText('Нет маршрутов на согласовании')).toBeInTheDocument()
+      expect(screen.getByText('Нет маршрутов на согласование')).toBeInTheDocument()
+      expect(screen.getByText('Все маршруты обработаны')).toBeInTheDocument()
     })
   })
 

@@ -1,4 +1,4 @@
-// Страница управления consumers (Story 12.9, AC1; Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
+// Страница управления consumers (Story 12.9, AC1; Story 15.4 — добавлен PageInfoBlock; Story 15.6 — унификация заголовка; Story 16.5 — empty state)
 import { useState } from 'react'
 import { Button, Input, Typography, Space, Card } from 'antd'
 import { PlusOutlined, UserSwitchOutlined } from '@ant-design/icons'
@@ -65,7 +65,8 @@ function ConsumersPage() {
         />
       </div>
 
-      <ConsumersTable search={debouncedSearch} />
+      {/* Story 16.5 AC4: передаём callback для empty state CTA */}
+      <ConsumersTable search={debouncedSearch} onCreateClick={handleCreate} />
 
       <CreateConsumerModal open={isCreateModalOpen} onClose={handleModalClose} />
     </Card>

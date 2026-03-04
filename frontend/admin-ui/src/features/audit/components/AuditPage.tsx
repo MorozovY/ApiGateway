@@ -1,7 +1,7 @@
-// Страница аудит-логов (Story 7.5, AC1-AC7; Story 15.4 — добавлен PageInfoBlock)
+// Страница аудит-логов (Story 7.5, AC1-AC7; Story 15.4 — добавлен PageInfoBlock; Story 16.5 — empty state)
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, Navigate } from 'react-router-dom'
-import { Card, Typography, Button, Space, Empty, Alert, App } from 'antd'
+import { Card, Typography, Button, Space, Alert, App } from 'antd'
 import { DownloadOutlined, AuditOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { isDeveloper } from '@shared/utils'
@@ -13,6 +13,7 @@ import { downloadAuditCsv } from '../utils/exportCsv'
 import { DEFAULT_PAGE_SIZE, AUDIT_ACTION_LABELS } from '../config/auditConfig'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
+import { EmptyState } from '@shared/components/EmptyState'
 import type { AuditFilter, AuditAction, AuditEntityType } from '../types/audit.types'
 
 /**
@@ -232,18 +233,17 @@ export function AuditPage() {
           />
         )}
 
-        {/* Empty state (AC7) */}
+        {/* Empty state (AC7; Story 16.5 AC3 — кнопка сброса фильтров) */}
         {showEmptyState && (
-          <Empty
-            description={
-              <span>
-                Нет записей для выбранных фильтров
-                <br />
-                <Typography.Text type="secondary">
-                  Попробуйте изменить параметры фильтрации
-                </Typography.Text>
-              </span>
-            }
+          <EmptyState
+            title="Записи не найдены"
+            description="Попробуйте изменить параметры фильтра"
+            useSimpleImage
+            action={{
+              label: 'Сбросить фильтры',
+              onClick: handleClearFilters,
+              type: 'default',
+            }}
           />
         )}
 
