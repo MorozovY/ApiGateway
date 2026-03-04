@@ -11,6 +11,27 @@ const mockNavigate = vi.fn()
 // Мок useParams — будем устанавливать значение перед каждым тестом
 let mockParamsValue: Record<string, string> = {}
 
+// Мок localStorage для тестов WorkflowIndicator (Story 16.10)
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key]
+    }),
+    clear: () => {
+      store = {}
+    },
+  }
+})()
+vi.stubGlobal('localStorage', localStorageMock)
+
+// Мок useLocation для тестов WorkflowIndicator (Story 16.10)
+let mockLocationValue = { pathname: '/routes/new' }
+
 // Мок react-router-dom
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -18,6 +39,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => mockNavigate,
     useParams: () => mockParamsValue,
+    useLocation: () => mockLocationValue,
   }
 })
 
@@ -69,7 +91,9 @@ describe('RouteFormPage', () => {
   beforeEach(() => {
     // Сбрасываем все моки перед каждым тестом
     vi.clearAllMocks()
+    localStorageMock.clear()
     mockParamsValue = {}
+    mockLocationValue = { pathname: '/routes/new' }
     mockRouteData = undefined
     mockIsLoadingRoute = false
     mockCreateMutateAsync = vi.fn()
@@ -486,6 +510,135 @@ describe('RouteFormPage', () => {
       await waitFor(() => {
         expect(screen.getByText(/Path обязателен/i)).toBeInTheDocument()
       })
+    })
+  })
+
+  // Story 16.10: WorkflowIndicator
+  describe('WorkflowIndicator (Story 16.10)', () => {
+    it('отображает кнопку toggle для WorkflowIndicator (AC3)', () => {
+      mockParamsValue = {}
+      mockLocationValue = { pathname: '/routes/new' }
+
+      renderWithMockAuth(<RouteFormPage />, {
+        authValue: { isAuthenticated: true },
+        initialEntries: ['/routes/new'],
+      })
+
+      expect(screen.getByTestId('workflow-toggle')).toBeInTheDocument()
+    })
+
+    it('WorkflowIndicator скрыт по умолчанию (AC5)', () => {
+      mockParamsValue = {}
+      mockLocationValue = { pathname: '/routes/new' }
+
+      renderWithMockAuth(<RouteFormPage />, {
+        authValue: { isAuthenticated: true },
+        initialEntries: ['/routes/new'],
+      })
+
+      // Индикатор скрыт по умолчанию
+      expect(screen.queryByTestId('workflow-indicator')).not.toBeInTheDocument()
+    })
+
+    it('показывает WorkflowIndicator при клике на toggle (AC1)', async () => {
+      mockParamsValue = {}
+      mockLocationValue = { pathname: '/routes/new' }
+
+      renderWithMockAuth(<RouteFormPage />, {
+        authValue: { isAuthenticated: true },
+        initialEntries: ['/routes/new'],
+      })
+
+      // Кликаем на кнопку toggle
+      await userEvent.click(screen.getByTestId('workflow-toggle'))
+
+      // Теперь индикатор должен быть виден
+      await waitFor(() => {
+        expect(screen.getByTestId('workflow-indicator')).toBeInTheDocument()
+      })
+
+      // Проверяем что отображаются 4 шага
+      expect(screen.getByText('Создание')).toBeInTheDocument()
+      expect(screen.getByText('Отправка')).toBeInTheDocument()
+      expect(screen.getByText('Согласование')).toBeInTheDocument()
+      expect(screen.getByText('Публикация')).toBeInTheDocument()
+    })
+
+    it('сохраняет состояние WorkflowIndicator в localStorage (AC4)', async () => {
+      mockParamsValue = {}
+      mockLocationValue = { pathname: '/routes/new' }
+
+      renderWithMockAuth(<RouteFormPage />, {
+        authValue: { isAuthenticated: true },
+        initialEntries: ['/routes/new'],
+      })
+
+      // Кликаем на toggle чтобы показать
+      await userEvent.click(screen.getByTestId('workflow-toggle'))
+
+      // Проверяем что состояние сохранено в localStorage
+      await waitFor(() => {
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+          'workflow-indicator-visible',
+          'true'
+        )
+      })
+    })
+
+    it('показывает текущий шаг 0 (Создание) для /routes/new (AC2)', async () => {
+      mockParamsValue = {}
+      mockLocationValue = { pathname: '/routes/new' }
+
+      renderWithMockAuth(<RouteFormPage />, {
+        authValue: { isAuthenticated: true },
+        initialEntries: ['/routes/new'],
+      })
+
+      // Показываем WorkflowIndicator
+      await userEvent.click(screen.getByTestId('workflow-toggle'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('workflow-indicator')).toBeInTheDocument()
+      })
+
+      // Проверяем что шаг "Создание" активен (первый шаг, индекс 0)
+      const indicator = screen.getByTestId('workflow-indicator')
+      const steps = indicator.querySelectorAll('.ant-steps-item')
+      expect(steps[0]).toHaveClass('ant-steps-item-active')
+    })
+
+    it('показывает текущий шаг 1 (Отправка) для /routes/:id/edit с draft статусом (AC2)', async () => {
+      mockParamsValue = { id: 'draft-route-id' }
+      mockLocationValue = { pathname: '/routes/draft-route-id/edit' }
+      mockRouteData = {
+        id: 'draft-route-id',
+        path: '/api/test',
+        upstreamUrl: 'http://test:8080',
+        methods: ['GET'],
+        description: 'Test route',
+        status: 'draft',
+        createdBy: 'user-1',
+        createdAt: '2026-02-18T10:00:00Z',
+        updatedAt: '2026-02-18T10:00:00Z',
+        rateLimitId: null,
+      }
+
+      renderWithMockAuth(<RouteFormPage />, {
+        authValue: { isAuthenticated: true },
+        initialEntries: ['/routes/draft-route-id/edit'],
+      })
+
+      // Показываем WorkflowIndicator
+      await userEvent.click(screen.getByTestId('workflow-toggle'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('workflow-indicator')).toBeInTheDocument()
+      })
+
+      // Проверяем что шаг "Отправка" активен (второй шаг, индекс 1)
+      const indicator = screen.getByTestId('workflow-indicator')
+      const steps = indicator.querySelectorAll('.ant-steps-item')
+      expect(steps[1]).toHaveClass('ant-steps-item-active')
     })
   })
 })

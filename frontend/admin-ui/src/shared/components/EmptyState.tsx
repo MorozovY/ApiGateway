@@ -1,5 +1,5 @@
 // Переиспользуемый компонент EmptyState для пустых таблиц (Story 16.5)
-import { Empty, Button } from 'antd'
+import { Empty, Button, theme } from 'antd'
 import type { ReactNode } from 'react'
 
 /**
@@ -51,6 +51,9 @@ export function EmptyState({
   action,
   useSimpleImage = false,
 }: EmptyStateProps) {
+  // Получаем токены темы для поддержки dark mode
+  const { token } = theme.useToken()
+
   // Определяем изображение: кастомная иконка или стандартное Ant Design
   const image = icon ?? (useSimpleImage ? Empty.PRESENTED_IMAGE_SIMPLE : Empty.PRESENTED_IMAGE_DEFAULT)
 
@@ -63,7 +66,7 @@ export function EmptyState({
             {title}
           </div>
           {description && (
-            <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
+            <div style={{ color: token.colorTextSecondary }}>
               {description}
             </div>
           )}

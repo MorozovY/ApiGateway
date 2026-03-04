@@ -1,4 +1,4 @@
-// Тесты для RoutesPage (Story 3.4)
+// Тесты для RoutesPage (Story 3.4, Story 16.9 — OS-specific shortcuts, Story 16.10 — WorkflowIndicator)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -18,11 +18,38 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
+// Мокаем localStorage для тестов WorkflowIndicator
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key]
+    }),
+    clear: () => {
+      store = {}
+    },
+  }
+})()
+vi.stubGlobal('localStorage', localStorageMock)
+
 // Мокаем API
 vi.mock('../api/routesApi', () => ({
   fetchRoutes: vi.fn(),
   deleteRoute: vi.fn(),
 }))
+
+// Мокаем keyboard utils для детерминированных тестов (Story 16.9)
+vi.mock('@shared/utils', async () => {
+  const actual = await vi.importActual('@shared/utils')
+  return {
+    ...actual,
+    formatShortcut: () => 'Ctrl+N',  // Фиксированное значение для тестов
+  }
+})
 
 const mockFetchRoutes = routesApi.fetchRoutes as ReturnType<typeof vi.fn>
 const mockDeleteRoute = routesApi.deleteRoute as ReturnType<typeof vi.fn>
@@ -78,6 +105,7 @@ const mockRoutesResponse: RouteListResponse = {
 describe('RoutesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorageMock.clear()
     mockFetchRoutes.mockResolvedValue(mockRoutesResponse)
     mockDeleteRoute.mockResolvedValue(undefined)
   })
@@ -266,6 +294,128 @@ describe('RoutesPage', () => {
     fireEvent.keyDown(window, { key: 'n', metaKey: true })
 
     expect(mockNavigate).toHaveBeenCalledWith('/routes/new')
+  })
+
+  // Story 16.9: OS-specific shortcut в tooltip
+  it('показывает OS-specific shortcut в tooltip кнопки Новый маршрут (AC3)', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Находим кнопку "Новый маршрут"
+    const newButton = screen.getByRole('button', { name: /новый маршрут/i })
+
+    // Наводим курсор на кнопку
+    await user.hover(newButton)
+
+    // Ждём появления tooltip
+    await waitFor(() => {
+      // formatShortcut замокан — возвращает 'Ctrl+N' для детерминированности
+      const tooltip = document.querySelector('.ant-tooltip')
+      expect(tooltip).toBeInTheDocument()
+      expect(tooltip?.textContent).toBe('Ctrl+N')
+    })
+  })
+
+  // Story 16.10: WorkflowIndicator
+  it('отображает кнопку toggle для WorkflowIndicator (AC3)', async () => {
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    expect(screen.getByTestId('workflow-toggle')).toBeInTheDocument()
+  })
+
+  it('WorkflowIndicator скрыт по умолчанию (AC5)', async () => {
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Индикатор скрыт по умолчанию
+    expect(screen.queryByTestId('workflow-indicator')).not.toBeInTheDocument()
+  })
+
+  it('показывает WorkflowIndicator при клике на toggle (AC1, AC6)', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Кликаем на кнопку toggle
+    await user.click(screen.getByTestId('workflow-toggle'))
+
+    // Теперь индикатор должен быть виден
+    await waitFor(() => {
+      expect(screen.getByTestId('workflow-indicator')).toBeInTheDocument()
+    })
+
+    // Проверяем что отображаются 4 шага
+    expect(screen.getByText('Создание')).toBeInTheDocument()
+    expect(screen.getByText('Отправка')).toBeInTheDocument()
+    expect(screen.getByText('Согласование')).toBeInTheDocument()
+    expect(screen.getByText('Публикация')).toBeInTheDocument()
+  })
+
+  it('скрывает WorkflowIndicator при повторном клике на toggle', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    const toggleButton = screen.getByTestId('workflow-toggle')
+
+    // Показываем
+    await user.click(toggleButton)
+    await waitFor(() => {
+      expect(screen.getByTestId('workflow-indicator')).toBeInTheDocument()
+    })
+
+    // Скрываем
+    await user.click(toggleButton)
+    await waitFor(() => {
+      expect(screen.queryByTestId('workflow-indicator')).not.toBeInTheDocument()
+    })
+  })
+
+  it('сохраняет состояние WorkflowIndicator в localStorage (AC4)', async () => {
+    const user = userEvent.setup()
+
+    renderWithMockAuth(<RoutesPage />, {
+      authValue: {
+        user: { userId: 'current-user', username: 'testuser', role: 'developer' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Кликаем на toggle чтобы показать
+    await user.click(screen.getByTestId('workflow-toggle'))
+
+    // Проверяем что состояние сохранено в localStorage
+    await waitFor(() => {
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        'workflow-indicator-visible',
+        'true'
+      )
+    })
   })
 })
 

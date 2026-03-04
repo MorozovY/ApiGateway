@@ -1,11 +1,13 @@
-// Страница управления маршрутами (Story 3.4, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
+// Страница управления маршрутами (Story 3.4, Story 15.4 — PageInfoBlock, Story 15.6 — унификация, Story 16.9 — OS-specific shortcuts, Story 16.10 — WorkflowIndicator)
 import { useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Typography, Button, Space, Tooltip } from 'antd'
-import { PlusOutlined, ApiOutlined } from '@ant-design/icons'
+import { PlusOutlined, ApiOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { RoutesTable } from './RoutesTable'
-import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PageInfoBlock, WorkflowIndicator } from '@shared/components'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
+import { formatShortcut } from '@shared/utils'
+import { useWorkflowIndicator } from '@shared/hooks'
 
 const { Title } = Typography
 
@@ -17,6 +19,8 @@ const { Title } = Typography
  */
 export function RoutesPage() {
   const navigate = useNavigate()
+  // Story 16.10: Hook для управления видимостью WorkflowIndicator
+  const { visible: workflowVisible, toggle: toggleWorkflow } = useWorkflowIndicator()
 
   /**
    * Обработчик создания нового маршрута.
@@ -52,17 +56,32 @@ export function RoutesPage() {
               Маршруты
             </Title>
           </Space>
-          <Tooltip title="Ctrl+N">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateRoute}
-            >
-              Новый маршрут
-            </Button>
-          </Tooltip>
+          <Space>
+            {/* Story 16.10: Кнопка toggle для WorkflowIndicator (AC3) */}
+            <Tooltip title={workflowVisible ? 'Скрыть workflow' : 'Показать workflow'}>
+              <Button
+                type="text"
+                icon={workflowVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                onClick={toggleWorkflow}
+                data-testid="workflow-toggle"
+              />
+            </Tooltip>
+            {/* Story 16.9: OS-specific shortcut в tooltip (AC3) */}
+            <Tooltip title={formatShortcut('N')}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreateRoute}
+              >
+                Новый маршрут
+              </Button>
+            </Tooltip>
+          </Space>
         </Space>
       </div>
+
+      {/* Story 16.10: WorkflowIndicator между header и PageInfoBlock (AC6) */}
+      {workflowVisible && <WorkflowIndicator currentStep={3} />}
 
       {/* Инфо-блок (Story 15.4) */}
       <PageInfoBlock pageKey="routes" {...PAGE_DESCRIPTIONS.routes} />

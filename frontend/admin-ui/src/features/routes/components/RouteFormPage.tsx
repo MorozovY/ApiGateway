@@ -1,10 +1,13 @@
-// Страница формы создания/редактирования маршрута (Story 3.5)
+// Страница формы создания/редактирования маршрута (Story 3.5, Story 16.10 — WorkflowIndicator)
 import { useEffect, useCallback, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Typography, Button, Spin, Space } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Card, Typography, Button, Spin, Space, Tooltip } from 'antd'
+import { ArrowLeftOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { useRoute, useCreateRoute, useUpdateRoute } from '../hooks/useRoutes'
 import { RouteForm, type RouteFormRef } from './RouteForm'
+import { WorkflowIndicator } from '@shared/components'
+import { useWorkflowIndicator } from '@shared/hooks'
+import { getCurrentWorkflowStep } from '@shared/utils'
 import type { CreateRouteRequest, UpdateRouteRequest } from '../types/route.types'
 
 const { Title } = Typography
@@ -21,10 +24,14 @@ const { Title } = Typography
 export function RouteFormPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const formRef = useRef<RouteFormRef>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const isEditMode = !!id
+
+  // Story 16.10: Hook для управления видимостью WorkflowIndicator
+  const { visible: workflowVisible, toggle: toggleWorkflow } = useWorkflowIndicator()
 
   // Загрузка данных маршрута для режима редактирования
   const { data: route, isLoading: isLoadingRoute } = useRoute(id)
@@ -91,12 +98,32 @@ export function RouteFormPage() {
   return (
     <Card>
       {/* Заголовок страницы */}
-      <Space style={{ marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={handleCancel} type="text" />
-        <Title level={2} style={{ margin: 0 }}>
-          {isEditMode ? 'Редактирование маршрута' : 'Создание маршрута'}
-        </Title>
-      </Space>
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={handleCancel} type="text" />
+            <Title level={2} style={{ margin: 0 }}>
+              {isEditMode ? 'Редактирование маршрута' : 'Создание маршрута'}
+            </Title>
+          </Space>
+          {/* Story 16.10: Кнопка toggle для WorkflowIndicator (AC3) */}
+          <Tooltip title={workflowVisible ? 'Скрыть workflow' : 'Показать workflow'}>
+            <Button
+              type="text"
+              icon={workflowVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              onClick={toggleWorkflow}
+              data-testid="workflow-toggle"
+            />
+          </Tooltip>
+        </Space>
+      </div>
+
+      {/* Story 16.10: WorkflowIndicator — определяем шаг по URL и статусу маршрута (AC2) */}
+      {workflowVisible && (
+        <WorkflowIndicator
+          currentStep={getCurrentWorkflowStep(location.pathname, route?.status)}
+        />
+      )}
 
       {/* Форма маршрута */}
       <RouteForm

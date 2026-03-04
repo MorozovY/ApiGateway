@@ -1,4 +1,4 @@
-// Тесты для ConsumersTable (Story 12.9, AC1, AC4-9; Story 16.4 — responsive)
+// Тесты для ConsumersTable (Story 12.9, AC1, AC4-9; Story 16.4 — responsive; Story 16.5 — empty state)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -356,5 +356,105 @@ describe('ConsumersTable', () => {
 
     // Таблица рендерит consumers корректно
     expect(screen.getByText('consumer-disabled')).toBeInTheDocument()
+  })
+})
+
+// Story 16.5 AC4: Тесты на empty state
+describe('ConsumersTable empty state (Story 16.5 AC4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('отображает empty state когда нет consumers', async () => {
+    // Мокаем пустой ответ
+    mockFetchConsumers.mockResolvedValue({
+      items: [],
+      total: 0,
+    })
+
+    renderWithMockAuth(<ConsumersTable />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    // Ждём загрузки и проверяем empty state
+    await waitFor(() => {
+      expect(screen.getByText('Потребители ещё не созданы')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Создайте первого потребителя для начала работы')).toBeInTheDocument()
+  })
+
+  it('отображает CTA кнопку "Создать потребителя" когда onCreateClick передан', async () => {
+    mockFetchConsumers.mockResolvedValue({
+      items: [],
+      total: 0,
+    })
+
+    const handleCreate = vi.fn()
+
+    renderWithMockAuth(<ConsumersTable onCreateClick={handleCreate} />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Потребители ещё не созданы')).toBeInTheDocument()
+    })
+
+    // Проверяем CTA кнопку
+    const ctaButton = screen.getByRole('button', { name: 'Создать потребителя' })
+    expect(ctaButton).toBeInTheDocument()
+  })
+
+  it('вызывает onCreateClick при клике на CTA', async () => {
+    const user = userEvent.setup()
+    mockFetchConsumers.mockResolvedValue({
+      items: [],
+      total: 0,
+    })
+
+    const handleCreate = vi.fn()
+
+    renderWithMockAuth(<ConsumersTable onCreateClick={handleCreate} />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Потребители ещё не созданы')).toBeInTheDocument()
+    })
+
+    const ctaButton = screen.getByRole('button', { name: 'Создать потребителя' })
+    await user.click(ctaButton)
+
+    expect(handleCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('не отображает CTA кнопку когда onCreateClick не передан', async () => {
+    mockFetchConsumers.mockResolvedValue({
+      items: [],
+      total: 0,
+    })
+
+    renderWithMockAuth(<ConsumersTable />, {
+      authValue: {
+        user: { userId: '1', username: 'admin', role: 'admin' },
+        isAuthenticated: true,
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Потребители ещё не созданы')).toBeInTheDocument()
+    })
+
+    // CTA кнопка не должна отображаться
+    expect(screen.queryByRole('button', { name: 'Создать потребителя' })).not.toBeInTheDocument()
   })
 })

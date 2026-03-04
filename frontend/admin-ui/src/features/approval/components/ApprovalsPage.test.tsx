@@ -1,9 +1,28 @@
-// Тесты для Pending Approvals UI с inline-действиями (Story 4.6)
+// Тесты для Pending Approvals UI с inline-действиями (Story 4.6, Story 16.9 — shortcuts hint, Story 16.10 — WorkflowIndicator)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithMockAuth } from '../../../test/test-utils'
 import { ApprovalsPage } from './ApprovalsPage'
 import type { PendingRoute } from '../types/approval.types'
+
+// Мокаем localStorage для тестов WorkflowIndicator
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key]
+    }),
+    clear: () => {
+      store = {}
+    },
+  }
+})()
+vi.stubGlobal('localStorage', localStorageMock)
 
 // Мок данные — pending маршруты
 const mockPendingRoutes: PendingRoute[] = [
@@ -95,6 +114,7 @@ const securityUser = {
 describe('Страница согласования маршрутов (ApprovalsPage)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorageMock.clear()
     mockApproveMutateAsync = vi.fn()
     mockApproveIsPending = false
     mockRejectMutateAsync = vi.fn()
@@ -342,6 +362,23 @@ describe('Страница согласования маршрутов (Approval
     })
   })
 
+  // Story 16.9 AC5: подсказка shortcuts в footer таблицы
+  it('отображает подсказку о keyboard shortcuts под таблицей (Story 16.9 AC5)', async () => {
+    renderWithMockAuth(<ApprovalsPage />, {
+      authValue: { isAuthenticated: true, user: securityUser },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('/api/orders')).toBeInTheDocument()
+    })
+
+    // Проверяем что подсказка отображается
+    const hint = screen.getByTestId('keyboard-shortcuts-hint')
+    expect(hint).toBeInTheDocument()
+    expect(hint).toHaveTextContent('Клавиши: A — одобрить, R — отклонить')
+    expect(hint).toHaveTextContent('при фокусе на строке')
+  })
+
   // Story 8.7: Расширить поиск Approvals на Upstream URL
   describe('Поиск по path и upstream URL (Story 8.7)', () => {
     it('поиск фильтрует по path и подсвечивает совпадение', async () => {
@@ -571,6 +608,67 @@ describe('Страница согласования маршрутов (Approval
       await waitFor(() => {
         const refreshButton = screen.getByTestId('refresh-button')
         expect(refreshButton).not.toBeDisabled()
+      })
+    })
+  })
+
+  // Story 16.10: WorkflowIndicator
+  describe('WorkflowIndicator (Story 16.10)', () => {
+    it('отображает кнопку toggle для WorkflowIndicator (AC3)', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      expect(screen.getByTestId('workflow-toggle')).toBeInTheDocument()
+    })
+
+    it('WorkflowIndicator скрыт по умолчанию (AC5)', async () => {
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      // Индикатор скрыт по умолчанию
+      expect(screen.queryByTestId('workflow-indicator')).not.toBeInTheDocument()
+    })
+
+    it('показывает WorkflowIndicator при клике на toggle (AC1, AC6)', async () => {
+      const user = userEvent.setup()
+
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      // Кликаем на кнопку toggle
+      await user.click(screen.getByTestId('workflow-toggle'))
+
+      // Теперь индикатор должен быть виден
+      await waitFor(() => {
+        expect(screen.getByTestId('workflow-indicator')).toBeInTheDocument()
+      })
+
+      // Проверяем что отображаются 4 шага
+      expect(screen.getByText('Создание')).toBeInTheDocument()
+      expect(screen.getByText('Отправка')).toBeInTheDocument()
+      expect(screen.getByText('Согласование')).toBeInTheDocument()
+      expect(screen.getByText('Публикация')).toBeInTheDocument()
+    })
+
+    it('сохраняет состояние WorkflowIndicator в localStorage (AC4)', async () => {
+      const user = userEvent.setup()
+
+      renderWithMockAuth(<ApprovalsPage />, {
+        authValue: { isAuthenticated: true, user: securityUser },
+      })
+
+      // Кликаем на toggle чтобы показать
+      await user.click(screen.getByTestId('workflow-toggle'))
+
+      // Проверяем что состояние сохранено в localStorage
+      await waitFor(() => {
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+          'workflow-indicator-visible',
+          'true'
+        )
       })
     })
   })

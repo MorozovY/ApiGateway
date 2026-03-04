@@ -1,4 +1,4 @@
-// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2; Story 15.4; Story 16.5 — empty state)
+// Страница согласования маршрутов с inline-действиями (Story 4.6; Story 5.7, AC2; Story 8.8; Story 10.2; Story 15.4; Story 16.5 — empty state; Story 16.9 — shortcuts hint; Story 16.10 — WorkflowIndicator)
 import { useState, useMemo } from 'react'
 import {
   Table,
@@ -14,11 +14,12 @@ import {
   Typography,
   Card,
 } from 'antd'
-import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, SearchOutlined, CloseCircleOutlined, ReloadOutlined, CheckCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
-import { PageInfoBlock } from '@shared/components/PageInfoBlock'
+import { PageInfoBlock, WorkflowIndicator } from '@shared/components'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import { EmptyState } from '@shared/components/EmptyState'
+import { useWorkflowIndicator } from '@shared/hooks'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -85,6 +86,9 @@ export function ApprovalsPage() {
 
   // Загрузка данных и мутации (Story 10.2 — refetch для manual refresh, isFetching для loading state)
   const { data: pendingRoutes, isLoading, isFetching, refetch } = usePendingRoutes()
+
+  // Story 16.10: Hook для управления видимостью WorkflowIndicator
+  const { visible: workflowVisible, toggle: toggleWorkflow } = useWorkflowIndicator()
 
   // Клиентская фильтрация по path и upstream URL (Story 5.7, AC2; Story 8.7, AC1)
   const filteredRoutes = useMemo(() => {
@@ -259,18 +263,32 @@ export function ApprovalsPage() {
               Согласования
             </Typography.Title>
           </Space>
-          {/* Кнопка ручного обновления (AC3) */}
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => refetch()}
-            loading={isFetching}
-            disabled={isFetching}
-            data-testid="refresh-button"
-          >
-            Обновить
-          </Button>
+          <Space>
+            {/* Story 16.10: Кнопка toggle для WorkflowIndicator (AC3) */}
+            <Tooltip title={workflowVisible ? 'Скрыть workflow' : 'Показать workflow'}>
+              <Button
+                type="text"
+                icon={workflowVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                onClick={toggleWorkflow}
+                data-testid="workflow-toggle"
+              />
+            </Tooltip>
+            {/* Кнопка ручного обновления (AC3) */}
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => refetch()}
+              loading={isFetching}
+              disabled={isFetching}
+              data-testid="refresh-button"
+            >
+              Обновить
+            </Button>
+          </Space>
         </Space>
       </div>
+
+      {/* Story 16.10: WorkflowIndicator между header и PageInfoBlock (AC6) */}
+      {workflowVisible && <WorkflowIndicator currentStep={2} />}
 
       {/* Инфо-блок (Story 15.4) */}
       <PageInfoBlock pageKey="approvals" {...PAGE_DESCRIPTIONS.approvals} />
@@ -332,6 +350,12 @@ export function ApprovalsPage() {
           onKeyDown: (e) => handleRowKeyDown(e, record),
         })}
         pagination={false}
+        footer={() => (
+          // Story 16.9 AC5: подсказка о keyboard shortcuts
+          <Text type="secondary" data-testid="keyboard-shortcuts-hint">
+            💡 Клавиши: A — одобрить, R — отклонить (при фокусе на строке)
+          </Text>
+        )}
       />
 
       {/* Модальное окно отклонения (AC3, AC4, AC5) */}

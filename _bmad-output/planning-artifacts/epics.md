@@ -3738,7 +3738,7 @@ So that I can quickly understand what functionality is available.
 
 **Source:** Phase 5 (2026-03-04) — UX Analysis findings
 
-**Stories:** 9
+**Stories:** 10
 
 **Key Capabilities:**
 - Унификация языка интерфейса (полностью русский)
@@ -3749,6 +3749,7 @@ So that I can quickly understand what functionality is available.
 - Улучшение accessibility
 - Auto-refresh метрик
 - OS-specific keyboard shortcuts
+- Workflow индикатор жизненного цикла маршрута
 
 **Priority:** Medium (улучшение пользовательского опыта)
 
@@ -4109,5 +4110,42 @@ So that I know which keys to press.
 - Создать утилиту `getModifierKey()` в `src/shared/utils/keyboard.ts`
 - Детектировать ОС через `navigator.platform` или `navigator.userAgentData`
 - Обновить все Tooltip с shortcuts
+
+---
+
+### Story 16.10: Workflow индикатор жизненного цикла маршрута
+
+As a **User**,
+I want to see a visual workflow indicator showing the route lifecycle stages,
+So that I understand where I am in the process and what steps remain.
+
+**Acceptance Criteria:**
+
+**Given** любая страница с маршрутами (Routes, Approvals)
+**When** пользователь нажимает кнопку "Workflow" в header
+**Then** отображается горизонтальный Ant Steps с 4 шагами
+
+**Given** WorkflowIndicator отображается
+**When** пользователь находится на определённой странице
+**Then** текущий шаг подсвечен:
+  - `/routes/new` → Создание
+  - `/routes/:id` (draft) → Отправка
+  - `/approvals` → Согласование
+  - `/routes` → Публикация
+
+**Given** пользователь включил/выключил WorkflowIndicator
+**When** перезагружает страницу
+**Then** состояние сохранено в localStorage
+
+**Given** новый пользователь
+**When** открывает страницу
+**Then** индикатор скрыт по умолчанию
+
+**Technical Notes:**
+- Компонент `WorkflowIndicator.tsx` в `src/shared/components/`
+- Hook `useWorkflowIndicator.ts` с localStorage persistence
+- Ant Design Steps с direction="horizontal"
+- Кнопка toggle в header страницы (EyeOutlined)
+- Расположение: между header и PageInfoBlock
 
 ---
