@@ -1,5 +1,6 @@
 // Боковая панель навигации (Story 2.6 — Users, Story 4.6 — Badge, Story 6.5 — Metrics, Story 7.6 — Collapsible, Story 9.3 — Role-based filtering)
 // Story 14.4: Добавлен prefetch для lazy-загружаемых модулей
+// Story 16.7: Разные иконки для Routes и Consumers
 import { useMemo, useCallback } from 'react'
 import { Layout, Menu, Badge } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -13,6 +14,7 @@ import {
   AreaChartOutlined,
   ClusterOutlined,
   ExperimentOutlined,
+  UserSwitchOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { usePendingRoutesCount } from '@features/approval'
@@ -67,7 +69,7 @@ const allMenuItems: MenuItemType[] = [
   },
   {
     key: '/consumers',
-    icon: <ApiOutlined />,
+    icon: <UserSwitchOutlined />,
     label: 'Consumers',
   },
   {
