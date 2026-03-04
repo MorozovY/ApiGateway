@@ -1,6 +1,6 @@
 # Story 16.10: Workflow индикатор жизненного цикла маршрута
 
-Status: review
+Status: done
 
 ## Story
 
@@ -448,6 +448,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 |------|--------|-------------|
 | 2026-03-04 | SM (Party Mode) | Story created — ready for dev |
 | 2026-03-04 | Dev Agent (Opus 4.5) | Implemented WorkflowIndicator component, hook, utility and integration |
+| 2026-03-04 | Code Review (Opus 4.5) | Fixed 6 issues: DRY refactoring, accessibility, constants export |
 
 ### File List
 
@@ -458,13 +459,47 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `frontend/admin-ui/src/shared/hooks/useWorkflowIndicator.test.ts`
 - `frontend/admin-ui/src/shared/utils/workflowStep.ts`
 - `frontend/admin-ui/src/shared/utils/workflowStep.test.ts`
+- `frontend/admin-ui/src/shared/utils/highlight.tsx` — shared highlightSearchTerm (code review refactoring)
 
 **Изменённые файлы:**
-- `frontend/admin-ui/src/shared/components/index.ts` — экспорт WorkflowIndicator
+- `frontend/admin-ui/src/shared/components/index.ts` — экспорт WorkflowIndicator, WORKFLOW_STEPS
 - `frontend/admin-ui/src/shared/hooks/index.ts` — экспорт useWorkflowIndicator
-- `frontend/admin-ui/src/shared/utils/index.ts` — экспорт getCurrentWorkflowStep
-- `frontend/admin-ui/src/features/routes/components/RoutesPage.tsx` — интеграция
+- `frontend/admin-ui/src/shared/utils/index.ts` — экспорт getCurrentWorkflowStep, WORKFLOW_STEP, highlightSearchTerm
+- `frontend/admin-ui/src/features/routes/components/RoutesPage.tsx` — интеграция, aria-label
 - `frontend/admin-ui/src/features/routes/components/RoutesPage.test.tsx` — тесты
-- `frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx` — интеграция
+- `frontend/admin-ui/src/features/routes/components/RoutesTable.tsx` — использует shared highlightSearchTerm
+- `frontend/admin-ui/src/features/approval/components/ApprovalsPage.tsx` — интеграция, aria-label, shared highlightSearchTerm
 - `frontend/admin-ui/src/features/approval/components/ApprovalsPage.test.tsx` — тесты
-- `frontend/admin-ui/src/features/routes/components/RouteFormPage.tsx` — интеграция
+- `frontend/admin-ui/src/features/routes/components/RouteFormPage.tsx` — интеграция, aria-label
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-03-04
+**Outcome:** ✅ Approved (after fixes)
+
+### Issues Found and Fixed
+
+| Severity | Issue | Resolution |
+|----------|-------|------------|
+| HIGH | AC2 маппинг URL→шаг для /routes/:id/edit | Уточнено: всегда шаг 1 (Отправка) для редактирования — соответствует workflow |
+| MEDIUM | Дублирование highlightSearchTerm | Вынесено в `shared/utils/highlight.tsx`, переиспользуется в 2 компонентах |
+| MEDIUM | Отсутствует aria-label на toggle | Добавлен aria-label на все 3 страницы для accessibility |
+| MEDIUM | WORKFLOW_STEPS не экспортируется | Экспортирована константа для переиспользования |
+| LOW | Магические числа в getCurrentWorkflowStep | Добавлен `WORKFLOW_STEP` const object |
+| LOW | Английский комментарий "Default:" | Исправлен на русский "По умолчанию:" |
+
+### Tests Status
+
+- **Before:** 910 tests passing
+- **After:** 911 tests passing (+1 для WORKFLOW_STEP констант)
+
+### Final Verdict
+
+Story 16.10 полностью реализована и соответствует всем Acceptance Criteria:
+- ✅ AC1: WorkflowIndicator с 4 шагами
+- ✅ AC2: Определение текущего шага по URL
+- ✅ AC3: Кнопка toggle в header с aria-label
+- ✅ AC4: Сохранение состояния в localStorage
+- ✅ AC5: По умолчанию скрыт
+- ✅ AC6: Расположение между header и PageInfoBlock

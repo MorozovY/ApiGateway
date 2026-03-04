@@ -113,6 +113,7 @@ export function RouteFormPage() {
               icon={workflowVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
               onClick={toggleWorkflow}
               data-testid="workflow-toggle"
+              aria-label={workflowVisible ? 'Скрыть workflow' : 'Показать workflow'}
             />
           </Tooltip>
         </Space>

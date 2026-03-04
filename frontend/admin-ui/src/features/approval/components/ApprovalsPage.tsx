@@ -20,6 +20,7 @@ import { PageInfoBlock, WorkflowIndicator } from '@shared/components'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
 import { EmptyState } from '@shared/components/EmptyState'
 import { useWorkflowIndicator } from '@shared/hooks'
+import { highlightSearchTerm } from '@shared/utils'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -33,36 +34,6 @@ dayjs.extend(relativeTime)
 dayjs.locale('ru')
 
 const { Text } = Typography
-
-/**
- * Подсветка поискового термина в тексте.
- * Возвращает React элемент с подсвеченным текстом.
- */
-function highlightSearchTerm(text: string, searchTerm: string): React.ReactNode {
-  if (!searchTerm || !text) {
-    return text
-  }
-
-  const lowerText = text.toLowerCase()
-  const lowerSearch = searchTerm.toLowerCase()
-  const index = lowerText.indexOf(lowerSearch)
-
-  if (index === -1) {
-    return text
-  }
-
-  const before = text.slice(0, index)
-  const match = text.slice(index, index + searchTerm.length)
-  const after = text.slice(index + searchTerm.length)
-
-  return (
-    <>
-      {before}
-      <mark style={{ backgroundColor: '#ffc069', padding: 0 }}>{match}</mark>
-      {after}
-    </>
-  )
-}
 
 /**
  * Страница со списком pending маршрутов и inline-действиями Approve/Reject.
@@ -271,6 +242,7 @@ export function ApprovalsPage() {
                 icon={workflowVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                 onClick={toggleWorkflow}
                 data-testid="workflow-toggle"
+                aria-label={workflowVisible ? 'Скрыть workflow' : 'Показать workflow'}
               />
             </Tooltip>
             {/* Кнопка ручного обновления (AC3) */}

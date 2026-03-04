@@ -20,7 +20,7 @@
 # - Dev moves story to 'review', then runs code-review
 
 generated: 2026-02-18
-updated: 2026-03-04  # Story 16.10 implemented — workflow indicator
+updated: 2026-03-04  # Story 16.10 code review passed — 6 issues fixed
 project: ApiGateway
 project_key: NOKEY
 tracking_system: file-system
@@ -137,4 +137,4 @@ development_status:
   16-7-distinct-icons: done  # SP:2 — разные иконки для Routes и Consumers
   16-8-auto-refresh-metrics: done  # SP:5 — auto-refresh метрик с индикатором, code review: AC3 fully implemented
   16-9-os-keyboard-shortcuts: done  # SP:3 — OS-specific keyboard shortcuts, code review: 3 issues fixed
-  16-10-workflow-indicator: review  # SP:5 — визуальный индикатор workflow маршрута
+  16-10-workflow-indicator: done  # SP:5 — визуальный индикатор workflow маршрута, code review: 6 issues fixed

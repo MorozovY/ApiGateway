@@ -10,8 +10,9 @@ import {
 /**
  * Шаги workflow маршрута.
  * Отображают жизненный цикл: Создание → Отправка → Согласование → Публикация.
+ * Экспортируется для переиспользования в других компонентах.
  */
-const WORKFLOW_STEPS = [
+export const WORKFLOW_STEPS = [
   { title: 'Создание', icon: <EditOutlined /> },
   { title: 'Отправка', icon: <SendOutlined /> },
   { title: 'Согласование', icon: <SafetyCertificateOutlined /> },

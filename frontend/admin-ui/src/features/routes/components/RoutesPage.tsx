@@ -64,6 +64,7 @@ export function RoutesPage() {
                 icon={workflowVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                 onClick={toggleWorkflow}
                 data-testid="workflow-toggle"
+                aria-label={workflowVisible ? 'Скрыть workflow' : 'Показать workflow'}
               />
             </Tooltip>
             {/* Story 16.9: OS-specific shortcut в tooltip (AC3) */}

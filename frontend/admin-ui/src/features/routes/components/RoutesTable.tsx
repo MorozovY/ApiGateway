@@ -20,7 +20,7 @@ import 'dayjs/locale/ru'
 import { useRoutes, useDeleteRoute } from '../hooks/useRoutes'
 import type { Route, RouteStatus, RouteListParams } from '../types/route.types'
 import { useAuth } from '@features/auth'
-import { pluralizeRoutes, canModify as canModifyFn } from '@shared/utils'
+import { pluralizeRoutes, canModify as canModifyFn, highlightSearchTerm } from '@shared/utils'
 import { FilterChips, type FilterChip } from '@shared/components/FilterChips'
 import { EmptyState } from '@shared/components/EmptyState'
 
@@ -32,37 +32,6 @@ dayjs.locale('ru')
  * Размер страницы по умолчанию.
  */
 const DEFAULT_PAGE_SIZE = 20
-
-/**
- * Подсветка поискового термина в тексте.
- *
- * Возвращает React элемент с подсвеченным текстом.
- */
-function highlightSearchTerm(text: string, searchTerm: string | undefined): React.ReactNode {
-  if (!searchTerm || !text) {
-    return text
-  }
-
-  const lowerText = text.toLowerCase()
-  const lowerSearch = searchTerm.toLowerCase()
-  const index = lowerText.indexOf(lowerSearch)
-
-  if (index === -1) {
-    return text
-  }
-
-  const before = text.slice(0, index)
-  const match = text.slice(index, index + searchTerm.length)
-  const after = text.slice(index + searchTerm.length)
-
-  return (
-    <>
-      {before}
-      <mark style={{ backgroundColor: '#ffc069', padding: 0 }}>{match}</mark>
-      {after}
-    </>
-  )
-}
 
 /**
  * Задержка debounce для поиска (мс).
