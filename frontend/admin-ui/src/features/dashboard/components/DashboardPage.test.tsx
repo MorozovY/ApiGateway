@@ -63,12 +63,6 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/Admin/)).toBeInTheDocument()
   })
 
-  it('отображает кнопку Logout', () => {
-    render(<DashboardPage />, { wrapper: createWrapper() })
-
-    expect(screen.getByTestId('logout-button')).toBeInTheDocument()
-  })
-
   it('отображает роль Developer для developer пользователя', () => {
     const developerAuth: AuthContextType = {
       ...mockAuthContext,

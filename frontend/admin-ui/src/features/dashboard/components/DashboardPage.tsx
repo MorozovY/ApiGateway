@@ -1,6 +1,6 @@
-// Страница Dashboard (Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка)
-import { Button, Card, Typography, Space } from 'antd'
-import { LogoutOutlined, DashboardOutlined } from '@ant-design/icons'
+// Страница Dashboard (Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка, Story 16.3 — удалён дублирующийся Logout)
+import { Card, Typography, Space } from 'antd'
+import { DashboardOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
@@ -10,16 +10,12 @@ const { Title, Text } = Typography
 /**
  * Страница Dashboard
  *
- * Отображает приветствие с username, role и кнопку Logout.
+ * Отображает приветствие с username и role.
+ * Logout доступен через dropdown в header (Story 16.3).
  * Метрики доступны на странице /metrics (Story 8.2).
  */
 export function DashboardPage() {
-  const { user, logout, isLoading } = useAuth()
-
-  // Обработчик выхода
-  const handleLogout = async () => {
-    await logout()
-  }
+  const { user } = useAuth()
 
   // Форматирование роли для отображения
   const formatRole = (role: string) => {
@@ -30,23 +26,11 @@ export function DashboardPage() {
     <Card>
       {/* Заголовок страницы (Story 15.6 — унификация) */}
       <div style={{ marginBottom: 24 }}>
-        <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space>
-            <DashboardOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-            <Title level={3} style={{ margin: 0 }}>
-              Dashboard
-            </Title>
-          </Space>
-          <Button
-            type="primary"
-            danger
-            icon={<LogoutOutlined />}
-            onClick={handleLogout}
-            loading={isLoading}
-            data-testid="logout-button"
-          >
-            Logout
-          </Button>
+        <Space>
+          <DashboardOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+          <Title level={3} style={{ margin: 0 }}>
+            Dashboard
+          </Title>
         </Space>
       </div>
 

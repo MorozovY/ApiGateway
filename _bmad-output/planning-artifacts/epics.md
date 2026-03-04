@@ -22,6 +22,11 @@ revisions:
     description: 'Phase 4: Epic 15 — UX Polish & Bug Fixes'
     stories_added: 4
     frs_covered: 'UX improvements, bug fixes'
+  - date: '2026-03-04'
+    author: 'Yury'
+    description: 'Phase 5: Epic 16 — UI/UX Consistency & Improvements'
+    stories_added: 9
+    frs_covered: 'UX analysis findings, accessibility, consistency'
 ---
 
 # ApiGateway - Epic Breakdown
@@ -3724,5 +3729,385 @@ So that I can quickly understand what functionality is available.
 **Then** стиль соответствует Ant Design guidelines
 **And** блок не мешает основному контенту страницы
 **And** блок адаптивен для мобильных устройств
+
+---
+
+## Epic 16: UI/UX Consistency & Improvements
+
+**Goal:** Унификация языка интерфейса, улучшение Dashboard, повышение удобства использования таблиц и метрик, улучшение accessibility.
+
+**Source:** Phase 5 (2026-03-04) — UX Analysis findings
+
+**Stories:** 9
+
+**Key Capabilities:**
+- Унификация языка интерфейса (полностью русский)
+- Полезный контент на Dashboard (Quick Stats, Quick Actions)
+- Responsive таблицы и карточки метрик
+- Empty states для пустых таблиц
+- Breadcrumbs навигация
+- Улучшение accessibility
+- Auto-refresh метрик
+- OS-specific keyboard shortcuts
+
+**Priority:** Medium (улучшение пользовательского опыта)
+
+**Dependencies:** Epic 15 (UX Polish) должен быть завершён
+
+---
+
+### Story 16.1: Унификация языка интерфейса на русский
+
+As a **User**,
+I want all interface elements to be in one language (Russian),
+So that I don't experience cognitive load from language switching.
+
+**Acceptance Criteria:**
+
+**Given** текущий интерфейс со смешанными языками
+**When** пользователь использует систему
+**Then** все элементы UI отображаются на русском языке
+
+**Given** Sidebar навигация
+**When** пользователь просматривает меню
+**Then** все пункты на русском:
+- Dashboard → Главная
+- Users → Пользователи
+- Consumers → Потребители
+- Routes → Маршруты
+- Rate Limits → Лимиты трафика
+- Approvals → Согласования
+- Audit Logs → Журнал аудита
+- Integrations → Интеграции
+- Metrics → Метрики
+- Test → Тестирование
+
+**Given** Dashboard страница
+**When** пользователь видит приветствие
+**Then** текст на русском: "Добро пожаловать, {username}!"
+**And** роль отображается на русском: "Роль: Администратор"
+
+**Given** таблицы с данными
+**When** отображаются заголовки колонок
+**Then** все заголовки на русском:
+- Path → Путь
+- Upstream URL → URL сервиса
+- Methods → Методы
+- Status → Статус
+- Actions → Действия
+- Created → Создано
+- Author → Автор
+
+**Given** кнопки и действия
+**When** пользователь видит интерактивные элементы
+**Then** все надписи на русском:
+- New Route → Новый маршрут
+- Edit → Редактировать
+- Delete → Удалить
+- Logout → Выход
+- Open in Grafana → Открыть в Grafana
+
+**Given** сообщения системы
+**When** отображаются уведомления и ошибки
+**Then** все тексты на русском языке
+
+**Technical Notes:**
+- Создать файл локализации `src/shared/i18n/ru.ts`
+- Заменить все hardcoded строки на константы из файла локализации
+- Не локализовать технические термины (API, URL, ID, Grafana)
+
+---
+
+### Story 16.2: Наполнение Dashboard полезным контентом
+
+As a **User**,
+I want to see useful information on the Dashboard,
+So that I can quickly understand the current state of the system.
+
+**Acceptance Criteria:**
+
+**Given** пользователь авторизован как Developer
+**When** открывает Dashboard
+**Then** видит:
+- Quick Stats: количество своих маршрутов по статусам
+- Recent Activity: последние 5 изменений своих маршрутов
+- Quick Actions: кнопки "Создать маршрут", "Мои маршруты"
+
+**Given** пользователь авторизован как Security
+**When** открывает Dashboard
+**Then** видит:
+- Pending Approvals: количество маршрутов на согласование (с ссылкой)
+- Quick Stats: количество маршрутов по статусам
+- Recent Approvals: последние 5 согласованных/отклонённых
+- Quick Actions: "Согласования", "Журнал аудита"
+
+**Given** пользователь авторизован как Admin
+**When** открывает Dashboard
+**Then** видит:
+- System Overview: общее количество маршрутов, пользователей, consumers
+- Pending Approvals: количество на согласование
+- Health Status: краткий статус системы (healthy/degraded)
+- Quick Actions: все основные действия
+
+**Given** Dashboard с Quick Stats
+**When** данные загружаются
+**Then** отображается skeleton loading
+**And** ошибки gracefully handled с кнопкой retry
+
+**Given** Dashboard
+**When** данные загружены
+**Then** карточки responsive (адаптируются к ширине экрана)
+**And** используется grid layout Ant Design Row/Col
+
+**Technical Notes:**
+- Создать компоненты: `QuickStats.tsx`, `RecentActivity.tsx`, `QuickActions.tsx`
+- Использовать React Query для загрузки данных
+- Backend: добавить endpoint `GET /api/v1/dashboard/summary`
+
+---
+
+### Story 16.3: Удалить дублирующийся Logout с Dashboard
+
+As a **User**,
+I want a single consistent location for logout,
+So that I don't see conflicting UI elements.
+
+**Acceptance Criteria:**
+
+**Given** Dashboard страница
+**When** пользователь просматривает страницу
+**Then** кнопка Logout отсутствует в контенте страницы
+**And** Logout доступен только в header dropdown меню
+
+**Given** header с user dropdown
+**When** пользователь кликает на своё имя
+**Then** в dropdown есть пункт "Выход" (danger, с иконкой)
+**And** это единственное место для logout в интерфейсе
+
+**Technical Notes:**
+- Удалить `<Button type="primary" danger>Logout</Button>` из `DashboardPage.tsx`
+- Header dropdown уже содержит logout — проверить что работает
+
+---
+
+### Story 16.4: Responsive таблицы и карточки метрик
+
+As a **User**,
+I want tables and metrics cards to be responsive,
+So that I can use the system on different screen sizes.
+
+**Acceptance Criteria:**
+
+**Given** таблица маршрутов на экране < 1280px
+**When** пользователь просматривает таблицу
+**Then** менее важные колонки скрыты (Rate Limit, Author)
+**And** основные колонки видны (Path, Status, Methods, Actions)
+**And** можно раскрыть row для просмотра скрытых данных
+
+**Given** метрики страница на экране < 1280px
+**When** отображаются summary cards
+**Then** карточки переносятся на новую строку
+**And** используется responsive span: `{ xs: 24, sm: 12, md: 8, lg: 4 }`
+
+**Given** таблица маршрутов
+**When** колонка Methods содержит много методов (>3)
+**Then** методы сворачиваются с кнопкой "ещё +N"
+**And** по клику раскрываются все методы
+
+**Given** responsive таблица
+**When** пользователь на мобильном устройстве
+**Then** горизонтальный скролл отсутствует или минимален
+**And** touch-friendly размеры кнопок (min 44x44px)
+
+**Technical Notes:**
+- Использовать Ant Design Table `responsive` prop
+- Добавить `expandable` row для скрытых колонок
+- Обновить MetricsPage с responsive Col spans
+
+---
+
+### Story 16.5: Empty States для пустых таблиц
+
+As a **New User**,
+I want to see helpful empty states when there's no data,
+So that I understand what to do next.
+
+**Acceptance Criteria:**
+
+**Given** страница Routes без маршрутов
+**When** таблица пустая
+**Then** отображается кастомный empty state:
+- Иллюстрация (Ant Design Empty или кастомная SVG)
+- Заголовок: "Маршруты ещё не созданы"
+- Описание: "Создайте первый маршрут для начала работы"
+- CTA кнопка: "Создать маршрут" (primary)
+
+**Given** страница Approvals без pending маршрутов
+**When** таблица пустая
+**Then** отображается:
+- Иконка CheckCircle (зелёная)
+- Текст: "Нет маршрутов на согласование"
+- Описание: "Все маршруты обработаны"
+
+**Given** страница Audit Logs без записей (после фильтрации)
+**When** таблица пустая
+**Then** отображается:
+- Текст: "Записи не найдены"
+- Описание: "Попробуйте изменить параметры фильтра"
+- Кнопка: "Сбросить фильтры"
+
+**Given** страница Consumers без записей
+**When** таблица пустая
+**Then** отображается:
+- Текст: "Потребители ещё не созданы"
+- CTA кнопка: "Создать потребителя"
+
+**Given** все таблицы с empty states
+**When** empty state отображается
+**Then** стиль соответствует Ant Design guidelines
+**And** empty state центрирован вертикально и горизонтально
+
+**Technical Notes:**
+- Создать компонент `EmptyState.tsx` с пропсами: icon, title, description, action
+- Использовать в Table через `locale={{ emptyText: <EmptyState /> }}`
+
+---
+
+### Story 16.6: Breadcrumbs навигация
+
+As a **User**,
+I want to see breadcrumbs on detail/edit pages,
+So that I can understand my location and navigate back easily.
+
+**Acceptance Criteria:**
+
+**Given** страница редактирования маршрута `/routes/:id/edit`
+**When** пользователь видит страницу
+**Then** отображаются breadcrumbs: "Маршруты > {route.path} > Редактирование"
+**And** "Маршруты" кликабелен и ведёт на `/routes`
+**And** "{route.path}" кликабелен и ведёт на `/routes/:id`
+
+**Given** страница просмотра маршрута `/routes/:id`
+**When** пользователь видит страницу
+**Then** отображаются breadcrumbs: "Маршруты > {route.path}"
+**And** "Маршруты" кликабелен
+
+**Given** страница создания маршрута `/routes/new`
+**When** пользователь видит страницу
+**Then** отображаются breadcrumbs: "Маршруты > Новый маршрут"
+
+**Given** страница Integrations `/audit/integrations`
+**When** пользователь видит страницу
+**Then** отображаются breadcrumbs: "Журнал аудита > Интеграции"
+
+**Given** breadcrumbs
+**When** отображаются на странице
+**Then** позиционируются между header и заголовком страницы
+**And** используют стандартный Ant Design Breadcrumb компонент
+
+**Technical Notes:**
+- Создать компонент `PageBreadcrumbs.tsx`
+- Интегрировать с React Router для автоматического построения
+- Добавить в MainLayout перед Outlet
+
+---
+
+### Story 16.7: Разные иконки для Routes и Consumers
+
+As a **User**,
+I want visually distinct menu items,
+So that I can quickly identify different sections.
+
+**Acceptance Criteria:**
+
+**Given** Sidebar меню
+**When** пользователь просматривает пункты Routes и Consumers
+**Then** иконки визуально различаются:
+- Routes: `ApiOutlined` (текущая)
+- Consumers: `UserSwitchOutlined` или `TeamOutlined`
+
+**Given** иконки в меню
+**When** sidebar свёрнут (collapsed)
+**Then** иконки достаточно различимы для навигации только по ним
+
+**Technical Notes:**
+- Изменить иконку для Consumers в `Sidebar.tsx`
+- Выбрать иконку из Ant Design Icons, отражающую "потребитель API"
+
+---
+
+### Story 16.8: Auto-refresh метрик с индикатором
+
+As a **DevOps Engineer**,
+I want metrics to auto-refresh periodically,
+So that I can monitor the system without manual page refresh.
+
+**Acceptance Criteria:**
+
+**Given** страница Metrics
+**When** пользователь открывает страницу
+**Then** отображается toggle "Auto-refresh" (по умолчанию выключен)
+**And** рядом селектор интервала: 15s, 30s, 60s
+
+**Given** Auto-refresh включён с интервалом 30s
+**When** прошло 30 секунд
+**Then** данные метрик обновляются автоматически
+**And** отображается индикатор "Обновлено только что" / "Обновлено 15 сек назад"
+
+**Given** Auto-refresh включён
+**When** вкладка браузера неактивна
+**Then** refresh приостанавливается (Page Visibility API)
+**And** возобновляется при возврате на вкладку
+
+**Given** Auto-refresh включён
+**When** пользователь меняет Time Range
+**Then** данные немедленно обновляются
+**And** countdown сбрасывается
+
+**Given** настройки Auto-refresh
+**When** пользователь уходит со страницы и возвращается
+**Then** настройки сохранены (localStorage)
+
+**Technical Notes:**
+- Использовать `refetchInterval` в React Query
+- Page Visibility API для паузы при неактивной вкладке
+- Создать компонент `AutoRefreshControl.tsx`
+
+---
+
+### Story 16.9: OS-specific keyboard shortcuts
+
+As a **Power User**,
+I want keyboard shortcuts to show correct modifier keys for my OS,
+So that I know which keys to press.
+
+**Acceptance Criteria:**
+
+**Given** пользователь на macOS
+**When** видит tooltip с keyboard shortcut
+**Then** отображается символ ⌘ (Command): "⌘+N"
+
+**Given** пользователь на Windows/Linux
+**When** видит tooltip с keyboard shortcut
+**Then** отображается "Ctrl": "Ctrl+N"
+
+**Given** кнопка "Новый маршрут"
+**When** пользователь наводит курсор
+**Then** tooltip показывает OS-specific shortcut
+
+**Given** страница Routes
+**When** пользователь нажимает ⌘+N (Mac) или Ctrl+N (Win/Linux)
+**Then** открывается форма создания маршрута
+**And** shortcut работает одинаково на всех ОС
+
+**Given** страница Approvals
+**When** пользователь нажимает "A" или "R"
+**Then** применяется действие Approve/Reject (текущее поведение)
+**And** в UI есть подсказка о доступных shortcuts
+
+**Technical Notes:**
+- Создать утилиту `getModifierKey()` в `src/shared/utils/keyboard.ts`
+- Детектировать ОС через `navigator.platform` или `navigator.userAgentData`
+- Обновить все Tooltip с shortcuts
 
 ---
