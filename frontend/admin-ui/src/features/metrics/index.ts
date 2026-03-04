@@ -1,12 +1,14 @@
-// Публичный API feature metrics (Story 6.5)
+// Публичный API feature metrics (Story 6.5, Story 16.8)
 
 // Компоненты
 export { default as MetricsWidget } from './components/MetricsWidget'
 export { default as MetricsPage } from './components/MetricsPage'
 export { default as TopRoutesTable } from './components/TopRoutesTable'
+export { default as AutoRefreshControl } from './components/AutoRefreshControl'  // Story 16.8
 
 // Хуки
 export { useMetricsSummary, useTopRoutes, useRouteMetrics } from './hooks/useMetrics'
+export { useAutoRefresh, usePageVisibility, AUTO_REFRESH_INTERVALS, STORAGE_KEY as AUTO_REFRESH_STORAGE_KEY } from './hooks/useAutoRefresh'  // Story 16.8
 
 // Утилиты
 export {

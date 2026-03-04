@@ -225,6 +225,54 @@ describe('MetricsPage', () => {
     expect(screen.getAllByText('RPS').length).toBeGreaterThan(0)
   })
 
+  // Story 16.8: Auto-refresh control
+  describe('Auto-refresh control (Story 16.8)', () => {
+    it('отображает AutoRefreshControl компонент', async () => {
+      render(<MetricsPage />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
+      })
+
+      expect(screen.getByTestId('auto-refresh-control')).toBeInTheDocument()
+      expect(screen.getByTestId('auto-refresh-toggle')).toBeInTheDocument()
+    })
+
+    it('toggle auto-refresh выключен по умолчанию (AC1)', async () => {
+      render(<MetricsPage />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
+      })
+
+      // Toggle должен быть выключен (aria-checked="false")
+      const toggle = screen.getByTestId('auto-refresh-toggle')
+      expect(toggle).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('interval selector disabled когда toggle выключен, enabled когда включён (AC1)', async () => {
+      render(<MetricsPage />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metrics-page')).toBeInTheDocument()
+      })
+
+      // Интервал selector должен быть виден, но disabled
+      const selector = screen.getByTestId('auto-refresh-interval')
+      expect(selector).toBeInTheDocument()
+      expect(selector).toHaveClass('ant-select-disabled')
+
+      // Включаем toggle
+      const toggle = screen.getByTestId('auto-refresh-toggle')
+      fireEvent.click(toggle)
+
+      // Теперь selector должен быть enabled
+      await waitFor(() => {
+        expect(screen.getByTestId('auto-refresh-interval')).not.toHaveClass('ant-select-disabled')
+      })
+    })
+  })
+
   // AC6: Тесты для developer роли
   describe('Role-based access (AC6)', () => {
     it('не показывает notice для admin роли', async () => {

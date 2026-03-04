@@ -1,12 +1,14 @@
-// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка, Story 16.4 — responsive cards)
-import { useState } from 'react'
+// Страница детальных метрик (Story 6.5, AC5, Story 8.1, Story 15.4 — добавлен PageInfoBlock, Story 15.6 — унификация заголовка, Story 16.4 — responsive cards, Story 16.8 — auto-refresh)
+import { useState, useEffect } from 'react'
 import { Card, Row, Col, Statistic, Segmented, Button, Space, Alert, Spin, Typography } from 'antd'
 import { LinkOutlined, ReloadOutlined, InfoCircleOutlined, AreaChartOutlined } from '@ant-design/icons'
 import { useAuth } from '@features/auth'
 import { isDeveloper as isDeveloperFn } from '@shared/utils'
 import { useMetricsSummary, useTopRoutes } from '../hooks/useMetrics'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import TopRoutesTable from './TopRoutesTable'
 import HealthCheckSection from './HealthCheckSection'
+import AutoRefreshControl from './AutoRefreshControl'
 import { GRAFANA_DASHBOARD_URL } from '../config/metricsConfig'
 import { PageInfoBlock } from '@shared/components/PageInfoBlock'
 import { PAGE_DESCRIPTIONS } from '@shared/config/pageDescriptions'
@@ -38,6 +40,9 @@ export function MetricsPage() {
   const [period, setPeriod] = useState<MetricsPeriod>('5m')
   const { user } = useAuth()
 
+  // Story 16.8: управление auto-refresh
+  const autoRefresh = useAutoRefresh()
+
   // Developer видит только свои маршруты (AC6 — фильтрация на backend)
   // Story 11.6: используем централизованный helper
   const isDeveloper = isDeveloperFn(user ?? undefined)
@@ -48,14 +53,32 @@ export function MetricsPage() {
     isError: summaryError,
     error: summaryErrorData,
     refetch: refetchSummary,
-  } = useMetricsSummary(period)
+    dataUpdatedAt: summaryUpdatedAt,
+  } = useMetricsSummary(period, { refetchInterval: autoRefresh.refetchInterval })
 
   // AC1: Top Routes реагирует на выбранный time range
+  // Story 16.8: dynamic refetchInterval
   const {
     data: topRoutes,
     isLoading: topRoutesLoading,
     isError: topRoutesError,
-  } = useTopRoutes('requests', 10, period)
+  } = useTopRoutes('requests', 10, period, { refetchInterval: autoRefresh.refetchInterval })
+
+  // Story 16.8 AC2: обновляем lastUpdated когда данные обновились
+  // setLastUpdated стабилен (useCallback), поэтому безопасно добавлять в deps
+  useEffect(() => {
+    // summaryUpdatedAt — timestamp в ms, 0 означает что данных нет
+    if (summaryUpdatedAt && summaryUpdatedAt > 0) {
+      autoRefresh.setLastUpdated(new Date(summaryUpdatedAt))
+    }
+  }, [summaryUpdatedAt, autoRefresh.setLastUpdated])
+
+  // Story 16.8 AC4: сброс таймера при смене Time Range
+  const handlePeriodChange = (value: string | number) => {
+    setPeriod(value as MetricsPeriod)
+    autoRefresh.resetTimer()
+    // React Query автоматически делает refetch при смене queryKey
+  }
 
   const isLoading = summaryLoading
   const isError = summaryError || topRoutesError
@@ -124,15 +147,28 @@ export function MetricsPage() {
         {/* Инфо-блок (Story 15.4) */}
         <PageInfoBlock pageKey="metrics" {...PAGE_DESCRIPTIONS.metrics} />
 
-        {/* Time Range Selector */}
+        {/* Time Range Selector и Auto-Refresh Control (Story 16.8) */}
         <div style={{ marginTop: 16 }}>
-          <span style={{ marginRight: 12, fontWeight: 500 }}>Период:</span>
-          <Segmented
-            options={periodOptions}
-            value={period}
-            onChange={(value) => setPeriod(value as MetricsPeriod)}
-            data-testid="time-range-selector"
-          />
+          <Space size="large" wrap>
+            <Space>
+              <span style={{ fontWeight: 500 }}>Период:</span>
+              <Segmented
+                options={periodOptions}
+                value={period}
+                onChange={handlePeriodChange}
+                data-testid="time-range-selector"
+              />
+            </Space>
+            {/* Story 16.8 AC1, AC3: Auto-refresh control с индикатором паузы */}
+            <AutoRefreshControl
+              enabled={autoRefresh.enabled}
+              interval={autoRefresh.interval}
+              lastUpdated={autoRefresh.lastUpdated}
+              isPaused={autoRefresh.isPaused}
+              onEnabledChange={autoRefresh.setEnabled}
+              onIntervalChange={autoRefresh.setInterval}
+            />
+          </Space>
         </div>
       </Card>
 
