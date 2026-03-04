@@ -14,8 +14,8 @@ test.describe('Approvals', () => {
   test('страница согласования отображает pending маршруты', async ({ page }) => {
     await page.goto('/approvals')
 
-    // Заголовок страницы
-    await expect(page.getByRole('heading', { name: /согласование маршрутов/i })).toBeVisible()
+    // Заголовок страницы (Story 15.6: английские заголовки)
+    await expect(page.getByRole('heading', { name: 'Approvals' })).toBeVisible()
 
     // Pending маршрут из mock данных отображается
     const pendingRoute = mockRoutes.find((r) => r.status === 'pending')

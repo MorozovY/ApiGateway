@@ -25,8 +25,8 @@ test.describe('RBAC Security', () => {
     // Переходим на страницу Approvals
     await sidebar.getByText('Approvals').click()
 
-    // Страница Approvals должна загрузиться
-    await expect(page.getByRole('heading', { name: /согласование маршрутов/i })).toBeVisible()
+    // Страница Approvals должна загрузиться (Story 15.6: английские заголовки)
+    await expect(page.getByRole('heading', { name: 'Approvals' })).toBeVisible()
 
     // Pending маршрут из mock данных отображается
     const pendingRoute = mockRoutes.find((r) => r.status === 'pending')
