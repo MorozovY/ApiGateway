@@ -4,7 +4,12 @@ import { login, apiRequest } from './helpers/auth'
 /**
  * Уникальный суффикс для изоляции маршрутов между тест-ранами.
  */
-const TIMESTAMP = Date.now()
+let TIMESTAMP: number
+
+/**
+ * Story 15.5: Хранилище для cleanup маршрутов после тестов.
+ */
+const createdRouteIds: string[] = []
 
 /**
  * Создаёт маршрут и отправляет его на согласование через API.
@@ -23,6 +28,9 @@ async function createAndSubmitRoute(page: Page, pathSuffix: string): Promise<str
   expect(createResponse.ok()).toBeTruthy()
   const createdRoute = await createResponse.json() as { id: string }
 
+  // Story 15.5: Регистрируем маршрут для cleanup
+  createdRouteIds.push(createdRoute.id)
+
   // Отправляем маршрут на согласование
   const submitResponse = await apiRequest(page, 'POST', `/api/v1/routes/${createdRoute.id}/submit`)
   expect(submitResponse.ok()).toBeTruthy()
@@ -37,8 +45,41 @@ async function createAndSubmitRoute(page: Page, pathSuffix: string): Promise<str
  * Для смены пользователя используется login() с landingUrl защищённой страницы:
  * page.goto(landingUrl) → fresh React state → ProtectedRoute → /login (returnUrl) →
  * новые credentials → redirect обратно на landingUrl.
+ *
+ * Story 15.5: Добавлен afterEach cleanup для удаления созданных маршрутов.
  */
 test.describe('Epic 4: Approval Workflow', () => {
+  // Story 15.5: Генерируем уникальный timestamp для каждого теста
+  test.beforeEach(() => {
+    TIMESTAMP = Date.now()
+  })
+
+  // Story 15.5: Cleanup созданных маршрутов после каждого теста
+  test.afterEach(async ({ browser }) => {
+    // Создаём новый контекст для cleanup (afterEach может не иметь активной сессии)
+    const context = await browser.newContext()
+    const page = await context.newPage()
+
+    try {
+      // Логинимся как admin для cleanup (имеет права на удаление любых маршрутов)
+      await login(page, 'test-admin', 'Test1234!', '/dashboard')
+
+      for (const routeId of createdRouteIds) {
+        const response = await apiRequest(page, 'DELETE', `/api/v1/routes/${routeId}`)
+        // 200, 204 — успех; 404 — уже удалён через global-teardown
+        if (![200, 204, 404].includes(response.status())) {
+          console.warn(`[E2E Cleanup] Не удалось удалить маршрут ${routeId}: ${response.status()}`)
+        }
+      }
+    } catch {
+      // Игнорируем ошибки cleanup — тесты не должны падать из-за cleanup
+      console.warn('[E2E Cleanup] Ошибка при очистке маршрутов')
+    } finally {
+      createdRouteIds.length = 0
+      await context.close()
+    }
+  })
+
   test('Developer отправляет маршрут на согласование', async ({ page }) => {
     // Создаём маршрут через UI (login → /routes → форма → детали)
     await login(page, 'test-developer', 'Test1234!', '/routes')
@@ -59,6 +100,14 @@ test.describe('Epic 4: Approval Workflow', () => {
 
     // На странице деталей — кнопка "Отправить на согласование" видна для draft + owner
     await expect(page).toHaveURL(/\/routes\/[a-f0-9-]+$/, { timeout: 10_000 })
+
+    // Story 15.5: Извлекаем ID маршрута для cleanup
+    const url = page.url()
+    const routeId = url.split('/routes/')[1]
+    if (routeId) {
+      createdRouteIds.push(routeId)
+    }
+
     await expect(page.locator('button:has-text("Отправить на согласование")')).toBeVisible()
 
     // Нажимаем кнопку — появляется модальное окно подтверждения

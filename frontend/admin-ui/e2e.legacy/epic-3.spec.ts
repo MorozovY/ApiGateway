@@ -50,8 +50,11 @@ async function fillRouteForm(page: Page, routePath: string, upstreamUrl: string)
  * чтобы не сбрасывать React-состояние (AuthContext) при page.goto().
  *
  * Story 15.5: Добавлен afterEach cleanup для удаления созданных маршрутов.
+ * Story 15.5: Явная сериализация для избежания race condition в createdRouteIds.
  */
 test.describe('Epic 3: Route Management', () => {
+  // Story 15.5: Явная сериализация тестов для корректного cleanup
+  test.describe.configure({ mode: 'serial' })
   test.beforeEach(async ({ page }) => {
     // Генерируем уникальный timestamp для каждого теста
     TIMESTAMP = Date.now()

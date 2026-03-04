@@ -116,10 +116,10 @@ development_status:
   # Epic 15: UX Polish & Bug Fixes (5 stories)
   # Source: Phase 4 planning session 2026-03-03
   # Updated: 2026-03-04 — added Story 15.5 (test data cleanup)
-  epic-15: in-progress
+  epic-15: done  # 2026-03-04: All 5 stories completed
   15-1-fix-swagger-link-login-page: done  # SP:2 — Bug: Traefik rule не матчит /swagger-ui.html
   15-2-fix-guide-button: done                          # SP:2 — Bug: кнопка "Руководство" не работает
   15-3-login-page-improvements: done        # SP:3 — UX: порядок логинов + сгенерированные пароли
   15-4-tab-info-blocks: done              # SP:5 — UX: инфо-блоки на 10 вкладках, code review passed
-  15-5-fix-test-data-cleanup: review  # SP:3 — Bug: e2e/diagnostic данные не очищаются
+  15-5-fix-test-data-cleanup: done  # SP:3 — Bug: e2e/diagnostic данные не очищаются, code review passed
   epic-15-retrospective: optional

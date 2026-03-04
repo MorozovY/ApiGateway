@@ -1,6 +1,6 @@
 # Story 15.5: Исправление очистки тестовых данных
 
-Status: review
+Status: done
 
 ## Story
 
@@ -50,7 +50,7 @@ So that the database doesn't accumulate garbage data over time.
 
 - [x] Task 3: Очистить существующие данные (AC: #3)
   - [x] 3.1 Создать SQL скрипт `scripts/cleanup-test-data.sql`
-  - [x] 3.2 Выполнить cleanup на текущей БД (команда документирована, контейнер не запущен)
+  - [x] 3.2 Выполнить cleanup на текущей БД (выполнено 2026-03-04, 0 записей — данные уже очищены)
   - [x] 3.3 Задокументировать команду для ручного запуска
 
 - [x] Task 4: Исправить CI конфигурацию (AC: #4)
@@ -206,10 +206,13 @@ docker exec -i infra-postgres psql -U gateway -d gateway < scripts/cleanup-test-
 ## File List
 
 ### Modified
-- `frontend/admin-ui/e2e.legacy/global-teardown.ts` — добавлен паттерн `/diagnostic-%`
+- `frontend/admin-ui/e2e.legacy/global-teardown.ts` — добавлен паттерн `/diagnostic-%`, исправлен комментарий
 - `frontend/admin-ui/e2e.legacy/global-setup.ts` — добавлен паттерн `/diagnostic-%`
-- `frontend/admin-ui/e2e.legacy/epic-3.spec.ts` — добавлен afterEach cleanup
+- `frontend/admin-ui/e2e.legacy/epic-3.spec.ts` — добавлен afterEach cleanup, serial mode
 - `frontend/admin-ui/e2e.legacy/diagnostic-auth.spec.ts` — добавлен afterAll cleanup
+- `frontend/admin-ui/e2e.legacy/epic-4.spec.ts` — добавлен afterEach cleanup (Code Review Fix H-1)
+- `frontend/admin-ui/e2e.legacy/epic-2.spec.ts` — добавлен afterEach cleanup для users (Code Review Fix H-2)
+- `scripts/cleanup-test-data.sql` — добавлено удаление consumer_rate_limits (Code Review Fix M-1)
 
 ### Added
 - `scripts/cleanup-test-data.sql` — SQL скрипт для ручного cleanup тестовых данных
@@ -220,3 +223,5 @@ docker exec -i infra-postgres psql -U gateway -d gateway < scripts/cleanup-test-
 |------|--------|--------|
 | 2026-03-04 | Story created | SM |
 | 2026-03-04 | Implemented cleanup improvements and SQL script | Dev Agent |
+| 2026-03-04 | Code Review: Fixed H-1, H-2, M-1, M-2, L-1 issues | Code Review Agent |
+| 2026-03-04 | Cleanup script executed, story completed | Code Review Agent |

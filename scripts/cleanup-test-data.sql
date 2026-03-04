@@ -53,6 +53,15 @@ WHERE rejected_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
 DELETE FROM rate_limits
 WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
 
+-- 8.5. Удаляем consumer_rate_limits созданные тестовыми пользователями (Story 15.5)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'consumer_rate_limits') THEN
+    DELETE FROM consumer_rate_limits
+    WHERE created_by IN (SELECT id FROM users WHERE username LIKE 'e2e-%');
+  END IF;
+END $$;
+
 -- 9. Удаляем тестовых пользователей (кроме демо-пользователей)
 DELETE FROM users
 WHERE username LIKE 'e2e-%'

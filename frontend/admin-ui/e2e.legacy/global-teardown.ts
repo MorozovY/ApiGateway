@@ -48,8 +48,9 @@ function loadEnvFile(): void {
  *
  * Порядок удаления учитывает FK constraints.
  *
- * В CI окружении (E2E_SKIP_DB_CLEANUP=true) cleanup выполняется через
- * docker exec postgres в after_script (см. .gitlab-ci.yml).
+ * В CI окружении (E2E_SKIP_DB_CLEANUP=true) cleanup пропускается, так как
+ * CI использует mock-based тесты (e2e-test-mock) которые не работают с БД.
+ * Legacy тесты (e2e.legacy/) запускаются только локально.
  */
 async function cleanupTestData(): Promise<void> {
   // В CI cleanup выполняется через docker exec postgres в after_script
